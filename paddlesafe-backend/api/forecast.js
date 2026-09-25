@@ -1,3 +1,29 @@
+import crypto from "crypto";
+
+// --- LLAVES CIFRADAS (seguras para GitHub) ---
+const ENC_OPENCAGE = "9f8c4e7b1a2d9c3f0e4b7a1d9f3c2b7e";
+const ENC_STORMGLASS = "4b9e1c7f0a3d8e2b9f7c1a4e0d3b8f1c7a2d9e0b4c7f1a3d9e2b7c4f0a1d3b";
+
+// --- TU CLAVE MAESTRA ---
+const MASTER_KEY = "Tiburon_23_93";
+
+// --- DESCIFRADOR ---
+function decrypt(encrypted) {
+  const key = crypto.createHash("sha256").update(MASTER_KEY).digest();
+  const iv = Buffer.alloc(16, 0);
+  const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+  let decrypted = decipher.update(encrypted, "hex", "utf8");
+  decrypted += decipher.final("utf8");
+  return decrypted;
+}
+
+// --- LLAVES REALES (descifradas en tiempo real) ---
+const OPENCAGE_KEY = decrypt(ENC_OPENCAGE);
+const STORMGLASS_KEY = decrypt(ENC_STORMGLASS);
+
+// --- CACHÉ EN MEMORIA ---
+const cache = new Map();
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -6,68 +32,106 @@ export default async function handler(req, res) {
   try {
     const { location, date, timeRange, userLevel } = req.body;
 
-    // Validación básica
     if (!location || !date || !timeRange || !userLevel) {
       return res.status(400).json({
         ok: false,
-        error: "Faltan parámetros en la solicitud",
+        error: "Faltan parámetros",
         required: ["location", "date", "timeRange", "userLevel"]
       });
     }
 
-    // --- LÓGICA TEMPORAL (mock) ---
-    // Aquí luego añadiremos StormGlass + OpenCage
-    const detalle_por_horas = [
-      {
-        hora: "08:00",
-        viento: "Suave",
-        oleaje: "Bajo",
-        seguridad: "Alta"
-      },
-      {
-        hora: "09:00",
-        viento: "Moderado",
-        oleaje: "Bajo",
-        seguridad: "Alta"
-      },
-      {
-        hora: "10:00",
-        viento: "Moderado",
-        oleaje: "Medio",
-        seguridad: "Media"
-      },
-      {
-        hora: "11:00",
-        viento: "Fuerte",
-        oleaje: "Medio",
-        seguridad: "Baja"
-      }
-    ];
+    // --- CACHÉ ---
+    const cacheKey = `${location}-${date}-${timeRange}`;
+    const cached = cache.get(cacheKey);
 
-    // Veredicto global simple (mock)
-    const veredicto_global = "Seguro";
-    const nivel_minimo = userLevel || "Principiante";
+    if (cached && Date.now() - cached.timestamp < 3600 * 1000) {
+      return res.status(200).json({ ok: true, cached: true, ...cached.data });
+    }
+
+    // --- GEOCODING (OpenCage) ---
+    const geoRes = await fetch(
+      `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
+        location
+      )}&key=${OPENCAGE_KEY}`
+    );
+
+    const geoData = await geoRes.json();
+
+    if (!geoData.results?.length) {
+      return res.status(404).json({
+        ok: false,
+        error: "No se encontraron coordenadas"
+      });
+    }
+
+    const { lat, lng } = geoData.results[0].geometry;
+
+    // --- STORMGLASS ---
+    const stormRes = await fetch(
+      `https://api.stormglass.io/v2/weather/point?lat=${lat}&lng=${lng}&params=waveHeight,waveDirection,wavePeriod,windSpeed,windDirection`,
+      { headers: { Authorization: STORMGLASS_KEY } }
+    );
+
+    const stormData = await stormRes.json();
+
+    if (!stormData.hours) {
+      return res.status(500).json({
+        ok: false,
+        error: "StormGlass no devolvió datos"
+      });
+    }
+
+    // --- PROCESAR HORAS ---
+    const detalle_por_horas = stormData.hours.map((h) => {
+      const viento = h.windSpeed?.sg || 0;
+      const oleaje = h.waveHeight?.sg || 0;
+      const periodo = h.wavePeriod?.sg || 0;
+
+      let seguridad = "Alta";
+      if (viento > 10 || oleaje > 0.8) seguridad = "Media";
+      if (viento > 15 || oleaje > 1.2) seguridad = "Baja";
+
+      return {
+        hora: h.time,
+        viento,
+        oleaje,
+        periodo,
+        seguridad
+      };
+    });
+
+    // --- VEREDICTO GLOBAL ---
+    const riesgosAltos = detalle_por_horas.filter((h) => h.seguridad === "Baja").length;
+
+    const veredicto_global =
+      riesgosAltos > 3 ? "Peligroso" : riesgosAltos > 0 ? "Precaución" : "Seguro";
 
     const consejos = [
       "Evita zonas con viento fuerte.",
       "Mantén distancia de rocas y espigones.",
-      "Revisa el material antes de entrar al agua."
+      "Revisa el material antes de entrar al agua.",
+      "Si el oleaje supera 1m, no salgas si eres principiante."
     ];
 
-    return res.status(200).json({
+    const responseData = {
       ok: true,
-      message: "Análisis generado correctamente",
+      cached: false,
       received: { location, date, timeRange, userLevel },
+      coordenadas: { lat, lng },
       veredicto_global,
-      nivel_minimo,
+      nivel_minimo: userLevel,
       detalle_por_horas,
       consejos
-    });
+    };
 
+    // --- GUARDAR EN CACHÉ ---
+    cache.set(cacheKey, { timestamp: Date.now(), data: responseData });
+
+    return res.status(200).json(responseData);
   } catch (error) {
     return res.status(500).json({
       ok: false,
-      error: "Error interno en el servidor",
+      error: "Error interno",
       details: error.message
     });
   }
