@@ -7,7 +7,7 @@ const ENC_STORMGLASS = "4b9e1c7f0a3d8e2b9f7c1a4e0d3b8f1c7a2d9e0b4c7f1a3d9e2b7c4f
 // --- TU CLAVE MAESTRA ---
 const MASTER_KEY = "Tiburon_23_93";
 
-// --- DESCIFRADOR ---
+// --- DESCIFRADOR AES-256-CBC ---
 function decrypt(encrypted) {
   const key = crypto.createHash("sha256").update(MASTER_KEY).digest();
   const iv = Buffer.alloc(16, 0);
@@ -72,12 +72,25 @@ export default async function handler(req, res) {
       { headers: { Authorization: STORMGLASS_KEY } }
     );
 
+    // --- DETECCIÓN DEL LÍMITE GRATUITO (429) ---
+    if (stormRes.status === 429) {
+      return res.status(429).json({
+        ok: false,
+        error: "Límite gratuito excedido",
+        detalle:
+          "Has alcanzado el máximo de 10 solicitudes diarias del plan Free de StormGlass."
+      });
+    }
+
     const stormData = await stormRes.json();
 
-    if (!stormData.hours) {
-      return res.status(500).json({
+    // --- DETECCIÓN DE DATOS VACÍOS ---
+    if (!stormData.hours || stormData.hours.length === 0) {
+      return res.status(200).json({
         ok: false,
-        error: "StormGlass no devolvió datos"
+        error: "StormGlass no devolvió datos",
+        detalle:
+          "Puede deberse a límite excedido, ubicación sin datos o parámetros no disponibles."
       });
     }
 

@@ -1,0 +1,200 @@
+import crypto from "crypto";
+
+// --- LLAVES CIFRADAS ---
+const ENC_OPENCAGE = "9f8c4e7b1a2d9c3f0e4b7a1d9f3c2b7e";
+const ENC_STORMGLASS = "4b9e1c7f0a3d8e2b9f7c1a4e0d3b8f1c7a2d9e0b4c7f1a3d9e2b7c4f0a1d3b";
+
+// --- CLAVE MAESTRA ---
+const MASTER_KEY = "Tiburon_23_93";
+
+// --- DESCIFRADOR AES-256-CBC ---
+function decrypt(encrypted) {
+  const key = crypto.createHash("sha256").update(MASTER_KEY).digest();
+  const iv = Buffer.alloc(16, 0);
+  const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+  let decrypted = decipher.update(encrypted, "hex", "utf8");
+  decrypted += decipher.final("utf8");
+  return decrypted;
+}
+
+// --- LLAVES REALES ---
+const OPENCAGE_KEY = decrypt(ENC_OPENCAGE);
+const STORMGLASS_KEY = decrypt(ENC_STORMGLASS);
+
+// --- CACHÉ ---
+const cache = new Map();
+
+// --- SCORE DE SEGURIDAD ---
+function calcularScore(cond, userLevel) {
+  let score = 100;
+
+  if (cond.viento > 10) score -= 20;
+  if (cond.viento > 15) score -= 40;
+
+  if (cond.oleaje > 0.8) score -= 20;
+  if (cond.oleaje > 1.2) score -= 40;
+
+  if (cond.periodo > 12) score -= 15;
+
+  if (cond.direccion > 160 && cond.direccion < 200) score -= 30;
+
+  if (userLevel === "Principiante") {
+    if (cond.viento > 10) score -= 20;
+    if (cond.oleaje > 0.8) score -= 20;
+  }
+
+  return Math.max(0, Math.min(100, score));
+}
+
+// --- SEMÁFORO ---
+function semaforo(score) {
+  if (score >= 70) return "Verde";
+  if (score >= 40) return "Amarillo";
+  return "Rojo";
+}
+
+// --- GENERAR PUNTOS DEL HEATMAP ---
+function generarPuntos(lat, lng, radioKm = 1, grid = 5) {
+  const puntos = [];
+  const delta = radioKm / 111; // 1° latitud ≈ 111 km
+
+  for (let i = -grid; i <= grid; i++) {
+    for (let j = -grid; j <= grid; j++) {
+      puntos.push({
+        lat: lat + i * delta,
+        lng: lng + j * delta
+      });
+    }
+  }
+
+  return puntos;
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    const { location, date, timeRange, userLevel } = req.body;
+
+    if (!location || !date || !timeRange || !userLevel) {
+      return res.status(400).json({
+        ok: false,
+        error: "Faltan parámetros",
+        required: ["location", "date", "timeRange", "userLevel"]
+      });
+    }
+
+    // --- CACHÉ ---
+    const cacheKey = `heatmap-${location}-${date}-${timeRange}-${userLevel}`;
+    const cached = cache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < 1800 * 1000) {
+      return res.status(200).json({ ok: true, cached: true, ...cached.data });
+    }
+
+    // --- GEOCODING ---
+    const geoRes = await fetch(
+      `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
+        location
+      )}&key=${OPENCAGE_KEY}`
+    );
+
+    const geoData = await geoRes.json();
+
+    if (!geoData.results?.length) {
+      return res.status(404).json({
+        ok: false,
+        error: "No se encontraron coordenadas"
+      });
+    }
+
+    const { lat, lng } = geoData.results[0].geometry;
+
+    // --- GENERAR PUNTOS ---
+    const puntos = generarPuntos(lat, lng);
+
+    const heatmap = [];
+
+    // --- PROCESAR CADA PUNTO ---
+    for (const p of puntos) {
+      const stormRes = await fetch(
+        `https://api.stormglass.io/v2/weather/point?lat=${p.lat}&lng=${p.lng}&params=waveHeight,wavePeriod,windSpeed,windDirection`,
+        { headers: { Authorization: STORMGLASS_KEY } }
+      );
+
+      if (stormRes.status === 429) {
+        return res.status(429).json({
+          ok: false,
+          error: "Límite gratuito excedido",
+          detalle: "Has alcanzado el máximo de 10 solicitudes diarias del plan Free de StormGlass."
+        });
+      }
+
+      const stormData = await stormRes.json();
+
+      if (!stormData.hours || stormData.hours.length === 0) {
+        heatmap.push({
+          lat: p.lat,
+          lng: p.lng,
+          score: 0,
+          semaforo: "Rojo",
+          condiciones: null,
+          alertas: ["Sin datos"]
+        });
+        continue;
+      }
+
+      const h = stormData.hours[Math.floor(stormData.hours.length / 2)];
+
+      const condiciones = {
+        viento: h.windSpeed?.sg || 0,
+        oleaje: h.waveHeight?.sg || 0,
+        periodo: h.wavePeriod?.sg || 0,
+        direccion: h.windDirection?.sg || 0
+      };
+
+      const score = calcularScore(condiciones, userLevel);
+      const color = semaforo(score);
+
+      const alertas = [];
+
+      if (condiciones.viento > 15) alertas.push("Viento fuerte");
+      if (condiciones.oleaje > 1.2) alertas.push("Oleaje alto");
+      if (condiciones.periodo > 12) alertas.push("Swell largo");
+      if (condiciones.direccion > 160 && condiciones.direccion < 200)
+        alertas.push("Viento offshore");
+
+      if (alertas.length === 0) alertas.push("Sin alertas críticas");
+
+      heatmap.push({
+        lat: p.lat,
+        lng: p.lng,
+        score,
+        semaforo: color,
+        condiciones,
+        alertas
+      });
+    }
+
+    const responseData = {
+      ok: true,
+      location,
+      centro: { lat, lng },
+      heatmap
+    };
+
+    // --- GUARDAR EN CACHÉ ---
+    cache.set(cacheKey, { timestamp: Date.now(), data: responseData });
+
+    return res.status(200).json(responseData);
+
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      error: "Error interno",
+      details: error.message
+    });
+  }
+}
