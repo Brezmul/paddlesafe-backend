@@ -1,11 +1,11 @@
 import crypto from "crypto";
 
 // --- LLAVES CIFRADAS (seguras para GitHub) ---
-const ENC_OPENCAGE = "9f8c4e7b1a2d9c3f0e4b7a1d9f3c2b7e";
-const ENC_STORMGLASS = "4b9e1c7f0a3d8e2b9f7c1a4e0d3b8f1c7a2d9e0b4c7f1a3d9e2b7c4f0a1d3b";
+const ENC_OPENCAGE = process.env.ENC_OPENCAGE;
+const ENC_STORMGLASS = process.env.ENC_STORMGLASS;
 
-// --- TU CLAVE MAESTRA ---
-const MASTER_KEY = "Tiburon_23_93";
+// --- CLAVE MAESTRA ---
+const MASTER_KEY = process.env.MASTER_KEY;
 
 // --- DESCIFRADOR AES-256-CBC ---
 function decrypt(encrypted) {
@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     }
 
     // --- CACHÉ ---
-    const cacheKey = `${location}-${date}-${timeRange}`;
+    const cacheKey = `${location}-${date}-${timeRange}-${userLevel}`;
     const cached = cache.get(cacheKey);
 
     if (cached && Date.now() - cached.timestamp < 3600 * 1000) {
@@ -50,9 +50,7 @@ export default async function handler(req, res) {
 
     // --- GEOCODING (OpenCage) ---
     const geoRes = await fetch(
-      `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
-        location
-      )}&key=${OPENCAGE_KEY}`
+      `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(location)}&key=${OPENCAGE_KEY}`
     );
 
     const geoData = await geoRes.json();
@@ -60,7 +58,7 @@ export default async function handler(req, res) {
     if (!geoData.results?.length) {
       return res.status(404).json({
         ok: false,
-        error: "No se encontraron coordenadas"
+        error: "No se encontraron coordenadas para la ubicación"
       });
     }
 
@@ -72,25 +70,20 @@ export default async function handler(req, res) {
       { headers: { Authorization: STORMGLASS_KEY } }
     );
 
-    // --- DETECCIÓN DEL LÍMITE GRATUITO (429) ---
     if (stormRes.status === 429) {
       return res.status(429).json({
         ok: false,
         error: "Límite gratuito excedido",
-        detalle:
-          "Has alcanzado el máximo de 10 solicitudes diarias del plan Free de StormGlass."
+        detalle: "Has alcanzado el máximo de solicitudes diarias del plan Free de StormGlass."
       });
     }
 
     const stormData = await stormRes.json();
 
-    // --- DETECCIÓN DE DATOS VACÍOS ---
     if (!stormData.hours || stormData.hours.length === 0) {
       return res.status(200).json({
         ok: false,
-        error: "StormGlass no devolvió datos",
-        detalle:
-          "Puede deberse a límite excedido, ubicación sin datos o parámetros no disponibles."
+        error: "StormGlass no devolvió datos"
       });
     }
 
@@ -98,7 +91,6 @@ export default async function handler(req, res) {
     const detalle_por_horas = stormData.hours.map((h) => {
       const viento = h.windSpeed?.sg || 0;
       const oleaje = h.waveHeight?.sg || 0;
-      const periodo = h.wavePeriod?.sg || 0;
 
       let seguridad = "Alta";
       if (viento > 10 || oleaje > 0.8) seguridad = "Media";
@@ -108,12 +100,10 @@ export default async function handler(req, res) {
         hora: h.time,
         viento,
         oleaje,
-        periodo,
         seguridad
       };
     });
 
-    // --- VEREDICTO GLOBAL ---
     const riesgosAltos = detalle_por_horas.filter((h) => h.seguridad === "Baja").length;
 
     const veredicto_global =
@@ -132,12 +122,10 @@ export default async function handler(req, res) {
       received: { location, date, timeRange, userLevel },
       coordenadas: { lat, lng },
       veredicto_global,
-      nivel_minimo: userLevel,
       detalle_por_horas,
       consejos
     };
 
-    // --- GUARDAR EN CACHÉ ---
     cache.set(cacheKey, { timestamp: Date.now(), data: responseData });
 
     return res.status(200).json(responseData);
