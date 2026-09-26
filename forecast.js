@@ -1,5 +1,3 @@
-import { decryptApiKey } from "./lib/handlers/credentials.js";
-
 // --- CACHÉ EN MEMORIA ---
 const cache = new Map();
 
@@ -9,8 +7,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const OPENCAGE_KEY = decryptApiKey("ENC_OPENCAGE");
-    const STORMGLASS_KEY = decryptApiKey("ENC_STORMGLASS");
+    const OPENCAGE_KEY = process.env.OPENCAGE_KEY;
+    const STORMGLASS_KEY = process.env.STORMGLASS_KEY;
     const { location, date, timeRange, userLevel } = req.body;
 
     if (!location || !date || !timeRange || !userLevel) {

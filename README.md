@@ -21,8 +21,8 @@ Todas las rutas siguen el patrón:
   - OpenCage (geocoding y datos geográficos)
   - StormGlass (condiciones del mar y viento)
 - **Seguridad:**
-  - Claves cifradas con AES-256-CBC
-  - Sin claves en texto plano
+  - Claves configuradas en Vercel mediante `OPENCAGE_KEY` y `STORMGLASS_KEY`
+  - Sin claves almacenadas en el repositorio
 - **Caché en memoria:** `Map()` por endpoint para reducir llamadas externas
 
 ---
