@@ -111,7 +111,7 @@ export async function obtenerForecast(lat, lon, date, timeRange) {
     return normalizarPrincipal(principal.data);
   }
 
-  console.log("Usando fallback Open‑Meteo");
+  console.warn("Usando fallback Open‑Meteo");
   const fallback = await llamarOpenMeteo(lat, lon);
   return normalizarFallback(fallback);
 }
