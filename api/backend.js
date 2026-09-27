@@ -4,7 +4,7 @@ import coachHandler from "../lib/handlers/coach.js";
 import compareHandler from "../lib/handlers/compare.js";
 import conditionsHandler from "../lib/handlers/conditions.js";
 import dashboardHandler from "../lib/handlers/dashboard.js";
-import forecastHandler from "../lib/handlers/forecast.js";
+import forecastHandler from "../forecast.js";
 import geoanalyzeHandler from "../lib/handlers/geoanalyze.js";
 import heatmapHandler from "../lib/handlers/heatmap.js";
 import historyHandler from "../lib/handlers/history.js";
