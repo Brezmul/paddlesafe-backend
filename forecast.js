@@ -109,7 +109,8 @@ export async function llamarOpenMeteo(lat, lon) {
     marineUrl.search = new URLSearchParams({
       latitude: (Number(lat) + dLat).toFixed(4),
       longitude: (Number(lon) + dLon).toFixed(4),
-      hourly: "wave_height,ocean_temperature",
+      hourly: "wave_height,sea_surface_temperature",
+      cell_selection: "sea",
       timezone: "auto"
     });
 
@@ -138,7 +139,7 @@ export async function llamarOpenMeteo(lat, lon) {
       temperature_2m: weatherData.hourly?.temperature_2m,
       weather_code: weatherData.hourly?.weather_code,
       wave_height: marineData?.hourly?.wave_height,
-      ocean_temperature: marineData?.hourly?.ocean_temperature
+      ocean_temperature: marineData?.hourly?.sea_surface_temperature
     }
   };
 }
