@@ -1,10 +1,58 @@
 // --- CACHÉ EN MEMORIA ---
 const cache = new Map();
+const FETCH_TIMEOUT_MS = 2500;
+
+function fetchWithTimeout(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+  });
+}
+
+async function geocodificar(location, apiKey) {
+  if (apiKey) {
+    try {
+      const geoRes = await fetchWithTimeout(
+        `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(location)}&key=${apiKey}`
+      );
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        const geometry = geoData.results?.[0]?.geometry;
+        if (Number.isFinite(geometry?.lat) && Number.isFinite(geometry?.lng)) {
+          return { lat: geometry.lat, lng: geometry.lng };
+        }
+      }
+    } catch {
+      // Open-Meteo can still geocode when OpenCage is unavailable.
+    }
+  }
+
+  const geocodingUrl = new URL("https://geocoding-api.open-meteo.com/v1/search");
+  geocodingUrl.search = new URLSearchParams({
+    name: location,
+    count: "1",
+    language: "es",
+    format: "json"
+  });
+  const geocodingResponse = await fetchWithTimeout(geocodingUrl);
+  if (!geocodingResponse.ok) {
+    throw new Error(`Open-Meteo geocoding respondió con status ${geocodingResponse.status}`);
+  }
+
+  const geocodingData = await geocodingResponse.json();
+  const result = geocodingData.results?.[0];
+  if (!Number.isFinite(result?.latitude) || !Number.isFinite(result?.longitude)) {
+    return null;
+  }
+
+  return { lat: result.latitude, lng: result.longitude };
+}
 
 export async function llamarApiPrincipal(lat, lon, date, timeRange) {
   const STORMGLASS_KEY = process.env.STORMGLASS_KEY;
-  const response = await fetch(
-    `https://api.stormglass.io/v2/weather/point?lat=${lat}&lng=${lon}&params=waveHeight,waveDirection,wavePeriod,windSpeed,windDirection`,
+  // MEJORA: Añadidos parámetros 'airTemperature', 'waterTemperature', 'cloudCover' y 'precipitation' a la petición
+  const response = await fetchWithTimeout(
+    `https://api.stormglass.io/v2/weather/point?lat=${lat}&lng=${lon}&params=waveHeight,waveDirection,wavePeriod,windSpeed,windDirection,airTemperature,waterTemperature,cloudCover,precipitation`,
     { headers: { Authorization: STORMGLASS_KEY } }
   );
 
@@ -23,33 +71,40 @@ export async function llamarOpenMeteo(lat, lon) {
   weatherUrl.search = new URLSearchParams({
     latitude: lat,
     longitude: lon,
-    hourly: "wind_speed_10m,wind_direction_10m",
+    // MEJORA: Añadida la temperatura y el código meteorológico del clima (WMO)
+    hourly: "wind_speed_10m,wind_direction_10m,temperature_2m,weather_code",
     timezone: "auto"
   });
+  
   const marineUrl = new URL("https://marine-api.open-meteo.com/v1/marine");
   marineUrl.search = new URLSearchParams({
     latitude: lat,
     longitude: lon,
-    hourly: "wave_height",
+    // MEJORA: Añadida la temperatura del océano en la API marítima
+    hourly: "wave_height,ocean_temperature",
     timezone: "auto"
   });
 
   const [weatherResponse, marineResponse] = await Promise.all([
-    fetch(weatherUrl),
-    fetch(marineUrl).catch(() => null)
+    fetchWithTimeout(weatherUrl),
+    fetchWithTimeout(marineUrl).catch(() => null)
   ]);
+  
   if (!weatherResponse.ok) {
     throw new Error(`Open-Meteo respondió con status ${weatherResponse.status}`);
   }
 
   const weatherData = await weatherResponse.json();
-  let waveHeight;
+  
+  let waveHeight, oceanTemperature;
   if (marineResponse?.ok) {
     try {
       const marineData = await marineResponse.json();
       waveHeight = marineData.hourly?.wave_height;
+      oceanTemperature = marineData.hourly?.ocean_temperature;
     } catch {
       waveHeight = null;
+      oceanTemperature = null;
     }
   }
 
@@ -57,7 +112,10 @@ export async function llamarOpenMeteo(lat, lon) {
     hourly: {
       wind_speed_10m: weatherData.hourly?.wind_speed_10m,
       wind_direction_10m: weatherData.hourly?.wind_direction_10m,
-      wave_height: waveHeight
+      temperature_2m: weatherData.hourly?.temperature_2m,
+      weather_code: weatherData.hourly?.weather_code,
+      wave_height: waveHeight,
+      ocean_temperature: oceanTemperature
     }
   };
 }
@@ -67,25 +125,63 @@ export function normalizarPrincipal(data) {
   const windSpeed = hour?.windSpeed?.noaa;
   const windDirection = hour?.windDirection?.noaa;
   const waveHeight = hour?.waveHeight?.noaa;
+  
+  // MEJORA: Extracción de nuevas métricas. Si la API las omite, inyectamos valores lógicos por defecto
+  const tempAire = hour?.airTemperature?.noaa ?? 25;
+  const tempAgua = hour?.waterTemperature?.noaa ?? 22;
+  const cloudCover = hour?.cloudCover?.noaa ?? 0;
+  const precipitation = hour?.precipitation?.noaa ?? 0;
 
   if (![windSpeed, windDirection, waveHeight].every(Number.isFinite)) {
     throw new Error("La API principal devolvió datos inválidos");
   }
 
-  return { windSpeed, windDirection, waveHeight, source: "stormglass" };
+  // MEJORA: Lógica para derivar el clima general en Stormglass a través de la nubosidad y la precipitación
+  let clima = "Soleado";
+  if (precipitation > 0.2) clima = "Lluvia";
+  else if (cloudCover > 30) clima = "Nublado";
+
+  return { 
+    windSpeed: windSpeed * 3.6, // Mantenemos tu conversión matemática original
+    windDirection, 
+    waveHeight, 
+    tempAire: Math.round(tempAire),
+    tempAgua: Math.round(tempAgua),
+    clima,
+    source: "stormglass" 
+  };
 }
 
 export function normalizarFallback(data) {
   const windSpeed = data?.hourly?.wind_speed_10m?.[0];
   const windDirection = data?.hourly?.wind_direction_10m?.[0];
-  const waveHeight = data?.hourly?.wave_height?.[0] || null;
+  const waveHeight = data?.hourly?.wave_height?.[0] ?? null;
+  
+  // MEJORA: Extracción de variables Open-Meteo
+  const tempAire = data?.hourly?.temperature_2m?.[0] ?? 25;
+  const tempAgua = data?.hourly?.ocean_temperature?.[0] ?? 22;
+  const weatherCode = data?.hourly?.weather_code?.[0] ?? 0;
 
   if (![windSpeed, windDirection].every(Number.isFinite) ||
       (waveHeight !== null && !Number.isFinite(waveHeight))) {
     throw new Error("Open-Meteo devolvió datos inválidos");
   }
 
-  return { windSpeed, windDirection, waveHeight, source: "open-meteo" };
+  // MEJORA: Diccionario de traducción de códigos WMO (Organización Meteorológica Mundial)
+  let clima = "Soleado";
+  if (weatherCode >= 1 && weatherCode <= 3) clima = "Nublado";
+  if (weatherCode >= 45 && weatherCode <= 48) clima = "Niebla";
+  if (weatherCode >= 51 && weatherCode <= 99) clima = "Lluvia";
+
+  return { 
+    windSpeed, 
+    windDirection, 
+    waveHeight, 
+    tempAire: Math.round(tempAire),
+    tempAgua: Math.round(tempAgua),
+    clima,
+    source: "open-meteo" 
+  };
 }
 
 export function debeUsarFallback(res) {
@@ -142,21 +238,17 @@ export default async function handler(req, res) {
     }
 
     // --- GEOCODING (OpenCage) ---
-    const geoRes = await fetch(
-      `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(location)}&key=${OPENCAGE_KEY}`
-    );
-
-    const geoData = await geoRes.json();
-
-    if (!geoData.results?.length) {
+    const coordinates = await geocodificar(location, OPENCAGE_KEY);
+    if (!coordinates) {
       return res.status(404).json({
         ok: false,
         error: "No se encontraron coordenadas para la ubicación"
       });
     }
 
-    const { lat, lng } = geoData.results[0].geometry;
+    const { lat, lng } = coordinates;
 
+    // Ejecuta el motor meteorológico integrado con las nuevas variables
     const datos = await obtenerForecast(lat, lng, date, timeRange);
 
     const responseData = {

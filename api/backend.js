@@ -27,6 +27,7 @@ import warningsHandler from "../lib/handlers/warnings.js";
 
 export default async function handler(req, res) {
   // 1. Configurar las cabeceras CORS para permitir el acceso desde tu frontend
+  res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
@@ -40,7 +41,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 3. Lógica normal de tu backend
+  // 3. Lógica normal de tu backend (Enrutador)
   const { action } = req.query;
 
   try {
