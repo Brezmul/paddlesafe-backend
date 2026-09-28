@@ -87,7 +87,7 @@ export async function llamarOpenMeteo(lat, lon) {
   weatherUrl.search = new URLSearchParams({
     latitude: lat,
     longitude: lon,
-    hourly: "wind_speed_10m,wind_direction_10m,temperature_2m,weather_code",
+    hourly: "wind_speed_10m,wind_direction_10m,temperature_2m,weather_code,precipitation,precipitation_probability",
     timezone: "auto"
   });
   const weatherResponse = await fetchWithTimeout(weatherUrl);
@@ -138,6 +138,8 @@ export async function llamarOpenMeteo(lat, lon) {
       wind_direction_10m: weatherData.hourly?.wind_direction_10m,
       temperature_2m: weatherData.hourly?.temperature_2m,
       weather_code: weatherData.hourly?.weather_code,
+      precipitation: weatherData.hourly?.precipitation,
+      precipitation_probability: weatherData.hourly?.precipitation_probability,
       wave_height: marineData?.hourly?.wave_height,
       ocean_temperature: marineData?.hourly?.sea_surface_temperature
     }
@@ -179,6 +181,8 @@ export function normalizarPrincipal(data) {
     tempAire: Math.round(tempAire),
     tempAgua: Math.round(tempAgua),
     clima,
+    precipitation: Number(precipitation),
+    precipProbability: precipitation > 0 ? 100 : 0,
     source: "stormglass"
   };
 }
@@ -191,6 +195,8 @@ export function normalizarFallback(data) {
   const tempAire = data?.hourly?.temperature_2m?.[0] ?? 25;
   const tempAgua = data?.hourly?.ocean_temperature?.[0] ?? 22;
   const weatherCode = data?.hourly?.weather_code?.[0] ?? 0;
+  const precipitation = data?.hourly?.precipitation?.[0] ?? 0;
+  const precipProbability = data?.hourly?.precipitation_probability?.[0] ?? 0;
 
   if (windSpeed === undefined || windSpeed === null || !Number.isFinite(windSpeed)) {
     throw new Error("Viento inválido en Open-Meteo");
@@ -208,6 +214,8 @@ export function normalizarFallback(data) {
     tempAire: Math.round(tempAire),
     tempAgua: Math.round(tempAgua),
     clima,
+    precipitation,
+    precipProbability,
     source: "open-meteo"
   };
 }
