@@ -152,7 +152,7 @@ export function normalizarPrincipal(data) {
 
   const windSpeed = getVal(hour.windSpeed);
   const windDirection = getVal(hour.windDirection);
-  const waveHeight = getVal(hour.waveHeight) ?? 0;
+  const waveHeight = getVal(hour.waveHeight);
 
   const tempAire = getVal(hour.airTemperature) ?? 25;
   const tempAgua = getVal(hour.waterTemperature) ?? 22;
@@ -162,6 +162,9 @@ export function normalizarPrincipal(data) {
   // Ya no obligamos al waveHeight a existir para no descartar el viento si estamos en un píxel rebelde
   if (windSpeed === null || windDirection === null) {
     throw new Error("Viento inválido en API principal");
+  }
+  if (waveHeight === null) {
+    throw new Error("Oleaje nulo en Stormglass, forzando radar costero de Open-Meteo");
   }
 
   let clima = "Soleado";
@@ -182,7 +185,7 @@ export function normalizarPrincipal(data) {
 export function normalizarFallback(data) {
   const windSpeed = data?.hourly?.wind_speed_10m?.[0];
   const windDirection = data?.hourly?.wind_direction_10m?.[0];
-  const waveHeight = data?.hourly?.wave_height?.[0] ?? 0;
+  const waveHeight = data?.hourly?.wave_height?.[0] ?? null;
 
   const tempAire = data?.hourly?.temperature_2m?.[0] ?? 25;
   const tempAgua = data?.hourly?.ocean_temperature?.[0] ?? 22;
