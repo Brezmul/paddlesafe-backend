@@ -18,7 +18,10 @@ export function initAuthListeners() {
             if (event === 'TOKEN_REFRESHED' || (event === 'SIGNED_IN' && mismoUsuario)) return;
             
             setTimeout(async () => {
-                if (session) await cargarPerfilUsuarioActivo();
+                if (session) {
+                    await cargarPerfilUsuarioActivo();
+                    if (event === 'SIGNED_IN') window.sincronizarRutasPendientes?.();
+                }
                 else { appState.perfilUsuario = null; actualizarBotonCabecera(); }
                 
                 const modal = document.getElementById('authModal');

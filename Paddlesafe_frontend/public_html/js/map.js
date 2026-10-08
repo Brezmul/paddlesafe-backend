@@ -28,6 +28,8 @@ export let cronometroInterval = null;
 export let watchId = null;
 export let livePolyline = null;
 export let clubParaEvento = null;
+let isSavingRoute = false;
+let isSyncingPendingRoute = false;
 
 export function buscarYCentrarMapa(t) {
     if(!t) return;
@@ -843,6 +845,8 @@ export async function iniciarTravesia() {
 }
 
 export async function finalizarTravesia() {
+    if (!isTracking || isSavingRoute) return;
+    isSavingRoute = true;
     isTracking = false; 
     if(cronometroInterval) { clearInterval(cronometroInterval); cronometroInterval = null; }
     if(watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
@@ -890,12 +894,25 @@ export async function finalizarTravesia() {
     }]).select().single();
     
     if (errRuta || !nuevaRuta) {
-        try { localStorage.setItem('paddlesafe_ruta_pendiente', JSON.stringify({ km: trackDistanceKm, min: m, coords: trackCoords, b64: imgBase64Backup, ts: Date.now() })); } catch (e) { console.warn('No se pudo usar localStorage', e); }
+        let pendingMessage = "No se pudo conservar la ruta en este dispositivo.";
+        try {
+            localStorage.setItem('paddlesafe_ruta_pendiente', JSON.stringify({
+                user_id: appState.sesionActual.user.id,
+                km: trackDistanceKm,
+                min: m,
+                coords: trackCoords,
+                img,
+                ts: Date.now()
+            }));
+            pendingMessage = "Se conserva una copia en este dispositivo";
+        } catch (e) {
+            console.warn('No se pudo guardar la ruta pendiente localmente:', e);
+        }
         document.getElementById('liveTrackingPanel').innerHTML = `
             <div class="text-center py-4 w-full">
                 <span class="text-4xl block mb-2">⚠️</span>
                 <h3 class="font-black text-white text-lg">No se pudo guardar</h3>
-                <p class="text-amber-300 font-bold text-[10px] uppercase tracking-widest mb-3">Se conserva una copia en este dispositivo</p>
+                <p class="text-amber-300 font-bold text-[10px] uppercase tracking-widest mb-3">${pendingMessage}</p>
                 <button type="button" onclick="restaurarTracker()" class="bg-slate-700 text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest w-full active:scale-95 transition-transform cursor-pointer">Cerrar Panel</button>
             </div>`;
         return;
@@ -917,15 +934,20 @@ export async function finalizarTravesia() {
 }
 
 export async function sincronizarRutasPendientes() {
+    if (isSyncingPendingRoute || !appState.sesionActual?.user?.id) return;
+    isSyncingPendingRoute = true;
     try {
         const pendienteStr = localStorage.getItem('paddlesafe_ruta_pendiente');
         if (!pendienteStr) return;
         
         const p = JSON.parse(pendienteStr);
-        if (!appState.sesionActual) return;
+        if (p.user_id && p.user_id !== appState.sesionActual.user.id) {
+            console.warn("Ruta pendiente asociada a otra cuenta; se conserva sin sincronizar.");
+            return;
+        }
         
-        let urlSincronizada = null;
-        if (p.b64) {
+        let urlSincronizada = p.img || null;
+        if (!urlSincronizada && p.b64) {
             try {
                 const res = await fetch(p.b64);
                 const blob = await res.blob();
@@ -955,10 +977,13 @@ export async function sincronizarRutasPendientes() {
         }
     } catch (e) {
         console.warn("Error al intentar sincronizar ruta pendiente:", e);
+    } finally {
+        isSyncingPendingRoute = false;
     }
 }
 
 export function restaurarTracker() {
+    isSavingRoute = false;
     document.getElementById('liveTrackingPanel').classList.add('hidden'); document.getElementById('btnIniciarLive').classList.remove('hidden');
     if(document.getElementById('proPlanificador')) { document.getElementById('proPlanificador').classList.remove('hidden'); document.getElementById('proPlanificador').classList.add('flex'); }
 }
@@ -980,6 +1005,9 @@ window.inicializarMapa = inicializarMapa;
 window.activarModoPlanificacionEvento = activarModoPlanificacionEvento;
 window.guardarEventoClub = guardarEventoClub;
 window.sincronizarRutasPendientes = sincronizarRutasPendientes;
+window.addEventListener('online', () => {
+    if (appState.sesionActual?.user?.id) void sincronizarRutasPendientes();
+});
 
 window.addEventListener('beforeunload', (event) => {
     if (isTracking) {
