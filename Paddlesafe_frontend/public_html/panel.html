@@ -39,7 +39,7 @@ input { padding: 10px; width: 100%; margin-bottom: 10px; }
 
 <div class="card">
   <h2>Probar Endpoint</h2>
-  <input id="endpoint" type="text" placeholder="/api/dashboard">
+  <input id="endpoint" type="text" placeholder="/api/backend?action=dashboard">
   <button onclick="testEndpoint()">Ejecutar</button>
   <pre id="endpointOutput">Esperando...</pre>
 </div>
@@ -51,7 +51,22 @@ input { padding: 10px; width: 100%; margin-bottom: 10px; }
 </div>
 
 <script>
-const backend = "https://paddlesafe-backend-2i1hjygyo-brezmul-5585.vercel.app";
+const backend = "https://paddlesafe-backend.vercel.app";
+
+function backendEndpoint(endpoint) {
+  const url = new URL(endpoint, backend);
+  if (url.origin !== backend) throw new Error("El endpoint debe pertenecer al backend configurado.");
+
+  if (url.pathname === "/api/backend.js") {
+    url.pathname = "/api/backend";
+  } else if (url.pathname.startsWith("/api/") && url.pathname !== "/api/backend") {
+    const action = url.pathname.slice("/api/".length);
+    url.pathname = "/api/backend";
+    if (!url.searchParams.has("action")) url.searchParams.set("action", action);
+  }
+
+  return url.href;
+}
 
 function writeLog(message) {
   fetch("logs.php?msg=" + encodeURIComponent(message)).catch(() => {});
@@ -60,8 +75,8 @@ function writeLog(message) {
 async function checkStatus() {
   writeLog("checkStatus ejecutado");
   try {
-    const res = await fetch(`${backend}/api/status`);
-    if (!res.ok) throw new Error("Endpoint /api/status no responde");
+    const res = await fetch(backendEndpoint("/api/backend?action=status"));
+    if (!res.ok) throw new Error("Endpoint /api/backend?action=status no responde");
     const data = await res.json();
     document.getElementById("statusOutput").textContent = JSON.stringify(data, null, 2);
   } catch (err) {
@@ -73,7 +88,8 @@ async function testEndpoint() {
   const ep = document.getElementById("endpoint").value;
   writeLog("testEndpoint ejecutado: " + ep);
   try {
-    const res = await fetch(`${backend}${ep}`);
+    const res = await fetch(backendEndpoint(ep));
+    if (!res.ok) throw new Error(`El endpoint respondió con status ${res.status}`);
     const data = await res.json();
     document.getElementById("endpointOutput").textContent = JSON.stringify(data, null, 2);
   } catch (err) {

@@ -1,58 +1,54 @@
-# paddlesafe-backend
-App para realizar deportes acuáticos de manera segura.
-# PaddleSafe Backend – Documentación de la API
+# PaddleSafe Backend
 
-## 1. Introducción
+Backend serverless para análisis de seguridad, condiciones marinas, spots y rutas SUP.
 
-PaddleSafe Backend proporciona endpoints para analizar seguridad, condiciones del mar, geografía del spot, calidad, rutas y recomendaciones tipo coach para paddle surf (SUP).
+## Arquitectura
 
-Todas las rutas siguen el patrón:
-- Base: `/api/*`
-- Formato: JSON
-- Métodos: `GET` o `POST` según endpoint
+- **Runtime:** Node.js con ES Modules, desplegado en Vercel.
+- **Entrada:** `api/backend.js`, que despacha las acciones a sus handlers.
+- **Proveedores externos:** OpenCage, StormGlass y Open-Meteo.
+- **Variables de entorno:** `OPENCAGE_KEY` y `STORMGLASS_KEY` se configuran en Vercel.
+- **Caché:** los handlers usan caché en memoria, que es local a cada instancia serverless y no persistente.
 
----
+## API
 
-## 2. Arquitectura general
+La ruta canónica es `/api/backend?action=<acción>`. Los clientes antiguos que llamen `/api/<acción>` se mantienen compatibles mediante rewrites de Vercel. También se conserva el endpoint de función `/api/backend.js?action=<acción>`.
 
-- **Proveedor:** Vercel (serverless functions)
-- **Lenguaje:** Node.js (ES Modules)
-- **APIs externas:**
-  - OpenCage (geocoding y datos geográficos)
-  - StormGlass (condiciones del mar y viento)
-- **Seguridad:**
-  - Claves configuradas en Vercel mediante `OPENCAGE_KEY` y `STORMGLASS_KEY`
-  - Sin claves almacenadas en el repositorio
-- **Caché en memoria:** `Map()` por endpoint para reducir llamadas externas
+| Acción | Método |
+|---|---|
+| `ai` | POST |
+| `alerts` | POST |
+| `coach` | POST |
+| `compare` | POST |
+| `conditions` | POST |
+| `dashboard` | POST |
+| `forecast` | POST |
+| `geoanalyze` | POST |
+| `heatmap` | POST |
+| `history` | POST |
+| `levels` | GET |
+| `map` | POST |
+| `profile` | POST |
+| `radar` | POST |
+| `route` | POST |
+| `safety` | POST |
+| `spotinfo` | POST |
+| `spotlist` | GET |
+| `spotquality` | POST |
+| `spotrating` | POST |
+| `spotzones` | POST |
+| `status` | GET |
+| `summary` | POST |
+| `terrain` | POST |
+| `tides` | POST |
+| `warnings` | POST |
 
----
+Las acciones POST reciben JSON. Los campos obligatorios y formatos son específicos de cada handler. Por ejemplo, `dashboard` espera `location`, `date`, `timeRange` y `userLevel`; `forecast` consume `fecha`, `horaSalida`, `nivel`, `coordenadas` y `duracionRuta`.
 
-## 3. Autenticación y límites
+`route` calcula y analiza un recorrido entre origen y destino. No es el endpoint de persistencia de la grabación GPS: actualmente el frontend guarda esas rutas directamente en Supabase.
 
-Actualmente:
-- No hay autenticación por token (uso público controlado).
-- Límites importantes:
-  - StormGlass Free: ~10 requests/día.
-  - OpenCage Free: límite diario según plan.
+## Límites y autenticación
 
-Recomendación:
-- No disparar múltiples endpoints de condiciones en paralelo para el mismo usuario.
-- Usar endpoints agregadores como `/api/dashboard` cuando sea posible.
+Los endpoints de análisis no requieren autenticación propia. Las cuotas de OpenCage y StormGlass dependen de sus planes y credenciales; usa el agregador `dashboard` cuando sea apropiado y evita solicitudes duplicadas.
 
----
-
-## 4. Endpoints principales
-
-### 4.1 `/api/dashboard` (POST)
-
-**Descripción:**  
-Panel maestro con resumen de seguridad, condiciones, mareas y recomendaciones.
-
-**Body:**
-```json
-{
-  "location": "Alicante, Spain",
-  "date": "2026-09-26T10:00:00Z",
-  "timeRange": "now",
-  "userLevel": "Principiante"
-}
+La caché en memoria no es un limitador de peticiones ni un almacenamiento compartido entre instancias.

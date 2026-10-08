@@ -5,6 +5,8 @@ import { supabaseClient, appState } from './config.js';
 import { fetchConTimeout, esc, formatearTiempo, calcularVeredicto } from './utils.js';
 import { ClubState } from './club/state.js';
 
+const BACKEND_API_URL = 'https://paddlesafe-backend.vercel.app/api/backend';
+
 export let map;
 export let marcador;
 export let datosMeteoActuales = null;
@@ -298,7 +300,7 @@ export async function consultarBasico() {
     };
 
     try {
-        const response = await fetchConTimeout("https://paddlesafe-backend.vercel.app/api/backend.js?action=forecast", {
+        const response = await fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
             method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
         });
         const txt = await response.text();
@@ -354,7 +356,7 @@ export async function consultarPuntoProInstantaneo(lat, lon, d, t) {
     };
 
     try {
-        const response = await fetchConTimeout("https://paddlesafe-backend.vercel.app/api/backend.js?action=forecast", {
+        const response = await fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
             method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
         });
         const txt = await response.text();
@@ -416,7 +418,7 @@ export async function consultarRutaPro() {
     };
 
     try {
-        const response = await fetchConTimeout("https://paddlesafe-backend.vercel.app/api/backend.js?action=forecast", {
+        const response = await fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
             method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
         });
         

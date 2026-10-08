@@ -9,6 +9,10 @@
     {
       "source": "/api/backend",
       "destination": "/api/backend.js"
+    },
+    {
+      "source": "/api/:action",
+      "destination": "/api/backend.js?action=:action"
     }
   ],
   "headers": [
