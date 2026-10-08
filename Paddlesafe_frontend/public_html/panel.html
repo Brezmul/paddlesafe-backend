@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>PaddleSafe – Panel de Control</title>
+
+<!-- ICONOS PWA -->
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-512.png">
+<link rel="manifest" href="/manifest.json">
+
+<style>
+body { font-family: Arial; background: #f4f4f4; padding: 20px; }
+.card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 10px; }
+button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; }
+pre { background: #222; color: #0f0; padding: 15px; border-radius: 10px; }
+input { padding: 10px; width: 100%; margin-bottom: 10px; }
+
+/* Icono arriba del panel */
+#panel-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 10px;
+}
+</style>
+</head>
+<body>
+
+<!-- ICONO DEL PANEL -->
+<img id="panel-icon" src="/icon-192.png" alt="PaddleSafe Icon">
+
+<h1>PaddleSafe – Panel de Control</h1>
+
+<div class="card">
+  <h2>Estado del Backend</h2>
+  <button onclick="checkStatus()">Comprobar estado</button>
+  <pre id="statusOutput">Esperando...</pre>
+</div>
+
+<div class="card">
+  <h2>Probar Endpoint</h2>
+  <input id="endpoint" type="text" placeholder="/api/dashboard">
+  <button onclick="testEndpoint()">Ejecutar</button>
+  <pre id="endpointOutput">Esperando...</pre>
+</div>
+
+<div class="card">
+  <h2>Logs del Servidor</h2>
+  <button onclick="viewLogs()">Ver logs</button>
+  <pre id="logsOutput">Esperando...</pre>
+</div>
+
+<script>
+const backend = "https://paddlesafe-backend-2i1hjygyo-brezmul-5585.vercel.app";
+
+function writeLog(message) {
+  fetch("logs.php?msg=" + encodeURIComponent(message)).catch(() => {});
+}
+
+async function checkStatus() {
+  writeLog("checkStatus ejecutado");
+  try {
+    const res = await fetch(`${backend}/api/status`);
+    if (!res.ok) throw new Error("Endpoint /api/status no responde");
+    const data = await res.json();
+    document.getElementById("statusOutput").textContent = JSON.stringify(data, null, 2);
+  } catch (err) {
+    document.getElementById("statusOutput").textContent = "Error: " + err.message;
+  }
+}
+
+async function testEndpoint() {
+  const ep = document.getElementById("endpoint").value;
+  writeLog("testEndpoint ejecutado: " + ep);
+  try {
+    const res = await fetch(`${backend}${ep}`);
+    const data = await res.json();
+    document.getElementById("endpointOutput").textContent = JSON.stringify(data, null, 2);
+  } catch (err) {
+    document.getElementById("endpointOutput").textContent = "Error: " + err.message;
+  }
+}
+
+async function viewLogs() {
+  writeLog("viewLogs ejecutado");
+  try {
+    const res = await fetch("logs.txt");
+    const text = await res.text();
+    document.getElementById("logsOutput").textContent = text;
+  } catch (err) {
+    document.getElementById("logsOutput").textContent = "Error: " + err.message;
+  }
+}
+</script>
+
+</body>
+</html>

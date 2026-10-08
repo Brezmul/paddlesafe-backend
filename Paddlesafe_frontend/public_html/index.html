@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PaddleSafe | Pronóstico y Comunidad</title>
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { marine: '#0f172a', water: '#0ea5e9', premium: '#1e293b' },
+                    boxShadow: { 'glow': '0 0 15px rgba(14, 165, 233, 0.4)', 'glow-pro': '0 0 20px rgba(16, 185, 129, 0.4)' }
+                }
+            }
+        }
+    </script>
+
+    <!-- Leaflet CSS y JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- html2canvas -->
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Supabase JS -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        html, body { min-height: 100dvh; -webkit-tap-highlight-color: transparent; }
+        button, a, [role="button"] { touch-action: manipulation; }
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.2); border-radius: 10px; }
+        
+        .ruta-animada { stroke-dasharray: 12, 12; animation: fluirRuta 1.5s linear infinite; stroke-linecap: round; stroke-linejoin: round; }
+        @keyframes fluirRuta { 0% { stroke-dashoffset: 24; } 100% { stroke-dashoffset: 0; } }
+        
+        .wind-arrow { display: inline-flex; align-items: center; justify-content: center; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .dist-label-map { background-color: rgba(15, 23, 42, 0.9); color: white; font-size: 10px; font-weight: 900; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: center; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 text-slate-800 font-sans min-h-[100dvh] flex items-start sm:items-center justify-center p-0 sm:p-5">
+
+    <div class="max-w-2xl w-full bg-white sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-10 sm:pb-0 border border-white">
+        
+        <!-- CABECERA PRINCIPAL -->
+        <div class="bg-marine p-5 sm:p-8 text-center relative flex flex-col items-center justify-center shadow-inner z-50">
+            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-water via-blue-400 to-emerald-400"></div>
+            
+            <div class="w-full flex justify-between items-start relative z-20 mb-4 px-1">
+                <div class="flex gap-4">
+                    <button type="button" id="btnModalRanking" onclick="abrirModalRanking()" class="text-white/70 hover:text-white transition-transform hover:scale-105 flex flex-col items-center cursor-pointer">
+                        <span class="text-2xl sm:text-3xl drop-shadow-md">🏆</span>
+                        <span class="text-[11px] sm:text-xs font-black mt-1 uppercase tracking-widest">Ranking</span>
+                    </button>
+                    <button type="button" id="btnModalClubs" onclick="abrirModalClubs()" class="text-white/70 hover:text-white transition-transform hover:scale-105 flex flex-col items-center cursor-pointer">
+                        <span class="text-2xl sm:text-3xl drop-shadow-md">⛺</span>
+                        <span class="text-[11px] sm:text-xs font-black mt-1 uppercase tracking-widest">Comunidad</span>
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="btnCabeceraPerfil" onclick="abrirModalAuth()" class="text-white/70 hover:text-white transition-all hover:scale-105 flex flex-col items-center cursor-pointer">
+                        <svg class="h-7 w-7 sm:h-8 sm:w-8 drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span class="text-[11px] sm:text-xs font-black mt-1 uppercase tracking-widest">Perfil</span>
+                    </button>
+                </div>
+            </div>
+
+            <h1 class="text-4xl sm:text-5xl font-black text-white tracking-tight relative z-10 drop-shadow-lg">🏄 Paddle<span class="text-transparent bg-clip-text bg-gradient-to-r from-water to-blue-400">Safe</span></h1>
+            <p class="text-slate-300 text-sm sm:text-base mt-2 relative z-10 font-medium">Pronóstico de condiciones para tu ruta</p>
+        </div>
+
+        <!-- VERSIÓN GRATUITA: FORMULARIO BÁSICO -->
+        <div class="p-5 sm:p-8 space-y-6">
+            <div id="global-alert-container" class="w-full"></div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="flex flex-col min-w-0">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Ubicación</label>
+                    <div class="relative w-full group">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">📍</span>
+                        <input type="text" id="location" placeholder="Ej. Cala Blanca" onchange="if(this.value) buscarYCentrarMapa(this.value)" class="block w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-water transition-all shadow-sm text-sm outline-none">
+                    </div>
+                    <button type="button" id="btn-gps" onclick="obtenerUbicacion()" class="mt-2 flex items-center gap-1 text-xs font-bold text-water hover:text-sky-700 w-fit px-1 transition-colors cursor-pointer">
+                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" /></svg> Detectar ubicación
+                    </button>
+                </div>
+                
+                <div class="flex flex-col min-w-0">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Fecha</label>
+                    <input type="date" id="date" class="block w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-water text-sm text-slate-700 outline-none transition-all">
+                </div>
+
+                <div class="flex flex-col min-w-0">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Franja Horaria</label>
+                    <select id="timeRange" class="block w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-water text-sm text-slate-700 outline-none transition-all">
+                        <option value="">Selecciona...</option>
+                        <option value="Mañana (06:00 - 12:00)">🌅 Mañana (06:00 - 12:00)</option>
+                        <option value="Tarde (12:00 - 18:00)">☀️ Tarde (12:00 - 18:00)</option>
+                        <option value="Ocaso (18:00 - 21:00)">🌇 Ocaso (18:00 - 21:00)</option>
+                    </select>
+                </div>
+
+                <div class="flex flex-col min-w-0">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Tu Nivel</label>
+                    <select id="userLevel" class="block w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-water text-sm text-slate-700 outline-none transition-all">
+                        <option value="">Selecciona...</option>
+                        <option value="Principiante">🟢 Principiante</option>
+                        <option value="Intermedio">🟡 Intermedio</option>
+                        <option value="Avanzado">🔴 Avanzado</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="button" id="btn-consultar" onclick="consultarBasico()" class="w-full h-14 mt-2 bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-bold px-4 rounded-xl shadow-lg hover:shadow-glow transition-transform active:scale-95 flex justify-center items-center gap-2 text-lg cursor-pointer">
+                <svg id="spinner" class="animate-spin hidden -ml-1 mr-2 h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <span id="btn-text">Análisis Básico Rápido</span>
+            </button>
+        </div>
+
+        <div class="px-5 sm:px-8 pb-6">
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Viento</span>
+                    <span id="basicWindSpeed" class="text-2xl font-black text-marine">--</span>
+                    <span id="basicWindDir" class="text-xs text-water font-bold mt-1 flex items-center gap-1">--</span>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Oleaje</span>
+                    <span id="basicWave" class="text-2xl font-black text-marine">--</span>
+                    <span class="text-xs text-water font-bold mt-1">Altura M.</span>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Precip.</span>
+                    <span id="basicPrecip" class="text-2xl font-black text-marine">--</span>
+                    <span id="basicPrecipProb" class="text-xs text-water font-bold mt-1">Prob: --</span>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center">
+                    <div id="basicLevel" class="text-sm font-black text-slate-400 text-center px-2">Esperando...</div>
+                </div>
+            </div>
+            
+            <div id="resultado" class="text-sm font-mono text-slate-600 bg-slate-50 p-5 rounded-2xl border border-slate-200 whitespace-pre-wrap leading-relaxed min-h-[80px]">Completa los datos arriba para ver el reporte básico.</div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VERSIÓN PRO: MAPA AMPLIADO Y COPILOTO -->
+        <!-- ========================================== -->
+        <div class="bg-premium border-t border-slate-800 p-5 sm:p-8 flex flex-col flex-1">
+            <button type="button" id="btnPro" class="w-full min-h-[52px] bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black px-5 rounded-xl shadow-lg hover:shadow-glow-pro transition-all flex justify-between items-center group cursor-pointer">
+                <span class="flex items-center gap-2 sm:text-lg"><span>✨</span> Copiloto Inteligente Pro</span>
+                <svg id="btnProIcon" class="transition-transform duration-300 text-white/70 group-hover:text-white" viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.5" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+
+            <div id="panelPro" class="grid transition-all duration-300 ease-in-out w-full" style="grid-template-rows: 0fr;">
+                <div class="overflow-hidden w-full">
+                    <div class="pt-5 flex flex-col gap-5 w-full">
+                        
+                        <!-- MAPA INTERACTIVO PRO -->
+                        <div class="flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-slate-700 bg-slate-800 relative w-full">
+                            <div class="bg-slate-900 p-4 flex flex-col gap-3 border-b border-slate-700 w-full">
+                                <div class="flex flex-col sm:flex-row justify-between items-center gap-3 w-full">
+                                    <div class="flex w-full sm:w-auto gap-2">
+                                        <button type="button" id="btnTravesia" onclick="toggleModoTravesia()" class="flex-1 sm:w-auto bg-teal-500 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-md hover:bg-teal-400 active:scale-95 transition-colors cursor-pointer">🗺️ Trazar (A ➔ B)</button>
+                                        <button type="button" id="btnRutaLibre" onclick="toggleRutaLibre()" class="flex-1 sm:w-auto bg-teal-600 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-sm hover:bg-teal-500 active:scale-95 transition-colors cursor-pointer">✍️ Multipunto</button>
+                                    </div>
+                                    <button type="button" id="btnIniciarLive" onclick="iniciarTravesia()" class="w-full sm:w-auto bg-emerald-500 text-slate-900 h-11 px-5 rounded-xl text-sm font-black shadow hover:bg-emerald-400 active:scale-95 transition-colors cursor-pointer">🔴 Live GPS</button>
+                                </div>
+                                <div id="mapMsg" class="text-xs font-bold text-white bg-teal-600 h-10 px-4 rounded-xl border border-teal-500 shadow-md flex items-center justify-center transition-colors">👆 Toca el mar para Punto Fijo o Traza Ruta Completa</div>
+                            </div>
+
+                            <div id="mapContainer" class="h-[50vh] min-h-[500px] w-full relative z-0 bg-slate-300">
+                                <div id="leyendaMapa" class="absolute top-4 right-4 z-[400] bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl p-3 shadow-2xl text-[10px] sm:text-xs pointer-events-none hidden flex-col gap-1.5 w-[140px]">
+                                    <p class="font-black text-slate-300 border-b border-slate-700 pb-1 mb-1 uppercase tracking-widest text-center">Resistencia</p>
+                                    <div class="flex items-center gap-2"><span class="w-5 h-1 border-t-2 border-dashed border-emerald-500"></span><span class="text-white font-bold">A favor 🟢</span></div>
+                                    <div class="flex items-center gap-2"><span class="w-5 h-1 border-t-2 border-dashed border-yellow-500"></span><span class="text-white font-bold">Lateral 🟡</span></div>
+                                    <div class="flex items-center gap-2"><span class="w-5 h-1 border-t-2 border-dashed border-red-500"></span><span class="text-white font-bold">En contra 🔴</span></div>
+                                </div>
+                                
+                                <div id="multipuntoToolbar" class="hidden absolute bottom-8 left-1/2 transform -translate-x-1/2 z-[400] bg-slate-900/95 backdrop-blur rounded-full shadow-lg p-1.5 gap-1 border border-slate-700">
+                                    <button type="button" onclick="deshacerUltimoPunto()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-full active:scale-95 transition-colors cursor-pointer">↩️ Deshacer</button>
+                                    <button type="button" onclick="reiniciarRutaMultipunto()" class="px-4 py-2.5 bg-red-900/50 hover:bg-red-800/80 text-red-400 font-bold text-xs rounded-full active:scale-95 transition-colors cursor-pointer">🗑️ Limpiar</button>
+                                </div>
+
+                                <div id="liveTrackingPanel" class="hidden absolute top-3 left-3 right-3 z-[400] bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-2xl p-4 shadow-2xl text-white"></div>
+                                <div id="mapaInteractivo" class="w-full h-full z-0 relative"></div>
+                            </div>
+                        </div>
+
+                        <!-- PLANIFICADOR PRO -->
+                        <div id="proPlanificador" class="bg-slate-800 rounded-2xl p-5 shadow-lg border border-slate-700 flex flex-col gap-4">
+                            <h3 class="text-white font-black flex items-center gap-2 text-sm uppercase tracking-widest border-b border-slate-700 pb-2">
+                                🧭 Detalles de Exploración
+                            </h3>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div class="flex flex-col col-span-2 sm:col-span-1">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Coordenadas</label>
+                                    <input type="text" id="proLocation" readonly placeholder="Toca en el mapa" class="h-11 px-2 bg-slate-900 border border-slate-700 text-emerald-400 font-bold rounded-xl text-xs outline-none cursor-not-allowed">
+                                </div>
+                                <div class="flex flex-col">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Fecha</label>
+                                    <input type="date" id="proDate" class="h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors">
+                                </div>
+                                <div class="flex flex-col">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Hora Salida</label>
+                                    <input type="time" id="proTime" class="h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors">
+                                </div>
+                                <div class="flex flex-col col-span-2 sm:col-span-1">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Tu Nivel</label>
+                                    <select id="proLevelOption" class="h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors">
+                                        <option value="Principiante">Principiante</option>
+                                        <option value="Intermedio" selected>Intermedio</option>
+                                        <option value="Avanzado">Avanzado</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="proAlertContainer" class="hidden w-full"></div>
+                            <button type="button" onclick="consultarRutaPro()" id="btnCalcPro" class="w-full h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all text-xs flex justify-center items-center gap-2 mt-1 cursor-pointer">
+                                ✨ Procesar Análisis Pro
+                            </button>
+                        </div>
+
+                        <!-- DASHBOARD PREMIUM -->
+                        <div id="proDashboardResumen" class="bg-slate-900 rounded-2xl p-1 shadow-2xl border border-slate-700 hidden flex-col w-full">
+                            
+                            <div class="p-5 border-b border-slate-800 flex flex-col items-center justify-center gap-2 w-full">
+                                <span id="proStatusVerdict" class="px-6 py-2 rounded-full text-sm font-black w-full text-center uppercase tracking-widest transition-all duration-300">--</span>
+                            </div>
+
+                            <div class="p-5 grid grid-cols-3 gap-2 sm:gap-4 text-center w-full border-b border-slate-800">
+                                <div class="bg-slate-800/80 rounded-xl p-3 flex flex-col items-center justify-center border border-slate-700/50">
+                                    <p class="text-2xl sm:text-3xl mb-1 drop-shadow-md" id="proIconoClima">☀️</p>
+                                    <p class="text-[9px] sm:text-[11px] text-slate-400 font-black tracking-widest uppercase truncate" id="proTextoClima">SOL</p>
+                                </div>
+                                <div class="bg-slate-800/80 rounded-xl p-3 flex flex-col items-center justify-center border border-slate-700/50">
+                                    <p class="text-xl font-black text-white mb-1 mt-1" id="proTempAmbiente">--°</p>
+                                    <p class="text-[9px] sm:text-[11px] text-slate-400 font-black tracking-widest uppercase">AIRE</p>
+                                </div>
+                                <div class="bg-slate-800/80 rounded-xl p-3 flex flex-col items-center justify-center border border-slate-700/50">
+                                    <p class="text-xl font-black text-sky-400 mb-1 mt-1" id="proTempAgua">--°</p>
+                                    <p class="text-[9px] sm:text-[11px] text-slate-400 font-black tracking-widest uppercase">AGUA</p>
+                                </div>
+                            </div>
+
+                            <div class="p-5 grid grid-cols-2 sm:grid-cols-5 gap-3 w-full border-b border-slate-800">
+                                <div class="bg-slate-800 rounded-xl py-3 px-2 flex flex-col items-center justify-center border border-slate-700/50 w-full relative overflow-hidden">
+                                    <div class="absolute top-0 right-0 w-1.5 h-full bg-red-500/20"></div>
+                                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-widest">Viento</p>
+                                    <p class="font-black text-lg text-white" id="proDashWind">--</p>
+                                    <p class="text-[9px] text-red-400 font-bold mt-0.5" id="proDashGusts">Rachas: --</p>
+                                </div>
+                                <div class="bg-slate-800 rounded-xl py-3 px-2 flex flex-col items-center justify-center border border-slate-700/50 w-full">
+                                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-widest">Dirección</p>
+                                    <div class="flex items-center gap-1.5 mt-1">
+                                        <div id="proDashDirIcon" class="wind-arrow text-emerald-400 drop-shadow">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M12 2.25a.75.75 0 0 1 .75.75v16.19l4.72-4.72a.75.75 0 1 1 1.06 1.06l-6 6a.75.75 0 0 1-1.06 0l-6-6a.75.75 0 1 1 1.06-1.06l4.72 4.72V3a.75.75 0 0 1 .75-.75Z" /></svg>
+                                        </div>
+                                        <span class="font-black text-lg text-white" id="proDashDirText">--°</span>
+                                    </div>
+                                </div>
+                                <div class="bg-slate-800 rounded-xl py-3 px-2 flex flex-col items-center justify-center border border-slate-700/50 w-full relative">
+                                    <div class="absolute top-0 left-0 w-1.5 h-full bg-sky-500/20"></div>
+                                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-widest">Ola</p>
+                                    <p class="font-black text-lg text-sky-400" id="proDashWave">--</p>
+                                    <p class="text-[9px] text-teal-400 font-bold mt-0.5" id="proDashWavePeriod">Periodo: -- s</p>
+                                </div>
+                                <div class="bg-slate-800 rounded-xl py-3 px-2 flex flex-col items-center justify-center border border-slate-700/50 w-full">
+                                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-widest">Lluvia</p>
+                                    <p class="font-black text-lg text-indigo-400" id="proDashPrecip">--%</p>
+                                    <p class="text-[9px] text-indigo-300 font-bold mt-0.5" id="proDashPrecipMM">-- mm</p>
+                                </div>
+                                <div class="bg-slate-800 rounded-xl py-3 px-2 flex flex-col items-center justify-center border border-slate-700/50 w-full sm:col-span-1 col-span-2">
+                                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-widest">Índice UV</p>
+                                    <p class="font-black text-lg text-amber-400" id="proDashUV">--</p>
+                                    <p class="text-[9px] text-amber-200 font-bold mt-0.5" id="proDashUVText">--</p>
+                                </div>
+                            </div>
+
+                            <div class="p-5 border-b border-slate-800 bg-slate-900 w-full">
+                                <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-800 pb-1">Previsión Hora a Hora</h4>
+                                <div id="proDashHorasContainer" class="flex overflow-x-auto gap-3 pb-2 custom-scrollbar">
+                                    <p class="text-xs text-slate-500 font-mono py-2">Esperando datos horarios del backend...</p>
+                                </div>
+                            </div>
+
+                            <div id="proContainerNavegacion" class="p-5 flex justify-between items-center w-full border-b border-slate-800 bg-slate-800/30">
+                                 <div class="text-left flex flex-col min-w-0 flex-1">
+                                     <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 truncate">Salida Estimada</span>
+                                     <span class="text-white font-black text-xl truncate" id="proSalidaHora">--:--</span>
+                                 </div>
+                                 <div class="flex flex-col items-center px-4">
+                                    <span class="text-[10px] font-bold text-teal-400 mb-1" id="proDistanciaTotal">-- km</span>
+                                    <div class="w-16 h-px bg-slate-600 relative">
+                                        <span class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-slate-400 text-xs">➔</span>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-slate-500 mt-1" id="proTiempoTotal">-- min</span>
+                                 </div>
+                                 <div class="text-right flex flex-col min-w-0 flex-1">
+                                     <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 truncate">Llegada Estimada</span>
+                                     <span class="text-emerald-400 font-black text-xl truncate" id="proLlegadaHora">--:--</span>
+                                 </div>
+                            </div>
+
+                            <div class="p-5 w-full bg-slate-900 rounded-b-xl">
+                                <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-800 pb-1" id="proTituloTramos">Análisis por Tramos</h4>
+                                <div id="proDashTramosContainer" class="flex flex-col gap-2 w-full mb-4"></div>
+                                <button type="button" onclick="volverPlanificadorPro()" class="w-full h-11 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs uppercase tracking-widest active:scale-95 transition-colors border border-slate-700 cursor-pointer">🔄 Modificar Ruta o Salida</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALES JS -->
+
+    <!-- Modal de Autenticación / Perfil Propio -->
+    <div id="authModal" class="fixed inset-0 z-[100] hidden bg-marine/90 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 max-h-[90vh] overflow-hidden">
+            <button type="button" onclick="cerrarModalAuth()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
+                <svg class="w-6 h-6 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <div class="flex-1 overflow-y-auto p-5 pt-10 custom-scrollbar w-full" id="authModalContent">
+                <!-- Se inyecta con JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Comunidad / Clubs -->
+    <div id="clubsModal" class="fixed inset-0 z-[100] hidden bg-marine/90 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 max-h-[85vh] overflow-hidden">
+            <div class="p-5 pb-4 border-b border-slate-100 bg-white relative z-10 text-center w-full">
+                <button type="button" onclick="cerrarModalClubs()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
+                    <svg class="w-6 h-6 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <h2 class="text-2xl sm:text-3xl font-black text-marine mb-3 mt-1">Comunidad ⛺</h2>
+                <div class="flex justify-center gap-1 sm:gap-2 w-full">
+                    <button type="button" onclick="cambiarTabClubs('miclub')" id="tabMiClub" class="h-10 px-2 bg-marine text-white text-[11px] font-bold rounded-lg shadow flex-1 cursor-pointer">Mi Club</button>
+                    <button type="button" onclick="cambiarTabClubs('buscar_club')" id="tabBuscarClub" class="h-10 px-2 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 cursor-pointer">Clubes</button>
+                    <button type="button" onclick="cambiarTabClubs('paddlers')" id="tabPaddlers" class="h-10 px-2 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 cursor-pointer">Paddlers</button>
+                </div>
+            </div>
+            <div id="clubsContent" class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Ranking -->
+    <div id="rankingModal" class="fixed inset-0 z-[100] hidden bg-marine/90 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 max-h-[85vh] overflow-hidden">
+            <div class="p-5 pb-3 border-b border-slate-100 bg-white relative z-10 text-center">
+                <button type="button" onclick="cerrarModalRanking()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
+                    <svg class="w-6 h-6 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <h2 class="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-400 mb-2 mt-1">Top Paddlers</h2>
+                <div class="flex justify-start sm:justify-center gap-1.5 mt-3 overflow-x-auto pb-2 custom-scrollbar w-full px-1">
+                    <button type="button" onclick="cargarTopPaddlers('diario')" id="tabRankDiario" class="h-8 px-3 bg-marine text-white text-[10px] font-bold rounded-lg shadow flex-shrink-0 cursor-pointer">Hoy</button>
+                    <button type="button" onclick="cargarTopPaddlers('semanal')" id="tabRankSemanal" class="h-8 px-3 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer">Semana</button>
+                    <button type="button" onclick="cargarTopPaddlers('mensual')" id="tabRankMensual" class="h-8 px-3 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer">Mes</button>
+                    <button type="button" onclick="cargarTopPaddlers('anual')" id="tabRankAnual" class="h-8 px-3 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer">Año</button>
+                    <button type="button" onclick="cargarTopPaddlers('historico')" id="tabRankHistorico" class="h-8 px-3 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer">Total</button>
+                    <button type="button" onclick="cargarTopPaddlers('clubes')" id="tabRankClubes" class="h-8 px-3 bg-slate-100 text-amber-600 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer">Clubes</button>
+                </div>
+            </div>
+            <div id="rankingLista" class="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar w-full"></div>
+        </div>
+    </div>
+
+    <!-- Modal Perfil Público SPA (/user/:id) -->
+    <div id="userProfileModal" class="fixed inset-0 z-[100] hidden bg-marine/90 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 max-h-[85vh] overflow-hidden">
+            <div class="p-5 pb-4 border-b border-slate-100 bg-white relative z-10 text-center w-full">
+                <button type="button" onclick="goBackSPA()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
+                    <svg class="w-6 h-6 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <img id="spaAvatar" src="" class="w-20 h-20 rounded-full mx-auto mb-2 object-cover border-4 border-white shadow-md">
+                <h2 id="modalUserName" class="text-2xl sm:text-3xl font-black text-marine mt-1">Cargando...</h2>
+                <p id="spaUserLevel" class="text-[10px] font-bold text-water uppercase tracking-widest mt-1 mb-3">Nivel --</p>
+                <div class="flex justify-center gap-1 sm:gap-2 w-full">
+                    <button type="button" onclick="cambiarTabPerfilSPA('insignias')" id="spaTabInsignias" class="h-10 px-2 bg-slate-100 text-slate-600 hover:bg-slate-200 text-[11px] font-bold rounded-lg flex-1 cursor-pointer">Insignias</button>
+                    <button type="button" onclick="cambiarTabPerfilSPA('rutas')" id="spaTabRutas" class="h-10 px-2 bg-marine text-white shadow text-[11px] font-bold rounded-lg flex-1 cursor-pointer">Rutas</button>
+                </div>
+            </div>
+            <div id="userProfileContent" class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full bg-slate-50"></div>
+        </div>
+    </div>
+    
+    <!-- Vista de Perfil de Club Público (clubProfileView) -->
+    <div id="clubProfileViewModal" class="fixed inset-0 z-[100] hidden bg-marine/90 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 max-h-[85vh] overflow-hidden">
+            <!-- Cabecera del Club -->
+            <div class="p-6 pb-4 border-b border-slate-100 bg-white relative z-10 text-center w-full">
+                <button type="button" onclick="goBackSPA()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
+                    <svg class="w-6 h-6 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                
+                <img id="cpvLogo" src="https://via.placeholder.com/150" class="w-24 h-24 rounded-3xl mx-auto mb-3 object-cover border-4 border-white shadow-md bg-slate-50">
+                <h2 id="cpvName" class="text-2xl sm:text-3xl font-black text-marine mt-1 truncate px-2">Cargando...</h2>
+                <p id="cpvStats" class="text-[10px] font-bold text-water uppercase tracking-widest mt-1 mb-2">Nivel -- • -- pts • -- Miembros</p>
+                
+                <p id="cpvDescription" class="text-xs text-slate-500 px-4 line-clamp-3 mb-4 leading-relaxed h-[3.5rem] flex items-center justify-center italic">Cargando descripción...</p>
+                
+                <!-- Botón de Unirse -->
+                <button id="cpvJoinBtn" class="w-full h-11 bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-bold rounded-xl shadow-md active:scale-95 transition-transform uppercase tracking-widest text-[11px] cursor-pointer">
+                    🌊 Unirse al club
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full bg-slate-50">
+                <h3 class="text-[11px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-200 pb-2">
+                    🧭 Rutas Registradas
+                </h3>
+                <div id="cpvRoutesContainer" class="space-y-3">
+                    <!-- JS inyecta rutas y vitrina pública aquí -->
+                </div>
+
+                <!-- TABS DEL PERFIL DEL CLUB -->
+                <div class="mt-4 w-full">
+                    <div class="flex justify-center gap-1 sm:gap-2 mb-4">
+                        <button type="button" onclick="cambiarTabClub('info')" id="cpvTabInfo" class="h-10 px-3 bg-marine text-white text-[11px] font-bold rounded-lg shadow flex-1 cursor-pointer">Info</button>
+                        <button type="button" onclick="cambiarTabClub('miembros')" id="cpvTabMiembros" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 cursor-pointer">Miembros</button>
+                        <button type="button" onclick="cambiarTabClub('rutas')" id="cpvTabRutas" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 cursor-pointer">Rutas</button>
+                        <button type="button" onclick="cambiarTabClub('vitrina')" id="cpvTabVitrina" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 cursor-pointer">Vitrina</button>
+                        <button type="button" onclick="cambiarTabClub('chat')" id="cpvTabChat" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 cursor-pointer">Chat</button>
+                        <button type="button" onclick="cambiarTabClub('admin')" id="cpvTabAdmin" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 cursor-pointer hidden">Admin</button>
+                        <button type="button" onclick="cambiarTabClub('solicitudes')" id="cpvTabSolicitudes" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 cursor-pointer hidden">Solicitudes</button>
+                    </div>
+
+                    <!-- CONTENEDOR PRINCIPAL TABS -->
+                    <div id="vistaClubContent" class="w-full">
+                        <div id="cpvInfoContainer" class="space-y-3"></div>
+                        <div id="cpvMembersContainer" class="space-y-3 hidden"></div>
+                        <div id="cpvRoutesContainerFull" class="space-y-3 hidden"></div>
+                        <div id="cpvShowcaseContainer" class="space-y-3 hidden"></div>
+                        <div id="cpvChatContainer" class="space-y-3 hidden"></div>
+                        <div id="cpvRolesContainer" class="space-y-3 hidden"></div>
+                        <div id="cpvAdminPanel" class="space-y-3 hidden"></div>
+                        <div id="cpvRequestsContainer" class="space-y-3 hidden"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- PANEL DE ADMINISTRACIÓN DE SOLICITUDES -->
+    <div id="clubAdminRequestsModal" class="fixed inset-0 z-[110] hidden bg-marine/90 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 max-h-[85vh] overflow-hidden">
+            <div class="p-6 pb-4 border-b border-slate-100 bg-white relative z-10 text-center w-full">
+                <button type="button" onclick="cerrarPanelSolicitudes()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
+                    <svg class="w-6 h-6 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <div class="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner border border-indigo-100">
+                    <span class="text-3xl drop-shadow-sm">📋</span>
+                </div>
+                <h2 class="text-2xl sm:text-3xl font-black text-marine mt-1 truncate px-2">Solicitudes</h2>
+                <p class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mt-1 mb-2">Panel de Administración</p>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full bg-slate-50">
+                <div id="adminRequestsContainer" class="space-y-3">
+                    <!-- JS inyectará solicitudes -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SISTEMA DE AMISTADES -->
+    <div id="friendSystemModal" class="fixed inset-0 z-[120] hidden bg-marine/90 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 max-h-[85vh] overflow-hidden">
+            <div class="p-6 pb-4 border-b border-slate-100 bg-white relative z-10 text-center w-full">
+                <button type="button" onclick="cerrarPanelMisAmigos()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
+                    <svg class="w-6 h-6 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <div class="w-16 h-16 bg-sky-50 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner border border-sky-100">
+                    <span class="text-3xl drop-shadow-sm">🤝</span>
+                </div>
+                <h2 class="text-2xl sm:text-3xl font-black text-marine mt-1 truncate px-2">Amigos</h2>
+                
+                <div class="flex justify-center gap-1 sm:gap-2 w-full mt-4">
+                    <button type="button" onclick="cambiarTabAmistades('lista')" id="tabMisAmigos" class="h-10 px-2 bg-marine text-white text-[11px] font-bold rounded-lg shadow flex-1 cursor-pointer transition-colors">Mis Amigos</button>
+                    <button type="button" onclick="cambiarTabAmistades('solicitudes')" id="tabSolicitudesAmistad" class="h-10 px-2 bg-slate-100 text-slate-600 hover:bg-slate-200 text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors relative">
+                        Solicitudes
+                        <span id="badgeSolicitudesAmistad" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-5 h-5 flex items-center justify-center rounded-full hidden border-2 border-white">0</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="friendSystemContent" class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full bg-slate-50">
+                <!-- Se inyecta la lista o las solicitudes con JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SISTEMA DE ACTUALIZACIÓN AUTOMÁTICA (OTA)  -->
+    <!-- ========================================== -->
+    <script>
+        (async function() {
+            const APP_FILES = ['/js/main.js']; 
+            
+            try {
+                // 1. Consultar version.json evadiendo caché del navegador
+                const timestamp = new Date().getTime();
+                const response = await fetch(`/version.json?t=${timestamp}`, { cache: "no-store" });
+                const data = await response.json();
+                const newHash = data.hash;
+                
+                // 2. Comprobar versión instalada
+                const currentHash = localStorage.getItem('paddlesafe_version');
+                
+                if (currentHash && currentHash !== newHash) {
+                    console.log(`🔄 Actualizando de ${currentHash} a ${newHash}...`);
+                    
+                    // 2.1 Limpiar Caché Storage de la PWA
+                    if ('caches' in window) {
+                        const cacheKeys = await caches.keys();
+                        await Promise.all(cacheKeys.map(key => caches.delete(key)));
+                    }
+                    
+                    // 2.2 Desregistrar Service Workers antiguos
+                    if ('serviceWorker' in navigator) {
+                        const registrations = await navigator.serviceWorker.getRegistrations();
+                        for (let reg of registrations) {
+                            await reg.unregister();
+                        }
+                    }
+                    
+                    // 2.3 Guardar nueva versión y recargar limpio
+                    localStorage.setItem('paddlesafe_version', newHash);
+                    window.location.reload();
+                    return; // Bloquear ejecución hasta que recargue
+                }
+                
+                // Si es la primera vez, guardamos la versión
+                if (!currentHash) {
+                    localStorage.setItem('paddlesafe_version', newHash);
+                }
+
+                // 3. Inyectar archivos dinámicamente con el Hash de versión
+                APP_FILES.forEach(file => {
+                    if (file.endsWith('.js')) {
+                        const script = document.createElement('script');
+                        script.type = 'module';
+                        script.src = `${file}?v=${newHash}`;
+                        script.defer = true;
+                        document.body.appendChild(script);
+                    } else if (file.endsWith('.css')) {
+                        const link = document.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.href = `${file}?v=${newHash}`;
+                        document.head.appendChild(link);
+                    }
+                });
+
+                // 4. Registrar el Service Worker
+                if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', () => {
+                        navigator.serviceWorker.register('/sw.js').then(reg => {
+                            // Escuchar cuando el SW detecta una nueva versión byte a byte
+                            reg.onupdatefound = () => {
+                                const installingWorker = reg.installing;
+                                installingWorker.onstatechange = () => {
+                                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        // Nueva versión detectada por el navegador. Forzamos chequeo de version.json
+                                        fetch(`/version.json?t=${new Date().getTime()}`, { cache: "no-store" })
+                                            .then(r => r.json())
+                                            .then(newData => {
+                                                if (newData.hash !== localStorage.getItem('paddlesafe_version')) {
+                                                    localStorage.setItem('paddlesafe_version', newData.hash);
+                                                    window.location.reload();
+                                                }
+                                            });
+                                    }
+                                };
+                            };
+                        });
+                    });
+                }
+
+            } catch (e) {
+                console.warn("⚠️ Modo Offline o error en version.json. Cargando fallback.");
+                // Fallback para modo offline
+                APP_FILES.forEach(file => {
+                    if (file.endsWith('.js')) {
+                        const script = document.createElement('script');
+                        script.type = 'module';
+                        script.src = file; // Sin hash, usa lo que haya en caché
+                        script.defer = true;
+                        document.body.appendChild(script);
+                    }
+                });
+                
+                if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+                }
+            }
+        })();
+    </script>
+</body>
+</html>
