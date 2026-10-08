@@ -49,8 +49,8 @@ const ClubFacade = {
     },
 
     // 4. Peligro
-    onDelete(clubId) {
-        ClubDelete.execute(clubId);
+    onDelete(clubId, event) {
+        ClubDelete.execute(clubId, event);
     },
 
     // 5. Creación

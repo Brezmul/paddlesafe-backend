@@ -27,21 +27,6 @@ import uploadRouteHandler from "../lib/handlers/upload_route.js";
 import warningsHandler from "../lib/handlers/warnings.js";
 
 export default async function handler(req, res) {
-  // 1. Configurar las cabeceras CORS para permitir el acceso desde tu frontend
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, apikey'
-  );
-
-  // 2. Manejar la petición de preflight (OPTIONS) que hace el navegador
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  // 3. Lógica normal de tu backend (Enrutador)
   const { action } = req.query;
 
   try {

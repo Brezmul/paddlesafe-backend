@@ -415,8 +415,11 @@ export async function cerrarSesion() {
         return; 
     }
     
-    // Mostramos un feedback visual mientras cerramos sesión y forzamos reinicio limpio de la memoria RAM
-    document.body.innerHTML = '<div class="h-screen w-full flex items-center justify-center bg-marine text-white font-bold animate-pulse">Cerrando sesión de forma segura...</div>';
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 z-[9999] flex h-screen w-full items-center justify-center bg-marine font-bold text-white animate-pulse';
+    overlay.style.zIndex = '9999';
+    overlay.textContent = 'Cerrando sesión de forma segura...';
+    document.body.appendChild(overlay);
     
     await supabaseClient.auth.signOut(); 
     window.location.reload(); 

@@ -180,6 +180,7 @@ export async function verificarEstadoAmistad(targetUserId) {
     if (!btn) return;
     
     const { data } = await supabaseClient.from('amistades').select('*').or(`and(usuario_id.eq.${appState.sesionActual.user.id},amigo_id.eq.${targetUserId}),and(usuario_id.eq.${targetUserId},amigo_id.eq.${appState.sesionActual.user.id})`).order('created_at', { ascending: false }).limit(1);
+    document.getElementById('btnRechazarAmistad')?.remove();
     
     if (data && data.length > 0) {
         const rel = data[0];
@@ -189,10 +190,29 @@ export async function verificarEstadoAmistad(targetUserId) {
             if (rel.usuario_id === appState.sesionActual.user.id) {
                 btn.textContent = "⏳ Pendiente"; btn.disabled = true; btn.className = "mt-2 mb-2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 text-[10px] font-bold px-5 py-2 rounded-full uppercase cursor-default";
             } else {
-                btn.outerHTML = `<div class="flex gap-2 mt-2 mb-2 justify-center"><button onclick="responderSolicitudAmistad('${rel.id}', 'aceptar'); setTimeout(()=>verificarEstadoAmistad('${targetUserId}'), 500);" class="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold px-4 py-2 rounded-full uppercase transition-colors">Aceptar</button><button onclick="responderSolicitudAmistad('${rel.id}', 'rechazar'); setTimeout(()=>verificarEstadoAmistad('${targetUserId}'), 500);" class="bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-4 py-2 rounded-full uppercase transition-colors">Rechazar</button></div>`;
+                btn.textContent = "Aceptar";
+                btn.disabled = false;
+                btn.className = "bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold px-4 py-2 rounded-full uppercase transition-colors";
+                btn.onclick = () => {
+                    responderSolicitudAmistad(rel.id, 'aceptar');
+                    setTimeout(() => verificarEstadoAmistad(targetUserId), 500);
+                };
+
+                const rejectBtn = document.createElement('button');
+                rejectBtn.id = 'btnRechazarAmistad';
+                rejectBtn.type = 'button';
+                rejectBtn.textContent = "Rechazar";
+                rejectBtn.className = "bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-4 py-2 rounded-full uppercase transition-colors";
+                rejectBtn.onclick = () => {
+                    responderSolicitudAmistad(rel.id, 'rechazar');
+                    setTimeout(() => verificarEstadoAmistad(targetUserId), 500);
+                };
+                btn.insertAdjacentElement('afterend', rejectBtn);
             }
         } else if (rel.estado === 'rechazada') {
             btn.textContent = "Añadir Amigo"; btn.disabled = false;
+            btn.className = "bg-water hover:bg-sky-600 text-white text-[10px] font-bold px-5 py-2 rounded-full uppercase transition-colors shadow-sm active:scale-95 cursor-pointer";
+            btn.onclick = () => { if(window.enviarSolicitudAmistad) window.enviarSolicitudAmistad(targetUserId); };
         }
     } else {
         // Corrección: Devolver el botón al estado original si la amistad se borró o no existe

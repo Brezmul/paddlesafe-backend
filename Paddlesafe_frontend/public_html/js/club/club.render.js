@@ -77,7 +77,7 @@ export const ClubRender = {
         return `
         ${selectorHTML}
         <div class="w-full bg-white dark:bg-slate-800 rounded-2xl shadow-sm mb-4 overflow-hidden border border-slate-200 dark:border-slate-700">
-            <div class="h-32 w-full bg-slate-200 bg-cover bg-center relative" style="background-image: url('${esc(safeUrl(cl.portada_url, ''))}')">
+            <div id="cpvHeaderPortada" class="h-32 w-full bg-slate-200 bg-cover bg-center relative" style="background-image: url('${esc(safeUrl(cl.portada_url, ''))}')">
                 ${isAdmin ? `<label class="absolute top-2 right-2 bg-marine/60 text-white px-3 py-1.5 rounded-lg cursor-pointer text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm">📷 Cambiar Portada <input type="file" class="hidden" accept="image/*" onchange="window.Club.onPhotoUpload(event, '${cl.club_id}', 'portada')"></label>` : ''}
             </div>
             <div class="px-5 pb-5 pt-3 relative">

@@ -20,15 +20,18 @@ export const ClubPhotos = {
 
         try {
             const url = await ClubAPI.uploadImage(filePath, file, file.type || 'image/jpeg');
-            const urlConCacheBuster = `${url}?t=${Date.now()}`; // Fuerza render saltando el Service Worker
+            const urlOriginal = url;
+            const urlConCacheBuster = `${urlOriginal}${urlOriginal.includes('?') ? '&' : '?'}t=${Date.now()}`; // Fuerza render saltando el Service Worker
             
-            await ClubAPI.updateField(clubId, { [dbColumn]: urlConCacheBuster });
+            await ClubAPI.updateField(clubId, { [dbColumn]: urlOriginal });
             
             // Actualizamos la UI inmediatamente
             if (isLogo) {
                 if (previewEl) previewEl.src = urlConCacheBuster;
             } else {
-                ClubRender.renderTabMiClub(); // Recarga la vista para la portada
+                await ClubRender.renderTabMiClub(); // Recarga la vista para la portada
+                const coverEl = document.getElementById(previewId);
+                if (coverEl) coverEl.style.backgroundImage = `url("${urlConCacheBuster}")`;
             }
         } catch (error) {
             alert(`❌ Error al actualizar ${type}.`);

@@ -3,12 +3,12 @@ import { ClubState } from './state.js';
 import { ClubRender } from './club.render.js';
 
 export const ClubDelete = {
-    async execute(clubId) {
+    async execute(clubId, event) {
         if (!clubId) return alert("Error interno: ID de club no válido.");
         if (!confirm("⚠️ ATENCIÓN: ¿Seguro que deseas ELIMINAR el club para siempre? Esta acción no se puede deshacer.")) return;
         
         // Bloquear UI para evitar dobles clics
-        const btn = event.currentTarget;
+        const btn = event?.currentTarget;
         if (btn) { btn.disabled = true; btn.textContent = "Eliminando..."; }
 
         try {

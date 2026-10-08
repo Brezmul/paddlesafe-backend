@@ -75,7 +75,7 @@ export default async function handler(req, res) {
 
     // --- PROCESAR HORAS ---
     const condiciones = stormData.hours.map((h) => {
-      const viento = h.windSpeed?.sg || 0;
+      const viento = (h.windSpeed?.sg || 0) * 3.6;
       const oleaje = h.waveHeight?.sg || 0;
       const periodo = h.wavePeriod?.sg || 0;
       const direccionViento = h.windDirection?.sg || 0;

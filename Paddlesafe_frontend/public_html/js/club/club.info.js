@@ -9,10 +9,10 @@ export const ClubInfo = {
         if (!input) return;
         
         const newValue = input.value.trim();
-        this.triggerAutoSave(clubId, dbColumn, newValue);
+        this.triggerAutoSave(clubId, dbColumn, newValue, fieldId);
     },
 
-    triggerAutoSave(clubId, dbColumn, newValue) {
+    triggerAutoSave(clubId, dbColumn, newValue, fieldId) {
         const indicator = document.getElementById('autoSaveIndicator');
         if (indicator) {
             indicator.textContent = "Escribiendo...";
@@ -20,10 +20,10 @@ export const ClubInfo = {
         }
 
         clearTimeout(autoSaveTimer);
-        autoSaveTimer = setTimeout(() => this.commitSave(clubId, dbColumn, newValue), 800);
+        autoSaveTimer = setTimeout(() => this.commitSave(clubId, dbColumn, newValue, fieldId), 800);
     },
 
-    async commitSave(clubId, dbColumn, newValue) {
+    async commitSave(clubId, dbColumn, newValue, fieldId) {
         // Prevención de guardado si el valor no ha cambiado realmente
         if (ClubState.lastSaved[clubId] && ClubState.lastSaved[clubId][dbColumn] === newValue) {
             this.hideIndicator();
@@ -31,7 +31,12 @@ export const ClubInfo = {
         }
 
         // Validación estricta: El nombre no puede estar vacío
-        if (dbColumn === 'nombre' && !newValue) return;
+        if (dbColumn === 'nombre' && !newValue) {
+            const input = document.getElementById(fieldId);
+            if (input) input.value = ClubState.lastSaved[clubId]?.[dbColumn] ?? '';
+            this.hideIndicator();
+            return;
+        }
 
         try {
             const payload = { [dbColumn]: newValue };

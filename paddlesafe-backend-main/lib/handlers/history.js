@@ -113,7 +113,7 @@ export default async function handler(req, res) {
       // Tomar la hora central del día
       const h = stormData.hours[Math.floor(stormData.hours.length / 2)];
 
-      const viento = h.windSpeed?.sg || 0;
+      const viento = (h.windSpeed?.sg || 0) * 3.6;
       const oleaje = h.waveHeight?.sg || 0;
       const periodo = h.wavePeriod?.sg || 0;
 

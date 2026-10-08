@@ -643,8 +643,6 @@ export function volverPlanificadorPro() {
 // NUEVAS FUNCIONES DE PLANIFICACIÓN DE EVENTOS
 // ==========================================
 export function activarModoPlanificacionEvento(clubId) {
-    clubParaEvento = clubId;
-    
     const panelPro = document.getElementById("panelPro");
     if (panelPro && panelPro.style.gridTemplateRows === "0fr") {
         document.getElementById("btnPro").click();
@@ -674,6 +672,8 @@ export function activarModoPlanificacionEvento(clubId) {
     if (!modoTravesiaActivo && !modoRutaLibreActivo) {
         toggleRutaLibre();
     }
+    clubParaEvento = clubId;
+    btnSave.classList.remove('hidden');
     
     document.getElementById('mapContainer').scrollIntoView({ behavior: 'smooth' });
 }

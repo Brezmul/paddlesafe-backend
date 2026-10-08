@@ -94,49 +94,54 @@ export default async function handler(req, res) {
     // --- GENERAR PUNTOS ---
     const puntos = generarPuntos(lat, lng);
 
-    const heatmap = [];
+    // --- CONDICIONES BASE DEL PUNTO CENTRAL ---
+    const stormRes = await fetch(
+      `https://api.stormglass.io/v2/weather/point?lat=${lat}&lng=${lng}&params=waveHeight,wavePeriod,windSpeed,windDirection`,
+      { headers: { Authorization: STORMGLASS_KEY } }
+    );
 
-    // --- PROCESAR CADA PUNTO ---
-    for (const p of puntos) {
-      const stormRes = await fetch(
-        `https://api.stormglass.io/v2/weather/point?lat=${p.lat}&lng=${p.lng}&params=waveHeight,wavePeriod,windSpeed,windDirection`,
-        { headers: { Authorization: STORMGLASS_KEY } }
-      );
+    if (stormRes.status === 429) {
+      return res.status(429).json({
+        ok: false,
+        error: "Límite gratuito excedido",
+        detalle: "Has alcanzado el máximo de 10 solicitudes diarias del plan Free de StormGlass."
+      });
+    }
 
-      if (stormRes.status === 429) {
-        return res.status(429).json({
-          ok: false,
-          error: "Límite gratuito excedido",
-          detalle: "Has alcanzado el máximo de 10 solicitudes diarias del plan Free de StormGlass."
-        });
-      }
+    const stormData = await stormRes.json();
+    if (!stormData.hours || stormData.hours.length === 0) {
+      const heatmap = puntos.map((p) => ({
+        lat: p.lat,
+        lng: p.lng,
+        score: 0,
+        semaforo: "Rojo",
+        condiciones: null,
+        alertas: ["Sin datos"]
+      }));
 
-      const stormData = await stormRes.json();
+      const responseData = { ok: true, location, centro: { lat, lng }, heatmap };
+      cache.set(cacheKey, { timestamp: Date.now(), data: responseData });
+      return res.status(200).json(responseData);
+    }
 
-      if (!stormData.hours || stormData.hours.length === 0) {
-        heatmap.push({
-          lat: p.lat,
-          lng: p.lng,
-          score: 0,
-          semaforo: "Rojo",
-          condiciones: null,
-          alertas: ["Sin datos"]
-        });
-        continue;
-      }
+    const h = stormData.hours[Math.floor(stormData.hours.length / 2)];
+    const condicionesBase = {
+      viento: (h.windSpeed?.sg || 0) * 3.6,
+      oleaje: h.waveHeight?.sg || 0,
+      periodo: h.wavePeriod?.sg || 0,
+      direccion: h.windDirection?.sg || 0
+    };
 
-      const h = stormData.hours[Math.floor(stormData.hours.length / 2)];
-
+    const heatmap = puntos.map((p) => {
+      const variacion = Math.sin((p.lat - lat) * 800 + (p.lng - lng) * 800) * 0.05;
       const condiciones = {
-        viento: h.windSpeed?.sg || 0,
-        oleaje: h.waveHeight?.sg || 0,
-        periodo: h.wavePeriod?.sg || 0,
-        direccion: h.windDirection?.sg || 0
+        ...condicionesBase,
+        viento: Number((condicionesBase.viento * (1 + variacion)).toFixed(2)),
+        oleaje: Number((condicionesBase.oleaje * (1 - variacion)).toFixed(2))
       };
 
       const score = calcularScore(condiciones, userLevel);
       const color = semaforo(score);
-
       const alertas = [];
 
       if (condiciones.viento > 15) alertas.push("Viento fuerte");
@@ -147,15 +152,15 @@ export default async function handler(req, res) {
 
       if (alertas.length === 0) alertas.push("Sin alertas críticas");
 
-      heatmap.push({
+      return {
         lat: p.lat,
         lng: p.lng,
         score,
         semaforo: color,
         condiciones,
         alertas
-      });
-    }
+      };
+    });
 
     const responseData = {
       ok: true,

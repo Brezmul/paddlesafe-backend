@@ -1,6 +1,6 @@
 <?php
 $logFile = "logs.txt";
-$msg = $_GET["msg"] ?? "Sin mensaje";
+$msg = str_replace(["\n", "\r"], '', $_GET["msg"] ?? "Sin mensaje");
 
 $entry = "[" . date("Y-m-d H:i:s") . "] " . $msg . "\n";
 
