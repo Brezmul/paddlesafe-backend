@@ -23,16 +23,16 @@ import statusHandler from "../lib/handlers/status.js";
 import summaryHandler from "../lib/handlers/summary.js";
 import terrainHandler from "../lib/handlers/terrain.js";
 import tidesHandler from "../lib/handlers/tides.js";
+import uploadRouteHandler from "../lib/handlers/upload_route.js";
 import warningsHandler from "../lib/handlers/warnings.js";
 
 export default async function handler(req, res) {
   // 1. Configurar las cabeceras CORS para permitir el acceso desde tu frontend
-  res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, apikey'
   );
 
   // 2. Manejar la petición de preflight (OPTIONS) que hace el navegador
@@ -71,6 +71,7 @@ export default async function handler(req, res) {
       case "summary": return await summaryHandler(req, res);
       case "terrain": return await terrainHandler(req, res);
       case "tides": return await tidesHandler(req, res);
+      case "upload_route": return await uploadRouteHandler(req, res);
       case "warnings": return await warningsHandler(req, res);
       default:
         return res.status(404).json({ error: "Acción no válida" });

@@ -41,14 +41,35 @@ La ruta canónica es `/api/backend?action=<acción>`. Los clientes antiguos que 
 | `summary` | POST |
 | `terrain` | POST |
 | `tides` | POST |
+| `upload_route` | POST (Bearer token) |
 | `warnings` | POST |
 
 Las acciones POST reciben JSON. Los campos obligatorios y formatos son específicos de cada handler. Por ejemplo, `dashboard` espera `location`, `date`, `timeRange` y `userLevel`; `forecast` consume `fecha`, `horaSalida`, `nivel`, `coordenadas` y `duracionRuta`.
 
 `route` calcula y analiza un recorrido entre origen y destino. No es el endpoint de persistencia de la grabación GPS: actualmente el frontend guarda esas rutas directamente en Supabase.
 
+### `upload_route`
+
+Guarda una ruta normalizada y autenticada en `rutas`, usando el usuario del token Supabase (se ignora cualquier `user_id` del cliente) y las políticas RLS existentes.
+
+Configura en Vercel las variables `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY`. La tabla `rutas` debe permitir `INSERT` a usuarios autenticados solo cuando `user_id = auth.uid()`.
+
+Envía `POST /api/backend?action=upload_route` con `Authorization: Bearer <access_token>` y un JSON con:
+
+```json
+{
+  "distancia_km": 4.2,
+  "tiempo_minutos": 65,
+  "ruta_json": [[38.8, 0.18], [38.81, 0.19]],
+  "imagen_url": null,
+  "ubicacion": "Travesía GPS"
+}
+```
+
+Se aceptan entre 2 y 20 000 puntos `[latitud, longitud]`; el endpoint valida rangos, tamaño, duración, distancia e imágenes del bucket público `paddlesafe`. GPX, FIT y TCX aún requieren parsers que conviertan sus datos a este contrato antes de poder cargarlos.
+
 ## Límites y autenticación
 
-Los endpoints de análisis no requieren autenticación propia. Las cuotas de OpenCage y StormGlass dependen de sus planes y credenciales; usa el agregador `dashboard` cuando sea apropiado y evita solicitudes duplicadas.
+Los endpoints de análisis no requieren autenticación propia; `upload_route` requiere un token de usuario Supabase. Las cuotas de OpenCage y StormGlass dependen de sus planes y credenciales; usa el agregador `dashboard` cuando sea apropiado y evita solicitudes duplicadas.
 
 La caché en memoria no es un limitador de peticiones ni un almacenamiento compartido entre instancias.
