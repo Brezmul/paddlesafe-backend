@@ -44,7 +44,7 @@ La ruta canónica es `/api/backend?action=<acción>`. Los clientes antiguos que 
 | `upload_route` | POST (Bearer token) |
 | `warnings` | POST |
 
-Las acciones POST reciben JSON. Los campos obligatorios y formatos son específicos de cada handler. Por ejemplo, `dashboard` espera `location`, `date`, `timeRange` y `userLevel`; `forecast` consume `fecha`, `horaSalida`, `nivel`, `coordenadas` y `duracionRuta`.
+Las acciones POST reciben JSON. Los campos obligatorios y formatos son específicos de cada handler. Por ejemplo, `dashboard` y `forecast` usan `location`, `date`, `timeRange` y `userLevel`. `forecast` conserva compatibilidad con el contrato antiguo (`coordenadas`, `fecha`, `horaSalida`, `nivel` y `duracionRuta`) y normaliza esos campos en el servidor.
 
 `route` calcula y analiza un recorrido entre origen y destino. No es el endpoint de persistencia de la grabación GPS: actualmente el frontend guarda esas rutas directamente en Supabase.
 
@@ -53,6 +53,10 @@ Las acciones POST reciben JSON. Los campos obligatorios y formatos son específi
 Guarda una ruta normalizada y autenticada en `rutas`, usando el usuario del token Supabase (se ignora cualquier `user_id` del cliente) y las políticas RLS existentes.
 
 Configura en Vercel las variables `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY`. La tabla `rutas` debe permitir `INSERT` a usuarios autenticados solo cuando `user_id = auth.uid()`.
+
+En Vercel, añade ambas variables en **Project Settings → Environment Variables** para cada entorno de despliegue que vaya a usar la función (Production, Preview o Development). `SUPABASE_URL` debe ser la URL HTTPS del proyecto Supabase y `SUPABASE_PUBLISHABLE_KEY` una clave publishable del mismo proyecto; no configures una `service_role` key. Los valores deben estar disponibles en el runtime de la función.
+
+La política RLS de `INSERT` debe limitar `user_id` a `auth.uid()`. Como la respuesta devuelve la fila insertada (`Prefer: return=representation`), la política de `SELECT` también debe permitir al usuario leer su propia fila. Verifica ambas políticas en el proyecto Supabase de producción antes de activar este endpoint.
 
 Envía `POST /api/backend?action=upload_route` con `Authorization: Bearer <access_token>` y un JSON con:
 
@@ -70,6 +74,8 @@ Se aceptan entre 2 y 20 000 puntos `[latitud, longitud]`; el endpoint valida ran
 
 ## Límites y autenticación
 
-Los endpoints de análisis no requieren autenticación propia; `upload_route` requiere un token de usuario Supabase. Las cuotas de OpenCage y StormGlass dependen de sus planes y credenciales; usa el agregador `dashboard` cuando sea apropiado y evita solicitudes duplicadas.
+Los endpoints de análisis no requieren autenticación propia; `upload_route` requiere un token de usuario Supabase. Las rutas offline pendientes creadas por versiones anteriores no contienen propietario verificable: al intentar sincronizarlas, se descartan localmente y no se asignan a la sesión activa. Las rutas nuevas sí guardan el ID del usuario y solo se sincronizan con esa misma cuenta.
+
+Las cuotas de OpenCage y StormGlass dependen de sus planes y credenciales; usa el agregador `dashboard` cuando sea apropiado y evita solicitudes duplicadas.
 
 La caché en memoria no es un limitador de peticiones ni un almacenamiento compartido entre instancias.

@@ -40,7 +40,7 @@ function validateRoute(body, supabaseOrigin) {
 
   let validatedImageUrl = null;
   if (imagen_url !== undefined && imagen_url !== null) {
-    if (typeof imagen_url !== "string") {
+    if (typeof imagen_url !== "string" || imagen_url.length > 2048) {
       return { error: "imagen_url debe ser una URL pública de Storage o null." };
     }
     try {

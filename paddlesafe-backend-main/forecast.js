@@ -236,6 +236,58 @@ export async function llamarOpenMeteo(lat, lon, date, timeRange, incluirMarine =
   };
 }
 
+function normalizeForecastRequest(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return { error: "El cuerpo debe ser un objeto JSON." };
+  }
+
+  const location = body.location ?? body.coordenadas;
+  const date = body.date ?? body.fecha;
+  const userLevel = body.userLevel ?? body.nivel;
+  let timeRange = body.timeRange;
+
+  if (!timeRange) {
+    const startMatch = /^([01]\d|2[0-3]):[0-5]\d$/.exec(body.horaSalida ?? "");
+    if (!startMatch) {
+      return { error: "Falta una franja horaria válida (timeRange)." };
+    }
+    const startHour = Number(startMatch[1]);
+    const durationHours = Math.max(1, Math.ceil(Number(body.duracionRuta) / 60) || 2);
+    const endHour = Math.min(24, startHour + durationHours);
+    timeRange = `Salida (${String(startHour).padStart(2, "0")}:00 - ${String(endHour).padStart(2, "0")}:00)`;
+  }
+
+  const dateMatch = /^(\d{4}-\d{2}-\d{2})$/.exec(date ?? "");
+  const rangeMatch = /\((\d{2}):00\s*-\s*(\d{2}):00\)/.exec(timeRange);
+  if (!location || typeof location !== "string" || !location.trim() || location.length > 200) {
+    return { error: "location debe ser una ubicación o un par de coordenadas válido." };
+  }
+  if (!dateMatch || Number.isNaN(Date.parse(`${dateMatch[1]}T00:00:00Z`)) ||
+      new Date(`${dateMatch[1]}T00:00:00Z`).toISOString().slice(0, 10) !== dateMatch[1]) {
+    return { error: "date debe tener el formato YYYY-MM-DD y ser una fecha válida." };
+  }
+  if (!rangeMatch) {
+    return { error: "timeRange debe incluir una franja con formato (HH:00 - HH:00)." };
+  }
+  const startHour = Number(rangeMatch[1]);
+  const endHour = Number(rangeMatch[2]);
+  if (startHour < 0 || endHour > 24 || startHour >= endHour) {
+    return { error: "La franja horaria no es válida." };
+  }
+  if (typeof userLevel !== "string" || !userLevel.trim()) {
+    return { error: "userLevel es obligatorio." };
+  }
+
+  return {
+    request: {
+      location: location.trim(),
+      date: dateMatch[1],
+      timeRange,
+      userLevel: userLevel.trim()
+    }
+  };
+}
+
 export function normalizarPrincipal(data) {
   const hours = data?.hours;
   if (!Array.isArray(hours) || hours.length === 0) {
@@ -399,15 +451,16 @@ export default async function handler(req, res) {
 
   try {
     const OPENCAGE_KEY = process.env.OPENCAGE_KEY;
-    const { location, date, timeRange, userLevel } = req.body;
-
-    if (!location || !date || !timeRange || !userLevel) {
+    const normalized = normalizeForecastRequest(req.body);
+    if (normalized.error) {
       return res.status(400).json({
         ok: false,
-        error: "Faltan parámetros",
-        required: ["location", "date", "timeRange", "userLevel"]
+        error: normalized.error,
+        required: ["location", "date", "timeRange", "userLevel"],
+        legacyFields: ["coordenadas", "fecha", "horaSalida", "nivel", "duracionRuta"]
       });
     }
+    const { location, date, timeRange, userLevel } = normalized.request;
 
     // --- CACHÉ ---
     const cacheKey = `${location}-${date}-${timeRange}-${userLevel}`;
