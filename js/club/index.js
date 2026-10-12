@@ -123,10 +123,10 @@ const ClubFacade = {
         }
 
         const activeClub = ClubState.myClubs?.find(c => c.club_id === clubId);
-        const miRol = (activeClub?.club_rol || '').toLowerCase();
-        const soyAdmin = miRol === 'creador' || miRol === 'admin';
-        const soyCreador = miRol === 'creador';
         const miUserId = appState.sesionActual?.user?.id;
+        const miRol = (activeClub?.club_rol || '').toLowerCase();
+        const soyCreador = miRol === 'creador' || (activeClub?.creador_id && activeClub.creador_id === miUserId);
+        const soyAdmin = soyCreador || miRol === 'admin';
 
         // Actualizar apariencia de las pestañas
         const btnTrip = document.querySelector('button[onclick*="cambiarVistaInterna(\'tripulacion\')"]');
@@ -146,13 +146,29 @@ const ClubFacade = {
         }
 
         if (esGestion) {
+            const zonaPeligroHTML = soyCreador ? `
+                <div class="mt-6 pt-5 border-t border-rose-200 dark:border-rose-900/40">
+                    <div class="p-4 bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 rounded-2xl">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="text-lg">⚠️</span>
+                            <h4 class="text-xs font-black text-rose-700 dark:text-rose-400 uppercase tracking-wider">Zona de Peligro</h4>
+                        </div>
+                        <p class="text-[11px] text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+                            Como <strong>creador del club</strong>, puedes eliminarlo permanentemente. Esta acción disolverá el club para todos sus miembros y no se puede deshacer.
+                        </p>
+                        <button type="button" onclick="window.Club.onDelete('${esc(clubId)}', event)" class="w-full h-11 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-rose-600/20 cursor-pointer flex items-center justify-center gap-2">
+                            🗑️ Eliminar Club para Siempre
+                        </button>
+                    </div>
+                </div>` : '';
+
             // Vista Gestión de solicitudes
             contenedor.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando solicitudes...</p>';
             try {
                 const { data: solicitudes, error } = await supabaseClient.rpc('obtener_solicitudes_club', { p_club_id: clubId });
                 if (error) {
                     console.error('[club] obtener_solicitudes_club error:', error);
-                    contenedor.innerHTML = `<div class="text-center py-6 text-red-500 text-xs font-bold">Error al cargar solicitudes: ${esc(error.message)}</div>`;
+                    contenedor.innerHTML = `<div class="text-center py-6 text-red-500 text-xs font-bold">Error al cargar solicitudes: ${esc(error.message)}</div>${zonaPeligroHTML}`;
                     return;
                 }
 
@@ -161,7 +177,8 @@ const ClubFacade = {
                         <div class="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
                             <span class="text-3xl block mb-2 opacity-50">📬</span>
                             <p class="text-slate-400 text-xs font-bold">No hay solicitudes pendientes</p>
-                        </div>`;
+                        </div>
+                        ${zonaPeligroHTML}`;
                     return;
                 }
 
@@ -188,10 +205,11 @@ const ClubFacade = {
                                     </div>
                                 </div>`;
                         }).join('')}
-                    </div>`;
+                    </div>
+                    ${zonaPeligroHTML}`;
             } catch (e) {
                 console.error('[club] gestion error:', e);
-                contenedor.innerHTML = `<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar solicitudes.</p>`;
+                contenedor.innerHTML = `<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar solicitudes.</p>${zonaPeligroHTML}`;
             }
         } else {
             // Vista Tripulación (miembros)

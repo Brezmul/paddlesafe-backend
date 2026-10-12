@@ -52,9 +52,12 @@ export const ClubRender = {
             const activeClub = relaciones.find(x => x.club_id === ClubState.activeId) || relaciones[0];
             ClubState.initSaveState(activeClub.club_id, activeClub);
             
-            const isAdmin = activeClub.club_rol === 'creador' || activeClub.club_rol === 'admin';
+            const miUserId = appState.sesionActual?.user?.id;
+            const clubRol = (activeClub.club_rol || '').toLowerCase();
+            const isCreator = clubRol === 'creador' || (activeClub.creador_id && activeClub.creador_id === miUserId);
+            const isAdmin = isCreator || clubRol === 'admin';
 
-            container.innerHTML = this.templateClubActivo(activeClub, isAdmin);
+            container.innerHTML = this.templateClubActivo(activeClub, isAdmin, isCreator);
             
             // Disparar carga de la primera pestaña interna
             window.Club.cambiarVistaInterna('tripulacion');
@@ -86,7 +89,7 @@ export const ClubRender = {
         </div>`;
     },
 
-    templateClubActivo(cl, isAdmin) {
+    templateClubActivo(cl, isAdmin, isCreator = false) {
         // Selector de clubes
         const selectorHTML = ClubState.myClubs.length > 1 ? `
             <select onchange="window.Club.onSelectActive(this.value)" class="w-full mb-4 bg-slate-50 dark:bg-slate-800 h-10 px-3 rounded-lg outline-none font-bold border border-slate-200 dark:border-slate-700 text-sm">
@@ -108,6 +111,16 @@ export const ClubRender = {
                 <textarea id="info_normas" oninput="window.Club.onInput('${cl.club_id}', 'info_normas', 'normas')" placeholder="Normas..." class="w-full h-16 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl outline-none focus:ring-1 focus:ring-water text-sm">${esc(cl.normas || '')}</textarea>
             </div>` : '';
 
+        const dangerZoneCard = isCreator ? `
+            <div class="mt-4 pt-3 border-t border-rose-100 dark:border-rose-950/40 flex items-center justify-between">
+                <span class="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Zona de Creador</span>
+                <button type="button" onclick="window.Club.onDelete('${esc(cl.club_id)}', event)" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 font-bold text-[11px] rounded-lg border border-rose-200 dark:border-rose-900/50 transition-colors flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                    🗑️ Eliminar Club
+                </button>
+            </div>` : '';
+
+        const rolLabel = isCreator ? 'Creador' : (cl.club_rol === 'admin' ? 'Administrador' : 'Miembro');
+
         return `
         ${selectorHTML}
         <div class="w-full bg-white dark:bg-slate-800 rounded-2xl shadow-sm mb-4 overflow-hidden border border-slate-200 dark:border-slate-700">
@@ -122,10 +135,11 @@ export const ClubRender = {
                     </div>
                     <div class="flex-1 min-w-0 pb-1">
                         ${titleField}
-                        <p class="text-[10px] font-bold text-slate-400 mt-1">Nvl ${cl.nivel || 1} • ${cl.puntos || 0} pts</p>
+                        <p class="text-[10px] font-bold text-slate-400 mt-1">Nvl ${cl.nivel || 1} • ${cl.puntos || 0} pts • <span class="capitalize text-water font-semibold">${esc(rolLabel)}</span></p>
                     </div>
                 </div>
                 ${extraFields}
+                ${dangerZoneCard}
                 <div class="flex gap-2 mt-5 pt-4 border-t border-slate-100 dark:border-slate-700 overflow-x-auto custom-scrollbar pb-1">
                     <button type="button" onclick="window.Club.cambiarVistaInterna('tripulacion')" class="px-4 py-2.5 rounded-lg bg-marine text-white font-bold text-[10px] uppercase tracking-widest cursor-pointer">Tripulación</button>
                     ${isAdmin ? `<button type="button" onclick="window.Club.cambiarVistaInterna('admin')" class="px-4 py-2.5 rounded-lg bg-slate-100 text-slate-600 font-bold text-[10px] uppercase tracking-widest cursor-pointer">Gestión</button>` : ''}

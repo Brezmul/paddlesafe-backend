@@ -17,8 +17,15 @@ export const ClubAPI = {
         return supabaseClient.storage.from('paddlesafe').getPublicUrl(path).data.publicUrl;
     },
     async deleteClub(clubId) {
-        // Esto fallará si RLS bloquea al usuario (no es el creador)
-        const { error } = await supabaseClient.from('clubs').delete().eq('id', clubId);
+        let { error } = await supabaseClient.from('clubs').delete().eq('id', clubId);
+        if (error && error.code === '23503') {
+            try { await supabaseClient.from('clubs_solicitudes').delete().eq('club_id', clubId); } catch (_) {}
+            try { await supabaseClient.from('club_chat').delete().eq('club_id', clubId); } catch (_) {}
+            try { await supabaseClient.from('club_rutas').delete().eq('club_id', clubId); } catch (_) {}
+            try { await supabaseClient.from('clubs_usuarios').delete().eq('club_id', clubId); } catch (_) {}
+            const retry = await supabaseClient.from('clubs').delete().eq('id', clubId);
+            error = retry.error;
+        }
         if (error) throw error;
         return true;
     }

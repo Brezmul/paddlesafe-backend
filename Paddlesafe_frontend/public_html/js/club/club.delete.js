@@ -20,14 +20,17 @@ export const ClubDelete = {
             // Limpieza absoluta del estado
             ClubState.activeId = null;
             ClubState.currentClubData = null;
-            delete ClubState.lastSaved[clubId];
+            if (ClubState.lastSaved) delete ClubState.lastSaved[clubId];
+            if (Array.isArray(ClubState.myClubs)) {
+                ClubState.myClubs = ClubState.myClubs.filter(c => c.club_id !== clubId);
+            }
             
             // Forzar renderizado fresco
             await ClubRender.renderTabMiClub();
         } catch (err) {
             console.error("Fallo al eliminar:", err);
-            alert("❌ No se pudo eliminar el club. Asegúrate de ser el creador.");
-            if (btn) { btn.disabled = false; btn.textContent = "Eliminar Club para Siempre"; }
+            alert("❌ No se pudo eliminar el club: " + (err.message || "Asegúrate de ser el creador."));
+            if (btn) { btn.disabled = false; btn.textContent = "🗑️ Eliminar Club para Siempre"; }
         }
     }
 };
