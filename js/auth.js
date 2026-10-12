@@ -4,6 +4,7 @@
 
 import { supabaseClient, appState } from './config.js';
 import { esc, safeUrl, validarImagen, calcularRangoMaritimo, IMG_FALLBACK } from './utils.js';
+import { parseGPX } from './gpxParser.js';
 
 export function initAuthListeners() {
     if (supabaseClient) {
@@ -99,7 +100,9 @@ export function restaurarFormularioAuth() {
         const avatarSrc = appState.perfilUsuario?.avatar_url || `https://api.dicebear.com/9.x/adventurer/svg?seed=guest`;
         const horasNav = Math.floor((appState.perfilUsuario?.tiempo_total || 0) / 60);
         const minNav = (appState.perfilUsuario?.tiempo_total || 0) % 60;
-        const pts = appState.perfilUsuario?.puntos || 0;
+        const pts = appState.perfilUsuario?.total_xp || appState.perfilUsuario?.puntos || 0;
+        const distTot = Number(appState.perfilUsuario?.total_distance_km || appState.perfilUsuario?.km_totales || 0).toFixed(1);
+        const nivelActual = appState.perfilUsuario?.current_level || calcularRangoMaritimo(pts).nivel;
         const rango = calcularRangoMaritimo(pts);
         
         let insigniasHTML = `<p class="text-[10px] text-slate-400 dark:text-slate-500 font-medium my-2">Aún no has ganado insignias en quedadas.</p>`;
@@ -144,13 +147,13 @@ export function restaurarFormularioAuth() {
                     <div class="absolute -right-10 -top-10 w-32 h-32 bg-gradient-to-br from-water/20 dark:from-sky-500/10 to-blue-500/5 rounded-full blur-3xl"></div>
                     <div class="flex flex-col items-center justify-center min-w-0 bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-700/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-600 shadow-sm relative z-10 hover:-translate-y-1 transition-transform group">
                         <div class="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center mb-2 text-blue-500 group-hover:scale-110 transition-transform"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg></div>
-                        <p class="text-slate-400 dark:text-slate-500 font-bold text-[9px] uppercase tracking-widest mb-0.5">Puntos</p>
+                        <p class="text-slate-400 dark:text-slate-500 font-bold text-[9px] uppercase tracking-widest mb-0.5">Puntos / XP</p>
                         <p class="text-marine dark:text-white text-xl font-black">${pts}</p>
                     </div>
                     <div class="flex flex-col items-center justify-center min-w-0 bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-700/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-600 shadow-sm relative z-10 hover:-translate-y-1 transition-transform group">
                         <div class="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center mb-2 text-emerald-500 group-hover:scale-110 transition-transform"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg></div>
                         <p class="text-slate-400 dark:text-slate-500 font-bold text-[9px] uppercase tracking-widest mb-0.5">Distancia</p>
-                        <p class="text-marine dark:text-white text-xl font-black">${Number(appState.perfilUsuario?.km_totales || 0).toFixed(1)}<span class="text-[10px] ml-0.5 text-slate-400">km</span></p>
+                        <p class="text-marine dark:text-white text-xl font-black">${distTot}<span class="text-[10px] ml-0.5 text-slate-400">km</span></p>
                     </div>
                     <div class="flex flex-col items-center justify-center min-w-0 bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-700/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-600 shadow-sm relative z-10 hover:-translate-y-1 transition-transform group">
                         <div class="w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center mb-2 text-amber-500 group-hover:scale-110 transition-transform"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
@@ -160,8 +163,8 @@ export function restaurarFormularioAuth() {
                 </div>
                 <div class="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-3xl p-6 mb-8 shadow-inner text-left relative overflow-hidden">
                     <div class="flex justify-between items-end mb-3">
-                        <span class="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Nivel ${rango.nivel}</span>
-                        <span class="text-[11px] font-bold text-water dark:text-sky-400 bg-blue-50 dark:bg-blue-900/30 px-2.5 py-1 rounded-lg">${rango.nivel === 99 ? 'Nivel Máximo' : rango.puntosParaSubir + ' pts para Nivel ' + (rango.nivel + 1)}</span>
+                        <span class="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Nivel ${nivelActual}</span>
+                        <span class="text-[11px] font-bold text-water dark:text-sky-400 bg-blue-50 dark:bg-blue-900/30 px-2.5 py-1 rounded-lg">${nivelActual >= 99 ? 'Nivel Máximo' : rango.puntosParaSubir + ' pts para Nivel ' + (nivelActual + 1)}</span>
                     </div>
                     <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-4 overflow-hidden shadow-inner relative">
                         <div class="absolute top-0 left-0 h-full w-full bg-white/20"></div>
@@ -187,14 +190,23 @@ export function restaurarFormularioAuth() {
                     <button onclick="guardarPerfil()" id="btnGuardarPerfil" class="h-11 px-6 ${appState.esInvitado ? 'bg-slate-400 dark:bg-slate-600 cursor-not-allowed' : 'bg-marine dark:bg-white dark:text-marine hover:bg-slate-800 dark:hover:bg-slate-200'} text-white font-black rounded-xl shadow-lg text-[11px] uppercase tracking-widest transition-all active:scale-95">Guardar</button>
                 </div>
                 <div class="text-left mb-6">
-                    <h3 class="text-[11px] sm:text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b-2 border-slate-100 dark:border-slate-800 pb-3 mb-5 flex items-center gap-2"><svg class="w-4 h-4 text-water dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg> Diario de Aventuras</h3>
-                    <div id="contenedorHistorial" class="space-y-5 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar pb-4"></div>
+                    <div class="flex items-center justify-between border-b-2 border-slate-100 dark:border-slate-800 pb-3 mb-5">
+                        <h3 class="text-[11px] sm:text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                            <svg class="w-4 h-4 text-water dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg> 
+                            Diario de Aventuras
+                        </h3>
+                        <label for="gpxUploadInput" class="cursor-pointer bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1.5 ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
+                            <span>📥</span> Subir GPX
+                        </label>
+                        <input type="file" id="gpxUploadInput" accept=".gpx,application/gpx+xml" class="hidden" onchange="subirArchivoGPX(event)" ${appState.esInvitado ? 'disabled' : ''}>
+                    </div>
+                    <div id="contenedorHistorial" class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar pb-4"></div>
                 </div>
                 <button onclick="cerrarSesion()" class="w-full h-14 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 font-black uppercase tracking-widest text-[11px] rounded-2xl border-2 border-red-100 dark:border-red-900/30 transition-all shadow-sm active:scale-95">
                     ${appState.esInvitado ? 'Salir del Modo Invitado' : 'Cerrar Sesión'}
                 </button>
                 <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.17</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.18</p>
                     <button type="button" onclick="if(window.forzarActualizacion) window.forzarActualizacion(); else window.location.reload();" class="mt-1 text-[9px] text-water dark:text-sky-400 hover:underline font-bold uppercase tracking-wider cursor-pointer">🔄 Buscar actualizaciones / Limpiar caché</button>
                 </div>
             </div>
@@ -446,50 +458,291 @@ export function entrarComoInvitado() {
     actualizarBotonCabecera(); cerrarModalAuth();
 }
 
+export async function subirArchivoGPX(event) {
+    if (appState.esInvitado) return alert("Los usuarios invitados no pueden guardar rutas. ¡Regístrate gratis!");
+    if (!appState.sesionActual?.user) return alert("Debes iniciar sesión para subir tus rutas.");
+
+    const fileInput = event?.target || document.getElementById('gpxUploadInput');
+    const file = fileInput?.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.gpx')) {
+        alert("Por favor selecciona un archivo con formato .gpx válido.");
+        if (fileInput) fileInput.value = '';
+        return;
+    }
+
+    const contenedor = document.getElementById('contenedorHistorial');
+    const prevHTML = contenedor ? contenedor.innerHTML : '';
+    if (contenedor) {
+        contenedor.innerHTML = `
+            <div class="text-center py-8 bg-slate-50 dark:bg-slate-800/60 rounded-3xl border border-water/30 dark:border-sky-500/30 shadow-inner px-4 animate-pulse">
+                <span class="text-3xl mb-2 inline-block">⏳</span>
+                <p class="text-xs font-black text-marine dark:text-white uppercase tracking-wider mb-1">Procesando archivo GPX...</p>
+                <p class="text-[10px] text-slate-400 dark:text-slate-500">Calculando distancia, velocidades con Haversine y tramos...</p>
+            </div>
+        `;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => {
+        alert("❌ Error al leer el archivo desde tu dispositivo.");
+        if (contenedor) contenedor.innerHTML = prevHTML;
+        if (fileInput) fileInput.value = '';
+    };
+
+    reader.onload = async (e) => {
+        try {
+            const xmlContent = e.target.result;
+            const parsed = parseGPX(xmlContent);
+
+            if (!parsed.coordinates || parsed.coordinates.length < 2) {
+                throw new Error("El archivo no contiene suficientes puntos GPS para registrar la ruta.");
+            }
+
+            // Extraer nombre de la ruta o fallback al nombre de archivo
+            let routeName = 'Ruta en Paddle Surf';
+            const nameMatch = xmlContent.match(/<name>([^<]+)<\/name>/i);
+            if (nameMatch && nameMatch[1].trim()) {
+                routeName = nameMatch[1].trim();
+            } else if (file.name) {
+                routeName = file.name.replace(/\.gpx$/i, '').replace(/[-_]/g, ' ').trim();
+            }
+
+            // Gamificación: 50 XP por km + 1 XP por minuto navegado
+            const distKm = Number(parsed.totalDistanceKm || parsed.distance_km || 0);
+            const durSecs = Number(parsed.totalDurationSeconds || parsed.duration_seconds || 0);
+            const durMins = Math.max(1, Math.round(durSecs / 60));
+            const xpCalculado = Math.max(10, Math.round(distKm * 50) + durMins);
+
+            const userRoutePayload = {
+                user_id: appState.sesionActual.user.id,
+                title: routeName.slice(0, 100),
+                distance_km: distKm,
+                duration_seconds: durSecs,
+                avg_speed: Number(parsed.avgSpeedKmh || parsed.avg_speed || 0),
+                max_speed: Number(parsed.maxSpeedKmh || parsed.max_speed || 0),
+                route_coordinates: parsed.coordinates,
+                splits_data: parsed.splits || [],
+                xp_earned: xpCalculado,
+                created_at: new Date().toISOString()
+            };
+
+            // 1. Guardar en tabla user_routes
+            let guardadoExitoso = false;
+            let insertError = null;
+            try {
+                const { error: errUR } = await supabaseClient
+                    .from('user_routes')
+                    .insert([userRoutePayload]);
+                if (!errUR) {
+                    guardadoExitoso = true;
+                } else {
+                    insertError = errUR;
+                    console.warn("[user_routes] Inserción fallida, intentando fallback:", errUR.message);
+                }
+            } catch (err) {
+                insertError = err;
+            }
+
+            // 2. Fallback a tabla legacy 'rutas' si user_routes no existiese aún
+            if (!guardadoExitoso) {
+                const legacyPayload = {
+                    user_id: appState.sesionActual.user.id,
+                    distancia_km: distKm,
+                    tiempo_minutos: durMins,
+                    fecha: userRoutePayload.created_at,
+                    ruta_json: parsed.coordinates,
+                    avg_speed_kmh: userRoutePayload.avg_speed,
+                    points_earned: xpCalculado
+                };
+                const { error: errLeg } = await supabaseClient.from('rutas').insert([legacyPayload]);
+                if (errLeg) {
+                    throw new Error(insertError?.message || errLeg.message);
+                }
+            }
+
+            // 3. Recargar perfil para refrescar XP y distancia en UI
+            await cargarPerfilUsuarioActivo();
+            restaurarFormularioAuth();
+
+            alert(`🎉 ¡Ruta subida con éxito!\n\n📍 ${routeName}\n📏 Distancia: ${distKm} km\n⏱️ Tiempo: ${durMins} min\n⚡ Vel. Media: ${userRoutePayload.avg_speed} km/h\n🚀 Vel. Máx: ${userRoutePayload.max_speed} km/h\n🏆 +${xpCalculado} XP sumados a tu perfil`);
+
+        } catch (err) {
+            console.error("Error al procesar archivo GPX:", err);
+            alert("❌ No se pudo procesar el archivo GPX: " + (err.message || err));
+            if (contenedor) contenedor.innerHTML = prevHTML;
+        } finally {
+            if (fileInput) fileInput.value = '';
+        }
+    };
+
+    reader.readAsText(file);
+}
+
 export async function cargarHistorialRutas() {
     const contenedor = document.getElementById('contenedorHistorial');
-    if (appState.esInvitado) return contenedor.innerHTML = `<div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner"><p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Los invitados no guardan historial.</p></div>`;
-    if (!contenedor || !appState.sesionActual) return;
+    if (!contenedor) return;
     
-    // Evitamos descargar el pesado ruta_json restringiendo el SELECT a la metadata básica
-    const { data, error } = await supabaseClient
-        .from('rutas')
-        .select('id, distancia_km, tiempo_minutos, fecha, imagen_url')
-        .eq('user_id', appState.sesionActual.user.id)
-        .order('fecha', { ascending: false });
-        
-    if (error || !data || data.length === 0) return contenedor.innerHTML = `<div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner"><p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Aún no has registrado rutas.</p></div>`;
-    
-    contenedor.innerHTML = data.map(ruta => {
-        const pts = Math.round(ruta.distancia_km * 10) + ruta.tiempo_minutos;
+    if (appState.esInvitado) {
+        contenedor.innerHTML = `<div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner"><p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Los invitados no guardan historial.</p></div>`;
+        return;
+    }
+    if (!appState.sesionActual?.user) return;
+
+    contenedor.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs font-bold animate-pulse">Cargando tus rutas deportivas...</div>`;
+
+    const rutas = [];
+
+    // 1. Consultar tabla user_routes
+    try {
+        const { data: urData, error: urErr } = await supabaseClient
+            .from('user_routes')
+            .select('id, title, distance_km, duration_seconds, avg_speed, max_speed, xp_earned, created_at, route_coordinates, splits_data, ai_feedback')
+            .eq('user_id', appState.sesionActual.user.id)
+            .order('created_at', { ascending: false });
+
+        if (!urErr && Array.isArray(urData)) {
+            urData.forEach(r => rutas.push({
+                id: r.id,
+                title: r.title || 'Ruta Deportiva',
+                distance_km: Number(r.distance_km || 0),
+                duration_seconds: Number(r.duration_seconds || 0),
+                avg_speed: Number(r.avg_speed || 0),
+                max_speed: Number(r.max_speed || 0),
+                xp_earned: Number(r.xp_earned || 0),
+                created_at: r.created_at,
+                route_coordinates: r.route_coordinates,
+                splits_data: r.splits_data,
+                ai_feedback: r.ai_feedback
+            }));
+        }
+    } catch (e) {
+        console.warn("[cargarHistorialRutas] Error leyendo user_routes:", e);
+    }
+
+    // 2. Consultar tabla legacy rutas para compatibilidad
+    try {
+        const { data: legData, error: legErr } = await supabaseClient
+            .from('rutas')
+            .select('id, distancia_km, tiempo_minutos, fecha, ruta_json, avg_speed_kmh, points_earned')
+            .eq('user_id', appState.sesionActual.user.id)
+            .order('fecha', { ascending: false });
+
+        if (!legErr && Array.isArray(legData)) {
+            legData.forEach(r => {
+                if (!rutas.some(x => String(x.id) === String(r.id))) {
+                    const dist = Number(r.distancia_km || 0);
+                    const mins = Number(r.tiempo_minutos || 0);
+                    const avg = Number(r.avg_speed_kmh || (mins > 0 ? (dist / (mins / 60)) : 0));
+                    rutas.push({
+                        id: r.id,
+                        title: 'Travesía GPS',
+                        distance_km: dist,
+                        duration_seconds: mins * 60,
+                        avg_speed: avg,
+                        max_speed: avg * 1.35,
+                        xp_earned: Number(r.points_earned || (Math.round(dist * 10) + mins)),
+                        created_at: r.fecha,
+                        route_coordinates: r.ruta_json
+                    });
+                }
+            });
+        }
+    } catch (e) {
+        console.warn("[cargarHistorialRutas] Error leyendo rutas:", e);
+    }
+
+    // Ordenar cronológicamente
+    rutas.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    // Almacenar en caché en memoria para dibujado instantáneo en el mapa
+    window.__rutasUsuarioCache = new Map();
+    rutas.forEach(r => window.__rutasUsuarioCache.set(String(r.id), r));
+
+    if (rutas.length === 0) {
+        contenedor.innerHTML = `
+            <div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner px-4">
+                <span class="text-3xl mb-2 block">🏄‍♂️</span>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">Aún no has registrado rutas</p>
+                <p class="text-[10px] text-slate-400 dark:text-slate-500">Pulsa en <b>"Subir GPX"</b> arriba para importar sesiones de tu reloj deportivo o app de móvil.</p>
+            </div>`;
+        return;
+    }
+
+    contenedor.innerHTML = rutas.map(ruta => {
+        const dist = Number(ruta.distance_km || 0).toFixed(2);
+        const totalSecs = Number(ruta.duration_seconds || 0);
+        const mins = Math.max(1, Math.round(totalSecs / 60));
+        const avgSpd = Number(ruta.avg_speed || 0).toFixed(1);
+        const maxSpd = Number(ruta.max_speed || (avgSpd * 1.3)).toFixed(1);
+        const xp = Number(ruta.xp_earned || 0);
+        const fechaStr = ruta.created_at ? new Date(ruta.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'Reciente';
+
         return `
-            <div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[24px] p-5 shadow-lg shadow-slate-200/40 dark:shadow-none hover:shadow-xl hover:border-water dark:hover:border-sky-500 transition-all duration-300 mb-5 relative overflow-hidden group cursor-default">
-                <div class="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-water/10 dark:from-sky-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <div class="flex justify-between items-center mb-4 border-b border-slate-50 dark:border-slate-700/50 pb-4 relative z-10">
+            <div onclick="verRutaEnMapa('${esc(ruta.id)}')" 
+                 class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[24px] p-5 shadow-lg shadow-slate-200/40 dark:shadow-none hover:shadow-xl hover:border-water dark:hover:border-sky-500 transition-all duration-300 mb-4 relative overflow-hidden group cursor-pointer active:scale-[0.99]"
+                 title="Haz clic para trazar esta ruta en el mapa">
+                <div class="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-water/10 dark:from-sky-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                
+                <div class="flex justify-between items-center mb-3 border-b border-slate-50 dark:border-slate-700/50 pb-3 relative z-10">
                     <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-900/40 dark:to-orange-800/20 text-orange-500 flex items-center justify-center text-xl border border-orange-200 dark:border-orange-700/50 shadow-inner group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">🗺️</div>
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-water/20 to-blue-500/10 dark:from-sky-900/40 dark:to-sky-800/20 text-water dark:text-sky-400 flex items-center justify-center text-xl border border-water/30 dark:border-sky-700/50 shadow-inner group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+                            🗺️
+                        </div>
                         <div>
-                            <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none mb-1.5">Travesía</p>
-                            <span class="text-sm font-black text-marine dark:text-white">${new Date(ruta.fecha).toLocaleDateString(undefined, {day: 'numeric', month: 'short', year: 'numeric'})}</span>
+                            <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none mb-1.5">${fechaStr}</p>
+                            <h4 class="text-sm font-black text-marine dark:text-white truncate max-w-[150px] sm:max-w-[200px]">${esc(ruta.title)}</h4>
                         </div>
                     </div>
-                    <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
-                        <span class="text-amber-500 text-xs drop-shadow-sm">🏆</span>
-                        <span class="text-[11px] font-black text-amber-600 dark:text-amber-400">+${pts} pts</span>
+                    <div class="flex items-center gap-2">
+                        <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50 px-2.5 py-1 rounded-xl flex items-center gap-1 shadow-sm">
+                            <span class="text-amber-500 text-xs drop-shadow-sm">🏆</span>
+                            <span class="text-[11px] font-black text-amber-600 dark:text-amber-400">+${xp} XP</span>
+                        </div>
+                        <span class="text-xs text-water dark:text-sky-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">📍</span>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4 px-2 relative z-10">
-                    <div class="flex flex-col border-r border-slate-100 dark:border-slate-700/50">
-                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg> Distancia</span>
-                        <p class="font-black text-marine dark:text-white text-3xl tracking-tighter">${Number(ruta.distancia_km).toFixed(1)} <span class="text-xs text-slate-500 dark:text-slate-400 font-bold">km</span></p>
+
+                <div class="grid grid-cols-4 gap-2 px-1 relative z-10 text-center">
+                    <div class="flex flex-col border-r border-slate-100 dark:border-slate-700/50 pr-1">
+                        <span class="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-0.5">Distancia</span>
+                        <p class="font-black text-marine dark:text-white text-base sm:text-lg tracking-tight">${dist}<span class="text-[9px] font-bold text-slate-400 ml-0.5">km</span></p>
                     </div>
-                    <div class="flex flex-col pl-4">
-                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Tiempo</span>
-                        <p class="font-black text-marine dark:text-white text-3xl tracking-tighter">${ruta.tiempo_minutos} <span class="text-xs text-slate-500 dark:text-slate-400 font-bold">min</span></p>
+                    <div class="flex flex-col border-r border-slate-100 dark:border-slate-700/50 pr-1">
+                        <span class="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-0.5">Tiempo</span>
+                        <p class="font-black text-marine dark:text-white text-base sm:text-lg tracking-tight">${mins}<span class="text-[9px] font-bold text-slate-400 ml-0.5">m</span></p>
                     </div>
+                    <div class="flex flex-col border-r border-slate-100 dark:border-slate-700/50 pr-1">
+                        <span class="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-0.5">Vel. Med</span>
+                        <p class="font-black text-marine dark:text-white text-base sm:text-lg tracking-tight">${avgSpd}<span class="text-[9px] font-bold text-slate-400 ml-0.5">k/h</span></p>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-0.5">Vel. Máx</span>
+                        <p class="font-black text-emerald-600 dark:text-emerald-400 text-base sm:text-lg tracking-tight">${maxSpd}<span class="text-[9px] font-bold text-slate-400 ml-0.5">k/h</span></p>
+                    </div>
+                </div>
+
+                <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 group-hover:text-water dark:group-hover:text-sky-400 transition-colors">
+                    <span class="flex items-center gap-1 font-bold">📍 Ver trazado en el mapa</span>
+                    <span class="font-black text-xs group-hover:translate-x-1 transition-transform">→</span>
                 </div>
             </div>`;
     }).join('');
+}
+
+export function verRutaEnMapa(rutaId) {
+    if (!window.__rutasUsuarioCache) return;
+    const ruta = window.__rutasUsuarioCache.get(String(rutaId));
+    if (!ruta) {
+        alert("No se encontró la ruta seleccionada.");
+        return;
+    }
+    if (typeof window.cargarRutaDeportivaEnMapa === 'function') {
+        window.cargarRutaDeportivaEnMapa(ruta);
+    } else {
+        alert("El mapa no está listo todavía.");
+    }
 }
 
 window.abrirModalAuth = abrirModalAuth;
@@ -503,3 +756,6 @@ window.toggleAuthMode = toggleAuthMode;
 window.procesarAuth = procesarAuth;
 window.cerrarSesion = cerrarSesion;
 window.entrarComoInvitado = entrarComoInvitado;
+window.subirArchivoGPX = subirArchivoGPX;
+window.verRutaEnMapa = verRutaEnMapa;
+window.cargarHistorialRutas = cargarHistorialRutas;

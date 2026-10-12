@@ -976,6 +976,99 @@ export function cargarRutaEnMapaGrande(coordsData, nombre = 'Quedada') {
     if (mapContainer) mapContainer.scrollIntoView({ behavior: 'smooth' });
 }
 
+export function cargarRutaDeportivaEnMapa(ruta) {
+    if (!ruta) return;
+    let coords = ruta.route_coordinates || ruta.coordinates || ruta.ruta_json;
+    if (typeof coords === 'string') {
+        try { coords = JSON.parse(coords); } catch (e) { return; }
+    }
+    if (!Array.isArray(coords) || coords.length === 0) {
+        alert("Esta ruta no tiene coordenadas registradas para visualizar.");
+        return;
+    }
+
+    // 1. Cerrar modales que tapen la vista
+    if (typeof window.cerrarModalAuth === 'function') window.cerrarModalAuth();
+    if (window.Club && window.Club.cerrarModal) window.Club.cerrarModal();
+
+    // 2. Desplegar panel Pro si estuviera contraído
+    const panelPro = document.getElementById("panelPro");
+    if (panelPro && panelPro.style.gridTemplateRows !== "1fr") {
+        if (typeof window.togglePanelPro === "function") window.togglePanelPro(true);
+        else {
+            const btnPro = document.getElementById("btnPro");
+            if (btnPro) btnPro.click();
+        }
+    }
+
+    // 3. Limpiar capas previas en el mapa
+    limpiarRuta();
+
+    // 4. Formatear y añadir polilínea deportiva
+    const latLngs = coords.map(pt => Array.isArray(pt) ? [pt[0], pt[1]] : [pt.lat, pt.lng]);
+    if (lineaRuta) map.removeLayer(lineaRuta);
+    lineaRuta = L.polyline(latLngs, {
+        color: '#0284c7',
+        weight: 5,
+        opacity: 0.95,
+        lineCap: 'round',
+        lineJoin: 'round'
+    }).addTo(map);
+
+    // 5. Marcador de Inicio (Verde)
+    const inicioIcon = L.divIcon({
+        className: 'bg-transparent border-none',
+        html: `<div class="w-8 h-8 rounded-full bg-emerald-500 border-2 border-white shadow-lg flex items-center justify-center text-white text-xs font-black cursor-pointer transform -translate-x-1/2 -translate-y-1/2">🏁</div>`,
+        iconSize: [0, 0]
+    });
+    const mInicio = L.marker(latLngs[0], { icon: inicioIcon }).addTo(map).bindPopup("<b>Inicio de la Ruta</b>");
+    marcadoresRuta.push(mInicio);
+
+    // 6. Marcador de Fin (Rojo)
+    if (latLngs.length > 1) {
+        const finIcon = L.divIcon({
+            className: 'bg-transparent border-none',
+            html: `<div class="w-8 h-8 rounded-full bg-rose-500 border-2 border-white shadow-lg flex items-center justify-center text-white text-xs font-black cursor-pointer transform -translate-x-1/2 -translate-y-1/2">🏆</div>`,
+            iconSize: [0, 0]
+        });
+        const mFin = L.marker(latLngs[latLngs.length - 1], { icon: finIcon }).addTo(map).bindPopup("<b>Meta / Fin de Ruta</b>");
+        marcadoresRuta.push(mFin);
+    }
+
+    // 7. Auto-ajuste de cámara
+    map.fitBounds(lineaRuta.getBounds(), { padding: [50, 50] });
+
+    // 8. Panel de estadísticas flotante
+    const dist = Number(ruta.distance_km || ruta.distancia_km || 0).toFixed(2);
+    const secs = Number(ruta.duration_seconds || (ruta.tiempo_minutos ? ruta.tiempo_minutos * 60 : 0));
+    const mins = Math.max(1, Math.round(secs / 60));
+    const avgSpd = Number(ruta.avg_speed || (mins > 0 ? (dist / (mins / 60)) : 0)).toFixed(1);
+    const maxSpd = Number(ruta.max_speed || (avgSpd * 1.35)).toFixed(1);
+    const titulo = ruta.title || 'Ruta Deportiva';
+
+    const msg = document.getElementById('mapMsg');
+    if (msg) {
+        msg.className = "text-xs font-bold text-white bg-slate-900/95 py-2.5 px-4 rounded-2xl border border-sky-500/40 shadow-2xl flex items-center justify-between gap-3 flex-wrap transition-all";
+        msg.innerHTML = `
+            <span class="truncate max-w-[150px] text-sky-400 font-black">🧭 ${esc(titulo)}</span>
+            <span class="text-white">📏 <b>${dist}</b> km</span>
+            <span class="text-white">⏱️ <b>${mins}</b> min</span>
+            <span class="text-amber-400">⚡ Med: <b>${avgSpd}</b> km/h</span>
+            <span class="text-emerald-400">🚀 Max: <b>${maxSpd}</b> km/h</span>
+        `;
+    }
+
+    const mapContainer = document.getElementById('mapContainer');
+    if (mapContainer) mapContainer.scrollIntoView({ behavior: 'smooth' });
+
+    setTimeout(() => {
+        if (map) {
+            map.invalidateSize();
+            if (lineaRuta) map.fitBounds(lineaRuta.getBounds(), { padding: [50, 50] });
+        }
+    }, 250);
+}
+
 // Retrocompatibilidad
 export function activarModoPlanificacionEvento(clubId) {
     iniciarCreacionQuedadaClub(clubId);
@@ -1595,6 +1688,7 @@ window.activarModoPlanificacionEvento = activarModoPlanificacionEvento;
 window.guardarEventoClub = guardarEventoClub;
 window.sincronizarRutasPendientes = sincronizarRutasPendientes;
 window.normalizarYLimitarRutaGPS = normalizarYLimitarRutaGPS;
+window.cargarRutaDeportivaEnMapa = cargarRutaDeportivaEnMapa;
 window.addEventListener('online', () => {
     if (appState.sesionActual?.user?.id) void sincronizarRutasPendientes();
 });
