@@ -237,7 +237,7 @@ export function restaurarFormularioAuth() {
                     ${appState.esInvitado ? 'Salir del Modo Invitado' : 'Cerrar Sesión'}
                 </button>
                 <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.21</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.22</p>
                     <button type="button" onclick="if(window.forzarActualizacion) window.forzarActualizacion(); else window.location.reload();" class="mt-1 text-[9px] text-water dark:text-sky-400 hover:underline font-bold uppercase tracking-wider cursor-pointer">🔄 Buscar actualizaciones / Limpiar caché</button>
                 </div>
             </div>
@@ -697,7 +697,7 @@ export async function cargarHistorialRutas() {
                     </div>
                     <div class="flex items-center gap-2">
                         <button type="button" onclick="event.stopPropagation(); abrirModalDetallesRuta('${esc(ruta.id)}')" class="bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-800/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700/50 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer">
-                            <span>🧠</span> Coach IA
+                            <span>🧠</span> Coach
                         </button>
                         <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50 px-2.5 py-1 rounded-xl flex items-center gap-1 shadow-sm">
                             <span class="text-amber-500 text-xs drop-shadow-sm">🏆</span>
@@ -985,9 +985,9 @@ export async function abrirModalDetallesRuta(rutaId) {
             <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
                 <div class="flex items-center gap-2">
                     <span class="text-xl">✨</span>
-                    <h4 class="text-xs font-black text-emerald-400 uppercase tracking-widest">Análisis de Entrenador IA</h4>
+                    <h4 class="text-xs font-black text-emerald-400 uppercase tracking-widest">Análisis del Coach</h4>
                 </div>
-                <span class="text-[9px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">Gemini 1.5 Flash</span>
+                <span class="text-[9px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">Coach</span>
             </div>
             <div id="feedbackIAInner" class="space-y-3">
                 <div class="py-6 text-center animate-pulse">

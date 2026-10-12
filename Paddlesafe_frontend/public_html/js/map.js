@@ -1066,7 +1066,7 @@ export function cargarRutaDeportivaEnMapa(ruta) {
         const rutaIdEsc = ruta.id ? String(ruta.id).replace(/'/g, "\\'") : '';
         const btnCoach = ruta.id ? `
             <button type="button" onclick="if(window.abrirModalDetallesRuta) window.abrirModalDetallesRuta('${rutaIdEsc}')" class="px-2.5 py-1 bg-gradient-to-r from-emerald-500 to-sky-600 hover:from-emerald-400 hover:to-sky-500 text-white text-[11px] font-black rounded-xl shadow-md flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
-                <span>🧠</span> <span>Coach IA</span>
+                <span>🧠</span> <span>Coach</span>
             </button>
         ` : '';
 
@@ -1366,7 +1366,7 @@ export function restaurarTracker() {
 }
 
 // ==========================================
-// COACH IA GEMINI FLASH (MOTOR INTELIGENTE SUP)
+// COACH (MOTOR INTELIGENTE SUP)
 // ==========================================
 
 export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos, lat, lon, fechaD, horaSalida) {
@@ -1386,7 +1386,7 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
             <span class="text-xl animate-bounce">🤖</span>
             <div class="flex-1">
                 <p class="text-xs text-emerald-400 font-bold flex items-center gap-2">
-                    Consultando Coach IA Gemini Flash...
+                    Consultando Coach...
                     <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                 </p>
                 <p class="text-[10px] text-slate-400 mt-0.5">Analizando viento, oleaje, periodo y seguridad para nivel ${esc(userLvl || 'Intermedio')}...</p>
@@ -1491,7 +1491,7 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
     `).join('') || '<li class="text-xs text-slate-400">Leash obligatorio y chaleco 50N.</li>';
 
     const fuenteLabel = fuente && fuente.includes("gemini")
-        ? "✨ Generado con Google Gemini 1.5 Flash (Gratuito)"
+        ? "✨ Análisis del Coach"
         : "🌊 Motor Experto PaddleSafe (FESurfing / ISA)";
 
     bodyCont.innerHTML = `
@@ -1612,7 +1612,7 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
         <div class="flex items-center gap-2.5 animate-pulse">
             <span class="text-lg">🤖</span>
             <div class="flex-1">
-                <p class="text-xs text-emerald-400 font-bold">Coach IA Gemini Flash preparando consejo...</p>
+                <p class="text-xs text-emerald-400 font-bold">Coach preparando consejo...</p>
                 <p class="text-[10px] text-slate-400">Adaptando a nivel ${esc(userLvl || 'Intermedio')}...</p>
             </div>
         </div>
@@ -1663,7 +1663,7 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
                     <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                         <div class="flex items-center gap-1.5">
                             <span class="text-base">✨</span>
-                            <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">Coach IA Gemini Flash (${esc(userLvl || 'Intermedio')})</span>
+                            <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">Coach (${esc(userLvl || 'Intermedio')})</span>
                         </div>
                         <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 ${scoreCls} border border-slate-700 font-bold">Score: ${score}/100</span>
                     </div>
