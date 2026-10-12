@@ -1,6 +1,6 @@
 // --- CACHÉ EN MEMORIA Y PRESUPUESTO DE TIEMPO (Hallazgo I-3) ---
 const cache = new Map();
-const MAX_EXECUTION_BUDGET_MS = 8500; // Margen de 1.5s bajo el límite de 10s de Vercel
+const MAX_EXECUTION_BUDGET_MS = 8500;
 const MIN_STEP_TIMEOUT_MS = 350;
 const FETCH_GEOCODE_TIMEOUT_MS = 1500;
 const FETCH_TIMEOUT_MS = 2200;
@@ -116,7 +116,7 @@ async function geocodificar(location, apiKey, presupuesto = crearPresupuesto()) 
         }
       }
     } catch {
-      // Open-Meteo puede geocodificar si OpenCage excede el timeout o no está disponible.
+      // Open-Meteo puede geocodificar si OpenCage no está disponible.
     }
   }
 
@@ -181,7 +181,6 @@ export async function llamarApiPrincipal(lat, lon, date, timeRange, timeZone = "
     end
   });
 
-  // Reservamos al menos 1.5s para que el fallback marino de Open-Meteo pueda ejecutarse si StormGlass falla
   const response = await fetchWithTimeout(
     url,
     { headers: { Authorization: STORMGLASS_KEY } },
@@ -235,8 +234,6 @@ async function llamarMarineOpenMeteo(lat, lon, date, timeRange, presupuesto = nu
   }
 
   let marineData = await solicitarMarine(...offsets[0]).catch(() => null);
-
-  // Solo consulta las 4 celdas vecinas si el punto central no devolvió olas y queda presupuesto suficiente
   if (!marineData && (!presupuesto || presupuesto.tieneMargen(900))) {
     const neighborData = await Promise.all(
       offsets.slice(1).map(([dLat, dLon]) =>
@@ -302,7 +299,16 @@ export async function llamarOpenMeteo(lat, lon, date, timeRange, incluirMarine =
   };
 }
 
-function normalizeForecastRequest(body) {
+function normalizeForecastRequest(rawBody) {
+  let body = rawBody;
+  if (typeof body === "string") {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      return { error: "El cuerpo debe ser un JSON válido." };
+    }
+  }
+
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return { error: "El cuerpo debe ser un objeto JSON." };
   }
@@ -481,7 +487,6 @@ export async function obtenerForecast(lat, lon, date, timeRange, presupuesto = c
   }
 
   let principal = null;
-  // Solo intentamos StormGlass si queda margen para su consulta y para un eventual fallback marino
   if (presupuesto.tieneMargen(2800)) {
     try {
       principal = await llamarApiPrincipal(lat, lon, date, timeRange, meteo.timezone, presupuesto);
@@ -514,6 +519,10 @@ export async function obtenerForecast(lat, lon, date, timeRange, presupuesto = c
 }
 
 export default async function handler(req, res) {
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -541,7 +550,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, cached: true, ...cached.data });
     }
 
-    // --- GEOCODING (Coordenadas directas u OpenCage / Open-Meteo con presupuesto) ---
+    // --- GEOCODING ---
     const coordinates = parsearCoordenadas(location) ?? await geocodificar(location, OPENCAGE_KEY, presupuesto);
 
     if (!coordinates) {
@@ -553,7 +562,7 @@ export default async function handler(req, res) {
 
     const { lat, lng } = coordinates;
 
-    // Ejecuta el motor meteorológico dentro del presupuesto global
+    // Ejecuta el motor meteorológico
     const datos = await obtenerForecast(lat, lng, date, timeRange, presupuesto);
 
     const responseData = {

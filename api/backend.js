@@ -27,6 +27,18 @@ import uploadRouteHandler from "../lib/handlers/upload_route.js";
 import warningsHandler from "../lib/handlers/warnings.js";
 
 export default async function handler(req, res) {
+  // Asegurar cabeceras CORS y responder 200 al preflight OPTIONS del navegador
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS,PATCH,DELETE,POST,PUT");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, apikey"
+  );
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   const { action } = req.query;
 
   try {
