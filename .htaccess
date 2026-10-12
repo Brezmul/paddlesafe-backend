@@ -1,0 +1,25 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. Bloquear acceso público en Hostinger a carpetas y archivos del backend / git
+  RewriteRule ^(api|lib|node_modules|\.git)(/|$) - [F,L]
+  RewriteRule ^(vercel\.json|package(-lock)?\.json|forecast\.js|\.env.*|README\.md)$ - [F,L]
+
+  # 2. Servir index.html directamente al entrar a la raíz del dominio
+  RewriteRule ^$ Paddlesafe_frontend/public_html/index.html [L]
+
+  # 3. Si la petición no incluye ya la subcarpeta y el archivo/carpeta existe en el frontend, servirlo internamente
+  RewriteCond %{REQUEST_URI} !^/Paddlesafe_frontend/public_html/
+  RewriteCond %{DOCUMENT_ROOT}/Paddlesafe_frontend/public_html/$1 -f [OR]
+  RewriteCond %{DOCUMENT_ROOT}/Paddlesafe_frontend/public_html/$1 -d
+  RewriteRule ^(.*)$ Paddlesafe_frontend/public_html/$1 [L]
+
+  # 4. Fallback SPA: cualquier ruta amigable (/user/..., /club/...) que no sea un archivo estático carga index.html
+  RewriteCond %{REQUEST_URI} !^/Paddlesafe_frontend/public_html/
+  RewriteCond %{REQUEST_URI} !\.(js|css|png|jpg|jpeg|webp|svg|ico|json|woff2?)$ [NC]
+  RewriteRule ^ Paddlesafe_frontend/public_html/index.html [L]
+</IfModule>
+
+# Impedir listado de directorios
+Options -Indexes
