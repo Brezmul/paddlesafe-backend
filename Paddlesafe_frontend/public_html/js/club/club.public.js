@@ -1,6 +1,8 @@
 import { supabaseClient, appState } from '../config.js';
 import { esc, safeUrl, IMG_FALLBACK } from '../utils.js';
 import { ClubState } from './state.js';
+import { ClubChat } from './club.chat.js';
+import { ClubEvents } from './club.events.js';
 
 export const ClubPublic = {
     async open(clubId) {
@@ -101,6 +103,7 @@ export const ClubPublic = {
     },
 
     close() {
+        ClubChat.desuscribirRealtime();
         const modal = document.getElementById('clubPublicViewModal');
         if (modal) {
             modal.classList.add('opacity-0');
@@ -117,7 +120,7 @@ export const ClubPublic = {
         const club = ClubState.currentClubData;
         if (!clubId) return;
 
-        const tabs = ['info', 'miembros', 'rutas', 'vitrina', 'chat', 'admin', 'solicitudes'];
+        const tabs = ['info', 'miembros', 'eventos', 'rutas', 'vitrina', 'chat', 'admin', 'solicitudes'];
         tabs.forEach(t => {
             const btn = document.getElementById(`cpvTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
             if (btn) {
@@ -132,6 +135,7 @@ export const ClubPublic = {
         const containers = {
             'info': document.getElementById('cpvInfoContainer'),
             'miembros': document.getElementById('cpvMembersContainer'),
+            'eventos': document.getElementById('cpvEventsContainer'),
             'rutas': document.getElementById('cpvRoutesContainerFull'),
             'vitrina': document.getElementById('cpvShowcaseContainer'),
             'chat': document.getElementById('cpvChatContainer'),
@@ -267,6 +271,21 @@ export const ClubPublic = {
                     c.innerHTML = '<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar vitrina.</p>';
                 }
             }
+        } else if (tab === 'eventos') {
+            const c = containers.eventos;
+            if (c) {
+                const myId = appState.sesionActual?.user?.id;
+                let esMiembro = false;
+                let esAdmin = false;
+                if (myId) {
+                    const { data: cu } = await supabaseClient.from('clubs_usuarios').select('rol').eq('club_id', clubId).eq('user_id', myId).maybeSingle();
+                    if (cu) {
+                        esMiembro = true;
+                        esAdmin = cu.rol === 'creador' || cu.rol === 'admin';
+                    }
+                }
+                await ClubEvents.render(c, clubId, esMiembro, esAdmin);
+            }
         } else if (tab === 'chat') {
             const c = containers.chat;
             if (c) {
@@ -276,27 +295,9 @@ export const ClubPublic = {
                     const { data: cu } = await supabaseClient.from('clubs_usuarios').select('id').eq('club_id', clubId).eq('user_id', myId).maybeSingle();
                     if (cu) esMiembro = true;
                 }
-                if (!esMiembro) {
-                    c.innerHTML = `
-                        <div class="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
-                            <span class="text-3xl block mb-2 opacity-50">🔒</span>
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Chat exclusivo de tripulación</p>
-                            <p class="text-[11px] text-slate-400 mt-1">Únete a este club para participar en las conversaciones de su tripulación.</p>
-                        </div>`;
-                } else {
-                    c.innerHTML = `
-                        <div class="flex flex-col h-80 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden shadow-inner">
-                            <div id="clubChatMessages" class="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar">
-                                <p class="text-center text-slate-400 py-4 text-xs font-bold animate-pulse">Cargando mensajes...</p>
-                            </div>
-                            <div class="p-2 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex gap-2">
-                                <input type="text" id="clubChatInput" placeholder="Escribe un mensaje a la tripulación..." class="flex-1 h-9 px-3 bg-white dark:bg-slate-700 rounded-xl text-xs outline-none focus:ring-1 focus:ring-water border border-slate-200 dark:border-slate-600" onkeydown="if(event.key==='Enter') window.Club.enviarMensajeChat('${esc(clubId)}')">
-                                <button type="button" onclick="window.Club.enviarMensajeChat('${esc(clubId)}')" class="px-3.5 h-9 bg-water hover:bg-sky-600 text-white font-bold rounded-xl text-xs shadow-sm active:scale-95 transition-transform cursor-pointer">Enviar</button>
-                            </div>
-                        </div>`;
-                    this.cargarMensajesChat(clubId);
-                }
+                await ClubChat.render(c, clubId, esMiembro);
             }
+        }
         } else if (tab === 'admin' || tab === 'solicitudes') {
             const c = containers[tab];
             if (c) {
@@ -336,58 +337,11 @@ export const ClubPublic = {
     },
 
     async cargarMensajesChat(clubId) {
-        const msgContainer = document.getElementById('clubChatMessages');
-        if (!msgContainer) return;
-        try {
-            const { data: msgs } = await supabaseClient
-                .from('club_chat')
-                .select('id, user_id, mensaje, created_at, perfiles(nombre, avatar_url)')
-                .eq('club_id', clubId)
-                .order('created_at', { ascending: true })
-                .limit(50);
-
-            if (!msgs || msgs.length === 0) {
-                msgContainer.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold">No hay mensajes aún. ¡Inicia la conversación!</p>';
-                return;
-            }
-
-            const myId = appState.sesionActual?.user?.id;
-            msgContainer.innerHTML = msgs.map(m => {
-                const esMio = m.user_id === myId;
-                return `
-                    <div class="flex gap-2 ${esMio ? 'justify-end' : 'justify-start'}">
-                        ${!esMio ? `<img src="${esc(safeUrl(m.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-7 h-7 rounded-full object-cover shrink-0 mt-1">` : ''}
-                        <div class="max-w-[75%] ${esMio ? 'bg-marine text-white rounded-2xl rounded-tr-none' : 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-white rounded-2xl rounded-tl-none'} p-2.5 text-xs">
-                            ${!esMio ? `<p class="text-[9px] font-bold text-water mb-0.5">${esc(m.perfiles?.nombre || 'Paddler')}</p>` : ''}
-                            <p class="leading-relaxed">${esc(m.mensaje)}</p>
-                        </div>
-                    </div>`;
-            }).join('');
-            msgContainer.scrollTop = msgContainer.scrollHeight;
-        } catch (e) {
-            console.error('[club] cargarMensajesChat error:', e);
-        }
+        await ClubChat.cargarMensajes(clubId);
     },
 
     async enviarMensaje(clubId) {
-        const input = document.getElementById('clubChatInput');
-        if (!input) return;
-        const texto = input.value.trim();
-        if (!texto) return;
-        const myId = appState.sesionActual?.user?.id;
-        if (!myId) return alert("Debes iniciar sesión para comentar en el chat.");
-
-        try {
-            const { error } = await supabaseClient.from('club_chat').insert([{
-                club_id: clubId,
-                user_id: myId,
-                mensaje: texto
-            }]);
-            if (error) throw error;
-            input.value = '';
-            await this.cargarMensajesChat(clubId);
-        } catch (e) {
-            alert("Error al enviar mensaje: " + (e.message || e));
-        }
+        await ClubChat.enviarMensaje(clubId);
     }
 };
+

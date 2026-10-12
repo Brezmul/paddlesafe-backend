@@ -4,6 +4,8 @@ import { ClubInfo } from './club.info.js';
 import { ClubPhotos } from './club.photos.js';
 import { ClubDelete } from './club.delete.js';
 import { ClubPublic } from './club.public.js';
+import { ClubChat } from './club.chat.js';
+import { ClubEvents } from './club.events.js';
 import { supabaseClient, appState } from '../config.js';
 import { esc, safeUrl, IMG_FALLBACK } from '../utils.js';
 
@@ -129,22 +131,34 @@ const ClubFacade = {
         const soyCreador = miRol === 'creador' || (activeClub?.creador_id && activeClub.creador_id === miUserId);
         const soyAdmin = soyCreador || miRol === 'admin';
 
-        // Actualizar apariencia de las pestañas
-        const btnTrip = document.querySelector('button[onclick*="cambiarVistaInterna(\'tripulacion\')"]');
-        const btnAdmin = document.querySelector('button[onclick*="cambiarVistaInterna(\'admin\')"]') ||
-                         document.querySelector('button[onclick*="cambiarVistaInterna(\'gestion\')"]');
+        // Actualizar apariencia de las pestañas internas
+        const internalTabs = {
+            'tripulacion': document.getElementById('btnClubTabTripulacion') || document.querySelector('button[onclick*="cambiarVistaInterna(\'tripulacion\')"]'),
+            'chat': document.getElementById('btnClubTabChat') || document.querySelector('button[onclick*="cambiarVistaInterna(\'chat\')"]'),
+            'eventos': document.getElementById('btnClubTabEventos') || document.querySelector('button[onclick*="cambiarVistaInterna(\'eventos\')"]'),
+            'gestion': document.getElementById('btnClubTabGestion') || document.querySelector('button[onclick*="cambiarVistaInterna(\'gestion\')"]') || document.querySelector('button[onclick*="cambiarVistaInterna(\'admin\')"]')
+        };
+
+        const activeKey = (vista === 'admin') ? 'gestion' : vista;
+        Object.keys(internalTabs).forEach(k => {
+            const btn = internalTabs[k];
+            if (!btn) return;
+            if (k === activeKey) {
+                btn.className = "flex-1 min-w-[80px] px-3 py-2.5 rounded-xl bg-marine dark:bg-water text-white font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors shadow text-center";
+            } else {
+                btn.className = "flex-1 min-w-[80px] px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700 text-center";
+            }
+        });
+
+        if (vista === 'chat') {
+            return await ClubChat.render(contenedor, clubId, true);
+        }
+
+        if (vista === 'eventos') {
+            return await ClubEvents.render(contenedor, clubId, true, soyAdmin);
+        }
 
         const esGestion = vista === 'gestion' || vista === 'admin';
-
-        if (btnTrip && btnAdmin) {
-            if (esGestion) {
-                btnTrip.className = "px-4 py-2.5 rounded-lg bg-slate-100 text-slate-600 font-bold text-[10px] uppercase tracking-widest";
-                btnAdmin.className = "px-4 py-2.5 rounded-lg bg-marine text-white font-bold text-[10px] uppercase tracking-widest";
-            } else {
-                btnTrip.className = "px-4 py-2.5 rounded-lg bg-marine text-white font-bold text-[10px] uppercase tracking-widest";
-                btnAdmin.className = "px-4 py-2.5 rounded-lg bg-slate-100 text-slate-600 font-bold text-[10px] uppercase tracking-widest";
-            }
-        }
 
         if (esGestion) {
             const zonaPeligroHTML = soyCreador ? `
@@ -443,12 +457,25 @@ const ClubFacade = {
         ClubPublic.cambiarTab(tab);
     },
     enviarMensajeChat(clubId) {
-        ClubPublic.enviarMensaje(clubId);
+        ClubChat.enviarMensaje(clubId);
+    },
+    toggleAsistenciaEvento(eventoId, clubId) {
+        ClubEvents.toggleAsistencia(eventoId, clubId);
+    },
+    eliminarEventoClub(eventoId, clubId) {
+        ClubEvents.eliminarEvento(eventoId, clubId);
+    },
+    abrirRutaEnMapaGrande(coordsStr, nombre) {
+        if (window.cargarRutaEnMapaGrande) {
+            window.cargarRutaEnMapaGrande(coordsStr, nombre);
+        }
     }
 };
 
 // Exposición global para que el HTML y main.js los encuentren
 window.Club = ClubFacade;
+window.ClubChat = ClubChat;
+window.ClubEvents = ClubEvents;
 window.cambiarTabClubs = (tab) => ClubFacade.cambiarTabClubs(tab);
 window.abrirModalClubs = () => ClubFacade.abrirModal();
 window.cerrarModalClubs = () => ClubFacade.cerrarModal();

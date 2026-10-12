@@ -48,6 +48,14 @@ const openClubProfileSafe = (id) => {
     else if (typeof window.openClubProfile === 'function') window.openClubProfile(id);
 };
 
+// Vinculación explícita de métodos de quedadas en mapa
+window.iniciarCreacionQuedadaClub = (...args) => MapModule.iniciarCreacionQuedadaClub(...args);
+window.cancelarCreacionQuedadaClub = () => MapModule.cancelarCreacionQuedadaClub();
+window.deshacerUltimoPuntoQuedada = () => MapModule.deshacerUltimoPuntoQuedada();
+window.reiniciarPuntosQuedada = () => MapModule.reiniciarPuntosQuedada();
+window.guardarQuedadaDesdeMapa = () => MapModule.guardarQuedadaDesdeMapa();
+window.cargarRutaEnMapaGrande = (...args) => MapModule.cargarRutaEnMapaGrande(...args);
+
 const closeClubProfileSafe = () => {
     if (window.Club && typeof window.Club.cerrarClubProfileView === 'function') window.Club.cerrarClubProfileView();
     else if (typeof window.cerrarClubProfileView === 'function') window.cerrarClubProfileView();

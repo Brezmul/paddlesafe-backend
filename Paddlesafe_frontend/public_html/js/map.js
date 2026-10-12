@@ -40,6 +40,7 @@ export let cronometroInterval = null;
 export let watchId = null;
 export let livePolyline = null;
 export let clubParaEvento = null;
+export let modoQuedadaClubActivo = false;
 let isSavingRoute = false;
 let isSyncingPendingRoute = false;
 
@@ -257,6 +258,9 @@ export function gestionarClicRutaLibre(l) {
         renderPreviewRuta();
         document.getElementById('mapMsg').textContent = "Añade más puntos o calcula la ruta abajo.";
     }
+    if (modoQuedadaClubActivo) {
+        actualizarMetricasQuedada();
+    }
 }
 
 export function deshacerUltimoPunto() {
@@ -268,12 +272,18 @@ export function deshacerUltimoPunto() {
         document.getElementById('mapMsg').textContent = "📍 Toca el mapa para añadir puntos";
         limpiarRuta();
     }
+    if (modoQuedadaClubActivo) {
+        actualizarMetricasQuedada();
+    }
 }
 
 export function reiniciarRutaMultipunto() {
     limpiarRuta();
     document.getElementById('multipuntoToolbar').classList.replace('flex','hidden');
     document.getElementById('mapMsg').textContent = "📍 Toca el mapa para añadir puntos";
+    if (modoQuedadaClubActivo) {
+        actualizarMetricasQuedada();
+    }
 }
 
 export function renderPreviewRuta() {
@@ -688,126 +698,281 @@ export function volverPlanificadorPro() {
 }
 
 // ==========================================
-// NUEVAS FUNCIONES DE PLANIFICACIÓN DE EVENTOS
+// PLANIFICADOR MULTIPUNTO DE QUEDADAS DE CLUB
 // ==========================================
-export function activarModoPlanificacionEvento(clubId) {
+export function actualizarMetricasQuedada() {
+    let dt = 0;
+    const coords = marcadoresRuta.map(m => m.getLatLng());
+    for (let i = 0; i < coords.length - 1; i++) {
+        dt += coords[i].distanceTo(coords[i + 1]);
+    }
+    const distKm = (dt / 1000).toFixed(2);
+    const tiempoMin = Math.round(((dt / 1000) / 4.5) * 60);
+
+    const elPuntos = document.getElementById('quedadaPuntosCount');
+    const elDist = document.getElementById('quedadaDistanciaKm');
+    const elTiempo = document.getElementById('quedadaTiempoMin');
+
+    if (elPuntos) elPuntos.textContent = marcadoresRuta.length;
+    if (elDist) elDist.textContent = `${distKm} km`;
+    if (elTiempo) elTiempo.textContent = `${tiempoMin} min`;
+}
+
+export async function iniciarCreacionQuedadaClub(clubIdPreseleccionado = null) {
+    if (!appState.sesionActual || appState.esInvitado) {
+        alert("Debes iniciar sesión con tu cuenta para planificar y publicar quedadas.");
+        if (window.abrirModalAuth) window.abrirModalAuth();
+        return;
+    }
+
+    // Comprobar clubes a los que pertenece el usuario
+    let misClubes = ClubState.myClubs || [];
+    if (!misClubes || misClubes.length === 0) {
+        try {
+            const { data } = await supabaseClient.rpc('obtener_clubs_usuario', { p_user_id: appState.sesionActual.user.id });
+            if (data && data.length) {
+                ClubState.myClubs = data;
+                misClubes = data;
+            }
+        } catch (_) {}
+    }
+
+    if (!misClubes || misClubes.length === 0) {
+        alert("Aún no perteneces a ningún club. Funda un club o únete a uno existente para organizar quedadas.");
+        if (window.Club && window.Club.abrirModal) window.Club.abrirModal();
+        return;
+    }
+
+    // Poblar selector de club
+    const select = document.getElementById('quedadaClubSelect');
+    if (select) {
+        select.innerHTML = misClubes.map(c => `
+            <option value="${c.club_id}" ${c.club_id === clubIdPreseleccionado || c.club_id === ClubState.activeId ? 'selected' : ''}>
+                ${esc(c.nombre)}
+            </option>
+        `).join('');
+    }
+
+    // Restricción estricta de fecha: máximo 7 días a la fecha actual
+    const hoy = new Date();
+    const maxDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const hoyStr = hoy.toISOString().slice(0, 10);
+    const maxStr = maxDate.toISOString().slice(0, 10);
+
+    const fechaInput = document.getElementById('quedadaFechaInput');
+    if (fechaInput) {
+        fechaInput.min = hoyStr;
+        fechaInput.max = maxStr;
+        if (!fechaInput.value || fechaInput.value < hoyStr || fechaInput.value > maxStr) {
+            fechaInput.value = hoyStr;
+        }
+    }
+
+    // Cerrar modales si estuvieran abiertos
+    if (window.Club && window.Club.cerrarModal) window.Club.cerrarModal();
+    if (window.Club && window.Club.cerrarClubProfileView) window.Club.cerrarClubProfileView();
+
+    // Desplegar panel Pro si estuviera colapsado
     const panelPro = document.getElementById("panelPro");
     if (panelPro && panelPro.style.gridTemplateRows === "0fr") {
-        document.getElementById("btnPro").click();
+        const btnPro = document.getElementById("btnPro");
+        if (btnPro) btnPro.click();
     }
-    
+
+    // Limpiar trazado anterior y activar modo multipunto
+    limpiarRuta();
+    if (!modoRutaLibreActivo) {
+        toggleRutaLibre();
+    }
+    modoQuedadaClubActivo = true;
+
+    // Mostrar panel flotante del mapa
+    const panel = document.getElementById('panelQuedadaMap');
+    if (panel) panel.classList.remove('hidden');
+
     const msg = document.getElementById('mapMsg');
     if (msg) {
         msg.className = "text-xs font-bold text-white bg-indigo-600 h-10 px-4 rounded-xl border border-indigo-500 shadow-md flex items-center justify-center transition-colors animate-pulse";
-        msg.innerHTML = "📍 MODO PLANIFICACIÓN: Traza la ruta y elige Fecha/Hora abajo";
+        msg.innerHTML = "📍 MODO QUEDADA: Toca el mar para trazar la ruta multipunto";
     }
-    
-    let btnSave = document.getElementById('btnSaveClubEvent');
-    if (!btnSave) {
-        const btnCalc = document.getElementById('btnCalcPro');
-        btnSave = document.createElement('button');
-        btnSave.id = 'btnSaveClubEvent';
-        btnSave.className = 'w-full h-12 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all text-xs flex justify-center items-center gap-2 mt-3 cursor-pointer';
-        btnSave.innerHTML = '💾 Guardar Evento del Club';
-        btnSave.onclick = () => guardarEventoClub();
-        if (btnCalc && btnCalc.parentElement) {
-            btnCalc.parentElement.appendChild(btnSave);
-        }
-    } else {
-        btnSave.classList.remove('hidden');
-    }
-    
-    if (!modoTravesiaActivo && !modoRutaLibreActivo) {
-        toggleRutaLibre();
-    }
-    clubParaEvento = clubId;
-    btnSave.classList.remove('hidden');
-    
-    document.getElementById('mapContainer').scrollIntoView({ behavior: 'smooth' });
+
+    actualizarMetricasQuedada();
+
+    const mapContainer = document.getElementById('mapContainer');
+    if (mapContainer) mapContainer.scrollIntoView({ behavior: 'smooth' });
 }
 
-export async function guardarEventoClub() {
-    if (!clubParaEvento) return;
-    
-    const d = document.getElementById('proDate').value;
-    const t = document.getElementById('proTime').value;
-    
-    if (!d || !t) return alert("⚠️ Selecciona una Fecha y Hora válida en el panel.");
-    if (marcadoresRuta.length < 2) return alert("⚠️ Debes trazar al menos 2 puntos en el mapa para guardar el evento.");
-    
-    const fechaSeleccionada = new Date(`${d}T${t}:00`);
-    const ahora = new Date();
-    
-    if (fechaSeleccionada.getTime() < ahora.getTime()) {
-        return alert("⚠️ No puedes planificar un evento en una fecha u hora que ya ha pasado.");
+export function cancelarCreacionQuedadaClub() {
+    modoQuedadaClubActivo = false;
+    const panel = document.getElementById('panelQuedadaMap');
+    if (panel) panel.classList.add('hidden');
+
+    limpiarRuta();
+    if (modoRutaLibreActivo) {
+        toggleRutaLibre();
     }
-    
-    const diffMs = fechaSeleccionada - ahora;
-    const diffDias = diffMs / (1000 * 60 * 60 * 24);
-    if (diffDias > 7) {
-        return alert("⚠️ Solo puedes planificar eventos con un máximo de 7 días de antelación para garantizar la precisión de la meteorología marina en vivo.");
-    }
-    
-    const nombre = prompt("📝 Asigna un nombre a esta Quedada (ej. Travesía a la Cueva):");
-    if (!nombre || !nombre.trim()) return;
-    
-    const desc = prompt("💬 Breve descripción o material necesario (Opcional):") || "";
-    
-    let dt = 0;
-    const coords = marcadoresRuta.map(m => m.getLatLng());
-    let rutArray = [...coords];
-    if (modoTravesiaActivo && coords.length === 2) rutArray.push(coords[0]);
-    
-    for(let i = 0; i < rutArray.length - 1; i++) {
-        dt += rutArray[i].distanceTo(rutArray[i+1]);
-    }
-    
-    const distanciaKm = (dt / 1000).toFixed(2);
-    const tiempoMinutos = Math.round(((dt / 1000) / 4.5) * 60);
-    const coordsArray = rutArray.map(c => [c.lat, c.lng]);
-    const fechaIso = fechaSeleccionada.toISOString();
-    
-    const btn = document.getElementById('btnSaveClubEvent');
-    btn.disabled = true; btn.innerHTML = "Guardando...";
-    
-    try {
-        const { error } = await supabaseClient.from('club_eventos').insert([{
-            club_id: clubParaEvento,
-            creador_id: appState.sesionActual.user.id,
-            nombre: nombre.trim(),
-            descripcion: desc.trim(),
-            fecha_evento: fechaIso,
-            distancia_km: parseFloat(distanciaKm),
-            tiempo_minutos: tiempoMinutos,
-            ruta_json: coordsArray
-        }]);
-        
-        if (error) throw error;
-        
-        alert("🎉 Quedada planificada y publicada en el club!");
-        
-        const savedClubId = clubParaEvento;
-        clubParaEvento = null;
-        btn.classList.add('hidden');
-        
-        const msg = document.getElementById('mapMsg');
+
+    const msg = document.getElementById('mapMsg');
+    if (msg) {
         msg.className = "text-xs font-bold text-white bg-teal-600 h-10 px-4 rounded-xl border border-teal-500 shadow-md flex items-center justify-center transition-colors";
         msg.innerHTML = "📍 Toca el mar para Punto Fijo o Traza Ruta Completa";
-        
-        limpiarRuta();
-        if(modoRutaLibreActivo) toggleRutaLibre();
-        if(modoTravesiaActivo) toggleModoTravesia();
-        
-        if (window.openClubProfile) {
-            await window.openClubProfile(savedClubId);
-            setTimeout(() => { if (window.cambiarTabClub) window.cambiarTabClub('eventos'); }, 500);
-        }
-        
-    } catch(e) {
-        console.warn(e);
-        alert("❌ Error al guardar el evento.");
-        btn.disabled = false; btn.innerHTML = '💾 Guardar Evento del Club';
     }
+}
+
+export function deshacerUltimoPuntoQuedada() {
+    deshacerUltimoPunto();
+    actualizarMetricasQuedada();
+}
+
+export function reiniciarPuntosQuedada() {
+    reiniciarRutaMultipunto();
+    actualizarMetricasQuedada();
+}
+
+export async function guardarQuedadaDesdeMapa() {
+    const select = document.getElementById('quedadaClubSelect');
+    const clubId = select ? select.value : null;
+    if (!clubId) return alert("⚠️ Selecciona un club para publicar la quedada.");
+
+    const tituloInput = document.getElementById('quedadaTituloInput');
+    const nombre = tituloInput ? tituloInput.value.trim() : '';
+    if (!nombre) return alert("⚠️ Asigna un nombre a la ruta/quedada (ej: Travesía al Faro).");
+
+    const fechaVal = document.getElementById('quedadaFechaInput')?.value;
+    const horaVal = document.getElementById('quedadaHoraInput')?.value;
+    if (!fechaVal || !horaVal) return alert("⚠️ Selecciona la fecha y la hora de salida.");
+
+    const fechaSeleccionada = new Date(`${fechaVal}T${horaVal}:00`);
+    const ahora = new Date();
+
+    if (fechaSeleccionada.getTime() < ahora.getTime()) {
+        return alert("⚠️ La fecha y hora de la quedada no pueden ser en el pasado.");
+    }
+
+    const diffMs = fechaSeleccionada.getTime() - ahora.getTime();
+    const diffDias = diffMs / (1000 * 60 * 60 * 24);
+    if (diffDias > 7) {
+        return alert("⚠️ Para garantizar la exactitud de la previsión marina en vivo, las rutas solo se pueden crear con un máximo de 7 días de antelación.");
+    }
+
+    if (marcadoresRuta.length < 2) {
+        return alert("⚠️ Debes trazar al menos 2 puntos en el mar para definir el recorrido de la quedada.");
+    }
+
+    const desc = document.getElementById('quedadaDescInput')?.value?.trim() || '';
+
+    let dt = 0;
+    const coords = marcadoresRuta.map(m => m.getLatLng());
+    for (let i = 0; i < coords.length - 1; i++) {
+        dt += coords[i].distanceTo(coords[i + 1]);
+    }
+    const distanciaKm = parseFloat((dt / 1000).toFixed(2));
+    const tiempoMinutos = Math.round(((dt / 1000) / 4.5) * 60);
+    const coordsArray = coords.map(c => [c.lat, c.lng]);
+
+    const btn = document.getElementById('btnGuardarQuedadaMap');
+    if (btn) { btn.disabled = true; btn.textContent = "Publicando..."; }
+
+    try {
+        const { data: newEv, error } = await supabaseClient
+            .from('club_eventos')
+            .insert([{
+                club_id: clubId,
+                creador_id: appState.sesionActual.user.id,
+                nombre,
+                descripcion: desc,
+                fecha_evento: fechaSeleccionada.toISOString(),
+                distancia_km: distanciaKm,
+                tiempo_minutos: tiempoMinutos,
+                ruta_json: coordsArray
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        // Inscribir automáticamente al creador como asistente
+        if (newEv && newEv.id) {
+            try {
+                await supabaseClient.from('club_eventos_asistentes').insert([{
+                    evento_id: newEv.id,
+                    user_id: appState.sesionActual.user.id
+                }]);
+            } catch (_) {}
+        }
+
+        alert("🎉 ¡Quedada publicada con éxito en el club!");
+
+        // Cerrar planificador del mapa
+        cancelarCreacionQuedadaClub();
+
+        // Abrir directamente la pestaña Eventos del club correspondiente
+        ClubState.activeId = clubId;
+        if (window.Club && window.Club.abrirModal) {
+            window.Club.abrirModal();
+            setTimeout(() => {
+                if (window.Club.cambiarVistaInterna) window.Club.cambiarVistaInterna('eventos');
+            }, 400);
+        }
+
+    } catch (err) {
+        console.error('[map] error al guardar quedada:', err);
+        alert("Error al guardar la quedada: " + (err.message || err));
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "🚀 Publicar"; }
+    }
+}
+
+export function cargarRutaEnMapaGrande(coordsData, nombre = 'Quedada') {
+    let coords = coordsData;
+    if (typeof coords === 'string') {
+        try { coords = JSON.parse(coords); } catch (e) { return; }
+    }
+    if (!Array.isArray(coords) || coords.length === 0) return;
+
+    // Cerrar modales
+    if (window.Club && window.Club.cerrarModal) window.Club.cerrarModal();
+    if (window.Club && window.Club.cerrarClubProfileView) window.Club.cerrarClubProfileView();
+
+    // Desplegar panel Pro si estuviera cerrado
+    const panelPro = document.getElementById("panelPro");
+    if (panelPro && panelPro.style.gridTemplateRows === "0fr") {
+        const btnPro = document.getElementById("btnPro");
+        if (btnPro) btnPro.click();
+    }
+
+    limpiarRuta();
+
+    const latLngs = coords.map(pt => Array.isArray(pt) ? [pt[0], pt[1]] : [pt.lat, pt.lng]);
+    if (lineaRuta) map.removeLayer(lineaRuta);
+    lineaRuta = L.polyline(latLngs, { color: '#0284c7', weight: 5, opacity: 0.9 }).addTo(map);
+
+    // Marcador de inicio (verde)
+    marcadoresRuta.push(L.circleMarker(latLngs[0], { radius: 7, color: '#10b981', fillColor: '#10b981', fillOpacity: 1 }).addTo(map));
+    // Marcador de fin (rojo)
+    if (latLngs.length > 1) {
+        marcadoresRuta.push(L.circleMarker(latLngs[latLngs.length - 1], { radius: 7, color: '#ef4444', fillColor: '#ef4444', fillOpacity: 1 }).addTo(map));
+    }
+
+    map.fitBounds(lineaRuta.getBounds(), { padding: [40, 40] });
+
+    const msg = document.getElementById('mapMsg');
+    if (msg) {
+        msg.className = "text-xs font-bold text-white bg-indigo-600 h-10 px-4 rounded-xl border border-indigo-500 shadow-md flex items-center justify-center transition-colors";
+        msg.innerHTML = `🧭 Ruta del Club: ${esc(nombre)}`;
+    }
+
+    const mapContainer = document.getElementById('mapContainer');
+    if (mapContainer) mapContainer.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Retrocompatibilidad
+export function activarModoPlanificacionEvento(clubId) {
+    iniciarCreacionQuedadaClub(clubId);
+}
+
+export function guardarEventoClub() {
+    guardarQuedadaDesdeMapa();
 }
 
 // ==========================================
