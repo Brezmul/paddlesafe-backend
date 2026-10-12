@@ -1,12 +1,41 @@
-// --- CACHÉ EN MEMORIA ---
+// --- CACHÉ EN MEMORIA Y PRESUPUESTO DE TIEMPO (Hallazgo I-3) ---
 const cache = new Map();
-const FETCH_TIMEOUT_MS = 2500;
-const FETCH_MARINE_TIMEOUT_MS = 1800;
+const MAX_EXECUTION_BUDGET_MS = 8500;
+const MIN_STEP_TIMEOUT_MS = 350;
+const FETCH_GEOCODE_TIMEOUT_MS = 1500;
+const FETCH_TIMEOUT_MS = 2200;
+const FETCH_MARINE_TIMEOUT_MS = 1400;
 
-function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS) {
+function crearPresupuesto(limiteTotalMs = MAX_EXECUTION_BUDGET_MS) {
+  const inicio = Date.now();
+  return {
+    transcurrido() {
+      return Date.now() - inicio;
+    },
+    restante(reservaMs = 0) {
+      return Math.max(0, (limiteTotalMs - reservaMs) - (Date.now() - inicio));
+    },
+    tieneMargen(minimoRequeridoMs) {
+      return this.restante(0) >= minimoRequeridoMs;
+    },
+    timeoutParaPaso(maxPasoMs, reservaMs = 0) {
+      const disponible = this.restante(reservaMs);
+      if (disponible < MIN_STEP_TIMEOUT_MS) {
+        throw new Error("Tiempo de respuesta agotado en proveedores meteorológicos");
+      }
+      return Math.min(maxPasoMs, disponible);
+    }
+  };
+}
+
+function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS, presupuesto = null, reservaMs = 0) {
+  const effectiveTimeout = presupuesto
+    ? presupuesto.timeoutParaPaso(timeoutMs, reservaMs)
+    : timeoutMs;
+
   return fetch(url, {
     ...options,
-    signal: AbortSignal.timeout(timeoutMs)
+    signal: AbortSignal.timeout(effectiveTimeout)
   });
 }
 
@@ -69,11 +98,15 @@ function convertirHoraLocalAUtc(dateTime, timeZone) {
   return utcTime;
 }
 
-async function geocodificar(location, apiKey) {
-  if (apiKey) {
+async function geocodificar(location, apiKey, presupuesto = crearPresupuesto()) {
+  if (apiKey && presupuesto.tieneMargen(3500)) {
     try {
       const geoRes = await fetchWithTimeout(
-        `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(location)}&key=${apiKey}`
+        `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(location)}&key=${apiKey}`,
+        {},
+        FETCH_GEOCODE_TIMEOUT_MS,
+        presupuesto,
+        2500
       );
       if (geoRes.ok) {
         const geoData = await geoRes.json();
@@ -83,7 +116,7 @@ async function geocodificar(location, apiKey) {
         }
       }
     } catch {
-      // Open-Meteo can still geocode when OpenCage is unavailable.
+      // Open-Meteo puede geocodificar si OpenCage no está disponible.
     }
   }
 
@@ -94,7 +127,13 @@ async function geocodificar(location, apiKey) {
     language: "es",
     format: "json"
   });
-  const geocodingResponse = await fetchWithTimeout(geocodingUrl);
+  const geocodingResponse = await fetchWithTimeout(
+    geocodingUrl,
+    {},
+    FETCH_GEOCODE_TIMEOUT_MS,
+    presupuesto,
+    2000
+  );
   if (!geocodingResponse.ok) {
     throw new Error(`Open-Meteo geocoding respondió con status ${geocodingResponse.status}`);
   }
@@ -124,8 +163,12 @@ function parsearCoordenadas(location) {
   return { lat, lng };
 }
 
-export async function llamarApiPrincipal(lat, lon, date, timeRange, timeZone = "UTC") {
+export async function llamarApiPrincipal(lat, lon, date, timeRange, timeZone = "UTC", presupuesto = null) {
   const STORMGLASS_KEY = process.env.STORMGLASS_KEY;
+  if (!STORMGLASS_KEY) {
+    return { ok: false, status: 401, data: null, date, timeRange };
+  }
+
   const window = obtenerVentanaHoraria(date, timeRange);
   const start = Math.floor(convertirHoraLocalAUtc(window.startLocal, timeZone) / 1000);
   const end = Math.floor(convertirHoraLocalAUtc(window.endLocal, timeZone) / 1000);
@@ -137,9 +180,14 @@ export async function llamarApiPrincipal(lat, lon, date, timeRange, timeZone = "
     start,
     end
   });
-  const response = await fetchWithTimeout(url, {
-    headers: { Authorization: STORMGLASS_KEY }
-  });
+
+  const response = await fetchWithTimeout(
+    url,
+    { headers: { Authorization: STORMGLASS_KEY } },
+    FETCH_TIMEOUT_MS,
+    presupuesto,
+    1500
+  );
 
   let data;
   try {
@@ -151,11 +199,15 @@ export async function llamarApiPrincipal(lat, lon, date, timeRange, timeZone = "
   return { ok: response.ok, status: response.status, data, date, timeRange };
 }
 
-async function llamarMarineOpenMeteo(lat, lon, date, timeRange) {
+async function llamarMarineOpenMeteo(lat, lon, date, timeRange, presupuesto = null) {
   const window = obtenerVentanaHoraria(date, timeRange);
   const offsets = [[0, 0], [0.04, 0], [-0.04, 0], [0, 0.04], [0, -0.04]];
 
   async function solicitarMarine(dLat, dLon) {
+    if (presupuesto && !presupuesto.tieneMargen(MIN_STEP_TIMEOUT_MS)) {
+      return null;
+    }
+
     const marineUrl = new URL("https://marine-api.open-meteo.com/v1/marine");
     marineUrl.search = new URLSearchParams({
       latitude: (Number(lat) + dLat).toFixed(4),
@@ -167,7 +219,13 @@ async function llamarMarineOpenMeteo(lat, lon, date, timeRange) {
       end_hour: window.endLocal
     });
 
-    const marineResponse = await fetchWithTimeout(marineUrl, {}, FETCH_MARINE_TIMEOUT_MS);
+    const marineResponse = await fetchWithTimeout(
+      marineUrl,
+      {},
+      FETCH_MARINE_TIMEOUT_MS,
+      presupuesto,
+      0
+    );
     if (!marineResponse.ok) return null;
 
     const candidate = await marineResponse.json();
@@ -175,9 +233,8 @@ async function llamarMarineOpenMeteo(lat, lon, date, timeRange) {
     return testWaves.some((wave) => wave !== null && wave !== undefined) ? candidate : null;
   }
 
-  let marineData = null;
-  marineData = await solicitarMarine(...offsets[0]).catch(() => null);
-  if (!marineData) {
+  let marineData = await solicitarMarine(...offsets[0]).catch(() => null);
+  if (!marineData && (!presupuesto || presupuesto.tieneMargen(900))) {
     const neighborData = await Promise.all(
       offsets.slice(1).map(([dLat, dLon]) =>
         solicitarMarine(dLat, dLon).catch(() => null)
@@ -192,7 +249,7 @@ async function llamarMarineOpenMeteo(lat, lon, date, timeRange) {
   };
 }
 
-export async function llamarOpenMeteo(lat, lon, date, timeRange, incluirMarine = true) {
+export async function llamarOpenMeteo(lat, lon, date, timeRange, incluirMarine = true, presupuesto = null) {
   const window = obtenerVentanaHoraria(date, timeRange);
   const weatherUrl = new URL("https://api.open-meteo.com/v1/forecast");
   weatherUrl.search = new URLSearchParams({
@@ -204,7 +261,13 @@ export async function llamarOpenMeteo(lat, lon, date, timeRange, incluirMarine =
     start_hour: window.startLocal,
     end_hour: window.endLocal
   });
-  const weatherResponse = await fetchWithTimeout(weatherUrl);
+  const weatherResponse = await fetchWithTimeout(
+    weatherUrl,
+    {},
+    FETCH_TIMEOUT_MS,
+    presupuesto,
+    incluirMarine ? 1000 : 0
+  );
   let weatherData;
   try {
     weatherData = await weatherResponse.json();
@@ -217,7 +280,7 @@ export async function llamarOpenMeteo(lat, lon, date, timeRange, incluirMarine =
   }
 
   const marineData = incluirMarine
-    ? await llamarMarineOpenMeteo(lat, lon, date, timeRange)
+    ? await llamarMarineOpenMeteo(lat, lon, date, timeRange, presupuesto)
     : null;
 
   return {
@@ -236,7 +299,16 @@ export async function llamarOpenMeteo(lat, lon, date, timeRange, incluirMarine =
   };
 }
 
-function normalizeForecastRequest(body) {
+function normalizeForecastRequest(rawBody) {
+  let body = rawBody;
+  if (typeof body === "string") {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      return { error: "El cuerpo debe ser un JSON válido." };
+    }
+  }
+
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return { error: "El cuerpo debe ser un objeto JSON." };
   }
@@ -403,10 +475,10 @@ export function debeUsarFallback(res) {
   }
 }
 
-export async function obtenerForecast(lat, lon, date, timeRange) {
+export async function obtenerForecast(lat, lon, date, timeRange, presupuesto = crearPresupuesto()) {
   let meteo;
   try {
-    meteo = await llamarOpenMeteo(lat, lon, date, timeRange, false);
+    meteo = await llamarOpenMeteo(lat, lon, date, timeRange, false, presupuesto);
   } catch {
     meteo = null;
   }
@@ -414,11 +486,13 @@ export async function obtenerForecast(lat, lon, date, timeRange) {
     throw new Error("No se pudo determinar la zona horaria para la fecha y franja seleccionadas");
   }
 
-  let principal;
-  try {
-    principal = await llamarApiPrincipal(lat, lon, date, timeRange, meteo.timezone);
-  } catch {
-    principal = null;
+  let principal = null;
+  if (presupuesto.tieneMargen(2800)) {
+    try {
+      principal = await llamarApiPrincipal(lat, lon, date, timeRange, meteo.timezone, presupuesto);
+    } catch {
+      principal = null;
+    }
   }
 
   if (!debeUsarFallback(principal)) {
@@ -436,8 +510,8 @@ export async function obtenerForecast(lat, lon, date, timeRange) {
     };
   }
 
-  const datosMeteo = meteo ?? await llamarOpenMeteo(lat, lon, date, timeRange, false);
-  const datosMarinos = await llamarMarineOpenMeteo(lat, lon, date, timeRange);
+  const datosMeteo = meteo ?? await llamarOpenMeteo(lat, lon, date, timeRange, false, presupuesto);
+  const datosMarinos = await llamarMarineOpenMeteo(lat, lon, date, timeRange, presupuesto);
   return normalizarFallback({
     ...datosMeteo,
     hourly: { ...datosMeteo.hourly, ...datosMarinos }
@@ -445,9 +519,15 @@ export async function obtenerForecast(lat, lon, date, timeRange) {
 }
 
 export default async function handler(req, res) {
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+
+  const presupuesto = crearPresupuesto(MAX_EXECUTION_BUDGET_MS);
 
   try {
     const OPENCAGE_KEY = process.env.OPENCAGE_KEY;
@@ -470,8 +550,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, cached: true, ...cached.data });
     }
 
-    // --- GEOCODING (OpenCage) ---
-    const coordinates = parsearCoordenadas(location) ?? await geocodificar(location, OPENCAGE_KEY);
+    // --- GEOCODING ---
+    const coordinates = parsearCoordenadas(location) ?? await geocodificar(location, OPENCAGE_KEY, presupuesto);
 
     if (!coordinates) {
       return res.status(404).json({
@@ -483,7 +563,7 @@ export default async function handler(req, res) {
     const { lat, lng } = coordinates;
 
     // Ejecuta el motor meteorológico
-    const datos = await obtenerForecast(lat, lng, date, timeRange);
+    const datos = await obtenerForecast(lat, lng, date, timeRange, presupuesto);
 
     const responseData = {
       ok: true,

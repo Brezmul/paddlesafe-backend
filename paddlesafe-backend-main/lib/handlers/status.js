@@ -27,7 +27,7 @@ export default async function handler(req, res) {
         { headers: { Authorization: STORMGLASS_KEY } }
       );
       if (storm.status === 429) stormStatus = "LIMITED";
-      if (!storm.ok) stormStatus = "ERROR";
+      else if (!storm.ok) stormStatus = "ERROR";
     } catch {
       stormStatus = "ERROR";
     }

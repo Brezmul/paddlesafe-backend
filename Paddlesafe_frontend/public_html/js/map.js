@@ -7,6 +7,16 @@ import { ClubState } from './club/state.js';
 
 const BACKEND_API_URL = 'https://paddlesafe-backend.vercel.app/api/backend';
 
+function crearFranjaForecast(horaSalida, duracionMinutos = 120) {
+    const match = /^([01]\d|2[0-3]):[0-5]\d$/.exec(horaSalida || '');
+    if (!match) throw new Error('La hora de salida no es válida.');
+
+    const horaInicio = Number(match[1]);
+    const horasDuracion = Math.max(1, Math.ceil(Number(duracionMinutos) / 60));
+    const horaFin = Math.min(24, horaInicio + horasDuracion);
+    return `Salida (${String(horaInicio).padStart(2, '0')}:00 - ${String(horaFin).padStart(2, '0')}:00)`;
+}
+
 export let map;
 export let marcador;
 export let datosMeteoActuales = null;
@@ -289,16 +299,11 @@ export async function consultarBasico() {
     
     const alC = document.getElementById('global-alert-container'); if(alC) alC.innerHTML = '';
     
-    let hSalida = "12:00";
-    if(r.includes("06:00")) hSalida = "06:00";
-    else if(r.includes("18:00")) hSalida = "18:00";
-
     const payload = {
-        fecha: d,
-        horaSalida: hSalida,
-        nivel: u || "Intermedio",
-        coordenadas: loc,
-        duracionRuta: 120
+        location: loc,
+        date: d,
+        timeRange: r,
+        userLevel: u || "Intermedio"
     };
 
     try {
@@ -348,16 +353,14 @@ export async function consultarPuntoProInstantaneo(lat, lon, d, t) {
     const u = document.getElementById('proLevelOption').value || "Intermedio";
     const btn = document.getElementById('btnCalcPro');
     if(btn) { btn.disabled = true; btn.innerHTML = "Analizando punto..."; }
-    
-    const payload = {
-        fecha: d,
-        horaSalida: t || "12:00",
-        nivel: u,
-        coordenadas: `${lat},${lon}`,
-        duracionRuta: 120
-    };
 
     try {
+        const payload = {
+            location: `${lat},${lon}`,
+            date: d,
+            timeRange: crearFranjaForecast(t || "12:00"),
+            userLevel: u
+        };
         const response = await fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
             method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
         });
@@ -411,15 +414,13 @@ export async function consultarRutaPro() {
         if (dt > 0) duracionEstimada = Math.round(((dt / 1000) / 4.5) * 60);
     }
 
-    const payload = {
-        fecha: d,
-        horaSalida: t || "12:00",
-        nivel: u,
-        coordenadas: `${lat},${lon}`,
-        duracionRuta: duracionEstimada
-    };
-
     try {
+        const payload = {
+            location: `${lat},${lon}`,
+            date: d,
+            timeRange: crearFranjaForecast(t, duracionEstimada),
+            userLevel: u
+        };
         const response = await fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
             method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
         });
@@ -902,6 +903,7 @@ export async function finalizarTravesia() {
                 min: m,
                 coords: trackCoords,
                 img,
+                b64: imgBase64Backup,
                 ts: Date.now()
             }));
             pendingMessage = "Se conserva una copia en este dispositivo";
@@ -941,7 +943,13 @@ export async function sincronizarRutasPendientes() {
         if (!pendienteStr) return;
         
         const p = JSON.parse(pendienteStr);
-        if (p.user_id && p.user_id !== appState.sesionActual.user.id) {
+        if (!p.user_id) {
+            localStorage.removeItem('paddlesafe_ruta_pendiente');
+            console.warn("Se eliminó una ruta pendiente heredada sin propietario para proteger la privacidad.");
+            alert("Se descartó una ruta pendiente antigua porque no se puede verificar a qué cuenta pertenece.");
+            return;
+        }
+        if (p.user_id !== appState.sesionActual.user.id) {
             console.warn("Ruta pendiente asociada a otra cuenta; se conserva sin sincronizar.");
             return;
         }

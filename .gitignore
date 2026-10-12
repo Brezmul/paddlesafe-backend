@@ -1,0 +1,11 @@
+# Logs
+logs.txt
+Paddlesafe_frontend/public_html/logs.txt
+*.log
+
+# Dependencies
+node_modules/
+
+# OS metadata
+.DS_Store
+Thumbs.db
