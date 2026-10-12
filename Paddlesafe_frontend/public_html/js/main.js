@@ -28,6 +28,9 @@ window.Club = ClubFacade;
 // Adaptadores defensivos de retrocompatibilidad para el DOM
 window.abrirModalClubs = () => window.Club && window.Club.abrirModal ? window.Club.abrirModal() : null;
 window.cerrarModalClubs = () => window.Club && window.Club.cerrarModal ? window.Club.cerrarModal() : null;
+window.cambiarTabClubs = (tab) => window.Club && window.Club.cambiarTabClubs ? window.Club.cambiarTabClubs(tab) : null;
+window.abrirModalFeed = () => Social.abrirModalFeed ? Social.abrirModalFeed() : (window.socialFeed && window.socialFeed.abrirModal ? window.socialFeed.abrirModal() : null);
+window.cerrarModalFeed = () => Social.cerrarModalFeed ? Social.cerrarModalFeed() : (window.socialFeed && window.socialFeed.cerrarModal ? window.socialFeed.cerrarModal() : null);
 
 const openClubProfileSafe = (id) => {
     if (window.Club && typeof window.Club.openClubProfile === 'function') window.Club.openClubProfile(id);
@@ -48,7 +51,7 @@ window.addEventListener('load', async () => {
     // Escuchar cambios en el historial (botón atrás del navegador o móvil)
     window.addEventListener('popstate', handleSPA);
     
-    ['btnModalRanking', 'btnModalClubs', 'btnCabeceraPerfil', 'btnPro'].forEach(id => {
+    ['btnModalRanking', 'btnModalClubs', 'btnModalFeed', 'btnCabeceraPerfil', 'btnPro'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('pointerdown', (e) => e.stopPropagation(), { passive: true });
     });

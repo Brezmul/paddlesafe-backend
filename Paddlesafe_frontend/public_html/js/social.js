@@ -371,43 +371,98 @@ export const socialFeed = {
             const qRutas = supabaseClient.from('club_rutas').select('created_at, club_id, ruta_id, rutas(ubicacion, distancia_km), clubs(nombre)').order('created_at', { ascending: false }).limit(15);
             const qChat = supabaseClient.from('club_chat').select('created_at, club_id, user_id, mensaje, perfiles(nombre, avatar_url), clubs(nombre)').order('created_at', { ascending: false }).limit(15);
             
-            const [resM, resR, resC] = await Promise.all([qMiembros, qRutas, qChat]);
+            const [resM, resR, resC] = await Promise.allSettled([qMiembros, qRutas, qChat]);
             let acts = [];
             
-            if (resM.data) resM.data.forEach(i => { acts.push({ date: new Date(i.joined_at), clubId: i.club_id, userId: i.user_id, html: `<div class="flex items-center gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full border-2 border-emerald-100 dark:border-emerald-800 object-cover shadow-sm"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre)}</strong> se unió a <strong class="text-emerald-600 dark:text-emerald-400 font-bold">${esc(i.clubs?.nombre)}</strong>.</p></div>` }); });
-            if (resR.data) resR.data.forEach(i => { acts.push({ date: new Date(i.created_at), clubId: i.club_id, userId: null, html: `<div class="flex items-center gap-4"><div class="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800/50 flex items-center justify-center text-xl shadow-sm text-sky-500">🗺️</div><div class="flex-1 min-w-0"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug">El club <strong class="text-marine dark:text-white font-black">${esc(i.clubs?.nombre)}</strong> trazó ruta en <strong class="text-marine dark:text-white">${esc(i.rutas?.ubicacion)}</strong>.</p><div class="inline-block mt-1 bg-water/10 dark:bg-sky-500/20 px-2 py-0.5 rounded text-[10px] font-black text-water dark:text-sky-400 uppercase tracking-widest">${i.rutas?.distancia_km} km</div></div></div>` }); });
-            if (resC.data) resC.data.forEach(i => { acts.push({ date: new Date(i.created_at), clubId: i.club_id, userId: i.user_id, html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700 shadow-sm mt-1"><div class="flex-1 min-w-0"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre)}</strong> comentó en <strong class="text-marine dark:text-white font-bold">${esc(i.clubs?.nombre)}</strong>.</p><div class="mt-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/50 p-3 rounded-2xl rounded-tl-sm text-sm text-slate-700 dark:text-slate-300 italic shadow-sm">"${esc(i.mensaje)}"</div></div></div>` }); });
+            const dataM = resM.status === 'fulfilled' && resM.value?.data ? resM.value.data : [];
+            const dataR = resR.status === 'fulfilled' && resR.value?.data ? resR.value.data : [];
+            const dataC = resC.status === 'fulfilled' && resC.value?.data ? resC.value.data : [];
+
+            dataM.forEach(i => {
+                acts.push({
+                    date: new Date(i.joined_at),
+                    clubId: i.club_id,
+                    userId: i.user_id,
+                    html: `<div class="flex items-center gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full border-2 border-emerald-100 dark:border-emerald-800 object-cover shadow-sm shrink-0"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre || 'Paddler')}</strong> se unió a <strong class="text-emerald-600 dark:text-emerald-400 font-bold">${esc(i.clubs?.nombre || 'un club')}</strong>.</p></div>`
+                });
+            });
+
+            dataR.forEach(i => {
+                acts.push({
+                    date: new Date(i.created_at),
+                    clubId: i.club_id,
+                    userId: null,
+                    html: `<div class="flex items-center gap-4"><div class="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800/50 flex items-center justify-center text-xl shadow-sm text-sky-500 shrink-0">🗺️</div><div class="flex-1 min-w-0"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug">El club <strong class="text-marine dark:text-white font-black">${esc(i.clubs?.nombre || 'Club')}</strong> trazó ruta en <strong class="text-marine dark:text-white">${esc(i.rutas?.ubicacion || 'Ruta marina')}</strong>.</p><div class="inline-block mt-1 bg-water/10 dark:bg-sky-500/20 px-2 py-0.5 rounded text-[10px] font-black text-water dark:text-sky-400 uppercase tracking-widest">${i.rutas?.distancia_km || 0} km</div></div></div>`
+                });
+            });
+
+            dataC.forEach(i => {
+                acts.push({
+                    date: new Date(i.created_at),
+                    clubId: i.club_id,
+                    userId: i.user_id,
+                    html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700 shadow-sm mt-1 shrink-0"><div class="flex-1 min-w-0"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre || 'Paddler')}</strong> comentó en <strong class="text-marine dark:text-white font-bold">${esc(i.clubs?.nombre || 'Club')}</strong>.</p><div class="mt-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/50 p-3 rounded-2xl rounded-tl-sm text-sm text-slate-700 dark:text-slate-300 italic shadow-sm">"${esc(i.mensaje)}"</div></div></div>`
+                });
+            });
             
-            if (filtro === 'mis_clubs' && misClubsIds.length) acts = acts.filter(i => misClubsIds.includes(i.clubId));
-            else if (filtro === 'mis_amigos' && misAmigosIds.length) acts = acts.filter(i => i.userId && misAmigosIds.includes(i.userId));
+            if (filtro === 'mis_clubs') {
+                acts = misClubsIds.length ? acts.filter(i => misClubsIds.includes(i.clubId)) : [];
+            } else if (filtro === 'mis_amigos') {
+                acts = misAmigosIds.length ? acts.filter(i => i.userId && misAmigosIds.includes(i.userId)) : [];
+            }
             
             acts.sort((a, b) => b.date - a.date);
             
-            if (acts.length === 0) return c.innerHTML = `<div class="text-center py-12 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner"><span class="text-5xl block mb-4 opacity-40 drop-shadow-md">📭</span><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">No hay actividad reciente.</p></div>`;
+            if (!acts || acts.length === 0) {
+                c.innerHTML = `
+                    <div class="flex flex-col items-center justify-center p-8 text-center bg-slate-800/40 rounded-2xl border border-slate-700/50 my-4">
+                        <span class="text-3xl mb-2">🌊</span>
+                        <p class="text-sm font-bold text-slate-300">No se ha publicado nada</p>
+                        <p class="text-xs text-slate-500 mt-1">Cuando tú, tus amigos o tu club registréis nuevas travesías, aparecerán aquí.</p>
+                    </div>`;
+                return;
+            }
             
             let h = '<div class="space-y-4">';
             h += acts.map(i => `<div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 rounded-[24px] shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">${i.html}<div class="mt-4 pt-3 border-t border-slate-50 dark:border-slate-700/50 flex justify-end"><span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-900/50 px-2 py-1 rounded-md">${i.date.toLocaleDateString(undefined, {month:'short', day:'numeric'})} • ${i.date.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})}</span></div></div>`).join('');
             c.innerHTML = h + '</div>';
         } catch (e) { 
-            c.innerHTML = `<p class="text-center text-red-400 text-xs">Error de conexión al cargar feed.</p>`; 
-            console.warn('Aviso no crítico:', e); 
+            console.warn('Aviso no crítico:', e);
+            c.innerHTML = `
+                <div class="flex flex-col items-center justify-center p-8 text-center bg-slate-800/40 rounded-2xl border border-slate-700/50 my-4">
+                    <span class="text-3xl mb-2">🌊</span>
+                    <p class="text-sm font-bold text-slate-300">No se ha publicado nada</p>
+                    <p class="text-xs text-slate-500 mt-1">Cuando tú, tus amigos o tu club registréis nuevas travesías, aparecerán aquí.</p>
+                </div>`;
         }
     },
     abrirModal() {
-        if (!appState.sesionActual || appState.esInvitado) return alert("Inicia sesión.");
-        const m = document.getElementById('socialFeedModal'); if (!m) return;
-        m.classList.remove('hidden'); requestAnimationFrame(() => { m.classList.remove('opacity-0'); m.querySelector('div').classList.remove('scale-95'); });
+        const m = document.getElementById('socialFeedModal');
+        if (!m) return;
+        m.classList.remove('hidden');
+        requestAnimationFrame(() => {
+            m.classList.remove('opacity-0');
+            const box = m.querySelector('div');
+            if (box) box.classList.remove('scale-95');
+        });
         this.cambiarFiltro('global');
     },
     cerrarModal() {
-        const m = document.getElementById('socialFeedModal'); if (!m) return;
-        m.classList.add('opacity-0'); m.querySelector('div').classList.add('scale-95');
+        const m = document.getElementById('socialFeedModal');
+        if (!m) return;
+        m.classList.add('opacity-0');
+        const box = m.querySelector('div');
+        if (box) box.classList.add('scale-95');
         setTimeout(() => m.classList.add('hidden'), 300);
     },
     cambiarFiltro(filtro) {
-        ['tabFeedGlobal', 'tabFeedClubs', 'tabFeedAmigos'].forEach(id => { const btn = document.getElementById(id); if (btn) btn.className = "h-10 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-bold rounded-lg flex-1 transition-colors"; });
+        ['tabFeedGlobal', 'tabFeedClubs', 'tabFeedAmigos'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.className = "h-10 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors";
+        });
         const activeId = filtro === 'mis_clubs' ? 'tabFeedClubs' : filtro === 'mis_amigos' ? 'tabFeedAmigos' : 'tabFeedGlobal';
-        const btnA = document.getElementById(activeId); if (btnA) btnA.className = "h-10 px-2 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-lg shadow flex-1 transition-colors";
+        const btnA = document.getElementById(activeId);
+        if (btnA) btnA.className = "h-10 px-2 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-lg shadow flex-1 cursor-pointer transition-colors";
         this.cargarActividad(filtro);
     }
 };
@@ -451,6 +506,14 @@ export function inicializarBotonesSociales() {
     }
 }
 
+export function abrirModalFeed() {
+    socialFeed.abrirModal();
+}
+
+export function cerrarModalFeed() {
+    socialFeed.cerrarModal();
+}
+
 window.socialNotifications = socialNotifications;
 window.mostrarPanelAvisos = mostrarPanelAvisos;
 window.cerrarPanelAvisos = cerrarPanelAvisos;
@@ -463,4 +526,6 @@ window.cerrarPanelMisAmigos = cerrarPanelMisAmigos;
 window.cambiarTabAmistades = cambiarTabAmistades;
 window.comprobarNuevasSolicitudesSilencioso = comprobarNuevasSolicitudesSilencioso;
 window.socialFeed = socialFeed;
+window.abrirModalFeed = abrirModalFeed;
+window.cerrarModalFeed = cerrarModalFeed;
 window.inicializarBotonesSociales = inicializarBotonesSociales;

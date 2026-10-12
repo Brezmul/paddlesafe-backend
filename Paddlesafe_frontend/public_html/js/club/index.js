@@ -6,9 +6,15 @@ import { ClubDelete } from './club.delete.js';
 import { supabaseClient, appState } from '../config.js';
 import { esc, safeUrl, IMG_FALLBACK } from '../utils.js';
 
+let searchClubsTimer = null;
+let searchPaddlersTimer = null;
+
 // Fachada que agrupa todas las acciones
 const ClubFacade = {
     // 1. Navegación
+    getActiveClubId() {
+        return ClubState.activeId;
+    },
     abrirModal() {
         const trackingPanel = document.getElementById('liveTrackingPanel');
         if (trackingPanel && !trackingPanel.classList.contains('hidden')) {
@@ -17,16 +23,88 @@ const ClubFacade = {
         const m = document.getElementById('clubsModal');
         if (m) {
             m.classList.remove('hidden');
-            setTimeout(() => { m.classList.remove('opacity-0'); m.querySelector('div').classList.remove('scale-95'); }, 10);
-            ClubRender.renderTabMiClub();
+            requestAnimationFrame(() => {
+                m.classList.remove('opacity-0');
+                const box = m.querySelector('div');
+                if (box) box.classList.remove('scale-95');
+            });
+            this.cambiarTabClubs('miclub');
         }
     },
     cerrarModal() {
         const m = document.getElementById('clubsModal');
-        if(m) {
+        if (m) {
             m.classList.add('opacity-0');
-            m.querySelector('div').classList.add('scale-95');
+            const box = m.querySelector('div');
+            if (box) box.classList.add('scale-95');
             setTimeout(() => m.classList.add('hidden'), 300);
+        }
+    },
+    cambiarTabClubs(tab) {
+        const tabs = {
+            'miclub': document.getElementById('tabMiClub'),
+            'buscar_club': document.getElementById('tabBuscarClub'),
+            'paddlers': document.getElementById('tabPaddlers')
+        };
+        Object.keys(tabs).forEach(t => {
+            const btn = tabs[t];
+            if (!btn) return;
+            if (t === tab) {
+                btn.className = "h-10 px-2 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-lg shadow flex-1 cursor-pointer transition-colors";
+            } else {
+                btn.className = "h-10 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors";
+            }
+        });
+
+        if (tab === 'buscar_club') {
+            ClubRender.renderTabBuscarClubs();
+        } else if (tab === 'paddlers') {
+            ClubRender.renderTabBuscarPaddlers();
+        } else {
+            ClubRender.renderTabMiClub();
+        }
+    },
+    onBuscarClubs(event) {
+        const val = event?.target?.value ?? '';
+        clearTimeout(searchClubsTimer);
+        searchClubsTimer = setTimeout(() => {
+            ClubRender.cargarListaClubs(val);
+        }, 300);
+    },
+    onBuscarPaddlers(event) {
+        const val = event?.target?.value ?? '';
+        clearTimeout(searchPaddlersTimer);
+        searchPaddlersTimer = setTimeout(() => {
+            ClubRender.cargarListaPaddlers(val);
+        }, 300);
+    },
+    async solicitarUnirseClub(clubId) {
+        if (!appState.sesionActual || appState.esInvitado) {
+            alert("Debes iniciar sesión para unirte a un club.");
+            if (window.abrirModalAuth) window.abrirModalAuth();
+            return;
+        }
+        try {
+            const userId = appState.sesionActual.user.id;
+            const { error } = await supabaseClient.from('clubs_solicitudes').insert([{
+                club_id: clubId,
+                user_id: userId,
+                estado: 'pendiente'
+            }]);
+            if (error) {
+                if (error.code === '23505') {
+                    alert("Ya tienes una solicitud pendiente para este club.");
+                } else {
+                    throw error;
+                }
+            } else {
+                alert("Solicitud enviada al club correctamente.");
+            }
+            const input = document.getElementById('buscadorClubs');
+            await ClubRender.cargarListaClubs(input ? input.value : '');
+        } catch (err) {
+            console.error('[club] solicitarUnirseClub error:', err);
+            alert("Error al solicitar unirse al club: " + (err.message || err));
         }
     },
     onSelectActive(clubId) {
@@ -295,6 +373,9 @@ const ClubFacade = {
 
 // Exposición global para que el HTML la encuentre
 window.Club = ClubFacade;
+window.cambiarTabClubs = (tab) => ClubFacade.cambiarTabClubs(tab);
+window.abrirModalClubs = () => ClubFacade.abrirModal();
+window.cerrarModalClubs = () => ClubFacade.cerrarModal();
 
 // Exportación para que main.js la pueda invocar
 export default ClubFacade;
