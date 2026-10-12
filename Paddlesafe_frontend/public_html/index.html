@@ -185,6 +185,9 @@
             </div>
             
             <div id="resultado" class="text-sm font-mono text-slate-600 bg-slate-50 p-5 rounded-2xl border border-slate-200 whitespace-pre-wrap leading-relaxed min-h-[80px]">Completa los datos arriba para ver el reporte básico.</div>
+            
+            <!-- Coach IA Gemini Flash - Resumen Básico -->
+            <div id="basicCoachContainer" class="hidden mt-3 p-4 bg-gradient-to-br from-slate-900 to-slate-950 rounded-2xl border border-emerald-500/30 text-white shadow-lg transition-all duration-300"></div>
         </div>
 
         <!-- ========================================== -->
@@ -409,6 +412,27 @@
                                      <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 truncate">Llegada Estimada</span>
                                      <span class="text-emerald-400 font-black text-xl truncate" id="proLlegadaHora">--:--</span>
                                  </div>
+                            </div>
+
+                            <!-- COACH IA GEMINI FLASH PRO -->
+                            <div id="proCoachContainer" class="p-5 border-b border-slate-800 bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950 w-full flex flex-col gap-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm">
+                                            <span class="animate-pulse">✨</span> Coach IA Gemini Flash
+                                        </span>
+                                        <span id="proCoachLevelBadge" class="text-[10px] font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-md border border-slate-700/60 uppercase">Nivel: Intermedio</span>
+                                    </div>
+                                    <div id="proCoachScoreBadge" class="text-xs font-black font-mono px-2.5 py-1 rounded-lg bg-emerald-950/60 text-emerald-300 border border-emerald-500/30">
+                                        Score: --
+                                    </div>
+                                </div>
+                                <div id="proCoachBody" class="flex flex-col gap-3 w-full">
+                                    <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-700/50 flex items-center gap-3">
+                                        <div class="animate-spin text-emerald-400 text-lg">⚙️</div>
+                                        <p class="text-xs text-slate-300 font-medium">Iniciando análisis del Coach IA...</p>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="p-5 w-full bg-slate-900 rounded-b-xl">

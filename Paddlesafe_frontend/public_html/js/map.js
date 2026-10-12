@@ -395,12 +395,15 @@ export async function consultarBasico() {
             lElBasic.className = `text-sm font-black text-center w-full px-2 py-1 ${veredicto.cls}`; 
             lElBasic.textContent = veredicto.estado;
             res.innerHTML = `<strong>📍 ${esc((p.received?.location || loc).split(',')[0])}</strong><br>📅 ${esc(p.received?.date || d)} | 🕒 ${esc(p.received?.timeRange || r)}<br><br>💡 <strong>Veredicto:</strong> ${esc(veredicto.mensaje)}`;
+            solicitarCoachIABasico(dx, u, loc);
         } else { 
             res.textContent = "Error del servidor."; 
+            const bC = document.getElementById('basicCoachContainer'); if (bC) bC.classList.add('hidden');
         }
     } catch(e) { 
         res.innerHTML = `<strong>Error de Red o Fallo de decodificación.</strong> Revisa tu conexión.`; 
         console.warn('Aviso no crítico (fetch meteo):', e); 
+        const bC = document.getElementById('basicCoachContainer'); if (bC) bC.classList.add('hidden');
     } finally {
         btn.disabled = false; sp.classList.add('hidden'); bt.textContent = 'Análisis Básico Rápido';
     }
@@ -640,6 +643,7 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
     document.getElementById('proDashboardResumen').classList.remove('hidden'); document.getElementById('proDashboardResumen').classList.add('flex');
     const isoLlamada = `${fechaD}T${horaSalida}:00`;
     cargarPrevisionHorariaExacta(lat, lon, isoLlamada, tt > 0 ? tt : 120);
+    solicitarCoachIAPro(dx, userLvl, dt, tt, lat, lon, fechaD, horaSalida);
 }
 
 export async function cargarPrevisionHorariaExacta(lat, lon, startISO, durationMinutes) {
@@ -1237,6 +1241,333 @@ export function restaurarTracker() {
     if(document.getElementById('proPlanificador')) { document.getElementById('proPlanificador').classList.remove('hidden'); document.getElementById('proPlanificador').classList.add('flex'); }
 }
 
+// ==========================================
+// COACH IA GEMINI FLASH (MOTOR INTELIGENTE SUP)
+// ==========================================
+
+export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos, lat, lon, fechaD, horaSalida) {
+    const bodyCont = document.getElementById('proCoachBody');
+    const badgeLvl = document.getElementById('proCoachLevelBadge');
+    const badgeScore = document.getElementById('proCoachScoreBadge');
+    if (!bodyCont) return;
+
+    if (badgeLvl) badgeLvl.textContent = `Nivel: ${userLvl || 'Intermedio'}`;
+    if (badgeScore) {
+        badgeScore.className = 'text-xs font-black font-mono px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700';
+        badgeScore.textContent = 'Analizando...';
+    }
+
+    bodyCont.innerHTML = `
+        <div class="bg-slate-800/80 rounded-xl p-3 border border-slate-700/60 flex items-center gap-3">
+            <span class="text-xl animate-bounce">🤖</span>
+            <div class="flex-1">
+                <p class="text-xs text-emerald-400 font-bold flex items-center gap-2">
+                    Consultando Coach IA Gemini Flash...
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                </p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Analizando viento, oleaje, periodo y seguridad para nivel ${esc(userLvl || 'Intermedio')}...</p>
+            </div>
+        </div>
+    `;
+
+    const wkVal = dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0);
+    const gustsVal = dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35));
+    const wv = (dx.waveHeight !== undefined && dx.waveHeight !== null) ? parseFloat(dx.waveHeight) : (dx.wave_height ? parseFloat(dx.wave_height) : 0);
+    const wPeriod = (dx.wavePeriod !== undefined && dx.wavePeriod !== null && dx.wavePeriod !== "--") ? parseFloat(dx.wavePeriod) : 0;
+    const tempAireValue = dx.tempAire || dx.temperature || dx.temp || "N/D";
+    const tempAguaValue = dx.tempAgua || dx.waterTemperature || dx.water_temp || "N/D";
+    const pm = (dx.precipitation !== undefined && dx.precipitation !== null && dx.precipitation !== "") ? dx.precipitation : 0;
+    const pl = (dx.precipProbability !== undefined && dx.precipProbability !== null && dx.precipProbability !== "") ? dx.precipProbability : (dx.precipitation_probability || 0);
+    const uv = (dx.uvIndex !== undefined && dx.uvIndex !== null && dx.uvIndex !== "--") ? dx.uvIndex : 0;
+
+    const payload = {
+        condiciones: {
+            viento: Number((wkVal * 3.6).toFixed(1)),
+            rachas: Number((gustsVal * 3.6).toFixed(1)),
+            direccion: Number(dx.windDirection) || 0,
+            oleaje: Number(wv.toFixed(1)),
+            periodo: Number(wPeriod),
+            tempAire: tempAireValue,
+            tempAgua: tempAguaValue,
+            lluvia: Number(pm),
+            precipProb: Number(pl),
+            uv: Number(uv),
+            distanciaKm: distMetros > 0 ? Number((distMetros / 1000).toFixed(2)) : 0,
+            duracionMin: tiempoMinutos > 0 ? Math.round(tiempoMinutos) : 60,
+            ubicacion: `${lat}, ${lon}`
+        },
+        userLevel: userLvl || "Intermedio"
+    };
+
+    try {
+        const resp = await fetchConTimeout(`${BACKEND_API_URL}?action=coach`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        }, 9000);
+
+        const data = await resp.json();
+        if (data.ok && data.coach) {
+            renderizarCoachProCard(data.coach, data.fuente, userLvl);
+        } else {
+            throw new Error("Respuesta inválida del coach");
+        }
+    } catch (e) {
+        console.warn("Aviso no crítico (Coach IA fallback local):", e);
+        renderizarCoachProFallbackLocal(payload.condiciones, userLvl);
+    }
+}
+
+export function renderizarCoachProCard(coach, fuente, userLvl) {
+    const bodyCont = document.getElementById('proCoachBody');
+    const badgeLvl = document.getElementById('proCoachLevelBadge');
+    const badgeScore = document.getElementById('proCoachScoreBadge');
+    if (!bodyCont) return;
+
+    const score = Math.max(0, Math.min(100, Math.round(Number(coach.score) || 70)));
+    let scoreBadgeCls = "bg-emerald-950/80 text-emerald-300 border-emerald-500/40";
+    let scoreBarBg = "bg-emerald-500";
+    let scoreIcon = "🟢";
+
+    if (score < 45) {
+        scoreBadgeCls = "bg-rose-950/80 text-rose-300 border-rose-500/40";
+        scoreBarBg = "bg-rose-500";
+        scoreIcon = "🔴";
+    } else if (score < 75) {
+        scoreBadgeCls = "bg-amber-950/80 text-amber-300 border-amber-500/40";
+        scoreBarBg = "bg-amber-500";
+        scoreIcon = "🟡";
+    }
+
+    if (badgeLvl) badgeLvl.textContent = `Nivel: ${userLvl || 'Intermedio'}`;
+    if (badgeScore) {
+        badgeScore.className = `text-xs font-black font-mono px-2.5 py-1 rounded-lg border flex items-center gap-1 ${scoreBadgeCls}`;
+        badgeScore.innerHTML = `<span>${scoreIcon}</span> Score SUP: ${score}/100`;
+    }
+
+    const seguridadItems = (coach.seguridad_estrategia || []).map(item => `
+        <li class="flex items-start gap-2 text-xs text-slate-200">
+            <span class="text-sky-400 mt-0.5 shrink-0 text-sm">🛡️</span>
+            <span class="leading-relaxed">${esc(item)}</span>
+        </li>
+    `).join('') || '<li class="text-xs text-slate-400">Sin alertas de seguridad críticas.</li>';
+
+    const tecnicaItems = (coach.tecnica_postura || []).map(item => `
+        <li class="flex items-start gap-2 text-xs text-slate-200">
+            <span class="text-teal-400 mt-0.5 shrink-0 text-sm">🏄</span>
+            <span class="leading-relaxed">${esc(item)}</span>
+        </li>
+    `).join('') || '<li class="text-xs text-slate-400">Mantén postura atlética y mirada al horizonte.</li>';
+
+    const materialItems = (coach.material_recomendado || []).map(item => `
+        <li class="flex items-start gap-2 text-xs text-slate-200">
+            <span class="text-amber-400 mt-0.5 shrink-0 text-sm">🎒</span>
+            <span class="leading-relaxed">${esc(item)}</span>
+        </li>
+    `).join('') || '<li class="text-xs text-slate-400">Leash obligatorio y chaleco 50N.</li>';
+
+    const fuenteLabel = fuente && fuente.includes("gemini")
+        ? "✨ Generado con Google Gemini 1.5 Flash (Gratuito)"
+        : "🌊 Motor Experto PaddleSafe (FESurfing / ISA)";
+
+    bodyCont.innerHTML = `
+        <!-- Veredicto Principal del Coach -->
+        <div class="bg-slate-800/90 rounded-xl p-3.5 border border-slate-700 shadow-sm flex flex-col gap-2">
+            <div class="flex items-center justify-between gap-2 border-b border-slate-700/60 pb-2">
+                <span class="font-black text-xs uppercase tracking-wider text-white flex items-center gap-1.5">
+                    <span>🧭</span> ${esc(coach.veredicto || 'EVALUACIÓN DEL DÍA')}
+                </span>
+                <span class="text-[10px] font-mono text-slate-400 font-bold">${score}/100</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">${esc(coach.resumen || '')}</p>
+            <!-- Barra de Idoneidad -->
+            <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden mt-1">
+                <div class="${scoreBarBg} h-full rounded-full transition-all duration-700" style="width: ${score}%"></div>
+            </div>
+        </div>
+
+        <!-- Bloques de Asesoramiento Específico -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+            <!-- Seguridad y Estrategia -->
+            <div class="bg-slate-800/70 rounded-xl p-3 border border-sky-500/20 flex flex-col gap-2">
+                <span class="text-[11px] font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5 border-b border-slate-700/50 pb-1.5">
+                    <span>🛡️</span> Seguridad & Rumbo
+                </span>
+                <ul class="flex flex-col gap-2">
+                    ${seguridadItems}
+                </ul>
+            </div>
+
+            <!-- Técnica y Postura -->
+            <div class="bg-slate-800/70 rounded-xl p-3 border border-teal-500/20 flex flex-col gap-2">
+                <span class="text-[11px] font-black uppercase tracking-wider text-teal-400 flex items-center gap-1.5 border-b border-slate-700/50 pb-1.5">
+                    <span>🏄</span> Técnica & Postura
+                </span>
+                <ul class="flex flex-col gap-2">
+                    ${tecnicaItems}
+                </ul>
+            </div>
+
+            <!-- Material Recomendado -->
+            <div class="bg-slate-800/70 rounded-xl p-3 border border-amber-500/20 flex flex-col gap-2">
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5 border-b border-slate-700/50 pb-1.5">
+                    <span>🎒</span> Material Clave
+                </span>
+                <ul class="flex flex-col gap-2">
+                    ${materialItems}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Regla de Oro -->
+        ${coach.regla_oro ? `
+        <div class="bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-teal-500/15 border border-amber-500/40 rounded-xl p-3 text-center shadow-inner">
+            <span class="text-amber-300 font-black text-[10px] uppercase tracking-widest block mb-0.5">💡 Regla de Oro del Coach</span>
+            <p class="text-white text-xs font-semibold italic">"${esc(coach.regla_oro)}"</p>
+        </div>
+        ` : ''}
+
+        <!-- Pie de Información y Transparencia IA -->
+        <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/80">
+            <span>${fuenteLabel}</span>
+            <span class="font-mono text-slate-400">PaddleSafe AI Coach</span>
+        </div>
+    `;
+}
+
+export function renderizarCoachProFallbackLocal(cond, userLvl) {
+    let score = 85;
+    const seg = [];
+    const tec = [];
+    const mat = [];
+
+    if (cond.viento > 15) {
+        score -= 30;
+        seg.push(`Viento notable (${cond.viento} km/h). Remar contra el viento en la ida.`);
+        tec.push("Flexiona rodillas y baja el centro de gravedad. Remada más corta y frecuente.");
+    } else {
+        tec.push("Excelente para trabajar rotación de tronco (core) y cadencia regular.");
+    }
+
+    if (cond.oleaje > 0.8) {
+        score -= 25;
+        seg.push(`Oleaje de ${cond.oleaje}m: Cuidado al embarcar y desembarcar en orilla.`);
+        tec.push("Postura escalonada con pies no alineados horizontalmente para ganar estabilidad en mar movido.");
+    }
+
+    if (userLvl === "Principiante" && (cond.viento > 11 || cond.oleaje > 0.4)) {
+        score -= 25;
+        seg.push("Como principiante, manténte a menos de 100m de costa y cerca de zonas resguardadas.");
+        tec.push("Si sientes inestabilidad, pasa a posición de rodillas de inmediato.");
+    }
+
+    mat.push(cond.oleaje > 0.7 ? "Leash recto fijado al tobillo para olas." : "Leash tipo coiled de rodilla para no arrastrar.");
+    mat.push("Chaleco de flotabilidad 50N y funda de móvil estanca obligatorios.");
+
+    score = Math.max(15, Math.min(100, score));
+
+    const coachLocal = {
+        score,
+        veredicto: score >= 70 ? "CONDICIONES APROPIADAS" : (score >= 45 ? "PRECAUCIÓN ACTIVA" : "RIESGO ELEVADO"),
+        resumen: `Análisis local para nivel ${userLvl}: Viento de ${cond.viento} km/h y ${cond.oleaje}m de ola. Ajusta tu esfuerzo al plan de navegación.`,
+        seguridad_estrategia: seg,
+        tecnica_postura: tec,
+        material_recomendado: mat,
+        regla_oro: "Regla del 30%: Reserva siempre un tercio de tu energía y agua para el regreso."
+    };
+
+    renderizarCoachProCard(coachLocal, "coach-experto-sup (offline)", userLvl);
+}
+
+export async function solicitarCoachIABasico(dx, userLvl, loc) {
+    const cont = document.getElementById('basicCoachContainer');
+    if (!cont) return;
+
+    cont.classList.remove('hidden');
+    cont.innerHTML = `
+        <div class="flex items-center gap-2.5 animate-pulse">
+            <span class="text-lg">🤖</span>
+            <div class="flex-1">
+                <p class="text-xs text-emerald-400 font-bold">Coach IA Gemini Flash preparando consejo...</p>
+                <p class="text-[10px] text-slate-400">Adaptando a nivel ${esc(userLvl || 'Intermedio')}...</p>
+            </div>
+        </div>
+    `;
+
+    const wkVal = dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0);
+    const gustsVal = dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35));
+    const wv = (dx.waveHeight !== undefined && dx.waveHeight !== null) ? parseFloat(dx.waveHeight) : (dx.wave_height ? parseFloat(dx.wave_height) : 0);
+    const wPeriod = (dx.wavePeriod !== undefined && dx.wavePeriod !== null && dx.wavePeriod !== "--") ? parseFloat(dx.wavePeriod) : 0;
+    const tempAireValue = dx.tempAire || dx.temperature || dx.temp || "N/D";
+    const tempAguaValue = dx.tempAgua || dx.waterTemperature || dx.water_temp || "N/D";
+    const pm = (dx.precipitation !== undefined && dx.precipitation !== null && dx.precipitation !== "") ? dx.precipitation : 0;
+    const pl = (dx.precipProbability !== undefined && dx.precipProbability !== null && dx.precipProbability !== "") ? dx.precipProbability : (dx.precipitation_probability || 0);
+    const uv = (dx.uvIndex !== undefined && dx.uvIndex !== null && dx.uvIndex !== "--") ? dx.uvIndex : 0;
+
+    const payload = {
+        condiciones: {
+            viento: Number((wkVal * 3.6).toFixed(1)),
+            rachas: Number((gustsVal * 3.6).toFixed(1)),
+            direccion: Number(dx.windDirection) || 0,
+            oleaje: Number(wv.toFixed(1)),
+            periodo: Number(wPeriod),
+            tempAire: tempAireValue,
+            tempAgua: tempAguaValue,
+            lluvia: Number(pm),
+            precipProb: Number(pl),
+            uv: Number(uv),
+            ubicacion: loc || "Spot de Costa"
+        },
+        userLevel: userLvl || "Intermedio"
+    };
+
+    try {
+        const resp = await fetchConTimeout(`${BACKEND_API_URL}?action=coach`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        }, 8000);
+
+        const data = await resp.json();
+        if (data.ok && data.coach) {
+            const coach = data.coach;
+            const score = Math.max(0, Math.min(100, Math.round(Number(coach.score) || 70)));
+            let scoreCls = score >= 75 ? "text-emerald-400" : (score >= 45 ? "text-amber-400" : "text-rose-400");
+
+            cont.innerHTML = `
+                <div class="flex flex-col gap-2">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-base">✨</span>
+                            <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">Coach IA Gemini Flash (${esc(userLvl || 'Intermedio')})</span>
+                        </div>
+                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 ${scoreCls} border border-slate-700 font-bold">Score: ${score}/100</span>
+                    </div>
+                    <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(coach.resumen || '')}</p>
+                    ${coach.seguridad_estrategia && coach.seguridad_estrategia[0] ? `
+                    <div class="text-[11px] text-sky-300 flex items-start gap-1.5 bg-sky-950/40 p-2 rounded-lg border border-sky-500/20">
+                        <span class="shrink-0">🛡️</span>
+                        <span>${esc(coach.seguridad_estrategia[0])}</span>
+                    </div>` : ''}
+                    ${coach.regla_oro ? `
+                    <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20">
+                        <span class="shrink-0">💡</span>
+                        <span class="italic font-semibold">${esc(coach.regla_oro)}</span>
+                    </div>` : ''}
+                </div>
+            `;
+        } else {
+            throw new Error("No data");
+        }
+    } catch (e) {
+        cont.innerHTML = `
+            <div class="flex items-center justify-between text-xs text-slate-300">
+                <span>💡 <strong>Consejo SUP:</strong> Comienza siempre tu recorrido remando contra el viento y guarda un 30% de energía para la vuelta.</span>
+            </div>
+        `;
+    }
+}
+
 window.buscarYCentrarMapa = buscarYCentrarMapa;
 window.obtenerUbicacion = obtenerUbicacion;
 window.toggleModoTravesia = toggleModoTravesia;
@@ -1247,6 +1578,9 @@ window.consultarBasico = consultarBasico;
 window.consultarPuntoProInstantaneo = consultarPuntoProInstantaneo;
 window.consultarRutaPro = consultarRutaPro;
 window.volverPlanificadorPro = volverPlanificadorPro;
+window.solicitarCoachIAPro = solicitarCoachIAPro;
+window.renderizarCoachProCard = renderizarCoachProCard;
+window.solicitarCoachIABasico = solicitarCoachIABasico;
 window.iniciarTravesia = iniciarTravesia;
 window.finalizarTravesia = finalizarTravesia;
 window.restaurarTracker = restaurarTracker;
