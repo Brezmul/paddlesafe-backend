@@ -336,28 +336,17 @@ const ClubFacade = {
 
     async procesarSolicitud(solicitudId, aprobar, userId) {
         try {
-            let error = null;
-            // 1. Intentar con firma { p_solicitud_id, p_aprobar }
-            const res = await supabaseClient.rpc('procesar_solicitud_club', {
-                p_solicitud_id: solicitudId,
-                p_aprobar: aprobar
+            // Firma canónica exacta según RPC public.procesar_solicitud_club(p_solicitud, p_accion)
+            const { error } = await supabaseClient.rpc('procesar_solicitud_club', {
+                p_solicitud: solicitudId,
+                p_accion: aprobar ? 'aceptar' : 'rechazar'
             });
-            error = res.error;
-
-            // 2. Si falla por firma, intentar con { p_club_id, p_user_id, p_accion }
-            if (error) {
-                const resAlt = await supabaseClient.rpc('procesar_solicitud_club', {
-                    p_club_id: ClubState.activeId,
-                    p_user_id: userId || solicitudId,
-                    p_accion: aprobar ? 'aprobar' : 'rechazar'
-                });
-                error = resAlt.error;
-            }
 
             if (error) throw error;
-            alert(aprobar ? "Solicitud aprobada." : "Solicitud rechazada.");
+            alert(aprobar ? "Solicitud aceptada correctamente." : "Solicitud rechazada.");
             await this.cambiarVistaInterna('gestion');
         } catch (err) {
+            console.error('[club] procesarSolicitud error:', err);
             alert("Error al procesar solicitud: " + (err.message || err));
         }
     },
@@ -381,13 +370,16 @@ const ClubFacade = {
     async onCreate() {
         const input = document.getElementById('newClubName');
         const nom = input ? input.value.trim() : '';
-        if (!nom) return alert("Introduce un nombre.");
+        if (!nom) return alert("Introduce un nombre para el club.");
         try {
             const { data: newClubId, error } = await supabaseClient.rpc('crear_club_multiclub', { p_nombre: nom });
             if (error) throw error;
             ClubState.activeId = newClubId;
-            ClubRender.renderTabMiClub();
-        } catch (e) { alert("Error al crear club."); }
+            await ClubRender.renderTabMiClub();
+        } catch (e) {
+            console.error('[club] onCreate error:', e);
+            alert("Error al crear club: " + (e.message || e));
+        }
     }
 };
 
