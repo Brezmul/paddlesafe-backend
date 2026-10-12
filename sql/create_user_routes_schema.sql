@@ -13,7 +13,7 @@ ALTER TABLE public.perfiles
 UPDATE public.perfiles
 SET 
   total_xp = COALESCE(total_xp, puntos::integer, 0),
-  current_level = COALESCE(current_level, nivel, 1),
+  current_level = GREATEST(1, FLOOR(SQRT(COALESCE(total_xp, puntos, 0)::numeric / 100)) + 1),
   total_distance_km = COALESCE(total_distance_km, km_totales::double precision, 0)
 WHERE total_xp = 0 AND (puntos > 0 OR km_totales > 0);
 
@@ -92,7 +92,7 @@ BEGIN
       puntos = COALESCE(puntos, 0) + COALESCE(NEW.xp_earned, 0),
       total_distance_km = ROUND((COALESCE(total_distance_km, 0) + COALESCE(NEW.distance_km, 0))::numeric, 2),
       km_totales = ROUND((COALESCE(km_totales, 0) + COALESCE(NEW.distance_km, 0))::numeric, 2),
-      current_level = GREATEST(1, FLOOR((COALESCE(total_xp, 0) + COALESCE(NEW.xp_earned, 0)) / 500) + 1)
+      current_level = GREATEST(1, FLOOR(SQRT((COALESCE(total_xp, 0) + COALESCE(NEW.xp_earned, 0))::numeric / 100)) + 1)
     WHERE id = NEW.user_id;
   ELSIF TG_OP = 'DELETE' THEN
     UPDATE public.perfiles
@@ -101,7 +101,7 @@ BEGIN
       puntos = GREATEST(0, COALESCE(puntos, 0) - COALESCE(OLD.xp_earned, 0)),
       total_distance_km = GREATEST(0, ROUND((COALESCE(total_distance_km, 0) - COALESCE(OLD.distance_km, 0))::numeric, 2)),
       km_totales = GREATEST(0, ROUND((COALESCE(km_totales, 0) - COALESCE(OLD.distance_km, 0))::numeric, 2)),
-      current_level = GREATEST(1, FLOOR(GREATEST(0, COALESCE(total_xp, 0) - COALESCE(OLD.xp_earned, 0)) / 500) + 1)
+      current_level = GREATEST(1, FLOOR(SQRT(GREATEST(0, COALESCE(total_xp, 0) - COALESCE(OLD.xp_earned, 0))::numeric / 100)) + 1)
     WHERE id = OLD.user_id;
   END IF;
   RETURN NULL;

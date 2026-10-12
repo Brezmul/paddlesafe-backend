@@ -5,6 +5,7 @@
 import { supabaseClient, appState } from './config.js';
 import { esc, safeUrl, validarImagen, calcularRangoMaritimo, IMG_FALLBACK } from './utils.js';
 import { parseGPX } from './gpxParser.js';
+import { calcularNivelYProgreso, obtenerPosicionRanking, guardarRutaDeportivaConGamificacion } from './gamification.js';
 
 export function initAuthListeners() {
     if (supabaseClient) {
@@ -100,9 +101,10 @@ export function restaurarFormularioAuth() {
         const avatarSrc = appState.perfilUsuario?.avatar_url || `https://api.dicebear.com/9.x/adventurer/svg?seed=guest`;
         const horasNav = Math.floor((appState.perfilUsuario?.tiempo_total || 0) / 60);
         const minNav = (appState.perfilUsuario?.tiempo_total || 0) % 60;
-        const pts = appState.perfilUsuario?.total_xp || appState.perfilUsuario?.puntos || 0;
-        const distTot = Number(appState.perfilUsuario?.total_distance_km || appState.perfilUsuario?.km_totales || 0).toFixed(1);
-        const nivelActual = appState.perfilUsuario?.current_level || calcularRangoMaritimo(pts).nivel;
+        const pts = appState.perfilUsuario?.total_xp ?? appState.perfilUsuario?.puntos ?? 0;
+        const distTot = Number(appState.perfilUsuario?.total_distance_km ?? appState.perfilUsuario?.km_totales ?? 0).toFixed(1);
+        const progresoGamif = calcularNivelYProgreso(pts);
+        const nivelActual = progresoGamif.nivel;
         const rango = calcularRangoMaritimo(pts);
         
         let insigniasHTML = `<p class="text-[10px] text-slate-400 dark:text-slate-500 font-medium my-2">Aún no has ganado insignias en quedadas.</p>`;
@@ -161,16 +163,45 @@ export function restaurarFormularioAuth() {
                         <p class="text-marine dark:text-white text-xl font-black">${horasNav}h<span class="text-[10px] ml-0.5 text-slate-400">${minNav}m</span></p>
                     </div>
                 </div>
-                <div class="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-3xl p-6 mb-8 shadow-inner text-left relative overflow-hidden">
-                    <div class="flex justify-between items-end mb-3">
-                        <span class="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Nivel ${nivelActual}</span>
-                        <span class="text-[11px] font-bold text-water dark:text-sky-400 bg-blue-50 dark:bg-blue-900/30 px-2.5 py-1 rounded-lg">${nivelActual >= 99 ? 'Nivel Máximo' : rango.puntosParaSubir + ' pts para Nivel ' + (nivelActual + 1)}</span>
+                
+                <!-- GAMIFICACIÓN: NIVEL Y PROGRESO XP -->
+                <div class="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-3xl p-6 mb-4 shadow-inner text-left relative overflow-hidden">
+                    <div class="flex justify-between items-end mb-2.5">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-base">⚡</span>
+                            <span class="text-xs font-black text-marine dark:text-white uppercase tracking-wider">Nivel ${progresoGamif.nivel}</span>
+                        </div>
+                        <span class="text-[10px] font-bold text-water dark:text-sky-400 bg-blue-50 dark:bg-blue-900/40 px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-800/40">
+                            ${progresoGamif.xpActualEnNivel} / ${progresoGamif.xpRangoNivel} XP <span class="text-slate-400 font-normal">(${progresoGamif.xpFaltante} XP para Nivel ${progresoGamif.nivel + 1})</span>
+                        </span>
                     </div>
                     <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-4 overflow-hidden shadow-inner relative">
                         <div class="absolute top-0 left-0 h-full w-full bg-white/20"></div>
-                        <div class="bg-gradient-to-r from-water to-blue-500 h-4 rounded-full shadow-md transition-all duration-1000 relative" style="width: ${rango.progresoPorcentaje}%"><div class="absolute top-0 right-0 w-4 h-full bg-white/30 skew-x-12"></div></div>
+                        <div class="bg-gradient-to-r from-water to-blue-500 h-4 rounded-full shadow-md transition-all duration-1000 relative" style="width: ${progresoGamif.progresoPorcentaje}%">
+                            <div class="absolute top-0 right-0 w-4 h-full bg-white/30 skew-x-12"></div>
+                        </div>
                     </div>
                 </div>
+
+                <!-- POSICIÓN EN EL RANKING GLOBAL -->
+                <div class="flex items-center justify-between bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 p-4 rounded-3xl mb-8 shadow-xl relative overflow-hidden group">
+                    <div class="flex items-center gap-3 relative z-10">
+                        <div class="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform">
+                            🏆
+                        </div>
+                        <div>
+                            <p class="text-[9px] font-black uppercase tracking-widest text-indigo-300 mb-0.5">Clasificación Global</p>
+                            <h4 id="perfilRankingTexto" class="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
+                                <span class="animate-pulse text-indigo-200 text-[11px]">Consultando ranking...</span>
+                            </h4>
+                        </div>
+                    </div>
+                    <button type="button" onclick="cerrarModalAuth(); if(window.abrirModalRanking) window.abrirModalRanking();" class="relative z-10 text-[10px] font-black uppercase tracking-wider bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-400/40 text-indigo-200 px-3 py-2 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center gap-1">
+                        <span>Ranking</span>
+                        <span>→</span>
+                    </button>
+                </div>
+
                 <div class="mb-8 text-left">
                     <h3 class="text-[11px] sm:text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b-2 border-slate-100 dark:border-slate-800 pb-3 mb-4 flex items-center gap-2"><svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg> Vitrina Premium</h3>
                     ${insigniasHTML}
@@ -206,12 +237,13 @@ export function restaurarFormularioAuth() {
                     ${appState.esInvitado ? 'Salir del Modo Invitado' : 'Cerrar Sesión'}
                 </button>
                 <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.18</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.19</p>
                     <button type="button" onclick="if(window.forzarActualizacion) window.forzarActualizacion(); else window.location.reload();" class="mt-1 text-[9px] text-water dark:text-sky-400 hover:underline font-bold uppercase tracking-wider cursor-pointer">🔄 Buscar actualizaciones / Limpiar caché</button>
                 </div>
             </div>
         `;
         cargarHistorialRutas();
+        actualizarBadgeRanking(pts);
         return;
     }
     
@@ -509,64 +541,32 @@ export async function subirArchivoGPX(event) {
                 routeName = file.name.replace(/\.gpx$/i, '').replace(/[-_]/g, ' ').trim();
             }
 
-            // Gamificación: 50 XP por km + 1 XP por minuto navegado
-            const distKm = Number(parsed.totalDistanceKm || parsed.distance_km || 0);
-            const durSecs = Number(parsed.totalDurationSeconds || parsed.duration_seconds || 0);
-            const durMins = Math.max(1, Math.round(durSecs / 60));
-            const xpCalculado = Math.max(10, Math.round(distKm * 50) + durMins);
+            const resGuardado = await guardarRutaDeportivaConGamificacion({
+                userId: appState.sesionActual.user.id,
+                title: routeName,
+                distanceKm: distKm,
+                durationSeconds: durSecs,
+                avgSpeed: Number(parsed.avgSpeedKmh || parsed.avg_speed || 0),
+                maxSpeed: Number(parsed.maxSpeedKmh || parsed.max_speed || 0),
+                routeCoordinates: parsed.coordinates,
+                splitsData: parsed.splits || [],
+                createdAt: parsed.startTime ? new Date(parsed.startTime).toISOString() : new Date().toISOString()
+            });
 
-            const userRoutePayload = {
-                user_id: appState.sesionActual.user.id,
-                title: routeName.slice(0, 100),
-                distance_km: distKm,
-                duration_seconds: durSecs,
-                avg_speed: Number(parsed.avgSpeedKmh || parsed.avg_speed || 0),
-                max_speed: Number(parsed.maxSpeedKmh || parsed.max_speed || 0),
-                route_coordinates: parsed.coordinates,
-                splits_data: parsed.splits || [],
-                xp_earned: xpCalculado,
-                created_at: new Date().toISOString()
-            };
-
-            // 1. Guardar en tabla user_routes
-            let guardadoExitoso = false;
-            let insertError = null;
-            try {
-                const { error: errUR } = await supabaseClient
-                    .from('user_routes')
-                    .insert([userRoutePayload]);
-                if (!errUR) {
-                    guardadoExitoso = true;
-                } else {
-                    insertError = errUR;
-                    console.warn("[user_routes] Inserción fallida, intentando fallback:", errUR.message);
-                }
-            } catch (err) {
-                insertError = err;
-            }
-
-            // 2. Fallback a tabla legacy 'rutas' si user_routes no existiese aún
-            if (!guardadoExitoso) {
-                const legacyPayload = {
-                    user_id: appState.sesionActual.user.id,
-                    distancia_km: distKm,
-                    tiempo_minutos: durMins,
-                    fecha: userRoutePayload.created_at,
-                    ruta_json: parsed.coordinates,
-                    avg_speed_kmh: userRoutePayload.avg_speed,
-                    points_earned: xpCalculado
-                };
-                const { error: errLeg } = await supabaseClient.from('rutas').insert([legacyPayload]);
-                if (errLeg) {
-                    throw new Error(insertError?.message || errLeg.message);
-                }
-            }
-
-            // 3. Recargar perfil para refrescar XP y distancia en UI
+            // Recargar perfil para refrescar XP, nivel y ranking en UI
             await cargarPerfilUsuarioActivo();
             restaurarFormularioAuth();
 
-            alert(`🎉 ¡Ruta subida con éxito!\n\n📍 ${routeName}\n📏 Distancia: ${distKm} km\n⏱️ Tiempo: ${durMins} min\n⚡ Vel. Media: ${userRoutePayload.avg_speed} km/h\n🚀 Vel. Máx: ${userRoutePayload.max_speed} km/h\n🏆 +${xpCalculado} XP sumados a tu perfil`);
+            const calculo = resGuardado.calculoXp;
+            if (calculo.esTrampa) {
+                alert(`⚠️ Ruta guardada, pero la velocidad media (${resGuardado.ruta.avg_speed} km/h) superó los 45 km/h.\nSe ha clasificado como vehículo motorizado y no otorga XP.`);
+            } else {
+                let msgExito = `🎉 ¡Ruta subida con éxito!\n\n📍 ${routeName}\n📏 Distancia: ${distKm} km\n⏱️ Tiempo: ${durMins} min\n⚡ Vel. Media: ${resGuardado.ruta.avg_speed} km/h\n🚀 Vel. Máx: ${resGuardado.ruta.max_speed} km/h\n🏆 +${calculo.xpGanado} XP ganados (${calculo.xpBase} XP base${calculo.bonusVelocidad > 0 ? ' + 50 XP bonus velocidad' : ''})\n⭐ Nivel actual: ${resGuardado.perfil?.current_level || 1}`;
+                if (resGuardado.subioDeNivel) {
+                    msgExito += `\n\n🎊 ¡ENHORABUENA! ¡HAS SUBIDO AL NIVEL ${resGuardado.perfil.current_level}! 🚀`;
+                }
+                alert(msgExito);
+            }
 
         } catch (err) {
             console.error("Error al procesar archivo GPX:", err);
@@ -745,6 +745,31 @@ export function verRutaEnMapa(rutaId) {
     }
 }
 
+export async function actualizarBadgeRanking(totalXp) {
+    const el = document.getElementById('perfilRankingTexto');
+    if (!el) return;
+    if (appState.esInvitado) {
+        el.innerHTML = `<span class="text-slate-400 font-bold text-xs">Modo Invitado (Sin clasificar)</span>`;
+        return;
+    }
+    try {
+        const { posicion, totalUsuarios } = await obtenerPosicionRanking(totalXp);
+        let medalla = '🎖️';
+        if (posicion === 1) medalla = '🥇';
+        else if (posicion === 2) medalla = '🥈';
+        else if (posicion === 3) medalla = '🥉';
+
+        el.innerHTML = `
+            <span class="text-base">${medalla}</span>
+            <span class="text-amber-400 font-black text-sm">#${posicion}</span>
+            <span class="text-slate-200 font-bold text-xs">en el Ranking Global</span>
+            <span class="text-indigo-300 text-[10px] font-normal">(${totalUsuarios} deportistas)</span>
+        `;
+    } catch (e) {
+        el.innerHTML = `<span class="text-slate-300 font-bold text-xs">#-- en el Ranking</span>`;
+    }
+}
+
 window.abrirModalAuth = abrirModalAuth;
 window.cerrarModalAuth = cerrarModalAuth;
 window.enviarEmailRecuperacion = enviarEmailRecuperacion;
@@ -759,3 +784,4 @@ window.entrarComoInvitado = entrarComoInvitado;
 window.subirArchivoGPX = subirArchivoGPX;
 window.verRutaEnMapa = verRutaEnMapa;
 window.cargarHistorialRutas = cargarHistorialRutas;
+window.actualizarBadgeRanking = actualizarBadgeRanking;
