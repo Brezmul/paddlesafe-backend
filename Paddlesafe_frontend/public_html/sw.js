@@ -12,7 +12,7 @@
 // OTA: sube VERSION en cada despliegue (junto con version.json). Al activarse,
 // el SW borra TODAS las cachés de versiones anteriores.
 // ==============================================================================
-const VERSION = 'paddlesafe-v18';
+const VERSION = 'paddlesafe-v19';
 const SHELL   = `${VERSION}-shell`;   // HTML + JS propio
 const STATIC  = `${VERSION}-static`;  // iconos, css, fuentes, manifest
 const IMGS    = `${VERSION}-img`;     // avatares, logos, marcadores (inmutables)
@@ -41,8 +41,8 @@ function isLive(url, req) {
   const h = url.hostname;
   return (
     LIVE_HOSTS.some(d => hostIs(h, d)) && !isPublicStorage(url) ||
-    url.pathname === '/version.json' ||     // el OTA lo pide con cache:'no-store'
-    url.pathname === '/sw.js' ||
+    url.pathname.endsWith('/version.json') ||     // el OTA lo pide con cache:'no-store'
+    url.pathname.endsWith('/sw.js') ||
     req.cache === 'no-store' ||
     req.headers.has('authorization') ||
     req.headers.has('range')

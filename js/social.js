@@ -126,14 +126,46 @@ export function cerrarPanelAvisos() {
 // SISTEMA DE AMISTADES
 // ====================================================
 export async function enviarSolicitudAmistad(amigoId) {
-    if (!appState.sesionActual || appState.esInvitado) return alert("Inicia sesión para añadir amigos.");
+    if (!appState.sesionActual || appState.esInvitado) {
+        if (typeof window.abrirModalAuth === 'function') window.abrirModalAuth();
+        else alert("Inicia sesión para añadir amigos.");
+        return;
+    }
+    const myId = appState.sesionActual.user.id;
+    if (myId === amigoId) return alert("No puedes añadirte a ti mismo.");
+    
     const btn = document.getElementById('btnAñadirAmigoSPA');
     if(btn) { btn.disabled = true; btn.textContent = "Procesando..."; }
     
     try {
-        const { error } = await supabaseClient.from('amistades').insert([{ usuario_id: appState.sesionActual.user.id, amigo_id: amigoId, estado: 'pendiente' }]);
-        if (error) throw error;
-        alert("Solicitud enviada");
+        // Verificar si ya existe un registro previo entre ambos usuarios
+        let existing = null;
+        try {
+            const { data: d1 } = await supabaseClient.from('amistades').select('*').eq('usuario_id', myId).eq('amigo_id', amigoId).maybeSingle();
+            const { data: d2 } = await supabaseClient.from('amistades').select('*').eq('usuario_id', amigoId).eq('amigo_id', myId).maybeSingle();
+            existing = d1 || d2 || null;
+        } catch (_) {}
+
+        if (existing) {
+            if (existing.estado === 'aceptada') {
+                alert("Ya sois amigos en PaddleSafe.");
+                if(window.verificarEstadoAmistad) window.verificarEstadoAmistad(amigoId);
+                return;
+            } else if (existing.estado === 'pendiente') {
+                alert(existing.usuario_id === myId ? "Ya tienes una solicitud pendiente enviada a este usuario." : "Este usuario ya te envió una solicitud. ¡Puedes aceptarla!");
+                if(window.verificarEstadoAmistad) window.verificarEstadoAmistad(amigoId);
+                return;
+            } else {
+                // Si estaba rechazada, la reactivamos como pendiente
+                const { error: updErr } = await supabaseClient.from('amistades').update({ usuario_id: myId, amigo_id: amigoId, estado: 'pendiente' }).eq('id', existing.id);
+                if (updErr) throw updErr;
+            }
+        } else {
+            const { error: insErr } = await supabaseClient.from('amistades').insert([{ usuario_id: myId, amigo_id: amigoId, estado: 'pendiente' }]);
+            if (insErr) throw insErr;
+        }
+
+        alert("¡Solicitud de amistad enviada con éxito!");
         if(window.verificarEstadoAmistad) window.verificarEstadoAmistad(amigoId);
         
         if (appState.sesionActual && appState.perfilUsuario) {
@@ -144,7 +176,7 @@ export async function enviarSolicitudAmistad(amigoId) {
             });
         }
     } catch (e) { 
-        console.warn('Aviso no crítico:', e); 
+        console.warn('Aviso no crítico enviando solicitud:', e); 
         alert("Error al enviar solicitud."); 
         if(btn) { btn.disabled = false; btn.textContent = "Añadir Amigo"; } 
     }
@@ -179,20 +211,44 @@ export async function verificarEstadoAmistad(targetUserId) {
     const btn = document.getElementById('btnAñadirAmigoSPA');
     if (!btn) return;
     
-    const { data } = await supabaseClient.from('amistades').select('*').or(`and(usuario_id.eq.${appState.sesionActual.user.id},amigo_id.eq.${targetUserId}),and(usuario_id.eq.${targetUserId},amigo_id.eq.${appState.sesionActual.user.id})`).order('created_at', { ascending: false }).limit(1);
     document.getElementById('btnRechazarAmistad')?.remove();
+    const myId = appState.sesionActual.user.id;
     
-    if (data && data.length > 0) {
-        const rel = data[0];
+    let rel = null;
+    try {
+        const { data, error } = await supabaseClient
+            .from('amistades')
+            .select('*')
+            .or(`and(usuario_id.eq.${myId},amigo_id.eq.${targetUserId}),and(usuario_id.eq.${targetUserId},amigo_id.eq.${myId})`)
+            .order('created_at', { ascending: false })
+            .limit(1);
+            
+        if (!error && data && data.length > 0) {
+            rel = data[0];
+        } else {
+            // Fallback a dos consultas seguras
+            const { data: d1 } = await supabaseClient.from('amistades').select('*').eq('usuario_id', myId).eq('amigo_id', targetUserId).maybeSingle();
+            const { data: d2 } = await supabaseClient.from('amistades').select('*').eq('usuario_id', targetUserId).eq('amigo_id', myId).maybeSingle();
+            rel = d1 || d2 || null;
+        }
+    } catch (e) {
+        console.warn("Excepción comprobando amistad:", e);
+    }
+    
+    if (rel) {
         if (rel.estado === 'aceptada') {
-            btn.textContent = "🤝 Amigos"; btn.disabled = true; btn.className = "mt-2 mb-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold px-5 py-2 rounded-full uppercase cursor-default";
+            btn.textContent = "🤝 Amigos"; 
+            btn.disabled = true; 
+            btn.className = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold px-5 py-2 rounded-full uppercase cursor-default";
         } else if (rel.estado === 'pendiente') {
-            if (rel.usuario_id === appState.sesionActual.user.id) {
-                btn.textContent = "⏳ Pendiente"; btn.disabled = true; btn.className = "mt-2 mb-2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 text-[10px] font-bold px-5 py-2 rounded-full uppercase cursor-default";
+            if (rel.usuario_id === myId) {
+                btn.textContent = "⏳ Pendiente"; 
+                btn.disabled = true; 
+                btn.className = "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 text-[10px] font-bold px-5 py-2 rounded-full uppercase cursor-default";
             } else {
                 btn.textContent = "Aceptar";
                 btn.disabled = false;
-                btn.className = "bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold px-4 py-2 rounded-full uppercase transition-colors";
+                btn.className = "bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold px-4 py-2 rounded-full uppercase transition-colors shadow-sm cursor-pointer active:scale-95";
                 btn.onclick = () => {
                     responderSolicitudAmistad(rel.id, 'aceptar');
                     setTimeout(() => verificarEstadoAmistad(targetUserId), 500);
@@ -202,7 +258,7 @@ export async function verificarEstadoAmistad(targetUserId) {
                 rejectBtn.id = 'btnRechazarAmistad';
                 rejectBtn.type = 'button';
                 rejectBtn.textContent = "Rechazar";
-                rejectBtn.className = "bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-4 py-2 rounded-full uppercase transition-colors";
+                rejectBtn.className = "bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-4 py-2 rounded-full uppercase transition-colors shadow-sm cursor-pointer active:scale-95";
                 rejectBtn.onclick = () => {
                     responderSolicitudAmistad(rel.id, 'rechazar');
                     setTimeout(() => verificarEstadoAmistad(targetUserId), 500);
@@ -210,12 +266,12 @@ export async function verificarEstadoAmistad(targetUserId) {
                 btn.insertAdjacentElement('afterend', rejectBtn);
             }
         } else if (rel.estado === 'rechazada') {
-            btn.textContent = "Añadir Amigo"; btn.disabled = false;
+            btn.textContent = "Añadir Amigo"; 
+            btn.disabled = false;
             btn.className = "bg-water hover:bg-sky-600 text-white text-[10px] font-bold px-5 py-2 rounded-full uppercase transition-colors shadow-sm active:scale-95 cursor-pointer";
             btn.onclick = () => { if(window.enviarSolicitudAmistad) window.enviarSolicitudAmistad(targetUserId); };
         }
     } else {
-        // Corrección: Devolver el botón al estado original si la amistad se borró o no existe
         btn.textContent = "Añadir Amigo";
         btn.disabled = false;
         btn.className = "bg-water hover:bg-sky-600 text-white text-[10px] font-bold px-5 py-2 rounded-full uppercase transition-colors shadow-sm active:scale-95 cursor-pointer";

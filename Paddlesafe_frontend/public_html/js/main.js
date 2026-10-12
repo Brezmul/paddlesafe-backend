@@ -212,6 +212,14 @@ export async function abrirPerfilPublicoSPA(userId) {
     requestAnimationFrame(() => modal.classList.remove('opacity-0'));
     document.getElementById('modalUserName').textContent = "Cargando...";
     
+    // Asegurar sesión sincronizada con Supabase
+    if (!appState.sesionActual && supabaseClient) {
+        try {
+            const { data: sData } = await supabaseClient.auth.getSession();
+            if (sData?.session) appState.sesionActual = sData.session;
+        } catch (_) {}
+    }
+    
     const { data: user } = await supabaseClient.from('perfiles').select('*').eq('id', userId).maybeSingle();
     
     if(user) {
@@ -229,57 +237,38 @@ export async function abrirPerfilPublicoSPA(userId) {
         const myId = appState.sesionActual?.user?.id;
         const isMe = myId === userId;
         
-        // BLOQUE DE CONTROL DE PRIVACIDAD
-        if (!isMe && user.is_private) {
-            const btnContainer = document.getElementById('spaBtnContainer');
-            if (btnContainer) btnContainer.innerHTML = '';
-            
-            document.getElementById('userProfileContent').innerHTML = `
-                <div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner mt-4">
-                    <span class="text-4xl block mb-2 opacity-50">🔒</span>
-                    <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Este usuario ha ocultado su diario de navegación.</p>
-                </div>`;
-            
-            // Ocultar las pestañas de navegación preservando las clases Flexbox
-            ['spaTabInsignias', 'spaTabRutas', 'spaTabAmigos'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.add('hidden');
-            });
-            return; // Detenemos la ejecución para evitar que se carguen las rutas
-        } else {
-            // Aseguramos que las pestañas sean visibles
-            ['spaTabInsignias', 'spaTabRutas'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.remove('hidden');
-            });
-        }
-        
         // Contenedor dinámico y ordenado para las acciones de perfil
         let btnContainer = document.getElementById('spaBtnContainer');
         if (!btnContainer && levelEl) {
             btnContainer = document.createElement('div');
             btnContainer.id = 'spaBtnContainer';
-            btnContainer.className = 'flex justify-center gap-2 mt-2 mb-4';
+            btnContainer.className = 'flex justify-center items-center gap-2 mt-1 mb-3 empty:hidden';
             levelEl.insertAdjacentElement('afterend', btnContainer);
         }
         
         if (btnContainer) {
             btnContainer.innerHTML = ''; // Limpiar botones anteriores
 
-            // Botón 1: Añadir Amigo (Solo visible si no soy yo)
-            if (appState.sesionActual && !isMe) {
+            // Botón 1: Añadir Amigo (Visible siempre que no sea mi propio perfil)
+            if (!isMe) {
                 const btnAmigo = document.createElement('button');
                 btnAmigo.id = 'btnAñadirAmigoSPA';
                 btnAmigo.className = 'bg-water hover:bg-sky-600 text-white text-[10px] font-bold px-5 py-2 rounded-full uppercase transition-colors shadow-sm active:scale-95 cursor-pointer';
                 btnAmigo.textContent = 'Añadir Amigo';
-                btnAmigo.onclick = () => { if(window.enviarSolicitudAmistad) window.enviarSolicitudAmistad(userId); };
+                if (!appState.sesionActual || appState.esInvitado) {
+                    btnAmigo.onclick = () => {
+                        if (typeof window.abrirModalAuth === 'function') window.abrirModalAuth();
+                        else alert("Inicia sesión para añadir amigos.");
+                    };
+                } else {
+                    btnAmigo.onclick = () => { if(window.enviarSolicitudAmistad) window.enviarSolicitudAmistad(userId); };
+                }
                 btnContainer.appendChild(btnAmigo);
             }
 
-            // Botón 2: Invitar al Club (Requiere integración con el nuevo estado modular)
-            if (appState.sesionActual && !isMe) {
+            // Botón 2: Invitar al Club (Visible si el usuario tiene sesión activa y club con permisos)
+            if (appState.sesionActual && !appState.esInvitado && !isMe) {
                 let activeClubId = null;
-                // Intentamos obtener el ID del club activo de manera segura
                 if (window.Club && typeof window.Club.getActiveClubId === 'function') {
                     activeClubId = window.Club.getActiveClubId();
                 } else if (window.clubActivoIdSeleccionado) {
@@ -306,7 +295,12 @@ export async function abrirPerfilPublicoSPA(userId) {
             }
         }
 
-        // Privacidad de la Pestaña Amigos (Solo visible si es mi propio perfil)
+        // Verificar estado de amistad si hay sesión y no soy yo
+        if (window.verificarEstadoAmistad && appState.sesionActual && !appState.esInvitado && !isMe) {
+            window.verificarEstadoAmistad(userId);
+        }
+
+        // Pestaña Amigos (Solo visible si es mi propio perfil)
         let tabAmigos = document.getElementById('spaTabAmigos');
         if (isMe) {
             if (!tabAmigos) {
@@ -326,11 +320,29 @@ export async function abrirPerfilPublicoSPA(userId) {
         } else {
             if (tabAmigos) tabAmigos.classList.add('hidden');
         }
-        
-        if (window.verificarEstadoAmistad && appState.sesionActual && !isMe) {
-            window.verificarEstadoAmistad(userId);
+
+        // BLOQUE DE CONTROL DE PRIVACIDAD (Afecta solo al diario de navegación, preserva botón de amigos)
+        if (!isMe && user.is_private) {
+            document.getElementById('userProfileContent').innerHTML = `
+                <div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner mt-4">
+                    <span class="text-4xl block mb-2 opacity-50">🔒</span>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Este usuario ha ocultado su diario de navegación.</p>
+                </div>`;
+            
+            // Ocultar las pestañas de navegación preservando las clases Flexbox
+            ['spaTabInsignias', 'spaTabRutas', 'spaTabAmigos'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            return; // Detenemos la carga de contenido privado
+        } else {
+            // Aseguramos que las pestañas sean visibles
+            ['spaTabInsignias', 'spaTabRutas'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('hidden');
+            });
+            cambiarTabPerfilSPA('rutas');
         }
-        cambiarTabPerfilSPA('rutas');
     } else {
         document.getElementById('modalUserName').textContent = "Usuario no encontrado";
         document.getElementById('userProfileContent').innerHTML = `<p class="text-center py-10 text-slate-500">El perfil ha sido eliminado o no existe.</p>`;

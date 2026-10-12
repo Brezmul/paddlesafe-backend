@@ -527,7 +527,8 @@
                 </button>
                 <img id="spaAvatar" src="" class="w-20 h-20 rounded-full mx-auto mb-2 object-cover border-4 border-white shadow-md">
                 <h2 id="modalUserName" class="text-2xl sm:text-3xl font-black text-marine mt-1">Cargando...</h2>
-                <p id="spaUserLevel" class="text-[10px] font-bold text-water uppercase tracking-widest mt-1 mb-3">Nivel --</p>
+                <p id="spaUserLevel" class="text-[10px] font-bold text-water uppercase tracking-widest mt-1 mb-2">Nivel --</p>
+                <div id="spaBtnContainer" class="flex justify-center items-center gap-2 mt-1 mb-3 empty:hidden"></div>
                 <div class="flex justify-center gap-1 sm:gap-2 w-full">
                     <button type="button" onclick="cambiarTabPerfilSPA('insignias')" id="spaTabInsignias" class="h-10 px-2 bg-slate-100 text-slate-600 hover:bg-slate-200 text-[11px] font-bold rounded-lg flex-1 cursor-pointer">Insignias</button>
                     <button type="button" onclick="cambiarTabPerfilSPA('rutas')" id="spaTabRutas" class="h-10 px-2 bg-marine text-white shadow text-[11px] font-bold rounded-lg flex-1 cursor-pointer">Rutas</button>
@@ -693,9 +694,11 @@
                         }
                     }
                     
-                    // 2.3 Guardar nueva versión y recargar limpio
+                    // 2.3 Guardar nueva versión y recargar con query param para romper la caché HTTP de index.html
                     localStorage.setItem('paddlesafe_version', newHash);
-                    window.location.reload();
+                    const destUrl = new URL(window.location.href);
+                    destUrl.searchParams.set('v', newHash);
+                    window.location.replace(destUrl.toString());
                     return; // Bloquear ejecución hasta que recargue
                 }
                 
@@ -720,6 +723,24 @@
                     }
                 });
 
+                // Función global para forzar actualización manual o desde ajustes
+                window.forzarActualizacion = async () => {
+                    try {
+                        localStorage.removeItem('paddlesafe_version');
+                        if ('caches' in window) {
+                            const cacheKeys = await caches.keys();
+                            await Promise.all(cacheKeys.map(key => caches.delete(key)));
+                        }
+                        if ('serviceWorker' in navigator) {
+                            const registrations = await navigator.serviceWorker.getRegistrations();
+                            for (let reg of registrations) await reg.unregister();
+                        }
+                    } catch (_) {}
+                    const destUrl = new URL(window.location.href);
+                    destUrl.searchParams.set('force_update', Date.now());
+                    window.location.replace(destUrl.toString());
+                };
+
                 // 4. Registrar el Service Worker
                 if ('serviceWorker' in navigator) {
                     window.addEventListener('load', () => {
@@ -732,10 +753,16 @@
                                         // Nueva versión detectada por el navegador. Forzamos chequeo de version.json
                                         fetch(`/version.json?t=${new Date().getTime()}`, { cache: "no-store" })
                                             .then(r => r.json())
-                                            .then(newData => {
+                                            .then(async newData => {
                                                 if (newData.hash !== localStorage.getItem('paddlesafe_version')) {
+                                                    if ('caches' in window) {
+                                                        const cacheKeys = await caches.keys();
+                                                        await Promise.all(cacheKeys.map(key => caches.delete(key)));
+                                                    }
                                                     localStorage.setItem('paddlesafe_version', newData.hash);
-                                                    window.location.reload();
+                                                    const destUrl = new URL(window.location.href);
+                                                    destUrl.searchParams.set('v', newData.hash);
+                                                    window.location.replace(destUrl.toString());
                                                 }
                                             });
                                     }
