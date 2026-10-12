@@ -3,6 +3,7 @@ import { ClubRender } from './club.render.js';
 import { ClubInfo } from './club.info.js';
 import { ClubPhotos } from './club.photos.js';
 import { ClubDelete } from './club.delete.js';
+import { ClubPublic } from './club.public.js';
 import { supabaseClient, appState } from '../config.js';
 import { esc, safeUrl, IMG_FALLBACK } from '../utils.js';
 
@@ -361,12 +362,33 @@ const ClubFacade = {
         ClubPhotos.onImageUpload(event, clubId, type);
     },
 
-    // 4. Peligro
+    // 4. Peligro y Abandono
     onDelete(clubId, event) {
         ClubDelete.execute(clubId, event);
     },
 
-    // 5. Creación
+    async abandonarClub(clubId) {
+        if (!confirm("¿Estás seguro de que deseas abandonar este club?")) return;
+        const myId = appState.sesionActual?.user?.id;
+        if (!myId) return alert("Debes iniciar sesión.");
+        try {
+            const { error } = await supabaseClient
+                .from('clubs_usuarios')
+                .delete()
+                .eq('club_id', clubId)
+                .eq('user_id', myId);
+            if (error) throw error;
+            alert("Has abandonado el club correctamente.");
+            ClubState.myClubs = ClubState.myClubs.filter(c => c.club_id !== clubId);
+            ClubState.activeId = ClubState.myClubs[0]?.club_id || null;
+            await ClubRender.renderTabMiClub();
+        } catch (err) {
+            console.error('[club] abandonarClub error:', err);
+            alert("Error al abandonar club: " + (err.message || err));
+        }
+    },
+
+    // 5. Creación e Invitaciones
     async onCreate() {
         const input = document.getElementById('newClubName');
         const nom = input ? input.value.trim() : '';
@@ -380,14 +402,72 @@ const ClubFacade = {
             console.error('[club] onCreate error:', e);
             alert("Error al crear club: " + (e.message || e));
         }
+    },
+
+    async invitarPaddler(userId, clubId) {
+        if (!appState.sesionActual || appState.esInvitado) return alert("Debes iniciar sesión.");
+        const myId = appState.sesionActual.user.id;
+        try {
+            try {
+                await supabaseClient.from('clubs_invitaciones').insert([{
+                    club_id: clubId,
+                    user_id: userId,
+                    invitado_por: myId,
+                    estado: 'pendiente'
+                }]);
+            } catch (_) {}
+
+            const activeClub = ClubState.myClubs?.find(c => c.club_id === clubId);
+            const clubNom = activeClub?.nombre || 'un club';
+            await supabaseClient.from('notificaciones').insert([{
+                user_id: userId,
+                tipo: 'invitacion_club',
+                contenido: `Has recibido una invitación para unirte a ${clubNom}.`,
+                leida: false
+            }]);
+            alert("¡Invitación enviada con éxito!");
+        } catch (err) {
+            console.error('[club] invitarPaddler error:', err);
+            alert("Error al enviar invitación: " + (err.message || err));
+        }
+    },
+
+    // 6. Perfil Público y Chat del Club
+    openClubProfile(clubId) {
+        ClubPublic.open(clubId);
+    },
+    cerrarClubProfileView() {
+        ClubPublic.close();
+    },
+    cambiarTabClub(tab) {
+        ClubPublic.cambiarTab(tab);
+    },
+    enviarMensajeChat(clubId) {
+        ClubPublic.enviarMensaje(clubId);
     }
 };
 
-// Exposición global para que el HTML la encuentre
+// Exposición global para que el HTML y main.js los encuentren
 window.Club = ClubFacade;
 window.cambiarTabClubs = (tab) => ClubFacade.cambiarTabClubs(tab);
 window.abrirModalClubs = () => ClubFacade.abrirModal();
 window.cerrarModalClubs = () => ClubFacade.cerrarModal();
+
+// Perfil público del club y sub-pestañas
+window.openClubProfile = (id) => ClubFacade.openClubProfile(id);
+window.cerrarClubProfileView = () => ClubFacade.cerrarClubProfileView();
+window.cambiarTabClub = (tab) => ClubFacade.cambiarTabClub(tab);
+
+// Panel de administración de solicitudes de club
+window.cerrarPanelSolicitudes = () => {
+    const m = document.getElementById('clubAdminRequestsModal');
+    if (m) {
+        m.classList.add('opacity-0');
+        const box = m.querySelector('div');
+        if (box) box.classList.add('scale-95');
+        setTimeout(() => m.classList.add('hidden'), 300);
+    }
+};
 
 // Exportación para que main.js la pueda invocar
 export default ClubFacade;

@@ -97,7 +97,12 @@
                         <span class="text-[11px] sm:text-xs font-black mt-1 uppercase tracking-widest">Feed</span>
                     </button>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <button type="button" id="btnAvisos" onclick="if(window.mostrarPanelAvisos) window.mostrarPanelAvisos()" class="relative text-white/70 hover:text-white transition-all hover:scale-105 flex flex-col items-center cursor-pointer">
+                        <span class="text-2xl sm:text-3xl drop-shadow-md">🔔</span>
+                        <span id="notifBadge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center border-2 border-marine"></span>
+                        <span class="text-[11px] sm:text-xs font-black mt-1 uppercase tracking-widest">Avisos</span>
+                    </button>
                     <button type="button" id="btnCabeceraPerfil" onclick="abrirModalAuth()" class="text-white/70 hover:text-white transition-all hover:scale-105 flex flex-col items-center cursor-pointer">
                         <svg class="h-7 w-7 sm:h-8 sm:w-8 drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         <span class="text-[11px] sm:text-xs font-black mt-1 uppercase tracking-widest">Perfil</span>

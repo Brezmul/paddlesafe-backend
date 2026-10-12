@@ -117,7 +117,13 @@ export const ClubRender = {
                 <button type="button" onclick="window.Club.onDelete('${esc(cl.club_id)}', event)" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 font-bold text-[11px] rounded-lg border border-rose-200 dark:border-rose-900/50 transition-colors flex items-center gap-1.5 active:scale-95 cursor-pointer">
                     🗑️ Eliminar Club
                 </button>
-            </div>` : '';
+            </div>` : `
+            <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Membresía</span>
+                <button type="button" onclick="window.Club.abandonarClub('${esc(cl.club_id)}')" class="px-3 py-1.5 bg-slate-50 hover:bg-rose-50 dark:bg-slate-700/50 dark:hover:bg-rose-950/30 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 font-bold text-[11px] rounded-lg border border-slate-200 dark:border-slate-600 transition-colors flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                    🏃 Abandonar Club
+                </button>
+            </div>`;
 
         const rolLabel = isCreator ? 'Creador' : (cl.club_rol === 'admin' ? 'Administrador' : 'Miembro');
 
@@ -238,10 +244,10 @@ export const ClubRender = {
 
                 return `
                     <div class="flex items-center justify-between p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm gap-3 hover:shadow-md transition-shadow">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <img src="${esc(logoUrl)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-xl object-cover bg-slate-100 shrink-0 border border-slate-100 dark:border-slate-700">
+                        <div onclick="if(window.navigateSPA) window.navigateSPA('/club/${esc(c.id)}')" class="flex items-center gap-3 min-w-0 cursor-pointer flex-1 group">
+                            <img src="${esc(logoUrl)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-xl object-cover bg-slate-100 shrink-0 border border-slate-100 dark:border-slate-700 group-hover:scale-105 transition-transform">
                             <div class="min-w-0">
-                                <h4 class="font-black text-sm text-marine dark:text-white truncate">${esc(c.nombre)}</h4>
+                                <h4 class="font-black text-sm text-marine dark:text-white truncate group-hover:text-water transition-colors">${esc(c.nombre)}</h4>
                                 <p class="text-[10px] text-slate-400 font-bold truncate">${c.ubicacion ? `📍 ${esc(c.ubicacion)} • ` : ''}Nvl ${c.nivel || 1} • ${c.puntos || 0} pts</p>
                             </div>
                         </div>

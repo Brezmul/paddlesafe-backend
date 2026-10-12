@@ -41,7 +41,13 @@ export async function cargarPerfilUsuarioActivo() {
         const { data: creado } = await supabaseClient.from('perfiles').upsert([nuevo], { onConflict: 'id', ignoreDuplicates: true }).select().maybeSingle();
         data = creado || nuevo;
     }
-    if (data) { appState.perfilUsuario = data; actualizarBotonCabecera(); }
+    if (data) { 
+        appState.perfilUsuario = data; 
+        actualizarBotonCabecera(); 
+        if (window.socialNotifications && typeof window.socialNotifications.cargarNotificaciones === 'function') {
+            window.socialNotifications.cargarNotificaciones();
+        }
+    }
 }
 
 export function actualizarBotonCabecera() {
