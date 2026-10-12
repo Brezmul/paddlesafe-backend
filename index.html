@@ -194,13 +194,13 @@
         <!-- VERSIÓN PRO: MAPA AMPLIADO Y COPILOTO -->
         <!-- ========================================== -->
         <div class="bg-premium border-t border-slate-800 p-5 sm:p-8 flex flex-col flex-1">
-            <button type="button" id="btnPro" class="w-full min-h-[52px] bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black px-5 rounded-xl shadow-lg hover:shadow-glow-pro transition-all flex justify-between items-center group cursor-pointer">
+            <button type="button" id="btnPro" onclick="togglePanelPro()" class="w-full min-h-[52px] bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black px-5 rounded-xl shadow-lg hover:shadow-glow-pro transition-all flex justify-between items-center group cursor-pointer">
                 <span class="flex items-center gap-2 sm:text-lg"><span>✨</span> Copiloto Inteligente Pro</span>
                 <svg id="btnProIcon" class="transition-transform duration-300 text-white/70 group-hover:text-white" viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.5" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
 
             <div id="panelPro" class="grid transition-all duration-300 ease-in-out w-full" style="grid-template-rows: 0fr;">
-                <div class="overflow-hidden w-full">
+                <div class="overflow-hidden min-h-0 w-full">
                     <div class="pt-5 flex flex-col gap-5 w-full">
                         
                         <!-- MAPA INTERACTIVO PRO -->
@@ -649,6 +649,20 @@
     <!-- SISTEMA DE ACTUALIZACIÓN AUTOMÁTICA (OTA)  -->
     <!-- ========================================== -->
     <script>
+        // Toggle seguro e inmediato para Copiloto Pro
+        window.togglePanelPro = window.togglePanelPro || function(forceState) {
+            const p = document.getElementById("panelPro");
+            const icon = document.getElementById("btnProIcon");
+            if (!p) return;
+            const isOpen = p.style.gridTemplateRows === "1fr";
+            const next = typeof forceState === "boolean" ? forceState : !isOpen;
+            p.style.gridTemplateRows = next ? "1fr" : "0fr";
+            if (icon) {
+                if (next) icon.classList.add("rotate-180");
+                else icon.classList.remove("rotate-180");
+            }
+        };
+
         (async function() {
             const APP_FILES = ['/js/main.js']; 
             

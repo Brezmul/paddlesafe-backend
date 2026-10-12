@@ -62,69 +62,102 @@ const closeClubProfileSafe = () => {
 };
 
 // ====================================================
-// 2. INICIALIZACIÓN PRINCIPAL (Load)
+// Control del Panel Copiloto Inteligente Pro
+export function togglePanelPro(forceState) {
+    const panelPro = document.getElementById("panelPro");
+    const btnProIcon = document.getElementById("btnProIcon");
+    if (!panelPro) return;
+
+    const estaAbierto = panelPro.style.gridTemplateRows === "1fr";
+    const nuevoEstado = typeof forceState === "boolean" ? forceState : !estaAbierto;
+
+    panelPro.style.gridTemplateRows = nuevoEstado ? "1fr" : "0fr";
+
+    if (btnProIcon) {
+        if (nuevoEstado) {
+            btnProIcon.classList.add("rotate-180");
+        } else {
+            btnProIcon.classList.remove("rotate-180");
+        }
+    }
+
+    if (nuevoEstado) {
+        setTimeout(() => {
+            if (MapModule.inicializarMapa) MapModule.inicializarMapa();
+            if (MapModule.map) {
+                MapModule.map.invalidateSize();
+                setTimeout(() => {
+                    if (MapModule.map) MapModule.map.invalidateSize();
+                }, 400);
+            }
+        }, 350);
+    }
+}
+window.togglePanelPro = togglePanelPro;
+
+// 2. INICIALIZACIÓN PRINCIPAL (Lifecycle Seguro)
 // ====================================================
-window.addEventListener('load', async () => {
+let appInicializada = false;
+async function inicializarAplicacion() {
+    if (appInicializada) return;
+    appInicializada = true;
+
     if (!supabaseClient) console.warn("Aviso: Supabase aún no cargado.");
-    
+
     // Escuchar cambios en el historial (botón atrás del navegador o móvil)
     window.addEventListener('popstate', handleSPA);
-    
-    ['btnModalRanking', 'btnModalClubs', 'btnModalFeed', 'btnCabeceraPerfil', 'btnPro'].forEach(id => {
+
+    ['btnModalRanking', 'btnModalClubs', 'btnModalFeed', 'btnCabeceraPerfil'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('pointerdown', (e) => e.stopPropagation(), { passive: true });
     });
-    
+
     const btnPro = document.getElementById("btnPro");
-    const panelPro = document.getElementById("panelPro");
-    const btnProIcon = document.getElementById("btnProIcon");
-    let proPanelOpen = false;
-    
-    if (btnPro && panelPro && btnProIcon) {
-        btnPro.addEventListener("click", () => {
-            proPanelOpen = !proPanelOpen;
-            panelPro.style.gridTemplateRows = proPanelOpen ? "1fr" : "0fr";
-            if (proPanelOpen) {
-                 btnProIcon.classList.add("rotate-180");
-                 setTimeout(() => {
-                     if(MapModule.inicializarMapa) MapModule.inicializarMapa();
-                     if (MapModule.map) {
-                         MapModule.map.invalidateSize();
-                         setTimeout(() => MapModule.map.invalidateSize(), 400);
-                     }
-                }, 350);
-             } else {
-                btnProIcon.classList.remove("rotate-180");
-            }
+    if (btnPro && !btnPro.dataset.toggleBound) {
+        btnPro.dataset.toggleBound = "true";
+        btnPro.addEventListener("click", (e) => {
+            e.preventDefault();
+            togglePanelPro();
         });
     }
-    
+
     const hoy = new Date();
     const mes = String(hoy.getMonth() + 1).padStart(2, '0');
     const dia = String(hoy.getDate()).padStart(2, '0');
     const strHoy = `${hoy.getFullYear()}-${mes}-${dia}`;
-    if(document.getElementById('date')) document.getElementById('date').value = strHoy;
-    if(document.getElementById('proDate')) document.getElementById('proDate').value = strHoy;
-    
+    if (document.getElementById('date')) document.getElementById('date').value = strHoy;
+    if (document.getElementById('proDate')) document.getElementById('proDate').value = strHoy;
+
     if (supabaseClient) {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session) {
-            appState.sesionActual = session;
-            appState.esInvitado = false;
-            await Auth.cargarPerfilUsuarioActivo();
-            Social.inicializarBotonesSociales();
-            
-            // Sincronización offline de rutas al detectar sesión iniciada
-            if (MapModule.sincronizarRutasPendientes) {
-                MapModule.sincronizarRutasPendientes();
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                appState.sesionActual = session;
+                appState.esInvitado = false;
+                await Auth.cargarPerfilUsuarioActivo();
+                Social.inicializarBotonesSociales();
+
+                // Sincronización offline de rutas al detectar sesión iniciada
+                if (MapModule.sincronizarRutasPendientes) {
+                    MapModule.sincronizarRutasPendientes();
+                }
+            } else {
+                Auth.actualizarBotonCabecera();
             }
-        } else {
-            Auth.actualizarBotonCabecera();
+            if (Auth.initAuthListeners) Auth.initAuthListeners();
+        } catch (authErr) {
+            console.warn("Aviso no crítico inicializando sesión:", authErr);
         }
-        if (Auth.initAuthListeners) Auth.initAuthListeners();
     }
     handleSPA();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializarAplicacion);
+    window.addEventListener('load', inicializarAplicacion);
+} else {
+    inicializarAplicacion();
+}
 
 // ====================================================
 // 3. ENRUTADOR SPA Y PERFILES PÚBLICOS

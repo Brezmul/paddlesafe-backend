@@ -778,9 +778,12 @@ export async function iniciarCreacionQuedadaClub(clubIdPreseleccionado = null) {
 
     // Desplegar panel Pro si estuviera colapsado
     const panelPro = document.getElementById("panelPro");
-    if (panelPro && panelPro.style.gridTemplateRows === "0fr") {
-        const btnPro = document.getElementById("btnPro");
-        if (btnPro) btnPro.click();
+    if (panelPro && panelPro.style.gridTemplateRows !== "1fr") {
+        if (typeof window.togglePanelPro === "function") window.togglePanelPro(true);
+        else {
+            const btnPro = document.getElementById("btnPro");
+            if (btnPro) btnPro.click();
+        }
     }
 
     // Limpiar trazado anterior y activar modo multipunto
@@ -940,9 +943,12 @@ export function cargarRutaEnMapaGrande(coordsData, nombre = 'Quedada') {
 
     // Desplegar panel Pro si estuviera cerrado
     const panelPro = document.getElementById("panelPro");
-    if (panelPro && panelPro.style.gridTemplateRows === "0fr") {
-        const btnPro = document.getElementById("btnPro");
-        if (btnPro) btnPro.click();
+    if (panelPro && panelPro.style.gridTemplateRows !== "1fr") {
+        if (typeof window.togglePanelPro === "function") window.togglePanelPro(true);
+        else {
+            const btnPro = document.getElementById("btnPro");
+            if (btnPro) btnPro.click();
+        }
     }
 
     limpiarRuta();
