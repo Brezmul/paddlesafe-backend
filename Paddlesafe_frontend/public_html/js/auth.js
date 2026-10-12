@@ -3,7 +3,7 @@
 // ====================================================
 
 import { supabaseClient, appState } from './config.js';
-import { esc, safeUrl, validarImagen, calcularRangoMaritimo, IMG_FALLBACK } from './utils.js';
+import { esc, safeUrl, validarImagen, calcularRangoMaritimo, IMG_FALLBACK, fetchConTimeout } from './utils.js';
 import { parseGPX } from './gpxParser.js';
 import { calcularNivelYProgreso, obtenerPosicionRanking, guardarRutaDeportivaConGamificacion } from './gamification.js';
 
@@ -237,7 +237,7 @@ export function restaurarFormularioAuth() {
                     ${appState.esInvitado ? 'Salir del Modo Invitado' : 'Cerrar Sesión'}
                 </button>
                 <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.19</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.20</p>
                     <button type="button" onclick="if(window.forzarActualizacion) window.forzarActualizacion(); else window.location.reload();" class="mt-1 text-[9px] text-water dark:text-sky-400 hover:underline font-bold uppercase tracking-wider cursor-pointer">🔄 Buscar actualizaciones / Limpiar caché</button>
                 </div>
             </div>
@@ -696,6 +696,9 @@ export async function cargarHistorialRutas() {
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
+                        <button type="button" onclick="event.stopPropagation(); abrirModalDetallesRuta('${esc(ruta.id)}')" class="bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-800/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700/50 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer">
+                            <span>🧠</span> Coach IA
+                        </button>
                         <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50 px-2.5 py-1 rounded-xl flex items-center gap-1 shadow-sm">
                             <span class="text-amber-500 text-xs drop-shadow-sm">🏆</span>
                             <span class="text-[11px] font-black text-amber-600 dark:text-amber-400">+${xp} XP</span>
@@ -724,8 +727,8 @@ export async function cargarHistorialRutas() {
                 </div>
 
                 <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 group-hover:text-water dark:group-hover:text-sky-400 transition-colors">
-                    <span class="flex items-center gap-1 font-bold">📍 Ver trazado en el mapa</span>
-                    <span class="font-black text-xs group-hover:translate-x-1 transition-transform">→</span>
+                    <span class="flex items-center gap-1 font-bold">📍 Ver en mapa interactivo</span>
+                    <span class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">🧠 Ver Análisis IA →</span>
                 </div>
             </div>`;
     }).join('');
@@ -770,6 +773,286 @@ export async function actualizarBadgeRanking(totalXp) {
     }
 }
 
+function generarAnalisisDeportivoFallback({ distance_km, duration_seconds, avg_speed, splits_data }) {
+    const dist = Number(distance_km) || 0;
+    const durSecs = Number(duration_seconds) || 0;
+    const mins = Math.max(1, Math.round(durSecs / 60));
+    const avg = Number(avg_speed) || (mins > 0 ? Number((dist / (mins / 60)).toFixed(1)) : 0);
+    const splits = Array.isArray(splits_data) ? splits_data : [];
+
+    if (splits.length >= 2) {
+        let peorSplit = splits[0];
+        let mejorSplit = splits[0];
+        for (const s of splits) {
+            if ((s.avg_speed_kmh || 0) < (peorSplit.avg_speed_kmh || 0)) peorSplit = s;
+            if ((s.avg_speed_kmh || 0) > (mejorSplit.avg_speed_kmh || 0)) mejorSplit = s;
+        }
+        return {
+            bien: `Iniciaste con potencia y gran cadencia, alcanzando en el km ${mejorSplit.km || 1} una velocidad de ${mejorSplit.avg_speed_kmh} km/h superior al promedio.`,
+            mejora: `En el km ${peorSplit.km || 2} se registró la mayor caída de ritmo descendiendo a ${peorSplit.avg_speed_kmh} km/h por acumulación de fatiga.`,
+            proxima_salida: `Dosifica en los primeros 1,000 metros para no caer de ${Number((avg * 0.95).toFixed(1))} km/h en el tramo final del recorrido.`
+        };
+    }
+    return {
+        bien: `Completaste una sesión continuada de ${dist} km a una velocidad media de ${avg} km/h.`,
+        mejora: `En travesías breves la cadencia debe consolidarse desde la primera palada para evitar pérdidas de inercia.`,
+        proxima_salida: `Alarga la sesión por encima de 3 km para testear tu resistencia en series más exigentes.`
+    };
+}
+
+export async function solicitarFeedbackIARuta(ruta) {
+    if (!ruta) return null;
+
+    // 1. Comprobar si ya existe ai_feedback guardado (para NO volver a llamar a la IA)
+    if (ruta.ai_feedback) {
+        let f = ruta.ai_feedback;
+        if (typeof f === 'string') {
+            try { f = JSON.parse(f); } catch (e) { f = null; }
+        }
+        if (f && (f.bien || f.mejora || f.proxima_salida)) {
+            return f;
+        }
+    }
+
+    // 2. Si no está en memoria, verificar en la tabla user_routes
+    if (ruta.id && supabaseClient) {
+        try {
+            const { data: dbData } = await supabaseClient
+                .from('user_routes')
+                .select('ai_feedback')
+                .eq('id', ruta.id)
+                .maybeSingle();
+
+            if (dbData?.ai_feedback) {
+                let fDb = dbData.ai_feedback;
+                if (typeof fDb === 'string') {
+                    try { fDb = JSON.parse(fDb); } catch (e) { fDb = null; }
+                }
+                if (fDb && (fDb.bien || fDb.mejora || fDb.proxima_salida)) {
+                    ruta.ai_feedback = fDb;
+                    if (window.__rutasUsuarioCache?.has(String(ruta.id))) {
+                        window.__rutasUsuarioCache.get(String(ruta.id)).ai_feedback = fDb;
+                    }
+                    return fDb;
+                }
+            }
+        } catch (errCheck) {
+            console.warn('[solicitarFeedbackIARuta] Aviso consultando ai_feedback previo:', errCheck);
+        }
+    }
+
+    // 3. Enviar datos de la ruta al backend para el análisis con IA (Gemini 1.5 Flash)
+    const BACKEND_API_URL = 'https://paddlesafe-backend.vercel.app/api/backend';
+    const payload = {
+        routeId: ruta.id,
+        distance_km: Number(ruta.distance_km || ruta.distancia_km || 0),
+        duration_seconds: Number(ruta.duration_seconds || (ruta.tiempo_minutos ? ruta.tiempo_minutos * 60 : 0)),
+        avg_speed: Number(ruta.avg_speed || 0),
+        max_speed: Number(ruta.max_speed || 0),
+        splits_data: Array.isArray(ruta.splits_data) ? ruta.splits_data : []
+    };
+
+    let feedbackResultado = null;
+
+    try {
+        const resp = await fetchConTimeout(`${BACKEND_API_URL}?action=analyze_route`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }, 9000);
+
+        const data = await resp.json();
+        if (data.ok && data.ai_feedback) {
+            feedbackResultado = data.ai_feedback;
+        }
+    } catch (errApi) {
+        console.warn('[solicitarFeedbackIARuta] Fallo en API remota, usando motor experto local:', errApi);
+    }
+
+    if (!feedbackResultado) {
+        feedbackResultado = generarAnalisisDeportivoFallback(payload);
+    }
+
+    // 4. Guardar la respuesta en ai_feedback de esa ruta en base de datos para no volver a llamar a la IA
+    if (ruta.id && supabaseClient && feedbackResultado) {
+        try {
+            await supabaseClient
+                .from('user_routes')
+                .update({ ai_feedback: feedbackResultado })
+                .eq('id', ruta.id);
+        } catch (errSave) {
+            console.warn('[solicitarFeedbackIARuta] Error persistiendo ai_feedback en DB:', errSave);
+        }
+    }
+
+    // Actualizar caché en memoria
+    ruta.ai_feedback = feedbackResultado;
+    if (window.__rutasUsuarioCache?.has(String(ruta.id))) {
+        window.__rutasUsuarioCache.get(String(ruta.id)).ai_feedback = feedbackResultado;
+    }
+
+    return feedbackResultado;
+}
+
+export async function abrirModalDetallesRuta(rutaId) {
+    const modal = document.getElementById('rutaDetalleModal');
+    const content = document.getElementById('modalRutaContenido');
+    const titleEl = document.getElementById('modalRutaTitulo');
+    const dateEl = document.getElementById('modalRutaFecha');
+    if (!modal || !content) return;
+
+    let ruta = window.__rutasUsuarioCache?.get(String(rutaId));
+    if (!ruta && supabaseClient && rutaId) {
+        try {
+            const { data } = await supabaseClient.from('user_routes').select('*').eq('id', rutaId).maybeSingle();
+            if (data) {
+                ruta = data;
+                if (!window.__rutasUsuarioCache) window.__rutasUsuarioCache = new Map();
+                window.__rutasUsuarioCache.set(String(data.id), data);
+            }
+        } catch (e) {
+            console.warn('Error recuperando ruta para modal:', e);
+        }
+    }
+    if (!ruta) {
+        alert("No se encontró la ruta seleccionada.");
+        return;
+    }
+
+    const dist = Number(ruta.distance_km || ruta.distancia_km || 0).toFixed(2);
+    const durSecs = Number(ruta.duration_seconds || (ruta.tiempo_minutos ? ruta.tiempo_minutos * 60 : 0));
+    const mins = Math.max(1, Math.round(durSecs / 60));
+    const avgSpd = Number(ruta.avg_speed || 0).toFixed(1);
+    const maxSpd = Number(ruta.max_speed || (avgSpd * 1.35)).toFixed(1);
+    const fecha = ruta.created_at ? new Date(ruta.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : 'Fecha no registrada';
+
+    titleEl.textContent = ruta.title || 'Ruta Deportiva';
+    dateEl.textContent = fecha;
+
+    // Splits por kilómetro
+    const splits = Array.isArray(ruta.splits_data) ? ruta.splits_data : [];
+    let splitsHTML = '';
+    if (splits.length > 0) {
+        splitsHTML = `
+            <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2.5 flex items-center gap-1.5">
+                    <span>⏱️</span> Rendimiento por Kilómetro (Splits)
+                </p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    ${splits.map(s => {
+                        const sSecs = Math.max(1, Math.round(s.duration_seconds || 0));
+                        const sMin = Math.floor(sSecs / 60);
+                        const sRestSec = String(sSecs % 60).padStart(2, '0');
+                        return `
+                            <div class="bg-slate-50 dark:bg-slate-900/80 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 text-center">
+                                <span class="text-[9px] font-black uppercase text-water dark:text-sky-400 block mb-0.5">Km ${s.km}</span>
+                                <p class="text-sm font-black text-marine dark:text-white leading-tight">${Number(s.avg_speed_kmh || 0).toFixed(1)} <span class="text-[9px] font-bold text-slate-400">km/h</span></p>
+                                <span class="text-[9px] text-slate-400 font-bold block mt-0.5">${sMin}:${sRestSec} min</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Renderizar estructura inicial con loader para el análisis de la IA
+    content.innerHTML = `
+        <!-- MÉTRICAS CLAVE -->
+        <div class="grid grid-cols-4 gap-2 text-center bg-white dark:bg-slate-800/90 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+            <div class="border-r border-slate-100 dark:border-slate-800/80 pr-1">
+                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest block mb-0.5">Distancia</span>
+                <p class="font-black text-marine dark:text-white text-lg">${dist}<span class="text-[9px] font-bold text-slate-400 ml-0.5">km</span></p>
+            </div>
+            <div class="border-r border-slate-100 dark:border-slate-800/80 pr-1">
+                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest block mb-0.5">Tiempo</span>
+                <p class="font-black text-marine dark:text-white text-lg">${mins}<span class="text-[9px] font-bold text-slate-400 ml-0.5">min</span></p>
+            </div>
+            <div class="border-r border-slate-100 dark:border-slate-800/80 pr-1">
+                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest block mb-0.5">Vel. Med</span>
+                <p class="font-black text-marine dark:text-white text-lg">${avgSpd}<span class="text-[9px] font-bold text-slate-400 ml-0.5">k/h</span></p>
+            </div>
+            <div>
+                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest block mb-0.5">Vel. Máx</span>
+                <p class="font-black text-emerald-500 dark:text-emerald-400 text-lg">${maxSpd}<span class="text-[9px] font-bold text-slate-400 ml-0.5">k/h</span></p>
+            </div>
+        </div>
+
+        ${splitsHTML}
+
+        <!-- CONTENEDOR DEL FEEDBACK DEL ENTRENADOR IA -->
+        <div id="contenedorFeedbackIA" class="bg-gradient-to-b from-slate-900 to-slate-950 p-5 rounded-3xl border border-emerald-500/30 shadow-xl text-left relative overflow-hidden">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">✨</span>
+                    <h4 class="text-xs font-black text-emerald-400 uppercase tracking-widest">Análisis de Entrenador IA</h4>
+                </div>
+                <span class="text-[9px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">Gemini 1.5 Flash</span>
+            </div>
+            <div id="feedbackIAInner" class="space-y-3">
+                <div class="py-6 text-center animate-pulse">
+                    <span class="text-2xl block mb-2">⏳</span>
+                    <p class="text-xs font-bold text-slate-300">Consultando telemetría de ritmo y splits...</p>
+                    <p class="text-[10px] text-slate-500">Evaluando caída de velocidad y consistencia...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACCIONES -->
+        <div class="pt-2 flex gap-3">
+            <button type="button" onclick="cerrarModalDetallesRuta(); verRutaEnMapa('${esc(ruta.id)}');" class="flex-1 h-12 bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                <span>🗺️</span> Trazar en el Mapa
+            </button>
+            <button type="button" onclick="cerrarModalDetallesRuta()" class="h-12 px-5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all cursor-pointer">
+                Cerrar
+            </button>
+        </div>
+    `;
+
+    // Mostrar modal con animación
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.querySelector('div').classList.remove('scale-95');
+    }, 10);
+
+    // Cargar feedback de la IA (de caché o consultando una sola vez)
+    const feedback = await solicitarFeedbackIARuta(ruta);
+    const feedbackInner = document.getElementById('feedbackIAInner');
+    if (feedbackInner && feedback) {
+        feedbackInner.innerHTML = `
+            <div class="space-y-3.5">
+                <div class="bg-emerald-950/40 border border-emerald-500/20 rounded-2xl p-3.5">
+                    <p class="text-[10px] font-black uppercase tracking-wider text-emerald-400 mb-1 flex items-center gap-1.5">
+                        <span>🟢</span> 1. Qué hiciste bien según tus datos
+                    </p>
+                    <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(feedback.bien || 'Buen rendimiento general.')}</p>
+                </div>
+                <div class="bg-amber-950/40 border border-amber-500/20 rounded-2xl p-3.5">
+                    <p class="text-[10px] font-black uppercase tracking-wider text-amber-400 mb-1 flex items-center gap-1.5">
+                        <span>🟡</span> 2. Punto de mejora (Tramo de caída de ritmo)
+                    </p>
+                    <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(feedback.mejora || 'Mantuviste el ritmo sin caídas acusadas.')}</p>
+                </div>
+                <div class="bg-sky-950/40 border border-sky-500/20 rounded-2xl p-3.5">
+                    <p class="text-[10px] font-black uppercase tracking-wider text-sky-400 mb-1 flex items-center gap-1.5">
+                        <span>🔵</span> 3. Objetivo para tu próxima salida
+                    </p>
+                    <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(feedback.proxima_salida || 'Conserva un 30% de energía para la vuelta.')}</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+export function cerrarModalDetallesRuta() {
+    const modal = document.getElementById('rutaDetalleModal');
+    if (!modal) return;
+    modal.classList.add('opacity-0');
+    modal.querySelector('div').classList.add('scale-95');
+    setTimeout(() => { modal.classList.add('hidden'); }, 300);
+}
+
 window.abrirModalAuth = abrirModalAuth;
 window.cerrarModalAuth = cerrarModalAuth;
 window.enviarEmailRecuperacion = enviarEmailRecuperacion;
@@ -785,3 +1068,6 @@ window.subirArchivoGPX = subirArchivoGPX;
 window.verRutaEnMapa = verRutaEnMapa;
 window.cargarHistorialRutas = cargarHistorialRutas;
 window.actualizarBadgeRanking = actualizarBadgeRanking;
+window.solicitarFeedbackIARuta = solicitarFeedbackIARuta;
+window.abrirModalDetallesRuta = abrirModalDetallesRuta;
+window.cerrarModalDetallesRuta = cerrarModalDetallesRuta;

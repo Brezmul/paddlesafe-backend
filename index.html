@@ -646,6 +646,29 @@
         </div>
     </div>
 
+    <!-- MODAL DETALLE DE RUTA Y ENTRENADOR DEPORTIVO IA -->
+    <div id="rutaDetalleModal" class="fixed inset-0 z-[125] hidden bg-marine/90 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 dark:border-slate-800 max-h-[88vh] overflow-hidden">
+            <div class="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 relative z-10 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 text-emerald-500 dark:text-emerald-400 flex items-center justify-center text-2xl border border-emerald-500/30 shadow-inner">
+                        🧠
+                    </div>
+                    <div>
+                        <h3 id="modalRutaTitulo" class="text-base sm:text-lg font-black text-marine dark:text-white truncate max-w-[220px] sm:max-w-[280px]">Detalle de Ruta</h3>
+                        <p id="modalRutaFecha" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-0.5">--</p>
+                    </div>
+                </div>
+                <button type="button" onclick="cerrarModalDetallesRuta()" class="text-slate-400 hover:text-marine dark:hover:text-white rounded-full w-10 h-10 flex items-center justify-center bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer shadow-sm active:scale-95">
+                    ✕
+                </button>
+            </div>
+            <div id="modalRutaContenido" class="flex-1 overflow-y-auto p-5 sm:p-6 custom-scrollbar space-y-5 text-left bg-slate-50/50 dark:bg-slate-900/50">
+                <!-- Se inyecta telemetría, splits y los 3 puntos de feedback de la IA -->
+            </div>
+        </div>
+    </div>
+
     <!-- ========================================== -->
     <!-- SISTEMA DE ACTUALIZACIÓN AUTOMÁTICA (OTA)  -->
     <!-- ========================================== -->

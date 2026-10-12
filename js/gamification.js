@@ -304,3 +304,4 @@ if (typeof window !== 'undefined') {
     window.obtenerPosicionRanking = obtenerPosicionRanking;
     window.guardarRutaDeportivaConGamificacion = guardarRutaDeportivaConGamificacion;
 }
+

@@ -1046,15 +1046,30 @@ export function cargarRutaDeportivaEnMapa(ruta) {
     const maxSpd = Number(ruta.max_speed || (avgSpd * 1.35)).toFixed(1);
     const titulo = ruta.title || 'Ruta Deportiva';
 
+    if (ruta && ruta.id) {
+        if (!window.__rutasUsuarioCache) window.__rutasUsuarioCache = new Map();
+        window.__rutasUsuarioCache.set(String(ruta.id), ruta);
+    }
+
     const msg = document.getElementById('mapMsg');
     if (msg) {
+        const rutaIdEsc = ruta.id ? String(ruta.id).replace(/'/g, "\\'") : '';
+        const btnCoach = ruta.id ? `
+            <button type="button" onclick="if(window.abrirModalDetallesRuta) window.abrirModalDetallesRuta('${rutaIdEsc}')" class="px-2.5 py-1 bg-gradient-to-r from-emerald-500 to-sky-600 hover:from-emerald-400 hover:to-sky-500 text-white text-[11px] font-black rounded-xl shadow-md flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+                <span>🧠</span> <span>Coach IA</span>
+            </button>
+        ` : '';
+
         msg.className = "text-xs font-bold text-white bg-slate-900/95 py-2.5 px-4 rounded-2xl border border-sky-500/40 shadow-2xl flex items-center justify-between gap-3 flex-wrap transition-all";
         msg.innerHTML = `
-            <span class="truncate max-w-[150px] text-sky-400 font-black">🧭 ${esc(titulo)}</span>
-            <span class="text-white">📏 <b>${dist}</b> km</span>
-            <span class="text-white">⏱️ <b>${mins}</b> min</span>
-            <span class="text-amber-400">⚡ Med: <b>${avgSpd}</b> km/h</span>
-            <span class="text-emerald-400">🚀 Max: <b>${maxSpd}</b> km/h</span>
+            <div class="flex items-center gap-3 flex-wrap">
+                <span class="truncate max-w-[150px] text-sky-400 font-black">🧭 ${esc(titulo)}</span>
+                <span class="text-white">📏 <b>${dist}</b> km</span>
+                <span class="text-white">⏱️ <b>${mins}</b> min</span>
+                <span class="text-amber-400">⚡ Med: <b>${avgSpd}</b> km/h</span>
+                <span class="text-emerald-400">🚀 Max: <b>${maxSpd}</b> km/h</span>
+            </div>
+            ${btnCoach}
         `;
     }
 

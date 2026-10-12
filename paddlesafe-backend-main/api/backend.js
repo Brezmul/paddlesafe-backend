@@ -25,6 +25,7 @@ import terrainHandler from "../lib/handlers/terrain.js";
 import tidesHandler from "../lib/handlers/tides.js";
 import uploadRouteHandler from "../lib/handlers/upload_route.js";
 import warningsHandler from "../lib/handlers/warnings.js";
+import routeCoachHandler from "../lib/handlers/route_coach.js";
 
 export default async function handler(req, res) {
   // Asegurar cabeceras CORS y responder 200 al preflight OPTIONS del navegador
@@ -44,6 +45,8 @@ export default async function handler(req, res) {
   try {
     switch (action) {
       case "ai": return await aiHandler(req, res);
+      case "analyze_route":
+      case "route_coach": return await routeCoachHandler(req, res);
       case "alerts": return await alertsHandler(req, res);
       case "coach": return await coachHandler(req, res);
       case "compare": return await compareHandler(req, res);
