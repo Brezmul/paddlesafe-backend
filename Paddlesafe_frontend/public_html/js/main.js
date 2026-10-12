@@ -26,7 +26,18 @@ import ClubFacade from './club/index.js';
 window.Club = ClubFacade;
 
 // Adaptadores defensivos de retrocompatibilidad para el DOM
-window.abrirModalClubs = () => window.Club && window.Club.abrirModal ? window.Club.abrirModal() : null;
+window.abrirModalClubs = () => {
+    if (window.Club && typeof window.Club.abrirModal === 'function') {
+        return window.Club.abrirModal();
+    }
+    const m = document.getElementById('clubsModal');
+    if (m) {
+        m.classList.remove('hidden');
+        m.classList.remove('opacity-0');
+        const box = m.querySelector('div');
+        if (box) box.classList.remove('scale-95');
+    }
+};
 window.cerrarModalClubs = () => window.Club && window.Club.cerrarModal ? window.Club.cerrarModal() : null;
 window.cambiarTabClubs = (tab) => window.Club && window.Club.cambiarTabClubs ? window.Club.cambiarTabClubs(tab) : null;
 window.abrirModalFeed = () => Social.abrirModalFeed ? Social.abrirModalFeed() : (window.socialFeed && window.socialFeed.abrirModal ? window.socialFeed.abrirModal() : null);

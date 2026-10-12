@@ -23,12 +23,14 @@ const ClubFacade = {
         const m = document.getElementById('clubsModal');
         if (m) {
             m.classList.remove('hidden');
-            requestAnimationFrame(() => {
-                m.classList.remove('opacity-0');
-                const box = m.querySelector('div');
-                if (box) box.classList.remove('scale-95');
-            });
-            this.cambiarTabClubs('miclub');
+            m.classList.remove('opacity-0');
+            const box = m.querySelector('div');
+            if (box) box.classList.remove('scale-95');
+            try {
+                this.cambiarTabClubs('miclub');
+            } catch (err) {
+                console.error('[club] Error al cambiar a tab miclub:', err);
+            }
         }
     },
     cerrarModal() {
@@ -112,7 +114,7 @@ const ClubFacade = {
         ClubRender.renderTabMiClub();
     },
     async cambiarVistaInterna(vista) {
-        const contenedor = document.getElementById('vistaClubContent');
+        const contenedor = document.querySelector('#clubsModal #vistaClubContent') || document.getElementById('vistaClubContent');
         if (!contenedor) return;
         const clubId = ClubState.activeId;
         if (!clubId) {
