@@ -1,24 +1,28 @@
+DirectoryIndex index.html index.php Paddlesafe_frontend/public_html/index.html
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # 1. Bloquear acceso público en Hostinger a carpetas y archivos del backend / git
+  # 1. Bloquear acceso público en Hostinger a carpetas y archivos privados del backend y git
   RewriteRule ^(api|lib|node_modules|\.git)(/|$) - [F,L]
-  RewriteRule ^(vercel\.json|package(-lock)?\.json|forecast\.js|\.env.*|README\.md)$ - [F,L]
+  RewriteRule ^(vercel\.json|package(-lock)?\.json|forecast\.js|\.env.*|README\.md|AUDITORIA_TECNICA\.md)$ - [F,L]
 
-  # 2. Servir index.html directamente al entrar a la raíz del dominio
+  # 2. Si el archivo o directorio solicitado existe físicamente en la raíz, servirlo directamente
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 3. Si se solicita un recurso estático que está en la subcarpeta del frontend, redirigirlo internamente
+  RewriteRule ^(js/.*|sw\.js|version\.json|manifest\.json|panel\.html|icon-.*\.png)$ Paddlesafe_frontend/public_html/$1 [L,NC]
+
+  # 4. Servir index.html de la subcarpeta si no existe en la raíz
   RewriteRule ^$ Paddlesafe_frontend/public_html/index.html [L]
 
-  # 3. Si la petición no incluye ya la subcarpeta y el archivo/carpeta existe en el frontend, servirlo internamente
-  RewriteCond %{REQUEST_URI} !^/Paddlesafe_frontend/public_html/
-  RewriteCond %{DOCUMENT_ROOT}/Paddlesafe_frontend/public_html/$1 -f [OR]
-  RewriteCond %{DOCUMENT_ROOT}/Paddlesafe_frontend/public_html/$1 -d
-  RewriteRule ^(.*)$ Paddlesafe_frontend/public_html/$1 [L]
-
-  # 4. Fallback SPA: cualquier ruta amigable (/user/..., /club/...) que no sea un archivo estático carga index.html
-  RewriteCond %{REQUEST_URI} !^/Paddlesafe_frontend/public_html/
-  RewriteCond %{REQUEST_URI} !\.(js|css|png|jpg|jpeg|webp|svg|ico|json|woff2?)$ [NC]
-  RewriteRule ^ Paddlesafe_frontend/public_html/index.html [L]
+  # 5. Fallback SPA: cualquier ruta amigable (/user/..., /club/...) que no sea un archivo físico carga index.html
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^(.*)$ index.html [L]
 </IfModule>
 
 # Impedir listado de directorios
