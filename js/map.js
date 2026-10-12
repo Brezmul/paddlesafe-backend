@@ -150,7 +150,17 @@ export function inicializarMapa() {
             requestAnimationFrame(() => map.invalidateSize());
         }
     });
-    resizeObserver.observe(document.getElementById('mapContainer'));
+    const contMap = document.getElementById('mapContainer');
+    const interMap = document.getElementById('mapaInteractivo');
+    if (contMap) resizeObserver.observe(contMap);
+    if (interMap) resizeObserver.observe(interMap);
+
+    window.addEventListener('resize', () => {
+        if (map) requestAnimationFrame(() => map.invalidateSize());
+    });
+    window.addEventListener('orientationchange', () => {
+        if (map) setTimeout(() => map.invalidateSize(), 200);
+    });
 }
 
 export function obtenerUbicacion() {

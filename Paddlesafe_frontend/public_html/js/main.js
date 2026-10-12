@@ -62,8 +62,15 @@ const closeClubProfileSafe = () => {
 };
 
 // ====================================================
+let ultimoTogglePro = 0;
 // Control del Panel Copiloto Inteligente Pro
 export function togglePanelPro(forceState) {
+    const ahora = Date.now();
+    if (typeof forceState !== 'boolean' && (ahora - ultimoTogglePro < 300)) {
+        return;
+    }
+    ultimoTogglePro = ahora;
+
     const panelPro = document.getElementById("panelPro");
     const btnProIcon = document.getElementById("btnProIcon");
     if (!panelPro) return;
@@ -82,15 +89,17 @@ export function togglePanelPro(forceState) {
     }
 
     if (nuevoEstado) {
+        // Redimensionados escalonados para que Leaflet pinte las teselas de inmediato y tras la transición
         setTimeout(() => {
             if (MapModule.inicializarMapa) MapModule.inicializarMapa();
-            if (MapModule.map) {
-                MapModule.map.invalidateSize();
-                setTimeout(() => {
-                    if (MapModule.map) MapModule.map.invalidateSize();
-                }, 400);
-            }
-        }, 350);
+            if (MapModule.map) MapModule.map.invalidateSize();
+        }, 100);
+        setTimeout(() => {
+            if (MapModule.map) MapModule.map.invalidateSize();
+        }, 250);
+        setTimeout(() => {
+            if (MapModule.map) MapModule.map.invalidateSize();
+        }, 450);
     }
 }
 window.togglePanelPro = togglePanelPro;
@@ -115,10 +124,13 @@ async function inicializarAplicacion() {
     const btnPro = document.getElementById("btnPro");
     if (btnPro && !btnPro.dataset.toggleBound) {
         btnPro.dataset.toggleBound = "true";
-        btnPro.addEventListener("click", (e) => {
-            e.preventDefault();
-            togglePanelPro();
-        });
+        // Si el botón ya tiene onclick en el HTML, evitamos duplicar la ejecución en el mismo clic
+        if (!btnPro.getAttribute("onclick")) {
+            btnPro.addEventListener("click", (e) => {
+                e.preventDefault();
+                togglePanelPro();
+            });
+        }
     }
 
     const hoy = new Date();

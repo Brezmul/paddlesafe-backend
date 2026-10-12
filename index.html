@@ -43,6 +43,14 @@
         
         .wind-arrow { display: inline-flex; align-items: center; justify-content: center; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         .dist-label-map { background-color: rgba(15, 23, 42, 0.9); color: white; font-size: 10px; font-weight: 900; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: center; }
+
+        /* Estabilidad de altura de mapa en móvil y escritorio */
+        #mapContainer { min-height: 350px; height: 60vh; }
+        #mapaInteractivo { min-height: 350px; height: 100%; width: 100%; }
+        @media (min-width: 640px) {
+            #mapContainer { min-height: 500px; height: 50vh; }
+            #mapaInteractivo { min-height: 500px; }
+        }
     </style>
     <script>
         // Handlers inmediatos y defensivos para modales de cabecera
@@ -194,7 +202,7 @@
         <!-- VERSIÓN PRO: MAPA AMPLIADO Y COPILOTO -->
         <!-- ========================================== -->
         <div class="bg-premium border-t border-slate-800 p-5 sm:p-8 flex flex-col flex-1">
-            <button type="button" id="btnPro" onclick="togglePanelPro()" class="w-full min-h-[52px] bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black px-5 rounded-xl shadow-lg hover:shadow-glow-pro transition-all flex justify-between items-center group cursor-pointer">
+            <button type="button" id="btnPro" onclick="togglePanelPro()" class="relative z-10 w-full min-h-[52px] bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black px-5 rounded-xl shadow-lg hover:shadow-glow-pro transition-all flex justify-between items-center group cursor-pointer">
                 <span class="flex items-center gap-2 sm:text-lg"><span>✨</span> Copiloto Inteligente Pro</span>
                 <svg id="btnProIcon" class="transition-transform duration-300 text-white/70 group-hover:text-white" viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.5" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
@@ -217,7 +225,7 @@
                                 <div id="mapMsg" class="text-xs font-bold text-white bg-teal-600 h-10 px-4 rounded-xl border border-teal-500 shadow-md flex items-center justify-center transition-colors">👆 Toca el mar para Punto Fijo o Traza Ruta Completa</div>
                             </div>
 
-                            <div id="mapContainer" class="h-[50vh] min-h-[500px] w-full relative z-0 bg-slate-300">
+                            <div id="mapContainer" class="h-[60vh] sm:h-[50vh] min-h-[350px] sm:min-h-[500px] w-full relative z-0 bg-slate-900">
                                 <div id="leyendaMapa" class="absolute top-4 right-4 z-[400] bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl p-3 shadow-2xl text-[10px] sm:text-xs pointer-events-none hidden flex-col gap-1.5 w-[140px]">
                                     <p class="font-black text-slate-300 border-b border-slate-700 pb-1 mb-1 uppercase tracking-widest text-center">Resistencia</p>
                                     <div class="flex items-center gap-2"><span class="w-5 h-1 border-t-2 border-dashed border-emerald-500"></span><span class="text-white font-bold">A favor 🟢</span></div>
@@ -296,7 +304,7 @@
                                 </div>
 
                                 <div id="liveTrackingPanel" class="hidden absolute top-3 left-3 right-3 z-[400] bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-2xl p-4 shadow-2xl text-white"></div>
-                                <div id="mapaInteractivo" class="w-full h-full z-0 relative"></div>
+                                <div id="mapaInteractivo" class="w-full h-full min-h-[350px] sm:min-h-[500px] z-0 relative"></div>
                             </div>
                         </div>
 
@@ -673,8 +681,12 @@
     <!-- SISTEMA DE ACTUALIZACIÓN AUTOMÁTICA (OTA)  -->
     <!-- ========================================== -->
     <script>
-        // Toggle seguro e inmediato para Copiloto Pro
+        let _lastToggleProInline = 0;
         window.togglePanelPro = window.togglePanelPro || function(forceState) {
+            const now = Date.now();
+            if (typeof forceState !== 'boolean' && (now - _lastToggleProInline < 300)) return;
+            _lastToggleProInline = now;
+
             const p = document.getElementById("panelPro");
             const icon = document.getElementById("btnProIcon");
             if (!p) return;
@@ -684,6 +696,15 @@
             if (icon) {
                 if (next) icon.classList.add("rotate-180");
                 else icon.classList.remove("rotate-180");
+            }
+            if (next) {
+                setTimeout(() => {
+                    if (window.inicializarMapa) window.inicializarMapa();
+                    if (window.map) window.map.invalidateSize();
+                }, 150);
+                setTimeout(() => {
+                    if (window.map) window.map.invalidateSize();
+                }, 350);
             }
         };
 

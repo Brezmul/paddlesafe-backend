@@ -527,12 +527,16 @@ export const socialFeed = {
 // FUNCIÓN PARA INYECTAR BOTONES SIN MUTATION OBSERVER
 // ====================================================
 export function inicializarBotonesSociales() {
-    const headerBtnContainer = document.querySelector('.w-full.flex.justify-between.items-start.relative.z-20 .flex.items-center.gap-2');
-    if (headerBtnContainer && appState.sesionActual && !appState.esInvitado && !document.getElementById('btnNotificacionesTop')) {
+    const headerBtnContainer = document.querySelector('.w-full.flex.justify-between.items-start.relative.z-20 .flex.items-center.gap-2') ||
+                               document.querySelector('.w-full.flex.justify-between.items-start.relative.z-20 .flex.items-center');
+    const yaExisteBotonAvisos = document.getElementById('btnAvisos') || document.getElementById('btnNotificacionesTop');
+    if (headerBtnContainer && appState.sesionActual && !appState.esInvitado && !yaExisteBotonAvisos) {
         const btnCampanaHTML = `<button type="button" id="btnNotificacionesTop" onclick="mostrarPanelAvisos()" class="relative text-white/70 hover:text-white transition-all hover:scale-105 flex flex-col items-center cursor-pointer mr-3"><svg class="h-7 w-7 sm:h-8 sm:w-8 drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg><span class="text-[11px] sm:text-xs font-black mt-1 uppercase tracking-widest">Avisos</span><span id="notifBadge" class="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] w-5 h-5 flex items-center justify-center rounded-full hidden border-2 border-marine font-black shadow-lg">0</span></button>`;
         headerBtnContainer.insertAdjacentHTML('afterbegin', btnCampanaHTML);
-        
-        // Ejecución inmediata inicial
+    }
+    
+    if (appState.sesionActual && !appState.esInvitado) {
+        // Ejecución inmediata inicial para actualizar el badge de la campana
         socialNotifications.cargarNotificaciones();
         
         // NUEVO SISTEMA RECURSIVO (Evita apilamiento de promesas en redes lentas)
