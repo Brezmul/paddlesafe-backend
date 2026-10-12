@@ -31,6 +31,8 @@ export let etiquetasDistancia = [];
 export let isTracking = false;
 export let trackDistanceKm = 0;
 export let trackCoords = [];
+export const GPS_MIN_DISTANCIA_METROS = 8;
+export let ultimoPuntoCrudoGPS = null;
 export let lastPositionGPS = null;
 export let lastTimestampGPS = null;
 export let trackStartTime = null;
@@ -40,6 +42,51 @@ export let livePolyline = null;
 export let clubParaEvento = null;
 let isSavingRoute = false;
 let isSyncingPendingRoute = false;
+
+export function normalizarYLimitarRutaGPS(coords, maxPuntos = 2000, maxBytes = 900 * 1024) {
+    if (!Array.isArray(coords) || coords.length === 0) return [];
+    
+    // Redondear a 6 decimales y filtrar puntos válidos
+    let puntos = coords
+        .filter(pt => Array.isArray(pt) && pt.length >= 2 && Number.isFinite(Number(pt[0])) && Number.isFinite(Number(pt[1])))
+        .map(pt => [
+            Number(Number(pt[0]).toFixed(6)),
+            Number(Number(pt[1]).toFixed(6))
+        ]);
+
+    if (puntos.length <= 2) return puntos;
+
+    // Muestreo uniforme si excede maxPuntos, preservando siempre el primer y último punto
+    if (puntos.length > maxPuntos) {
+        const resultado = [puntos[0]];
+        const paso = (puntos.length - 1) / (maxPuntos - 1);
+        for (let i = 1; i < maxPuntos - 1; i++) {
+            resultado.push(puntos[Math.round(i * paso)]);
+        }
+        resultado.push(puntos[puntos.length - 1]);
+        puntos = resultado;
+    }
+
+    // Comprobar límite de bytes (< 900 KB) y reducir uniformemente si fuera necesario
+    const encoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
+    let serialized = JSON.stringify(puntos);
+    let byteLength = encoder ? encoder.encode(serialized).byteLength : serialized.length;
+
+    while (byteLength >= maxBytes && puntos.length > 2) {
+        const nuevoLimite = Math.max(2, Math.floor(puntos.length * 0.8));
+        const resultado = [puntos[0]];
+        const paso = (puntos.length - 1) / (nuevoLimite - 1);
+        for (let i = 1; i < nuevoLimite - 1; i++) {
+            resultado.push(puntos[Math.round(i * paso)]);
+        }
+        resultado.push(puntos[puntos.length - 1]);
+        puntos = resultado;
+        serialized = JSON.stringify(puntos);
+        byteLength = encoder ? encoder.encode(serialized).byteLength : serialized.length;
+    }
+
+    return puntos;
+}
 
 export function buscarYCentrarMapa(t) {
     if(!t) return;
@@ -772,7 +819,7 @@ export async function iniciarTravesia() {
     if(cronometroInterval) { clearInterval(cronometroInterval); cronometroInterval = null; }
     if(watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
     
-    isTracking = true; trackDistanceKm = 0; trackCoords = []; lastPositionGPS = null; lastTimestampGPS = null; trackStartTime = new Date();
+    isTracking = true; trackDistanceKm = 0; trackCoords = []; ultimoPuntoCrudoGPS = null; lastPositionGPS = null; lastTimestampGPS = null; trackStartTime = new Date();
     
     const p = document.getElementById('liveTrackingPanel');
     p.innerHTML = `
@@ -817,8 +864,23 @@ export async function iniciarTravesia() {
         if(!isTracking) return;
         if (ps.coords.accuracy > 40) return;
         
-        const l = L.latLng(ps.coords.latitude, ps.coords.longitude);
+        const lat6 = Number(ps.coords.latitude.toFixed(6));
+        const lon6 = Number(ps.coords.longitude.toFixed(6));
+        const puntoActual = [lat6, lon6];
+        ultimoPuntoCrudoGPS = puntoActual;
+
+        const l = L.latLng(lat6, lon6);
         const currentTimestamp = Date.now();
+
+        // Siempre guardar el primer punto
+        if (trackCoords.length === 0) {
+            trackCoords.push(puntoActual);
+            livePolyline.addLatLng(l); 
+            map.panTo(l);
+            lastPositionGPS = l;
+            lastTimestampGPS = currentTimestamp;
+            return;
+        }
 
         if(lastPositionGPS && lastTimestampGPS) {
             const timeDiff = (currentTimestamp - lastTimestampGPS) / 1000;
@@ -826,6 +888,9 @@ export async function iniciarTravesia() {
             
             const speedKmh = timeDiff > 0 ? (mDist / timeDiff) * 3.6 : 0;
             if (speedKmh > 25) return; 
+
+            // Filtrar lecturas con distancia menor a 8 metros
+            if (mDist < GPS_MIN_DISTANCIA_METROS) return;
             
             trackDistanceKm += (mDist / 1000);
             document.getElementById('liveDist').textContent = `${trackDistanceKm.toFixed(2)} km`;
@@ -834,7 +899,7 @@ export async function iniciarTravesia() {
             if (uiSpeed) uiSpeed.textContent = `${speedKmh.toFixed(1)} km/h`;
         }
         
-        trackCoords.push([ps.coords.latitude, ps.coords.longitude]);
+        trackCoords.push(puntoActual);
         livePolyline.addLatLng(l); 
         map.panTo(l);
         
@@ -883,13 +948,22 @@ export async function finalizarTravesia() {
         }
     } catch(e) { console.warn('Aviso no crítico al generar/subir canvas de ruta:', e); }
     
+    // Asegurar que el último punto válido esté incluido en la ruta
+    if (ultimoPuntoCrudoGPS && trackCoords.length > 0) {
+        const lastCoord = trackCoords[trackCoords.length - 1];
+        if (lastCoord[0] !== ultimoPuntoCrudoGPS[0] || lastCoord[1] !== ultimoPuntoCrudoGPS[1]) {
+            trackCoords.push(ultimoPuntoCrudoGPS);
+        }
+    }
+
+    const rutaNormalizada = normalizarYLimitarRutaGPS(trackCoords);
     const pts = Math.round(trackDistanceKm * 10) + m;
     
     const { data: nuevaRuta, error: errRuta } = await supabaseClient.from('rutas').insert([{
         user_id: appState.sesionActual.user.id,
         distancia_km: Number(trackDistanceKm.toFixed(2)),
         tiempo_minutos: m,
-        ruta_json: trackCoords,
+        ruta_json: rutaNormalizada,
         imagen_url: img,
         ubicacion: "Travesía GPS"
     }]).select().single();
@@ -901,7 +975,7 @@ export async function finalizarTravesia() {
                 user_id: appState.sesionActual.user.id,
                 km: trackDistanceKm,
                 min: m,
-                coords: trackCoords,
+                coords: rutaNormalizada,
                 img,
                 b64: imgBase64Backup,
                 ts: Date.now()
@@ -968,11 +1042,13 @@ export async function sincronizarRutasPendientes() {
             } catch(e) { console.warn("Fallo subiendo canvas offline:", e); }
         }
 
+        const coordsNormalizadas = normalizarYLimitarRutaGPS(p.coords);
+
         const { error } = await supabaseClient.from('rutas').insert([{
             user_id: appState.sesionActual.user.id,
             distancia_km: Number(p.km.toFixed(2)),
             tiempo_minutos: p.min,
-            ruta_json: p.coords,
+            ruta_json: coordsNormalizadas,
             imagen_url: urlSincronizada || p.img,
             ubicacion: "Travesía GPS (Sincronización Offline)"
         }]);
@@ -1013,6 +1089,7 @@ window.inicializarMapa = inicializarMapa;
 window.activarModoPlanificacionEvento = activarModoPlanificacionEvento;
 window.guardarEventoClub = guardarEventoClub;
 window.sincronizarRutasPendientes = sincronizarRutasPendientes;
+window.normalizarYLimitarRutaGPS = normalizarYLimitarRutaGPS;
 window.addEventListener('online', () => {
     if (appState.sesionActual?.user?.id) void sincronizarRutasPendientes();
 });

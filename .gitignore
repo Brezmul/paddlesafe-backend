@@ -6,6 +6,13 @@ Paddlesafe_frontend/public_html/logs.txt
 # Dependencies
 node_modules/
 
+# Environment and credentials
+.env
+.env.*
+*.env
+*.local
+
 # OS metadata
 .DS_Store
 Thumbs.db
+

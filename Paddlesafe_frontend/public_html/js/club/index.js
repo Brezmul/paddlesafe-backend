@@ -3,7 +3,8 @@ import { ClubRender } from './club.render.js';
 import { ClubInfo } from './club.info.js';
 import { ClubPhotos } from './club.photos.js';
 import { ClubDelete } from './club.delete.js';
-import { supabaseClient } from '../config.js'; // Para crear el club directamente aquí
+import { supabaseClient, appState } from '../config.js';
+import { esc, safeUrl, IMG_FALLBACK } from '../utils.js';
 
 // Fachada que agrupa todas las acciones
 const ClubFacade = {
@@ -32,10 +33,235 @@ const ClubFacade = {
         ClubState.activeId = clubId;
         ClubRender.renderTabMiClub();
     },
-    cambiarVistaInterna(vista) {
-        // Redirige al renderizador interno correspondiente (tripulación, admin, etc.)
-        // Aquí conectas las funciones que ya tenías de renderizado de pestañas inferiores
-        // (Renderizar tripulación, renderizar admin, etc.)
+    async cambiarVistaInterna(vista) {
+        const contenedor = document.getElementById('vistaClubContent');
+        if (!contenedor) return;
+        const clubId = ClubState.activeId;
+        if (!clubId) {
+            contenedor.innerHTML = '<p class="text-center text-slate-400 py-4 text-xs font-bold">Selecciona un club.</p>';
+            return;
+        }
+
+        const activeClub = ClubState.myClubs?.find(c => c.club_id === clubId);
+        const miRol = (activeClub?.club_rol || '').toLowerCase();
+        const soyAdmin = miRol === 'creador' || miRol === 'admin';
+        const soyCreador = miRol === 'creador';
+        const miUserId = appState.sesionActual?.user?.id;
+
+        // Actualizar apariencia de las pestañas
+        const btnTrip = document.querySelector('button[onclick*="cambiarVistaInterna(\'tripulacion\')"]');
+        const btnAdmin = document.querySelector('button[onclick*="cambiarVistaInterna(\'admin\')"]') ||
+                         document.querySelector('button[onclick*="cambiarVistaInterna(\'gestion\')"]');
+
+        const esGestion = vista === 'gestion' || vista === 'admin';
+
+        if (btnTrip && btnAdmin) {
+            if (esGestion) {
+                btnTrip.className = "px-4 py-2.5 rounded-lg bg-slate-100 text-slate-600 font-bold text-[10px] uppercase tracking-widest";
+                btnAdmin.className = "px-4 py-2.5 rounded-lg bg-marine text-white font-bold text-[10px] uppercase tracking-widest";
+            } else {
+                btnTrip.className = "px-4 py-2.5 rounded-lg bg-marine text-white font-bold text-[10px] uppercase tracking-widest";
+                btnAdmin.className = "px-4 py-2.5 rounded-lg bg-slate-100 text-slate-600 font-bold text-[10px] uppercase tracking-widest";
+            }
+        }
+
+        if (esGestion) {
+            // Vista Gestión de solicitudes
+            contenedor.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando solicitudes...</p>';
+            try {
+                const { data: solicitudes, error } = await supabaseClient.rpc('obtener_solicitudes_club', { p_club_id: clubId });
+                if (error) {
+                    console.error('[club] obtener_solicitudes_club error:', error);
+                    contenedor.innerHTML = `<div class="text-center py-6 text-red-500 text-xs font-bold">Error al cargar solicitudes: ${esc(error.message)}</div>`;
+                    return;
+                }
+
+                if (!solicitudes || solicitudes.length === 0) {
+                    contenedor.innerHTML = `
+                        <div class="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                            <span class="text-3xl block mb-2 opacity-50">📬</span>
+                            <p class="text-slate-400 text-xs font-bold">No hay solicitudes pendientes</p>
+                        </div>`;
+                    return;
+                }
+
+                contenedor.innerHTML = `
+                    <div class="space-y-3">
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Solicitudes de ingreso (${solicitudes.length})</p>
+                        ${solicitudes.map(s => {
+                            const sId = s.id || s.solicitud_id || s.user_id;
+                            const uId = s.user_id || s.id;
+                            const sNombre = s.nombre || s.user_nombre || s.email || 'Paddler';
+                            const sAvatar = safeUrl(s.avatar_url, IMG_FALLBACK);
+                            return `
+                                <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <img src="${esc(sAvatar)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-10 h-10 rounded-full object-cover bg-white">
+                                        <div class="min-w-0">
+                                            <p class="font-bold text-sm text-slate-800 dark:text-white truncate">${esc(sNombre)}</p>
+                                            <p class="text-[10px] text-slate-400">${s.created_at ? new Date(s.created_at).toLocaleDateString() : 'Pendiente'}</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button onclick="window.Club.procesarSolicitud('${esc(sId)}', true, '${esc(uId)}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold active:scale-95 transition-transform cursor-pointer">Aceptar</button>
+                                        <button onclick="window.Club.procesarSolicitud('${esc(sId)}', false, '${esc(uId)}')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold active:scale-95 transition-transform cursor-pointer">Rechazar</button>
+                                    </div>
+                                </div>`;
+                        }).join('')}
+                    </div>`;
+            } catch (e) {
+                console.error('[club] gestion error:', e);
+                contenedor.innerHTML = `<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar solicitudes.</p>`;
+            }
+        } else {
+            // Vista Tripulación (miembros)
+            contenedor.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando tripulación...</p>';
+            try {
+                const { data: miembros, error } = await supabaseClient.rpc('obtener_miembros_club', { p_club_id: clubId });
+                if (error) {
+                    console.error('[club] obtener_miembros_club error:', error);
+                    contenedor.innerHTML = `<div class="text-center py-6 text-red-500 text-xs font-bold">Error al cargar tripulación: ${esc(error.message)}</div>`;
+                    return;
+                }
+
+                if (!miembros || miembros.length === 0) {
+                    contenedor.innerHTML = `
+                        <div class="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                            <span class="text-3xl block mb-2 opacity-50">👥</span>
+                            <p class="text-slate-400 text-xs font-bold">Sin miembros en la tripulación</p>
+                        </div>`;
+                    return;
+                }
+
+                contenedor.innerHTML = `
+                    <div class="space-y-3">
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Tripulación (${miembros.length})</p>
+                        ${miembros.map(m => {
+                            const mUserId = m.user_id || m.id;
+                            const mNombre = m.nombre || m.user_nombre || m.email || 'Paddler';
+                            const mAvatar = safeUrl(m.avatar_url, IMG_FALLBACK);
+                            const mRol = (m.rol || m.club_rol || 'miembro').toLowerCase();
+                            const esPropioUsuario = mUserId === miUserId;
+
+                            let badgeColor = 'bg-slate-100 text-slate-600';
+                            let badgeTexto = 'Miembro';
+                            if (mRol === 'creador') {
+                                badgeColor = 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200';
+                                badgeTexto = '👑 Creador';
+                            } else if (mRol === 'admin') {
+                                badgeColor = 'bg-water/20 text-water dark:bg-sky-900/50 dark:text-sky-300';
+                                badgeTexto = '⭐ Admin';
+                            }
+
+                            // Botones de acción administrativa
+                            let accionesHTML = '';
+                            if (soyAdmin && !esPropioUsuario && mRol !== 'creador') {
+                                const botones = [];
+                                if (mRol === 'miembro') {
+                                    botones.push(`<button onclick="window.Club.ascenderMiembro('${esc(mUserId)}')" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-[10px] font-bold active:scale-95 transition-transform" title="Ascender a Admin">⭐ Ascender</button>`);
+                                } else if (mRol === 'admin' && soyCreador) {
+                                    botones.push(`<button onclick="window.Club.degradarMiembro('${esc(mUserId)}')" class="px-2.5 py-1 bg-slate-500 hover:bg-slate-600 text-white rounded-md text-[10px] font-bold active:scale-95 transition-transform" title="Degradar a Miembro">⬇️ Degradar</button>`);
+                                }
+                                if (soyCreador || (soyAdmin && mRol === 'miembro')) {
+                                    botones.push(`<button onclick="window.Club.expulsarMiembro('${esc(mUserId)}')" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-[10px] font-bold active:scale-95 transition-transform" title="Expulsar del club">🚫 Expulsar</button>`);
+                                }
+                                if (botones.length) {
+                                    accionesHTML = `<div class="flex items-center gap-1.5 flex-wrap justify-end">${botones.join('')}</div>`;
+                                }
+                            }
+
+                            return `
+                                <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 gap-3">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <img src="${esc(mAvatar)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-10 h-10 rounded-full object-cover bg-white shrink-0">
+                                        <div class="min-w-0">
+                                            <p class="font-bold text-sm text-slate-800 dark:text-white truncate">${esc(mNombre)}</p>
+                                            <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold ${badgeColor}">${badgeTexto}</span>
+                                        </div>
+                                    </div>
+                                    ${accionesHTML}
+                                </div>`;
+                        }).join('')}
+                    </div>`;
+            } catch (e) {
+                console.error('[club] tripulacion error:', e);
+                contenedor.innerHTML = `<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar tripulación.</p>`;
+            }
+        }
+    },
+
+    // Métodos para administración de tripulación sobre clubs_usuarios
+    async ascenderMiembro(userId) {
+        if (!confirm("¿Deseas ascender a este usuario a Administrador?")) return;
+        try {
+            const { error } = await supabaseClient
+                .from('clubs_usuarios')
+                .update({ rol: 'admin' })
+                .eq('club_id', ClubState.activeId)
+                .eq('user_id', userId);
+            if (error) throw error;
+            await this.cambiarVistaInterna('tripulacion');
+        } catch (err) {
+            alert("Error al ascender miembro: " + (err.message || err));
+        }
+    },
+
+    async degradarMiembro(userId) {
+        if (!confirm("¿Deseas degradar a este administrador a Miembro?")) return;
+        try {
+            const { error } = await supabaseClient
+                .from('clubs_usuarios')
+                .update({ rol: 'miembro' })
+                .eq('club_id', ClubState.activeId)
+                .eq('user_id', userId);
+            if (error) throw error;
+            await this.cambiarVistaInterna('tripulacion');
+        } catch (err) {
+            alert("Error al degradar miembro: " + (err.message || err));
+        }
+    },
+
+    async expulsarMiembro(userId) {
+        if (!confirm("¿Estás seguro de que deseas expulsar a este miembro del club?")) return;
+        try {
+            const { error } = await supabaseClient
+                .from('clubs_usuarios')
+                .delete()
+                .eq('club_id', ClubState.activeId)
+                .eq('user_id', userId);
+            if (error) throw error;
+            await this.cambiarVistaInterna('tripulacion');
+        } catch (err) {
+            alert("Error al expulsar miembro: " + (err.message || err));
+        }
+    },
+
+    async procesarSolicitud(solicitudId, aprobar, userId) {
+        try {
+            let error = null;
+            // 1. Intentar con firma { p_solicitud_id, p_aprobar }
+            const res = await supabaseClient.rpc('procesar_solicitud_club', {
+                p_solicitud_id: solicitudId,
+                p_aprobar: aprobar
+            });
+            error = res.error;
+
+            // 2. Si falla por firma, intentar con { p_club_id, p_user_id, p_accion }
+            if (error) {
+                const resAlt = await supabaseClient.rpc('procesar_solicitud_club', {
+                    p_club_id: ClubState.activeId,
+                    p_user_id: userId || solicitudId,
+                    p_accion: aprobar ? 'aprobar' : 'rechazar'
+                });
+                error = resAlt.error;
+            }
+
+            if (error) throw error;
+            alert(aprobar ? "Solicitud aprobada." : "Solicitud rechazada.");
+            await this.cambiarVistaInterna('gestion');
+        } catch (err) {
+            alert("Error al procesar solicitud: " + (err.message || err));
+        }
     },
 
     // 2. Auto-Guardado
