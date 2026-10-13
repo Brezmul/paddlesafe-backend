@@ -202,9 +202,16 @@ export function restaurarFormularioAuth() {
                     </button>
                 </div>
 
+                <!-- ACCESO RÁPIDO A AMIGOS Y COMUNIDAD -->
+                <div class="flex gap-2 mb-4">
+                    <button type="button" onclick="if(window.abrirPanelMisAmigos) window.abrirPanelMisAmigos();" class="w-full h-11 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 font-black text-xs uppercase tracking-wider rounded-2xl border border-sky-400/30 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer shadow-sm">
+                        <span>🤝</span> Mis Amigos & Solicitudes
+                    </button>
+                </div>
+
                 <!-- BOTÓN DESTACADO: SUBIR RUTA PARA SUMAR XP Y ESCALAR EN EL RANKING -->
                 <div class="mb-8">
-                    <button type="button" onclick="document.getElementById('gpxUploadInput')?.click()" class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white p-4 sm:p-5 rounded-3xl shadow-xl shadow-teal-900/30 active:scale-[0.98] transition-all flex items-center justify-between cursor-pointer group border border-emerald-400/30 relative overflow-hidden ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
+                    <button type="button" onclick="window.abrirDialogoSubirGPX()" class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white p-4 sm:p-5 rounded-3xl shadow-xl shadow-teal-900/30 active:scale-[0.98] transition-all flex items-center justify-between cursor-pointer group border border-emerald-400/30 relative overflow-hidden ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
                         <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
                         <div class="flex items-center gap-3.5 relative z-10 text-left min-w-0">
                             <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-2xl shadow-inner group-hover:rotate-6 transition-transform shrink-0">
@@ -250,7 +257,7 @@ export function restaurarFormularioAuth() {
                             <svg class="w-4 h-4 text-water dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg> 
                             Diario de Aventuras
                         </h3>
-                        <button type="button" onclick="document.getElementById('gpxUploadInput')?.click()" class="cursor-pointer bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1.5 ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
+                        <button type="button" onclick="window.abrirDialogoSubirGPX()" class="cursor-pointer bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1.5 ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
                             <span>📥</span> Subir GPX
                         </button>
                     </div>
@@ -260,7 +267,7 @@ export function restaurarFormularioAuth() {
                     ${appState.esInvitado ? 'Salir del Modo Invitado' : 'Cerrar Sesión'}
                 </button>
                 <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.26</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.31</p>
                     <button type="button" onclick="if(window.forzarActualizacion) window.forzarActualizacion(); else window.location.reload();" class="mt-1 text-[9px] text-water dark:text-sky-400 hover:underline font-bold uppercase tracking-wider cursor-pointer">🔄 Buscar actualizaciones / Limpiar caché</button>
                 </div>
             </div>
@@ -513,11 +520,37 @@ export function entrarComoInvitado() {
     actualizarBotonCabecera(); cerrarModalAuth();
 }
 
+export function abrirDialogoSubirGPX() {
+    if (appState.esInvitado) {
+        return alert("Los usuarios invitados no pueden guardar rutas. ¡Regístrate gratis!");
+    }
+    if (!appState.sesionActual?.user) {
+        alert("Debes iniciar sesión para subir tus rutas.");
+        if (typeof window.abrirModalAuth === 'function') window.abrirModalAuth();
+        return;
+    }
+    let input = document.getElementById('gpxUploadInputGlobal');
+    if (!input) {
+        input = document.createElement('input');
+        input.type = 'file';
+        input.id = 'gpxUploadInputGlobal';
+        input.accept = '.gpx,application/gpx+xml';
+        input.className = 'hidden';
+        input.onchange = (e) => {
+            if (typeof window.subirArchivoGPX === 'function') {
+                window.subirArchivoGPX(e);
+            }
+        };
+        document.body.appendChild(input);
+    }
+    input.click();
+}
+
 export async function subirArchivoGPX(event) {
     if (appState.esInvitado) return alert("Los usuarios invitados no pueden guardar rutas. ¡Regístrate gratis!");
     if (!appState.sesionActual?.user) return alert("Debes iniciar sesión para subir tus rutas.");
 
-    const fileInput = event?.target || document.getElementById('gpxUploadInput');
+    const fileInput = event?.target || document.getElementById('gpxUploadInputGlobal') || document.getElementById('gpxUploadInputSPA') || document.getElementById('gpxUploadInput');
     const file = fileInput?.files?.[0];
     if (!file) return;
 
@@ -587,6 +620,12 @@ export async function subirArchivoGPX(event) {
             await cargarPerfilUsuarioActivo();
             restaurarFormularioAuth();
 
+            // Si el modal de perfil SPA (/user/:id) está abierto, refrescar su pestaña de rutas
+            const spaModal = document.getElementById('userProfileModal');
+            if (spaModal && !spaModal.classList.contains('hidden') && typeof window.cambiarTabPerfilSPA === 'function') {
+                window.cambiarTabPerfilSPA('rutas');
+            }
+
             const calculo = resGuardado.calculoXp;
             if (calculo.esTrampa) {
                 alert(`⚠️ Ruta guardada, pero la velocidad media (${velMedia} km/h) superó los 45 km/h.\nSe ha clasificado como vehículo motorizado y no otorga XP.`);
@@ -599,6 +638,11 @@ export async function subirArchivoGPX(event) {
                     msgExito += `\n\n🎊 ¡ENHORABUENA! ¡HAS SUBIDO AL NIVEL ${resGuardado.perfil.current_level}! 🚀`;
                 }
                 alert(msgExito);
+            }
+
+            // Abrir automáticamente la vista interactiva de detalles con mapa y análisis Coach de la ruta subida
+            if (resGuardado.ruta?.id && typeof window.abrirModalDetallesRuta === 'function') {
+                window.abrirModalDetallesRuta(resGuardado.ruta.id);
             }
 
         } catch (err) {
@@ -1156,6 +1200,7 @@ window.procesarAuth = procesarAuth;
 window.cerrarSesion = cerrarSesion;
 window.entrarComoInvitado = entrarComoInvitado;
 window.subirArchivoGPX = subirArchivoGPX;
+window.abrirDialogoSubirGPX = abrirDialogoSubirGPX;
 window.verRutaEnMapa = verRutaEnMapa;
 window.cargarHistorialRutas = cargarHistorialRutas;
 window.actualizarBadgeRanking = actualizarBadgeRanking;

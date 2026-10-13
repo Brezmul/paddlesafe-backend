@@ -319,6 +319,7 @@
                                     <div class="flex w-full sm:w-auto gap-2 flex-wrap">
                                         <button type="button" id="btnTravesia" onclick="toggleModoTravesia()" class="flex-1 sm:w-auto bg-teal-500 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-md hover:bg-teal-400 active:scale-95 transition-colors cursor-pointer">🗺️ Trazar (A ➔ B)</button>
                                         <button type="button" id="btnRutaLibre" onclick="toggleRutaLibre()" class="flex-1 sm:w-auto bg-teal-600 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-sm hover:bg-teal-500 active:scale-95 transition-colors cursor-pointer">✍️ Multipunto</button>
+                                        <button type="button" id="btnCargarGPXMapa" onclick="if(window.abrirDialogoSubirGPX) window.abrirDialogoSubirGPX()" class="flex-1 sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white h-11 px-3.5 rounded-xl text-xs sm:text-sm font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer">📂 Cargar GPX</button>
                                         <button type="button" id="btnQuedadaClub" onclick="iniciarCreacionQuedadaClub()" class="flex-1 sm:w-auto bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white h-11 px-3.5 rounded-xl text-xs sm:text-sm font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer">⛵ Quedada Club</button>
                                     </div>
                                     <button type="button" id="btnIniciarLive" onclick="iniciarTravesia()" class="w-full sm:w-auto bg-emerald-500 text-slate-900 h-11 px-5 rounded-xl text-sm font-black shadow hover:bg-emerald-400 active:scale-95 transition-colors cursor-pointer">🔴 Live GPS</button>
@@ -644,6 +645,7 @@
                 <div class="flex justify-center gap-1 sm:gap-2 w-full">
                     <button type="button" onclick="cambiarTabPerfilSPA('insignias')" id="spaTabInsignias" class="h-10 px-2 bg-slate-100 text-slate-600 hover:bg-slate-200 text-[11px] font-bold rounded-lg flex-1 cursor-pointer">Insignias</button>
                     <button type="button" onclick="cambiarTabPerfilSPA('rutas')" id="spaTabRutas" class="h-10 px-2 bg-marine text-white shadow text-[11px] font-bold rounded-lg flex-1 cursor-pointer">Rutas</button>
+                    <button type="button" onclick="cambiarTabPerfilSPA('amigos')" id="spaTabAmigos" class="h-10 px-2 bg-slate-100 text-slate-600 hover:bg-slate-200 text-[11px] font-bold rounded-lg flex-1 cursor-pointer">Amigos</button>
                 </div>
             </div>
             <div id="userProfileContent" class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full bg-slate-50"></div>

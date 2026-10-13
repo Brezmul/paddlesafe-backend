@@ -136,6 +136,8 @@ const ClubFacade = {
             'tripulacion': document.getElementById('btnClubTabTripulacion') || document.querySelector('button[onclick*="cambiarVistaInterna(\'tripulacion\')"]'),
             'chat': document.getElementById('btnClubTabChat') || document.querySelector('button[onclick*="cambiarVistaInterna(\'chat\')"]'),
             'eventos': document.getElementById('btnClubTabEventos') || document.querySelector('button[onclick*="cambiarVistaInterna(\'eventos\')"]'),
+            'rutas': document.getElementById('btnClubTabRutas') || document.querySelector('button[onclick*="cambiarVistaInterna(\'rutas\')"]'),
+            'vitrina': document.getElementById('btnClubTabVitrina') || document.querySelector('button[onclick*="cambiarVistaInterna(\'vitrina\')"]'),
             'gestion': document.getElementById('btnClubTabGestion') || document.querySelector('button[onclick*="cambiarVistaInterna(\'gestion\')"]') || document.querySelector('button[onclick*="cambiarVistaInterna(\'admin\')"]')
         };
 
@@ -144,9 +146,9 @@ const ClubFacade = {
             const btn = internalTabs[k];
             if (!btn) return;
             if (k === activeKey) {
-                btn.className = "flex-1 min-w-[80px] px-3 py-2.5 rounded-xl bg-marine dark:bg-water text-white font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors shadow text-center";
+                btn.className = "flex-1 min-w-[75px] px-2.5 py-2.5 rounded-xl bg-marine dark:bg-water text-white font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors shadow text-center";
             } else {
-                btn.className = "flex-1 min-w-[80px] px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700 text-center";
+                btn.className = "flex-1 min-w-[75px] px-2.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700 text-center";
             }
         });
 
@@ -156,6 +158,98 @@ const ClubFacade = {
 
         if (vista === 'eventos') {
             return await ClubEvents.render(contenedor, clubId, true, soyAdmin);
+        }
+
+        if (vista === 'rutas') {
+            contenedor.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando rutas del club...</p>';
+            try {
+                const { data: rutas, error } = await supabaseClient
+                    .from('club_rutas')
+                    .select('created_at, rutas(id, ubicacion, distancia_km, tiempo_minutos, fecha, ruta_json)')
+                    .eq('club_id', clubId)
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                if (error) throw error;
+                if (!rutas || rutas.length === 0) {
+                    contenedor.innerHTML = `
+                        <div class="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                            <span class="text-3xl block mb-2 opacity-50">🧭</span>
+                            <p class="text-slate-400 text-xs font-bold">Sin rutas registradas por el club aún.</p>
+                        </div>`;
+                    return;
+                }
+                contenedor.innerHTML = `
+                    <div class="space-y-2.5">
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Rutas de la tripulación (${rutas.length})</p>
+                        ${rutas.map(r => {
+                            const ruta = r.rutas;
+                            if (!ruta) return '';
+                            const coordsJson = JSON.stringify(ruta.ruta_json || []).replace(/"/g, '&quot;');
+                            const nomEsc = esc(ruta.ubicacion || 'Travesía GPS');
+                            return `
+                                <div class="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div class="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-900/30 flex items-center justify-center text-xl shrink-0">🗺️</div>
+                                        <div class="min-w-0">
+                                            <p class="font-bold text-sm text-marine dark:text-white truncate">${nomEsc}</p>
+                                            <p class="text-[10px] text-slate-400">${ruta.fecha ? new Date(ruta.fecha).toLocaleDateString() : ''} • ${ruta.tiempo_minutos || 0} min</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <span class="px-2.5 py-1 bg-water/10 text-water dark:bg-sky-500/20 dark:text-sky-400 rounded-lg text-xs font-black">${ruta.distancia_km || 0} km</span>
+                                        <button type="button" onclick="window.Club.abrirRutaEnMapaGrande('${coordsJson}', '${nomEsc}')" class="px-2.5 py-1 bg-marine dark:bg-water text-white rounded-lg text-xs font-bold active:scale-95 transition-transform cursor-pointer" title="Ver en Mapa">🗺️</button>
+                                    </div>
+                                </div>`;
+                        }).join('')}
+                    </div>`;
+            } catch (e) {
+                console.error('[club] rutas error:', e);
+                contenedor.innerHTML = `<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar rutas del club.</p>`;
+            }
+            return;
+        }
+
+        if (vista === 'vitrina') {
+            contenedor.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando vitrina...</p>';
+            try {
+                const [resT, resS] = await Promise.allSettled([
+                    supabaseClient.from('trofeos_club').select('*').eq('club_id', clubId).order('fecha', { ascending: false }),
+                    supabaseClient.from('club_showcase').select('*').eq('club_id', clubId).order('created_at', { ascending: false })
+                ]);
+                const trofeos = resT.status === 'fulfilled' && resT.value?.data ? resT.value.data : [];
+                const showcase = resS.status === 'fulfilled' && resS.value?.data ? resS.value.data : [];
+                if (trofeos.length === 0 && showcase.length === 0) {
+                    contenedor.innerHTML = `
+                        <div class="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                            <span class="text-3xl block mb-2 opacity-50">🏆</span>
+                            <p class="text-slate-400 text-xs font-bold">Vitrina vacía por ahora.</p>
+                        </div>`;
+                    return;
+                }
+                let html = '<div class="space-y-2.5">';
+                trofeos.forEach(t => {
+                    html += `
+                        <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-amber-50 to-white dark:from-slate-800 dark:to-slate-800/80 rounded-xl border border-amber-200/60 dark:border-slate-700 shadow-sm">
+                            <span class="text-3xl">${t.icono || '🏆'}</span>
+                            <div>
+                                <p class="font-bold text-sm text-marine dark:text-white">${esc(t.nombre)}</p>
+                                <p class="text-[10px] text-slate-400">${t.fecha ? new Date(t.fecha).toLocaleDateString() : ''}</p>
+                            </div>
+                        </div>`;
+                });
+                showcase.forEach(s => {
+                    html += `
+                        <div class="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                            <p class="text-xs text-slate-700 dark:text-slate-300">${esc(s.contenido)}</p>
+                        </div>`;
+                });
+                html += '</div>';
+                contenedor.innerHTML = html;
+            } catch (e) {
+                console.error('[club] vitrina error:', e);
+                contenedor.innerHTML = `<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar vitrina.</p>`;
+            }
+            return;
         }
 
         const esGestion = vista === 'gestion' || vista === 'admin';
@@ -250,7 +344,12 @@ const ClubFacade = {
 
                 contenedor.innerHTML = `
                     <div class="space-y-3">
-                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Tripulación (${miembros.length})</p>
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tripulación (${miembros.length})</p>
+                            <button type="button" onclick="window.Club.cambiarTabClubs('paddlers')" class="px-2.5 py-1 bg-marine dark:bg-water hover:opacity-90 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm active:scale-95 transition-all cursor-pointer flex items-center gap-1">
+                                <span>➕</span> Invitar Paddlers
+                            </button>
+                        </div>
                         ${miembros.map(m => {
                             const mUserId = m.user_id || m.id;
                             const mNombre = m.nombre || m.user_nombre || m.email || 'Paddler';

@@ -446,7 +446,7 @@ export const socialFeed = {
             if (Array.isArray(misClubsIds) && misClubsIds.length > 0) {
                 qChat = supabaseClient
                     .from('club_chat')
-                    .select('created_at, club_id, user_id, mensaje, visibility, is_public, perfiles(nombre, avatar_url), clubs(nombre)')
+                    .select('created_at, club_id, user_id, mensaje, perfiles(nombre, avatar_url), clubs(nombre)')
                     .in('club_id', misClubsIds)
                     .order('created_at', { ascending: false })
                     .limit(15);

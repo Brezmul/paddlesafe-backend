@@ -286,20 +286,12 @@ export async function abrirPerfilPublicoSPA(userId) {
                 btnSubirGPX.className = 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-[10px] sm:text-xs font-black px-4 py-2 rounded-full uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-1.5';
                 btnSubirGPX.innerHTML = '<span>🚀</span> Subir Sesión GPX';
                 btnSubirGPX.onclick = () => {
-                    let input = document.getElementById('gpxUploadInputSPA');
-                    if (!input) {
-                        input = document.createElement('input');
-                        input.type = 'file';
-                        input.id = 'gpxUploadInputSPA';
-                        input.accept = '.gpx,application/gpx+xml';
-                        input.className = 'hidden';
-                        input.onchange = (e) => {
-                            if (window.subirArchivoGPX) window.subirArchivoGPX(e);
-                            setTimeout(() => cambiarTabPerfilSPA('rutas'), 1000);
-                        };
-                        document.body.appendChild(input);
+                    if (typeof window.abrirDialogoSubirGPX === 'function') {
+                        window.abrirDialogoSubirGPX();
+                    } else {
+                        let input = document.getElementById('gpxUploadInputSPA') || document.getElementById('gpxUploadInput');
+                        if (input) input.click();
                     }
-                    input.click();
                 };
                 btnContainer.appendChild(btnSubirGPX);
             }
@@ -375,7 +367,7 @@ export async function abrirPerfilPublicoSPA(userId) {
             return; // Detenemos la carga de contenido privado
         } else {
             // Aseguramos que las pestañas sean visibles
-            ['spaTabInsignias', 'spaTabRutas'].forEach(id => {
+            ['spaTabInsignias', 'spaTabRutas', 'spaTabAmigos'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.classList.remove('hidden');
             });
@@ -478,7 +470,7 @@ export async function cambiarTabPerfilSPA(tab) {
                             <p class="text-[10px] text-white/90 font-medium">Sube tu archivo .GPX y suma +100 XP por km</p>
                         </div>
                     </div>
-                    <button type="button" onclick="document.getElementById('gpxUploadInputSPA')?.click() || document.getElementById('gpxUploadInput')?.click()" class="bg-white text-marine font-black text-xs px-3 py-2 rounded-xl shadow active:scale-95 transition-all cursor-pointer">
+                    <button type="button" onclick="if(window.abrirDialogoSubirGPX) window.abrirDialogoSubirGPX(); else document.getElementById('gpxUploadInputSPA')?.click() || document.getElementById('gpxUploadInput')?.click();" class="bg-white text-marine font-black text-xs px-3 py-2 rounded-xl shadow active:scale-95 transition-all cursor-pointer">
                         Subir GPX
                     </button>
                 </div>
