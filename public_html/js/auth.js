@@ -327,7 +327,8 @@ export function restaurarFormularioAuth() {
     
     c.innerHTML = `
         <div class="text-center mb-8 dark:bg-slate-900 pt-6 rounded-t-3xl relative">
-            <div class="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6"></div>
+            <div class="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-4"></div>
+            <img src="/icons/PaddleSafe_192x192.png" alt="PaddleSafe Logo" class="w-16 h-16 rounded-2xl mx-auto mb-3 shadow-md border border-slate-200 dark:border-slate-700 object-contain">
             <h2 id="authTitle" class="text-3xl sm:text-4xl font-black text-marine dark:text-white mb-2 tracking-tight">Iniciar Sesión</h2>
             <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Accede a tu diario y progreso en el mar.</p>
         </div>
