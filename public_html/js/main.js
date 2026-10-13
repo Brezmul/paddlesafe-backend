@@ -139,6 +139,15 @@ async function inicializarAplicacion() {
     const strHoy = `${hoy.getFullYear()}-${mes}-${dia}`;
     if (document.getElementById('date')) document.getElementById('date').value = strHoy;
     if (document.getElementById('proDate')) document.getElementById('proDate').value = strHoy;
+    const proTimeEl = document.getElementById('proTime');
+    if (proTimeEl && !proTimeEl.value) {
+        const horaStr = String(hoy.getHours()).padStart(2, '0');
+        proTimeEl.value = `${horaStr}:00`;
+    }
+    const proLocEl = document.getElementById('proLocation');
+    if (proLocEl && !proLocEl.value && MapModule.latitudActual && MapModule.longitudActual) {
+        proLocEl.value = `${MapModule.latitudActual.toFixed(4)}, ${MapModule.longitudActual.toFixed(4)}`;
+    }
 
     if (supabaseClient && supabaseClient.auth) {
         try {

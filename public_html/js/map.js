@@ -450,22 +450,44 @@ export async function consultarPuntoProInstantaneo(lat, lon, d, t) {
 export async function consultarRutaPro() {
     if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
     const alertCont = document.getElementById('proAlertContainer');
-    alertCont.classList.add('hidden'); alertCont.innerHTML = "";
+    if (alertCont) { alertCont.classList.add('hidden'); alertCont.innerHTML = ""; }
     
-    const locVal = document.getElementById('proLocation').value;
-    const d = document.getElementById('proDate').value;
-    const t = document.getElementById('proTime').value;
-    const u = document.getElementById('proLevelOption').value;
+    let locVal = document.getElementById('proLocation')?.value?.trim();
+    let d = document.getElementById('proDate')?.value;
+    let t = document.getElementById('proTime')?.value;
+    const u = document.getElementById('proLevelOption')?.value || "Intermedio";
     
+    // Auto-recuperación si faltan coordenadas pero hay posición en mapa
+    if (!locVal && latitudActual && longitudActual) {
+        locVal = `${latitudActual.toFixed(4)}, ${longitudActual.toFixed(4)}`;
+        const ploc = document.getElementById('proLocation');
+        if (ploc) ploc.value = locVal;
+    }
+
+    // Auto-recuperación si falta fecha u hora
+    if (!d) {
+        const hoy = new Date();
+        d = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+        const pdate = document.getElementById('proDate');
+        if (pdate) pdate.value = d;
+    }
+    if (!t) {
+        t = "10:00";
+        const ptime = document.getElementById('proTime');
+        if (ptime) ptime.value = t;
+    }
+
     if(!locVal || !d || !t) {
-        alertCont.innerHTML = "⚠️ Toca el mapa e indica Fecha/Hora.";
-        alertCont.className = "text-sm font-bold text-red-400 bg-red-900/30 p-4 rounded-xl text-center w-full block mt-2";
-        alertCont.classList.remove('hidden');
+        if (alertCont) {
+            alertCont.innerHTML = "⚠️ Toca el mapa para fijar tu posición e indica Fecha/Hora.";
+            alertCont.className = "text-sm font-bold text-red-400 bg-red-900/30 p-4 rounded-xl text-center w-full block mt-2";
+            alertCont.classList.remove('hidden');
+        }
         return;
     }
     
     const btn = document.getElementById('btnCalcPro');
-    btn.disabled = true; btn.innerHTML = "Calculando...";
+    if (btn) { btn.disabled = true; btn.innerHTML = "Calculando..."; }
     
     let lat, lon;
     if (marcadoresRuta.length >= 2) {
@@ -763,6 +785,25 @@ export async function iniciarCreacionQuedadaClub(clubIdPreseleccionado = null) {
         } catch (_) {}
     }
 
+    // Fallback directo a clubs_usuarios si la RPC no devolvió filas o falló
+    if (!misClubes || misClubes.length === 0) {
+        try {
+            const { data: cuData } = await supabaseClient
+                .from('clubs_usuarios')
+                .select('club_id, rol, clubs(id, nombre, ubicacion)')
+                .eq('user_id', appState.sesionActual.user.id);
+            if (cuData && cuData.length > 0) {
+                misClubes = cuData.map(cu => ({
+                    club_id: cu.club_id,
+                    nombre: cu.clubs?.nombre || 'Club Náutico',
+                    ubicacion: cu.clubs?.ubicacion || '',
+                    club_rol: cu.rol
+                }));
+                ClubState.myClubs = misClubes;
+            }
+        } catch (_) {}
+    }
+
     if (!misClubes || misClubes.length === 0) {
         alert("Aún no perteneces a ningún club. Funda un club o únete a uno existente para organizar quedadas.");
         if (window.Club && window.Club.abrirModal) window.Club.abrirModal();
@@ -815,9 +856,16 @@ export async function iniciarCreacionQuedadaClub(clubIdPreseleccionado = null) {
     }
     modoQuedadaClubActivo = true;
 
-    // Mostrar panel flotante del mapa
+    // Mostrar panel flotante del mapa y botón de guardar quedada
     const panel = document.getElementById('panelQuedadaMap');
     if (panel) panel.classList.remove('hidden');
+
+    const btnSave = document.getElementById('btnGuardarQuedadaMap') || document.getElementById('btnSaveClubEvent');
+    if (btnSave) {
+        btnSave.classList.remove('hidden');
+        btnSave.disabled = false;
+        btnSave.textContent = "Publicar Quedada";
+    }
 
     const msg = document.getElementById('mapMsg');
     if (msg) {
@@ -1398,15 +1446,19 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
 
     if (badgeLvl) badgeLvl.textContent = `Nivel: ${userLvl || 'Intermedio'}`;
 
-    const wkVal = dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0);
-    const gustsVal = dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35));
-    const wv = (dx.waveHeight !== undefined && dx.waveHeight !== null) ? parseFloat(dx.waveHeight) : (dx.wave_height ? parseFloat(dx.wave_height) : 0);
-    const wPeriod = (dx.wavePeriod !== undefined && dx.wavePeriod !== null && dx.wavePeriod !== "--") ? parseFloat(dx.wavePeriod) : 0;
+    const wkRaw = Number(dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0));
+    const wkVal = Number.isFinite(wkRaw) ? wkRaw : 2.5;
+    const gustsRaw = Number(dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35)));
+    const gustsVal = Number.isFinite(gustsRaw) ? gustsRaw : (wkVal * 1.35);
+    const wvRaw = parseFloat(dx.waveHeight !== undefined && dx.waveHeight !== null ? dx.waveHeight : (dx.wave_height || 0.2));
+    const wv = Number.isFinite(wvRaw) ? wvRaw : 0.2;
+    const wPeriodRaw = parseFloat(dx.wavePeriod !== undefined && dx.wavePeriod !== null && dx.wavePeriod !== "--" ? dx.wavePeriod : (dx.wave_period || 0));
+    const wPeriod = Number.isFinite(wPeriodRaw) ? wPeriodRaw : 0;
     const tempAireValue = dx.tempAire || dx.temperature || dx.temp || "N/D";
     const tempAguaValue = dx.tempAgua || dx.waterTemperature || dx.water_temp || "N/D";
-    const pm = (dx.precipitation !== undefined && dx.precipitation !== null && dx.precipitation !== "") ? dx.precipitation : 0;
-    const pl = (dx.precipProbability !== undefined && dx.precipProbability !== null && dx.precipProbability !== "") ? dx.precipProbability : (dx.precipitation_probability || 0);
-    const uv = (dx.uvIndex !== undefined && dx.uvIndex !== null && dx.uvIndex !== "--") ? dx.uvIndex : 0;
+    const pm = (dx.precipitation !== undefined && dx.precipitation !== null && dx.precipitation !== "") ? Number(dx.precipitation) || 0 : 0;
+    const pl = (dx.precipProbability !== undefined && dx.precipProbability !== null && dx.precipProbability !== "") ? Number(dx.precipProbability) || 0 : (Number(dx.precipitation_probability) || 0);
+    const uv = (dx.uvIndex !== undefined && dx.uvIndex !== null && dx.uvIndex !== "--") ? Number(dx.uvIndex) || 0 : 0;
 
     const payload = {
         condiciones: {
@@ -1439,7 +1491,7 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
-        }, 2500);
+        }, 3000);
 
         const data = await resp.json();
         if (data.ok && data.coach && (data.coach.resumen || data.coach.veredicto)) {
@@ -1477,46 +1529,48 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
         badgeScore.innerHTML = `<span>${scoreIcon}</span> Score SUP: ${score}/100`;
     }
 
-    // Normalización defensiva de dureza
+    const localRef = window._ultimoCoachLocal || {};
+
+    // Normalización defensiva de dureza (preserva cálculo local si remoto devuelve null)
     const dureza = (coach.dureza_ruta && typeof coach.dureza_ruta === 'object')
         ? {
-            nivel: coach.dureza_ruta.nivel || "Moderada (5/10)",
-            descripcion: coach.dureza_ruta.descripcion || "Exigencia física media acorde a la distancia y viento previsto."
+            nivel: coach.dureza_ruta.nivel || localRef.dureza_ruta?.nivel || "Moderada (5/10)",
+            descripcion: coach.dureza_ruta.descripcion || localRef.dureza_ruta?.descripcion || "Exigencia física media acorde a la distancia y viento previsto."
         }
-        : {
+        : (localRef.dureza_ruta || {
             nivel: typeof coach.dureza_ruta === 'string' ? coach.dureza_ruta : "Moderada (5/10)",
             descripcion: "Exigencia física acorde a la distancia y viento previsto."
-        };
+        });
 
-    // Normalización defensiva de estrategia_viento
+    // Normalización defensiva de estrategia_viento (preserva cálculo local de rumbos downwind)
     const estViento = (coach.estrategia_viento && typeof coach.estrategia_viento === 'object')
         ? {
-            tramo_facil: coach.estrategia_viento.tramo_facil || "Aprovecha los tramos con viento a favor para deslizar la tabla.",
-            tramo_exigente: coach.estrategia_viento.tramo_exigente || "Rema con postura baja en los tramos contra el viento.",
-            consejo_pacing: coach.estrategia_viento.consejo_pacing || "Sal contra el viento y guarda un 30% de energía para el regreso."
+            tramo_facil: coach.estrategia_viento.tramo_facil || localRef.estrategia_viento?.tramo_facil || "Aprovecha los tramos con viento a favor para deslizar la tabla.",
+            tramo_exigente: coach.estrategia_viento.tramo_exigente || localRef.estrategia_viento?.tramo_exigente || "Rema con postura baja en los tramos contra el viento.",
+            consejo_pacing: coach.estrategia_viento.consejo_pacing || localRef.estrategia_viento?.consejo_pacing || "Sal contra el viento y guarda un 30% de energía para el regreso."
         }
-        : {
+        : (localRef.estrategia_viento || {
             tramo_facil: typeof coach.estrategia_viento === 'string' ? coach.estrategia_viento : "Aprovecha los tramos con viento a favor para deslizar la tabla.",
             tramo_exigente: "Rema con postura baja en los tramos contra el viento.",
             consejo_pacing: "Sal contra el viento y guarda un 30% de energía para el regreso."
-        };
+        });
 
     // Normalización defensiva de análisis de zona y peligros
-    let rawPeligros = coach.analisis_zona?.peligros_detectados || coach.peligros_detectados || [];
+    let rawPeligros = coach.analisis_zona?.peligros_detectados || coach.peligros_detectados || localRef.analisis_zona?.peligros_detectados || [];
     if (typeof rawPeligros === 'string') rawPeligros = [rawPeligros];
     if (!Array.isArray(rawPeligros)) rawPeligros = [];
 
     const zona = (coach.analisis_zona && typeof coach.analisis_zona === 'object')
         ? {
-            orografia: coach.analisis_zona.orografia || "Costa abierta con exposición normal al viento.",
+            orografia: coach.analisis_zona.orografia || localRef.analisis_zona?.orografia || "Costa abierta con exposición normal al viento.",
             peligros_detectados: rawPeligros,
-            recomendacion_seguridad: coach.analisis_zona.recomendacion_seguridad || ""
+            recomendacion_seguridad: coach.analisis_zona.recomendacion_seguridad || localRef.analisis_zona?.recomendacion_seguridad || ""
         }
-        : {
+        : (localRef.analisis_zona || {
             orografia: typeof coach.analisis_zona === 'string' ? coach.analisis_zona : "Costa abierta con exposición normal al viento.",
             peligros_detectados: rawPeligros.length > 0 ? rawPeligros : ["Atención a posibles ráfagas en salientes y cabos."],
             recomendacion_seguridad: "Mantén navegación paralela a la costa."
-        };
+        });
 
     let consejosNivel = [];
     if (Array.isArray(coach.consejos_nivel) && coach.consejos_nivel.length > 0) {
@@ -1714,7 +1768,7 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
 
     const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
     const cardIdx = Math.round((((cond.direccion || 0) % 360) + 360) % 360 / 45) % 8;
-    const cardinal = dirs[cardIdx];
+    const cardinal = dirs[cardIdx] || "N";
 
     const isOffshore = ((cond.direccion || 0) >= 150 && (cond.direccion || 0) <= 240);
 
@@ -1780,7 +1834,7 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
     }
 
     const rumboDownwind = Math.round(((cond.direccion || 0) + 180) % 360);
-    const cardDownwind = dirs[Math.round(((rumboDownwind % 360) + 360) % 360 / 45) % 8];
+    const cardDownwind = dirs[Math.round(((rumboDownwind % 360) + 360) % 360 / 45) % 8] || "S";
 
     const tramoFacilTxt = tramoFavor
         ? `El tramo más fácil será "${tramoFavor.nombre}" (rumbo ${tramoFavor.rumbo}°): contarás con viento a favor (downwind) de componente ${cardinal} que impulsará tu avance con mínimo esfuerzo.`
@@ -1843,6 +1897,7 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
             : "Reserva siempre un 30% de tus fuerzas y agua para el tramo final del regreso."
     };
 
+    window._ultimoCoachLocal = coachLocal;
     renderizarCoachProCard(coachLocal, "coach-experto-sup (instantáneo)", userLvl);
 }
 
@@ -1852,21 +1907,26 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
 
     cont.classList.remove('hidden');
 
-    const wkVal = dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0);
-    const gustsVal = dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35));
-    const wv = (dx.waveHeight !== undefined && dx.waveHeight !== null) ? parseFloat(dx.waveHeight) : (dx.wave_height ? parseFloat(dx.wave_height) : 0);
-    const wPeriod = (dx.wavePeriod !== undefined && dx.wavePeriod !== null && dx.wavePeriod !== "--") ? parseFloat(dx.wavePeriod) : 0;
+    const wkRaw = Number(dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0));
+    const wkVal = Number.isFinite(wkRaw) ? wkRaw : 2.5;
+    const gustsRaw = Number(dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35)));
+    const gustsVal = Number.isFinite(gustsRaw) ? gustsRaw : (wkVal * 1.35);
+    const wvRaw = parseFloat(dx.waveHeight !== undefined && dx.waveHeight !== null ? dx.waveHeight : (dx.wave_height || 0.2));
+    const wv = Number.isFinite(wvRaw) ? wvRaw : 0.2;
+    const wPeriodRaw = parseFloat(dx.wavePeriod !== undefined && dx.wavePeriod !== null && dx.wavePeriod !== "--" ? dx.wavePeriod : (dx.wave_period || 0));
+    const wPeriod = Number.isFinite(wPeriodRaw) ? wPeriodRaw : 0;
     const tempAireValue = dx.tempAire || dx.temperature || dx.temp || "N/D";
     const tempAguaValue = dx.tempAgua || dx.waterTemperature || dx.water_temp || "N/D";
-    const pm = (dx.precipitation !== undefined && dx.precipitation !== null && dx.precipitation !== "") ? dx.precipitation : 0;
-    const pl = (dx.precipProbability !== undefined && dx.precipProbability !== null && dx.precipProbability !== "") ? dx.precipProbability : (dx.precipitation_probability || 0);
-    const uv = (dx.uvIndex !== undefined && dx.uvIndex !== null && dx.uvIndex !== "--") ? dx.uvIndex : 0;
+    const pm = (dx.precipitation !== undefined && dx.precipitation !== null && dx.precipitation !== "") ? Number(dx.precipitation) || 0 : 0;
+    const pl = (dx.precipProbability !== undefined && dx.precipProbability !== null && dx.precipProbability !== "") ? Number(dx.precipProbability) || 0 : (Number(dx.precipitation_probability) || 0);
+    const uv = (dx.uvIndex !== undefined && dx.uvIndex !== null && dx.uvIndex !== "--") ? Number(dx.uvIndex) || 0 : 0;
+    const dirVal = Number.isFinite(Number(dx.windDirection)) ? Number(dx.windDirection) : 0;
 
     const payload = {
         condiciones: {
             viento: Number((wkVal * 3.6).toFixed(1)),
             rachas: Number((gustsVal * 3.6).toFixed(1)),
-            direccion: Number(dx.windDirection) || 0,
+            direccion: dirVal,
             oleaje: Number(wv.toFixed(1)),
             periodo: Number(wPeriod),
             tempAire: tempAireValue,
@@ -1884,9 +1944,9 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
     const o = payload.condiciones.oleaje;
     const dir = payload.condiciones.direccion;
     const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
-    const cardinal = dirs[Math.round(((dir % 360) + 360) % 360 / 45) % 8];
+    const cardinal = dirs[Math.round(((dir % 360) + 360) % 360 / 45) % 8] || "N";
     const downwindDir = Math.round((dir + 180) % 360);
-    const cardDownwind = dirs[Math.round(((downwindDir % 360) + 360) % 360 / 45) % 8];
+    const cardDownwind = dirs[Math.round(((downwindDir % 360) + 360) % 360 / 45) % 8] || "S";
 
     cont.innerHTML = `
         <div class="flex flex-col gap-2">
@@ -1916,13 +1976,23 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
-        }, 2000);
+        }, 3000);
 
         const data = await resp.json();
         if (data.ok && data.coach && (data.coach.resumen || data.coach.veredicto)) {
             const coach = data.coach;
             const score = Math.max(0, Math.min(100, Math.round(Number(coach.score) || 70)));
             let scoreCls = score >= 75 ? "text-emerald-400" : (score >= 45 ? "text-amber-400" : "text-rose-400");
+
+            const estVientoTxt = coach.estrategia_viento && typeof coach.estrategia_viento === 'object'
+                ? coach.estrategia_viento.tramo_facil
+                : (typeof coach.estrategia_viento === 'string' ? coach.estrategia_viento : `Con rumbo ~${downwindDir}° (${cardDownwind}) tendrás viento en popa que empujará la tabla.`);
+
+            const segTxt = (Array.isArray(coach.seguridad_estrategia) && coach.seguridad_estrategia[0])
+                ? coach.seguridad_estrategia[0]
+                : "Mantén siempre línea visual clara con la costa y lleva funda estanca con teléfono cargado.";
+
+            const reglaOroTxt = coach.regla_oro || "Reserva siempre un tercio de tu energía y agua para el regreso a la orilla.";
 
             cont.innerHTML = `
                 <div class="flex flex-col gap-2.5">
@@ -1934,21 +2004,18 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
                         <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 ${scoreCls} border border-slate-700 font-bold">Score: ${score}/100</span>
                     </div>
                     <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(coach.resumen || '')}</p>
-                    ${coach.estrategia_viento && coach.estrategia_viento.tramo_facil ? `
                     <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
                         <span class="shrink-0">💨</span>
-                        <span><strong>Viento a favor:</strong> ${esc(coach.estrategia_viento.tramo_facil)}</span>
-                    </div>` : ''}
-                    ${coach.seguridad_estrategia && coach.seguridad_estrategia[0] ? `
+                        <span><strong>Viento a favor:</strong> ${esc(estVientoTxt)}</span>
+                    </div>
                     <div class="text-[11px] text-sky-300 flex items-start gap-1.5 bg-sky-950/40 p-2 rounded-lg border border-sky-500/20">
                         <span class="shrink-0">🛡️</span>
-                        <span>${esc(coach.seguridad_estrategia[0])}</span>
-                    </div>` : ''}
-                    ${coach.regla_oro ? `
+                        <span>${esc(segTxt)}</span>
+                    </div>
                     <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20">
                         <span class="shrink-0">💡</span>
-                        <span class="italic font-semibold">${esc(coach.regla_oro)}</span>
-                    </div>` : ''}
+                        <span class="italic font-semibold">${esc(reglaOroTxt)}</span>
+                    </div>
                 </div>
             `;
         }
@@ -1979,6 +2046,12 @@ window.guardarEventoClub = guardarEventoClub;
 window.sincronizarRutasPendientes = sincronizarRutasPendientes;
 window.normalizarYLimitarRutaGPS = normalizarYLimitarRutaGPS;
 window.cargarRutaDeportivaEnMapa = cargarRutaDeportivaEnMapa;
+window.iniciarCreacionQuedadaClub = iniciarCreacionQuedadaClub;
+window.cancelarCreacionQuedadaClub = cancelarCreacionQuedadaClub;
+window.deshacerUltimoPuntoQuedada = deshacerUltimoPuntoQuedada;
+window.reiniciarPuntosQuedada = reiniciarPuntosQuedada;
+window.guardarQuedadaDesdeMapa = guardarQuedadaDesdeMapa;
+window.actualizarMetricasQuedada = actualizarMetricasQuedada;
 window.addEventListener('online', () => {
     if (appState.sesionActual?.user?.id) void sincronizarRutasPendientes();
 });
