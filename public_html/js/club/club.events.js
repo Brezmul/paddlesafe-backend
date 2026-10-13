@@ -3,6 +3,7 @@ import { esc, safeUrl, IMG_FALLBACK } from '../utils.js';
 
 // Cache ligero en memoria para no saturar APIs meteorológicas en la misma sesión
 const weatherCache = new Map();
+const eventCache = new Map();
 
 export const ClubEvents = {
     async render(container, clubId, isMember = true, isAdmin = false) {
@@ -106,8 +107,9 @@ export const ClubEvents = {
                 return this.renderTarjetaEvento(ev, creador, asistentes.length, esAsistente, puedeEliminar, clubId);
             }).join('');
 
-            // Inicializar mini-mapas Leaflet para cada tarjeta
+            // Inicializar mini-mapas Leaflet para cada tarjeta y guardar en cache
             eventos.forEach(ev => {
+                eventCache.set(String(ev.id), ev);
                 this.inicializarMiniMapa(ev);
                 this.cargarPrevisionEvento(ev);
             });
@@ -177,7 +179,7 @@ export const ClubEvents = {
                 <!-- 'Captura' / Previsualización de la Ruta en Mapa -->
                 <div class="relative w-full h-36 bg-slate-200 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700">
                     <div id="minimap-event-${ev.id}" class="w-full h-full"></div>
-                    <button type="button" onclick="window.Club.abrirRutaEnMapaGrande('${esc(JSON.stringify(ev.ruta_json))}', '${esc(ev.nombre)}')" class="absolute bottom-2 right-2 z-[400] px-3 py-1 bg-slate-900/80 hover:bg-slate-900 text-white font-bold text-[10px] rounded-lg shadow-md backdrop-blur-xs flex items-center gap-1 cursor-pointer transition-colors">
+                    <button type="button" onclick="window.ClubEvents.abrirEventoEnMapa('${esc(ev.id)}')" class="absolute bottom-2 right-2 z-[400] px-3 py-1 bg-slate-900/80 hover:bg-slate-900 text-white font-bold text-[10px] rounded-lg shadow-md backdrop-blur-xs flex items-center gap-1 cursor-pointer transition-colors">
                         <span>🔍 Abrir en mapa</span>
                     </button>
                 </div>
@@ -458,6 +460,20 @@ export const ClubEvents = {
             console.error('[club.events] error al eliminar quedada:', err);
             alert("Error al eliminar la quedada: " + (err.message || err));
         }
+    },
+
+    abrirEventoEnMapa(eventoId) {
+        const ev = eventCache.get(String(eventoId));
+        if (!ev || !ev.ruta_json) {
+            return alert("No se encontró la ruta de esta quedada.");
+        }
+        if (typeof window.cargarRutaEnMapaGrande === 'function') {
+            window.cargarRutaEnMapaGrande(ev.ruta_json, ev.nombre || 'Quedada');
+        } else {
+            alert("El mapa no está listo todavía.");
+        }
     }
 };
+
+window.ClubEvents = ClubEvents;
 

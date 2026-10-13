@@ -89,36 +89,25 @@ export const socialNotifications = {
 
 export function mostrarPanelAvisos() {
     let m = document.getElementById('notificationsModal');
-    if (!m) {
-        const modalHTML = `
-        <div id="notificationsModal" class="fixed inset-0 z-[9999] hidden flex-col items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity opacity-0">
-            <div class="bg-slate-50 dark:bg-slate-900 w-[90%] max-w-md rounded-[32px] shadow-2xl p-6 transform scale-95 transition-transform relative max-h-[80vh] flex flex-col">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-200 dark:border-slate-700 pb-3">
-                    <h3 class="text-lg font-black text-marine dark:text-white uppercase tracking-widest">Avisos</h3>
-                    <div class="flex gap-3">
-                        <button onclick="socialNotifications.marcarTodasLeidas()" class="text-[10px] text-water dark:text-sky-400 font-bold uppercase tracking-widest bg-sky-50 dark:bg-sky-900/30 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">✓ Leídas</button>
-                        <button onclick="cerrarPanelAvisos()" class="text-slate-400 hover:text-red-500 transition-colors">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                        </button>
-                    </div>
-                </div>
-                <div id="notifContainerList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2"></div>
-            </div>
-        </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-        m = document.getElementById('notificationsModal');
-    }
+    if (!m) return;
     m.classList.remove('hidden');
     m.classList.add('flex');
-    requestAnimationFrame(() => { m.classList.remove('opacity-0'); m.querySelector('div').classList.remove('scale-95'); });
-    socialNotifications.cargarNotificaciones();
+    requestAnimationFrame(() => { 
+        m.classList.remove('opacity-0'); 
+        const box = m.querySelector('div');
+        if (box) box.classList.remove('scale-95'); 
+    });
+    if (socialNotifications && typeof socialNotifications.cargarNotificaciones === 'function') {
+        socialNotifications.cargarNotificaciones();
+    }
 }
 
 export function cerrarPanelAvisos() {
     const m = document.getElementById('notificationsModal');
     if (!m) return;
     m.classList.add('opacity-0');
-    m.querySelector('div').classList.add('scale-95');
+    const box = m.querySelector('div');
+    if (box) box.classList.add('scale-95');
     setTimeout(() => { m.classList.add('hidden'); m.classList.remove('flex'); }, 300);
 }
 
@@ -334,10 +323,20 @@ export async function cambiarTabAmistades(tab) {
     const btnLista = document.getElementById('tabMisAmigos');
     const btnSol = document.getElementById('tabSolicitudesAmistad');
     const c = document.getElementById('friendSystemContent');
+    if (!c) return;
+
+    if (!appState.sesionActual || appState.esInvitado) {
+        c.innerHTML = `
+            <div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner mt-4 p-4">
+                <span class="text-3xl block mb-2 opacity-50">🔒</span>
+                <p class="text-xs font-bold text-slate-500 dark:text-slate-400">Inicia sesión para gestionar tus amistades.</p>
+            </div>`;
+        return;
+    }
     
     if(tab === 'lista') {
-        btnLista.className = "h-10 px-2 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-lg shadow flex-1 cursor-pointer transition-colors";
-        btnSol.className = "h-10 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors relative";
+        if (btnLista) btnLista.className = "h-10 px-2 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-lg shadow flex-1 cursor-pointer transition-colors";
+        if (btnSol) btnSol.className = "h-10 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors relative";
         c.innerHTML = '<p class="text-center text-slate-400 dark:text-slate-500 mt-5 animate-pulse">Cargando...</p>';
         
         const { data } = await supabaseClient.from('amistades').select('usuario_id, amigo_id, perfiles!usuario_id(id,nombre,avatar_url), perfiles_amigo:perfiles!amigo_id(id,nombre,avatar_url)').eq('estado', 'aceptada').or(`usuario_id.eq.${appState.sesionActual.user.id},amigo_id.eq.${appState.sesionActual.user.id}`);

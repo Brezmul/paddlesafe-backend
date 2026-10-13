@@ -184,7 +184,14 @@ const ClubFacade = {
                         ${rutas.map(r => {
                             const ruta = r.rutas;
                             if (!ruta) return '';
-                            const coordsJson = JSON.stringify(ruta.ruta_json || []).replace(/"/g, '&quot;');
+                            if (!window.__rutasUsuarioCache) window.__rutasUsuarioCache = new Map();
+                            window.__rutasUsuarioCache.set(String(ruta.id), {
+                                id: ruta.id,
+                                title: ruta.ubicacion || 'Travesía GPS',
+                                distance_km: Number(ruta.distancia_km || 0),
+                                duration_seconds: Number(ruta.tiempo_minutos || 0) * 60,
+                                route_coordinates: ruta.ruta_json
+                            });
                             const nomEsc = esc(ruta.ubicacion || 'Travesía GPS');
                             return `
                                 <div class="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
@@ -197,7 +204,7 @@ const ClubFacade = {
                                     </div>
                                     <div class="flex items-center gap-2 shrink-0">
                                         <span class="px-2.5 py-1 bg-water/10 text-water dark:bg-sky-500/20 dark:text-sky-400 rounded-lg text-xs font-black">${ruta.distancia_km || 0} km</span>
-                                        <button type="button" onclick="window.Club.abrirRutaEnMapaGrande('${coordsJson}', '${nomEsc}')" class="px-2.5 py-1 bg-marine dark:bg-water text-white rounded-lg text-xs font-bold active:scale-95 transition-transform cursor-pointer" title="Ver en Mapa">🗺️</button>
+                                        <button type="button" onclick="if(window.verRutaEnMapa) window.verRutaEnMapa('${esc(ruta.id)}'); else if(window.Club) window.Club.abrirRutaEnMapaGrande(window.__rutasUsuarioCache?.get('${esc(ruta.id)}')?.route_coordinates, '${nomEsc}');" class="px-2.5 py-1 bg-marine dark:bg-water text-white rounded-lg text-xs font-bold active:scale-95 transition-transform cursor-pointer" title="Ver en Mapa">🗺️</button>
                                     </div>
                                 </div>`;
                         }).join('')}

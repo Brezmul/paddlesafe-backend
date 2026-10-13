@@ -327,9 +327,20 @@ export const ClubRender = {
                 return;
             }
 
+            const miUserId = appState.sesionActual?.user?.id;
+            const clubActivoId = ClubState.activeId;
+            const clubActivo = clubActivoId ? ClubState.myClubs?.find(c => c.club_id === clubActivoId) : null;
+            const clubRol = (clubActivo?.club_rol || '').toLowerCase();
+            const puedeInvitar = clubActivoId && (clubRol === 'creador' || clubRol === 'admin' || clubActivo?.creador_id === miUserId);
+
             lista.innerHTML = paddlers.map(p => {
                 const avatar = safeUrl(p.avatar_url, IMG_FALLBACK);
                 const vipTag = p.is_vip ? `<span class="bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-[9px] px-1.5 py-0.5 rounded uppercase font-black ml-1">VIP</span>` : '';
+                const esYo = p.id === miUserId;
+                const btnInvitar = (puedeInvitar && !esYo) ? `
+                    <button type="button" onclick="if(window.Club && window.Club.invitarPaddler) window.Club.invitarPaddler('${esc(p.id)}', '${esc(clubActivoId)}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform shrink-0 cursor-pointer flex items-center gap-1" title="Invitar a tu club">
+                        <span>➕</span> Invitar
+                    </button>` : '';
 
                 return `
                     <div class="flex items-center justify-between p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm gap-3 hover:shadow-md transition-shadow">
@@ -340,7 +351,10 @@ export const ClubRender = {
                                 <p class="text-[10px] text-slate-400 font-bold truncate">Nivel ${p.nivel || 1} • ${p.puntos || 0} pts • ${Number(p.km_totales || 0).toFixed(1)} km</p>
                             </div>
                         </div>
-                        <button type="button" onclick="if(window.navigateSPA) window.navigateSPA('/user/${esc(p.id)}'); else if(window.abrirPerfilPublicoSPA) window.abrirPerfilPublicoSPA('${esc(p.id)}'); if(window.Club) window.Club.cerrarModal();" class="px-3.5 py-1.5 bg-water hover:bg-sky-600 text-white rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform shrink-0 cursor-pointer">Ver Perfil</button>
+                        <div class="flex items-center gap-2 shrink-0">
+                            ${btnInvitar}
+                            <button type="button" onclick="if(window.navigateSPA) window.navigateSPA('/user/${esc(p.id)}'); else if(window.abrirPerfilPublicoSPA) window.abrirPerfilPublicoSPA('${esc(p.id)}'); if(window.Club) window.Club.cerrarModal();" class="px-3.5 py-1.5 bg-water hover:bg-sky-600 text-white rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform shrink-0 cursor-pointer">Ver Perfil</button>
+                        </div>
                     </div>`;
             }).join('');
         } catch (e) {
