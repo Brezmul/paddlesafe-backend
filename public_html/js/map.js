@@ -8,11 +8,18 @@ import { ClubState } from './club/state.js';
 const BACKEND_API_URL = 'https://paddlesafe-backend.vercel.app/api/backend';
 
 function crearFranjaForecast(horaSalida, duracionMinutos = 120) {
-    const match = /^([01]\d|2[0-3]):[0-5]\d$/.exec(horaSalida || '');
-    if (!match) throw new Error('La hora de salida no es válida.');
-
-    const horaInicio = Number(match[1]);
-    const horasDuracion = Math.max(1, Math.ceil(Number(duracionMinutos) / 60));
+    let horaInicio = 10;
+    if (typeof horaSalida === 'string' && horaSalida.trim()) {
+        const match = /(\d{1,2}):?(\d{2})?/.exec(horaSalida);
+        if (match) {
+            const h = parseInt(match[1], 10);
+            if (!isNaN(h) && h >= 0 && h <= 23) {
+                horaInicio = h;
+            }
+        }
+    }
+    const durMin = Math.max(30, Number(duracionMinutos) || 120);
+    const horasDuracion = Math.max(1, Math.ceil(durMin / 60));
     const horaFin = Math.min(24, horaInicio + horasDuracion);
     return `Salida (${String(horaInicio).padStart(2, '0')}:00 - ${String(horaFin).padStart(2, '0')}:00)`;
 }
@@ -192,16 +199,37 @@ export function toggleModoTravesia() {
 
 export function toggleRutaLibre() {
     if(modoTravesiaActivo) toggleModoTravesia();
+    if (modoRutaLibreActivo && marcadoresRuta.length >= 2) {
+        modoRutaLibreActivo = false;
+        const b = document.getElementById('btnRutaLibre');
+        if (b) {
+            b.classList.replace('bg-red-500','bg-teal-600');
+            b.classList.replace('hover:bg-red-400','hover:bg-teal-500');
+            b.innerHTML = "🔗 Multipunto";
+        }
+        const leyenda = document.getElementById('leyendaMapa');
+        if (leyenda) leyenda.classList.replace('flex','hidden');
+        const msg = document.getElementById('mapMsg');
+        if (msg) msg.textContent = "✅ Ruta multipunto fijada. Calculando análisis...";
+        consultarRutaPro();
+        return;
+    }
     modoRutaLibreActivo = !modoRutaLibreActivo;
     const b = document.getElementById('btnRutaLibre'); const msg = document.getElementById('mapMsg');
     if(modoRutaLibreActivo) {
         b.classList.replace('bg-teal-600','bg-red-500'); b.classList.replace('hover:bg-teal-500','hover:bg-red-400');
-        b.innerHTML = "❌ Cancelar Multi..."; document.getElementById('leyendaMapa').classList.replace('flex','hidden');
+        b.innerHTML = "❌ Cancelar Multi...";
+        const leyenda = document.getElementById('leyendaMapa');
+        if (leyenda) leyenda.classList.replace('flex','hidden');
         if(marcador) map.removeLayer(marcador); limpiarRuta(); msg.textContent = "📍 Toca el mapa para añadir puntos";
     } else {
         b.classList.replace('bg-red-500','bg-teal-600'); b.classList.replace('hover:bg-red-400','hover:bg-teal-500');
-        b.innerHTML = "🔗 Multipunto"; document.getElementById('leyendaMapa').classList.replace('flex','hidden');
-        document.getElementById('multipuntoToolbar').classList.replace('flex','hidden'); limpiarRuta();
+        b.innerHTML = "🔗 Multipunto";
+        const leyenda = document.getElementById('leyendaMapa');
+        if (leyenda) leyenda.classList.replace('flex','hidden');
+        const toolbar = document.getElementById('multipuntoToolbar');
+        if (toolbar) toolbar.classList.replace('flex','hidden');
+        limpiarRuta();
         if(map) marcador = L.marker([latitudActual,longitudActual]).addTo(map); msg.textContent = "📍 Toca el mar para Punto Fijo o Traza Ruta Completa";
     }
 }
@@ -234,8 +262,11 @@ export function gestionarClicRuta(l) {
         const dist = (p1.distanceTo(p2) / 1000).toFixed(2);
         const midLat = (p1.lat + p2.lat) / 2; const midLng = (p1.lng + p2.lng) / 2;
         const etiq = L.marker([midLat, midLng], { icon: L.divIcon({ className: 'dist-label-map', html: `${dist} km`, iconSize: [null, null] }) }).addTo(map);
-        etiquetasDistancia.push(etiq);
-        map.fitBounds(lineaRuta.getBounds(), {padding:[50,50]}); msg.textContent = "✅ Ruta marcada. Calcula abajo.";
+        map.fitBounds(lineaRuta.getBounds(), {padding:[50,50]}); msg.textContent = "✅ Ruta marcada. Analizando con el Coach...";
+        const panelPro = document.getElementById("panelPro");
+        if (panelPro && panelPro.style.gridTemplateRows !== "0fr") {
+            consultarRutaPro();
+        }
     } else {
         // Permite corregir el Punto B sin borrar el Punto A
         map.removeLayer(marcadoresRuta[1]);
@@ -401,13 +432,13 @@ export async function consultarBasico() {
             const lElBasic = document.getElementById("basicLevel");
             const veredicto = calcularVeredicto({
                 alerta: a, vientoKmh: parseFloat(wk), olaM: wv !== null ? parseFloat(wv) : NaN,
-                rachasKmh: dx.windGusts != null ? Number(dx.windGusts) * 3.6 : NaN, nivelUsuario: u
+                rachasKmh: dx.windGusts != null ? Number(dx.windGusts) * 3.6 : NaN, nivelUsuario: u || "Intermedio"
             });
             
             lElBasic.className = `text-sm font-black text-center w-full px-2 py-1 ${veredicto.cls}`; 
             lElBasic.textContent = veredicto.estado;
             res.innerHTML = `<strong>📍 ${esc((p.received?.location || loc).split(',')[0])}</strong><br>📅 ${esc(p.received?.date || d)} | 🕒 ${esc(p.received?.timeRange || r)}<br><br>💡 <strong>Veredicto:</strong> ${esc(veredicto.mensaje)}`;
-            solicitarCoachIABasico(dx, u, loc);
+            solicitarCoachIABasico(dx, u || "Intermedio", loc);
         } else { 
             res.textContent = "Error del servidor."; 
             const bC = document.getElementById('basicCoachContainer'); if (bC) bC.classList.add('hidden');
@@ -491,9 +522,20 @@ export async function consultarRutaPro() {
     
     let lat, lon;
     if (marcadoresRuta.length >= 2) {
-        lat = marcadoresRuta[0].getLatLng().lat.toFixed(5); lon = marcadoresRuta[0].getLatLng().lng.toFixed(5);
+        lat = Number(marcadoresRuta[0].getLatLng().lat.toFixed(5));
+        lon = Number(marcadoresRuta[0].getLatLng().lng.toFixed(5));
     } else {
-        const partes = locVal.split(','); lat = parseFloat(partes[0]); lon = parseFloat(partes[1]);
+        const matches = locVal ? locVal.match(/-?\d+(?:\.\d+)?/g) : null;
+        if (matches && matches.length >= 2) {
+            lat = parseFloat(matches[0]);
+            lon = parseFloat(matches[1]);
+        } else if (Number.isFinite(latitudActual) && Number.isFinite(longitudActual)) {
+            lat = Number(latitudActual.toFixed(5));
+            lon = Number(longitudActual.toFixed(5));
+        } else {
+            lat = 38.3452;
+            lon = -0.4810;
+        }
     }
     
     let duracionEstimada = 120;
@@ -1491,7 +1533,7 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
-        }, 3000);
+        }, 8500);
 
         const data = await resp.json();
         if (data.ok && data.coach && (data.coach.resumen || data.coach.veredicto)) {
@@ -1721,8 +1763,8 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
             ` : ''}
         </div>
 
-        <!-- 4. BLOQUE DOBLE: TÉCNICA NIVEL Y MATERIAL -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <!-- 4. BLOQUE TRIPLE: TÉCNICA NIVEL, SEGURIDAD Y MATERIAL -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <!-- Consejos por nivel -->
             <div class="bg-slate-800/70 rounded-2xl p-3.5 border border-teal-500/20 flex flex-col gap-2">
                 <span class="text-[11px] font-black uppercase tracking-wider text-teal-400 flex items-center gap-1.5 border-b border-slate-700/50 pb-1.5">
@@ -1733,10 +1775,20 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
                 </ul>
             </div>
 
+            <!-- Seguridad y Protocolo -->
+            <div class="bg-slate-800/70 rounded-2xl p-3.5 border border-sky-500/20 flex flex-col gap-2">
+                <span class="text-[11px] font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5 border-b border-slate-700/50 pb-1.5">
+                    <span>🛡️</span> Seguridad & Protocolo
+                </span>
+                <ul class="flex flex-col gap-2">
+                    ${seguridadItems}
+                </ul>
+            </div>
+
             <!-- Material Clave -->
             <div class="bg-slate-800/70 rounded-2xl p-3.5 border border-amber-500/20 flex flex-col gap-2">
                 <span class="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5 border-b border-slate-700/50 pb-1.5">
-                    <span>🎒</span> Material & Seguridad SUP
+                    <span>🎒</span> Material Recomendado
                 </span>
                 <ul class="flex flex-col gap-2">
                     ${materialItems}
@@ -1948,73 +2000,171 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
     const downwindDir = Math.round((dir + 180) % 360);
     const cardDownwind = dirs[Math.round(((downwindDir % 360) + 360) % 360 / 45) % 8] || "S";
 
+    let scoreLocal = 85;
+    if (v >= 18) scoreLocal -= 40;
+    else if (v >= 12) scoreLocal -= 20;
+    if (o > 0.8) scoreLocal -= 25;
+    else if (o > 0.4) scoreLocal -= 10;
+    if (userLvl === "Principiante" && (v > 11 || o > 0.3)) scoreLocal -= 25;
+    scoreLocal = Math.max(15, Math.min(100, scoreLocal));
+    const scoreLocalCls = scoreLocal >= 75 ? "text-emerald-400 border-emerald-500/30 bg-emerald-950/60" : (scoreLocal >= 45 ? "text-amber-400 border-amber-500/30 bg-amber-950/60" : "text-rose-400 border-rose-500/30 bg-rose-950/60");
+
+    let tecLocal = "Rotación de tronco (core) manteniendo rodillas desbloqueadas y mirada fija en el horizonte.";
+    if (userLvl === "Principiante") {
+        tecLocal = "Si notas desequilibrio o rachas imprevistas, pasa de inmediato a posición de rodillas para no derivar.";
+    } else if (userLvl === "Avanzado") {
+        tecLocal = "Aprovecha la ondulación atrasando el pie dominante para surfear el chop con bombeo enérgico.";
+    }
+
+    let matLocal = o > 0.6 ? "Leash recto al tobillo, chaleco 50N y funda estanca con móvil cargado." : "Leash coiled de rodilla, chaleco 50N y protección solar.";
+    let segLocal = v > 13
+        ? `Viento de ${v} km/h (${cardinal}). Inicia la travesía contra el viento para que el regreso sea con viento a favor.`
+        : "Condiciones estables. Mantén referencia visual fija en tierra y navega paralelo a la costa.";
+
     cont.innerHTML = `
-        <div class="flex flex-col gap-2">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">✨ Coach (${esc(userLvl || 'Intermedio')})</span>
-                <span class="text-[10px] text-slate-400 font-mono">Consejo Inmediato</span>
+        <div class="flex flex-col gap-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-base">✨</span>
+                    <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">Coach SUP (${esc(userLvl || 'Intermedio')})</span>
+                </div>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded ${scoreLocalCls} border font-bold">Score: ${scoreLocal}/100</span>
             </div>
-            <p class="text-xs text-slate-200 leading-relaxed">
+            <p class="text-xs text-slate-200 leading-relaxed font-medium">
                 ${v > 14 
-                    ? `Viento notable de ${v} km/h (${cardinal}): Comienza navegando en contra del viento para que la vuelta sea con viento a favor (downwind) y menos exigente.` 
-                    : `Viento plácido (${v} km/h) y mar accesible (${o}m): Condiciones idóneas para trabajar cadencia fluida y rotación del core.`}
+                    ? `Viento notable de ${v} km/h (${cardinal}) con olas de ${o}m. Requiere anticipación táctica y control de deriva.` 
+                    : `Viento suave (${v} km/h) y mar accesible (${o}m). Excelente ventana para trabajar cadencia fluida y técnica.`}
             </p>
-            <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
-                <span class="shrink-0">💨</span>
-                <span><strong>Momento más fácil:</strong> Con rumbo ~${downwindDir}° (${cardDownwind}) tendrás viento en popa que empujará la tabla.</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                <div class="bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-500/20 text-emerald-200 flex items-start gap-2">
+                    <span class="shrink-0 text-sm">💨</span>
+                    <div>
+                        <strong class="text-emerald-300 block mb-0.5">Viento a favor (Downwind):</strong>
+                        <span>Con rumbo ~${downwindDir}° (${cardDownwind}) tendrás viento en popa que empujará la tabla.</span>
+                    </div>
+                </div>
+                <div class="bg-rose-950/30 p-2.5 rounded-xl border border-rose-500/20 text-rose-200 flex items-start gap-2">
+                    <span class="shrink-0 text-sm">🛑</span>
+                    <div>
+                        <strong class="text-rose-300 block mb-0.5">Tramo más exigente:</strong>
+                        <span>Remando hacia ~${dir}° (${cardinal}) tendrás viento en contra; baja la postura de remada.</span>
+                    </div>
+                </div>
             </div>
-            <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20">
-                <span class="shrink-0">💡</span>
-                <span class="italic font-semibold">Regla del 30%: Reserva siempre un tercio de tu energía y agua para el regreso a la orilla.</span>
+            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-teal-500/20 text-[11px] text-teal-200 flex items-start gap-2">
+                <span class="shrink-0 text-sm">🏄</span>
+                <div>
+                    <strong class="text-teal-300 block mb-0.5">Clave técnica (${esc(userLvl || 'Intermedio')}):</strong>
+                    <span>${esc(tecLocal)}</span>
+                </div>
+            </div>
+            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-sky-500/20 text-[11px] text-sky-200 flex items-start gap-2">
+                <span class="shrink-0 text-sm">🛡️</span>
+                <div>
+                    <strong class="text-sky-300 block mb-0.5">Seguridad & Material:</strong>
+                    <span>${esc(segLocal)} Material: ${esc(matLocal)}</span>
+                </div>
+            </div>
+            <div class="bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-teal-500/20 p-2.5 rounded-xl border border-amber-500/30 text-[11px] text-amber-200 flex items-start gap-2">
+                <span class="shrink-0 text-sm">💡</span>
+                <span class="italic font-semibold"><strong>Regla del 30%:</strong> Reserva siempre un tercio de tu energía y agua para el regreso a la orilla.</span>
             </div>
         </div>
     `;
 
-    // Enriquecimiento opcional en segundo plano
+    // Enriquecimiento con IA en segundo plano
     try {
         const resp = await fetchConTimeout(`${BACKEND_API_URL}?action=coach`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
-        }, 3000);
+        }, 8500);
 
         const data = await resp.json();
         if (data.ok && data.coach && (data.coach.resumen || data.coach.veredicto)) {
             const coach = data.coach;
             const score = Math.max(0, Math.min(100, Math.round(Number(coach.score) || 70)));
-            let scoreCls = score >= 75 ? "text-emerald-400" : (score >= 45 ? "text-amber-400" : "text-rose-400");
+            let scoreCls = score >= 75 ? "text-emerald-400 border-emerald-500/30 bg-emerald-950/60" : (score >= 45 ? "text-amber-400 border-amber-500/30 bg-amber-950/60" : "text-rose-400 border-rose-500/30 bg-rose-950/60");
 
-            const estVientoTxt = coach.estrategia_viento && typeof coach.estrategia_viento === 'object'
+            const estVientoFacil = coach.estrategia_viento && typeof coach.estrategia_viento === 'object'
                 ? coach.estrategia_viento.tramo_facil
-                : (typeof coach.estrategia_viento === 'string' ? coach.estrategia_viento : `Con rumbo ~${downwindDir}° (${cardDownwind}) tendrás viento en popa que empujará la tabla.`);
+                : (typeof coach.estrategia_viento === 'string' ? coach.estrategia_viento : `Con rumbo ~${downwindDir}° (${cardDownwind}) tendrás viento en popa empujando la tabla.`);
 
-            const segTxt = (Array.isArray(coach.seguridad_estrategia) && coach.seguridad_estrategia[0])
-                ? coach.seguridad_estrategia[0]
-                : "Mantén siempre línea visual clara con la costa y lleva funda estanca con teléfono cargado.";
+            const estVientoExigente = coach.estrategia_viento && typeof coach.estrategia_viento === 'object'
+                ? coach.estrategia_viento.tramo_exigente
+                : `Evita regresar con rumbo directo hacia el viento (${cardinal}) cuando estés cansado.`;
+
+            let tecTips = [];
+            if (Array.isArray(coach.consejos_nivel) && coach.consejos_nivel.length > 0) tecTips = coach.consejos_nivel;
+            else if (Array.isArray(coach.tecnica_postura) && coach.tecnica_postura.length > 0) tecTips = coach.tecnica_postura;
+            else if (typeof coach.consejos_nivel === 'string') tecTips = [coach.consejos_nivel];
+            else tecTips = [tecLocal];
+
+            let segTips = [];
+            if (Array.isArray(coach.seguridad_estrategia) && coach.seguridad_estrategia.length > 0) segTips = coach.seguridad_estrategia;
+            else if (typeof coach.seguridad_estrategia === 'string') segTips = [coach.seguridad_estrategia];
+            else segTips = [segLocal];
+
+            let matTips = [];
+            if (Array.isArray(coach.material_recomendado) && coach.material_recomendado.length > 0) matTips = coach.material_recomendado;
+            else if (typeof coach.material_recomendado === 'string') matTips = [coach.material_recomendado];
+            else matTips = [matLocal];
 
             const reglaOroTxt = coach.regla_oro || "Reserva siempre un tercio de tu energía y agua para el regreso a la orilla.";
 
             cont.innerHTML = `
-                <div class="flex flex-col gap-2.5">
+                <div class="flex flex-col gap-3">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                         <div class="flex items-center gap-1.5">
                             <span class="text-base">✨</span>
-                            <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">Coach (${esc(userLvl || 'Intermedio')})</span>
+                            <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">Coach SUP (${esc(userLvl || 'Intermedio')})</span>
                         </div>
-                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 ${scoreCls} border border-slate-700 font-bold">Score: ${score}/100</span>
+                        <span class="text-[10px] font-mono px-2 py-0.5 rounded ${scoreCls} border font-bold">Score: ${score}/100</span>
                     </div>
-                    <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(coach.resumen || '')}</p>
-                    <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
-                        <span class="shrink-0">💨</span>
-                        <span><strong>Viento a favor:</strong> ${esc(estVientoTxt)}</span>
+                    <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-emerald-400 block mb-1">🧭 ${esc(coach.veredicto || 'EVALUACIÓN DEL COACH')}</span>
+                        <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(coach.resumen || '')}</p>
                     </div>
-                    <div class="text-[11px] text-sky-300 flex items-start gap-1.5 bg-sky-950/40 p-2 rounded-lg border border-sky-500/20">
-                        <span class="shrink-0">🛡️</span>
-                        <span>${esc(segTxt)}</span>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                        <div class="bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-500/20 text-emerald-200 flex items-start gap-2">
+                            <span class="shrink-0 text-sm">💨</span>
+                            <div>
+                                <strong class="text-emerald-300 block mb-0.5">Viento a favor (Downwind):</strong>
+                                <span>${esc(estVientoFacil)}</span>
+                            </div>
+                        </div>
+                        <div class="bg-rose-950/30 p-2.5 rounded-xl border border-rose-500/20 text-rose-200 flex items-start gap-2">
+                            <span class="shrink-0 text-sm">🛑</span>
+                            <div>
+                                <strong class="text-rose-300 block mb-0.5">Tramo más exigente:</strong>
+                                <span>${esc(estVientoExigente)}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20">
-                        <span class="shrink-0">💡</span>
-                        <span class="italic font-semibold">${esc(reglaOroTxt)}</span>
+                    <div class="bg-slate-800/80 p-2.5 rounded-xl border border-teal-500/20 text-[11px] text-teal-200 flex items-start gap-2">
+                        <span class="shrink-0 text-sm">🏄</span>
+                        <div>
+                            <strong class="text-teal-300 block mb-0.5">Claves técnicas para ${esc(userLvl || 'Intermedio')}:</strong>
+                            <ul class="list-disc list-inside space-y-1 text-slate-300">
+                                ${tecTips.map(t => `<li>${esc(t)}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800/80 p-2.5 rounded-xl border border-sky-500/20 text-[11px] text-sky-200 flex items-start gap-2">
+                        <span class="shrink-0 text-sm">🛡️</span>
+                        <div>
+                            <strong class="text-sky-300 block mb-0.5">Seguridad & Protocolo:</strong>
+                            <ul class="list-disc list-inside space-y-1 text-slate-300">
+                                ${segTips.map(s => `<li>${esc(s)}</li>`).join('')}
+                            </ul>
+                            <div class="mt-1.5 pt-1.5 border-t border-slate-700/60 text-slate-400">
+                                <strong class="text-amber-300">Material:</strong> ${esc(matTips.join(' • '))}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-teal-500/20 p-2.5 rounded-xl border border-amber-500/30 text-[11px] text-amber-200 flex items-start gap-2">
+                        <span class="shrink-0 text-sm">💡</span>
+                        <span class="italic font-semibold"><strong>Regla de Oro:</strong> "${esc(reglaOroTxt)}"</span>
                     </div>
                 </div>
             `;
