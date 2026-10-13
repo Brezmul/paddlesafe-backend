@@ -260,7 +260,7 @@ export function restaurarFormularioAuth() {
                     ${appState.esInvitado ? 'Salir del Modo Invitado' : 'Cerrar Sesión'}
                 </button>
                 <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.25</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.26</p>
                     <button type="button" onclick="if(window.forzarActualizacion) window.forzarActualizacion(); else window.location.reload();" class="mt-1 text-[9px] text-water dark:text-sky-400 hover:underline font-bold uppercase tracking-wider cursor-pointer">🔄 Buscar actualizaciones / Limpiar caché</button>
                 </div>
             </div>
@@ -874,7 +874,7 @@ export async function solicitarFeedbackIARuta(ruta) {
         }
     }
 
-    // 3. Enviar datos de la ruta al backend para el análisis con IA (Gemini 1.5 Flash)
+    // 3. Enviar datos de la ruta al backend para el análisis con IA (Gemini Flash)
     const BACKEND_API_URL = 'https://paddlesafe-backend.vercel.app/api/backend';
     const payload = {
         routeId: ruta.id,
@@ -892,14 +892,14 @@ export async function solicitarFeedbackIARuta(ruta) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
-        }, 9000);
+        }, 2500);
 
         const data = await resp.json();
-        if (data.ok && data.ai_feedback) {
+        if (data.ok && data.ai_feedback && (data.ai_feedback.bien || data.ai_feedback.mejora || data.ai_feedback.proxima_salida)) {
             feedbackResultado = data.ai_feedback;
         }
     } catch (errApi) {
-        console.warn('[solicitarFeedbackIARuta] Fallo en API remota, usando motor experto local:', errApi);
+        console.warn('[solicitarFeedbackIARuta] Aviso en API remota, usando motor experto local:', errApi);
     }
 
     if (!feedbackResultado) {
@@ -989,7 +989,44 @@ export async function abrirModalDetallesRuta(rutaId) {
         `;
     }
 
-    // Renderizar estructura inicial con loader para el análisis de la IA
+    // Análisis deportivo inmediato del Coach (0ms delay - nunca se queda pensando)
+    let feedback = ruta.ai_feedback;
+    if (typeof feedback === 'string') {
+        try { feedback = JSON.parse(feedback); } catch (e) { feedback = null; }
+    }
+    if (!feedback || (!feedback.bien && !feedback.mejora && !feedback.proxima_salida)) {
+        feedback = generarAnalisisDeportivoFallback({
+            distance_km: Number(ruta.distance_km || ruta.distancia_km || 0),
+            duration_seconds: durSecs,
+            avg_speed: Number(ruta.avg_speed || 0),
+            splits_data: splits
+        });
+    }
+
+    const renderFeedbackHTML = (fb) => `
+        <div class="space-y-3.5">
+            <div class="bg-emerald-950/40 border border-emerald-500/20 rounded-2xl p-3.5">
+                <p class="text-[10px] font-black uppercase tracking-wider text-emerald-400 mb-1 flex items-center gap-1.5">
+                    <span>🟢</span> 1. Qué hiciste bien según tus datos
+                </p>
+                <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(fb.bien || 'Buen rendimiento general y cadencia sólida.')}</p>
+            </div>
+            <div class="bg-amber-950/40 border border-amber-500/20 rounded-2xl p-3.5">
+                <p class="text-[10px] font-black uppercase tracking-wider text-amber-400 mb-1 flex items-center gap-1.5">
+                    <span>🟡</span> 2. Punto de mejora (Tramo de caída de ritmo)
+                </p>
+                <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(fb.mejora || 'Mantuviste el ritmo regular sin caídas pronunciadas.')}</p>
+            </div>
+            <div class="bg-sky-950/40 border border-sky-500/20 rounded-2xl p-3.5">
+                <p class="text-[10px] font-black uppercase tracking-wider text-sky-400 mb-1 flex items-center gap-1.5">
+                    <span>🔵</span> 3. Objetivo para tu próxima salida
+                </p>
+                <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(fb.proxima_salida || 'Conserva un 30% de energía para mantener la velocidad en el regreso.')}</p>
+            </div>
+        </div>
+    `;
+
+    // Renderizar estructura completa de forma instantánea a 0ms
     content.innerHTML = `
         <!-- MÉTRICAS CLAVE -->
         <div class="grid grid-cols-4 gap-2 text-center bg-white dark:bg-slate-800/90 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
@@ -1013,7 +1050,7 @@ export async function abrirModalDetallesRuta(rutaId) {
 
         ${splitsHTML}
 
-        <!-- CONTENEDOR DEL FEEDBACK DEL ENTRENADOR IA -->
+        <!-- CONTENEDOR DEL FEEDBACK DEL COACH -->
         <div id="contenedorFeedbackIA" class="bg-gradient-to-b from-slate-900 to-slate-950 p-5 rounded-3xl border border-emerald-500/30 shadow-xl text-left relative overflow-hidden">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
                 <div class="flex items-center gap-2">
@@ -1022,12 +1059,8 @@ export async function abrirModalDetallesRuta(rutaId) {
                 </div>
                 <span class="text-[9px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">Coach</span>
             </div>
-            <div id="feedbackIAInner" class="space-y-3">
-                <div class="py-6 text-center animate-pulse">
-                    <span class="text-2xl block mb-2">⏳</span>
-                    <p class="text-xs font-bold text-slate-300">Consultando telemetría de ritmo y splits...</p>
-                    <p class="text-[10px] text-slate-500">Evaluando caída de velocidad y consistencia...</p>
-                </div>
+            <div id="feedbackIAInner">
+                ${renderFeedbackHTML(feedback)}
             </div>
         </div>
 
@@ -1049,32 +1082,15 @@ export async function abrirModalDetallesRuta(rutaId) {
         modal.querySelector('div').classList.remove('scale-95');
     }, 10);
 
-    // Cargar feedback de la IA (de caché o consultando una sola vez)
-    const feedback = await solicitarFeedbackIARuta(ruta);
-    const feedbackInner = document.getElementById('feedbackIAInner');
-    if (feedbackInner && feedback) {
-        feedbackInner.innerHTML = `
-            <div class="space-y-3.5">
-                <div class="bg-emerald-950/40 border border-emerald-500/20 rounded-2xl p-3.5">
-                    <p class="text-[10px] font-black uppercase tracking-wider text-emerald-400 mb-1 flex items-center gap-1.5">
-                        <span>🟢</span> 1. Qué hiciste bien según tus datos
-                    </p>
-                    <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(feedback.bien || 'Buen rendimiento general.')}</p>
-                </div>
-                <div class="bg-amber-950/40 border border-amber-500/20 rounded-2xl p-3.5">
-                    <p class="text-[10px] font-black uppercase tracking-wider text-amber-400 mb-1 flex items-center gap-1.5">
-                        <span>🟡</span> 2. Punto de mejora (Tramo de caída de ritmo)
-                    </p>
-                    <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(feedback.mejora || 'Mantuviste el ritmo sin caídas acusadas.')}</p>
-                </div>
-                <div class="bg-sky-950/40 border border-sky-500/20 rounded-2xl p-3.5">
-                    <p class="text-[10px] font-black uppercase tracking-wider text-sky-400 mb-1 flex items-center gap-1.5">
-                        <span>🔵</span> 3. Objetivo para tu próxima salida
-                    </p>
-                    <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(feedback.proxima_salida || 'Conserva un 30% de energía para la vuelta.')}</p>
-                </div>
-            </div>
-        `;
+    // Consulta en segundo plano opcional (no bloqueante) para persistir o enriquecer en DB
+    if (!ruta.ai_feedback) {
+        solicitarFeedbackIARuta(ruta).then(nuevoFeedback => {
+            if (nuevoFeedback && document.getElementById('feedbackIAInner')) {
+                document.getElementById('feedbackIAInner').innerHTML = renderFeedbackHTML(nuevoFeedback);
+            }
+        }).catch(err => {
+            console.warn('Aviso no crítico actualizando feedback en segundo plano:', err);
+        });
     }
 }
 

@@ -1382,27 +1382,9 @@ export function restaurarTracker() {
 export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos, lat, lon, fechaD, horaSalida, tramosData = []) {
     const bodyCont = document.getElementById('proCoachBody');
     const badgeLvl = document.getElementById('proCoachLevelBadge');
-    const badgeScore = document.getElementById('proCoachScoreBadge');
     if (!bodyCont) return;
 
     if (badgeLvl) badgeLvl.textContent = `Nivel: ${userLvl || 'Intermedio'}`;
-    if (badgeScore) {
-        badgeScore.className = 'text-xs font-black font-mono px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700';
-        badgeScore.textContent = 'Analizando...';
-    }
-
-    bodyCont.innerHTML = `
-        <div class="bg-slate-800/80 rounded-xl p-3.5 border border-slate-700/60 flex items-center gap-3">
-            <span class="text-xl animate-bounce">🤖</span>
-            <div class="flex-1">
-                <p class="text-xs text-emerald-400 font-bold flex items-center gap-2">
-                    Consultando Coach...
-                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                </p>
-                <p class="text-[10px] text-slate-400 mt-0.5">Analizando dureza de la ruta, downwind y orografía costera para nivel ${esc(userLvl || 'Intermedio')}...</p>
-            </div>
-        </div>
-    `;
 
     const wkVal = dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0);
     const gustsVal = dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35));
@@ -1436,22 +1418,23 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
         userLevel: userLvl || "Intermedio"
     };
 
+    // 1. RENDERIZADO INMEDIATO (0ms): Sin tiempos de espera ni bloqueos ("pensando")
+    renderizarCoachProFallbackLocal(payload.condiciones, userLvl, tramosData);
+
+    // 2. Consulta en segundo plano opcional y no bloqueante
     try {
         const resp = await fetchConTimeout(`${BACKEND_API_URL}?action=coach`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
-        }, 3500);
+        }, 2500);
 
         const data = await resp.json();
-        if (data.ok && data.coach) {
+        if (data.ok && data.coach && (data.coach.resumen || data.coach.veredicto)) {
             renderizarCoachProCard(data.coach, data.fuente, userLvl);
-        } else {
-            throw new Error("Respuesta no válida del coach remoto");
         }
     } catch (e) {
-        console.warn("Aviso no crítico (activando Coach Experto local):", e);
-        renderizarCoachProFallbackLocal(payload.condiciones, userLvl, tramosData);
+        // Silencioso: el análisis experto completo ya está visible al usuario desde el milisegundo 0
     }
 }
 
@@ -1459,7 +1442,7 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
     const bodyCont = document.getElementById('proCoachBody');
     const badgeLvl = document.getElementById('proCoachLevelBadge');
     const badgeScore = document.getElementById('proCoachScoreBadge');
-    if (!bodyCont) return;
+    if (!bodyCont || !coach) return;
 
     const score = Math.max(0, Math.min(100, Math.round(Number(coach.score) || 70)));
     let scoreBadgeCls = "bg-emerald-950/80 text-emerald-300 border-emerald-500/40";
@@ -1482,27 +1465,69 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
         badgeScore.innerHTML = `<span>${scoreIcon}</span> Score SUP: ${score}/100`;
     }
 
-    const dureza = coach.dureza_ruta || { nivel: "Moderada (5/10)", descripcion: "Exigencia física media acorde a la distancia y viento previsto." };
-    const estViento = coach.estrategia_viento || {
-        tramo_facil: "Aprovecha los tramos con viento a favor para deslizar la tabla.",
-        tramo_exigente: "Rema con postura baja en los tramos contra el viento.",
-        consejo_pacing: "Sal contra el viento y guarda un 30% de energía para el regreso."
-    };
-    const zona = coach.analisis_zona || {
-        orografia: "Costa abierta con exposición normal al viento.",
-        peligros_detectados: ["Atención a posibles ráfagas en salientes y cabos."],
-        recomendacion_seguridad: "Mantén navegación paralela a la costa."
-    };
-    const consejosNivel = (Array.isArray(coach.consejos_nivel) && coach.consejos_nivel.length > 0)
-        ? coach.consejos_nivel
-        : (coach.tecnica_postura || ["Mantén flexión de rodillas y mirada al horizonte."]);
+    // Normalización defensiva de dureza
+    const dureza = (coach.dureza_ruta && typeof coach.dureza_ruta === 'object')
+        ? {
+            nivel: coach.dureza_ruta.nivel || "Moderada (5/10)",
+            descripcion: coach.dureza_ruta.descripcion || "Exigencia física media acorde a la distancia y viento previsto."
+        }
+        : {
+            nivel: typeof coach.dureza_ruta === 'string' ? coach.dureza_ruta : "Moderada (5/10)",
+            descripcion: "Exigencia física acorde a la distancia y viento previsto."
+        };
 
-    const peligrosHtml = (zona.peligros_detectados || []).map(p => `
-        <li class="flex items-start gap-2 text-xs text-amber-200/90">
-            <span class="text-amber-400 shrink-0 text-sm">⚠️</span>
-            <span class="leading-relaxed">${esc(p)}</span>
-        </li>
-    `).join('') || '<li class="text-xs text-slate-400">Sin peligros orográficos severos detectados.</li>';
+    // Normalización defensiva de estrategia_viento
+    const estViento = (coach.estrategia_viento && typeof coach.estrategia_viento === 'object')
+        ? {
+            tramo_facil: coach.estrategia_viento.tramo_facil || "Aprovecha los tramos con viento a favor para deslizar la tabla.",
+            tramo_exigente: coach.estrategia_viento.tramo_exigente || "Rema con postura baja en los tramos contra el viento.",
+            consejo_pacing: coach.estrategia_viento.consejo_pacing || "Sal contra el viento y guarda un 30% de energía para el regreso."
+        }
+        : {
+            tramo_facil: typeof coach.estrategia_viento === 'string' ? coach.estrategia_viento : "Aprovecha los tramos con viento a favor para deslizar la tabla.",
+            tramo_exigente: "Rema con postura baja en los tramos contra el viento.",
+            consejo_pacing: "Sal contra el viento y guarda un 30% de energía para el regreso."
+        };
+
+    // Normalización defensiva de análisis de zona y peligros
+    let rawPeligros = coach.analisis_zona?.peligros_detectados || coach.peligros_detectados || [];
+    if (typeof rawPeligros === 'string') rawPeligros = [rawPeligros];
+    if (!Array.isArray(rawPeligros)) rawPeligros = [];
+
+    const zona = (coach.analisis_zona && typeof coach.analisis_zona === 'object')
+        ? {
+            orografia: coach.analisis_zona.orografia || "Costa abierta con exposición normal al viento.",
+            peligros_detectados: rawPeligros,
+            recomendacion_seguridad: coach.analisis_zona.recomendacion_seguridad || ""
+        }
+        : {
+            orografia: typeof coach.analisis_zona === 'string' ? coach.analisis_zona : "Costa abierta con exposición normal al viento.",
+            peligros_detectados: rawPeligros.length > 0 ? rawPeligros : ["Atención a posibles ráfagas en salientes y cabos."],
+            recomendacion_seguridad: "Mantén navegación paralela a la costa."
+        };
+
+    let consejosNivel = [];
+    if (Array.isArray(coach.consejos_nivel) && coach.consejos_nivel.length > 0) {
+        consejosNivel = coach.consejos_nivel;
+    } else if (typeof coach.consejos_nivel === 'string' && coach.consejos_nivel) {
+        consejosNivel = [coach.consejos_nivel];
+    } else if (Array.isArray(coach.tecnica_postura) && coach.tecnica_postura.length > 0) {
+        consejosNivel = coach.tecnica_postura;
+    } else if (typeof coach.tecnica_postura === 'string' && coach.tecnica_postura) {
+        consejosNivel = [coach.tecnica_postura];
+    } else {
+        consejosNivel = ["Mantén flexión de rodillas y mirada al horizonte."];
+    }
+
+    const peligrosArr = Array.isArray(zona.peligros_detectados) ? zona.peligros_detectados : [];
+    const peligrosHtml = peligrosArr.length > 0
+        ? peligrosArr.map(p => `
+            <li class="flex items-start gap-2 text-xs text-amber-200/90">
+                <span class="text-amber-400 shrink-0 text-sm">⚠️</span>
+                <span class="leading-relaxed">${esc(p)}</span>
+            </li>
+        `).join('')
+        : '<li class="text-xs text-slate-400">Sin peligros orográficos severos detectados.</li>';
 
     const consejosNivelHtml = consejosNivel.map(c => `
         <li class="flex items-start gap-2 text-xs text-slate-200">
@@ -1511,19 +1536,29 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
         </li>
     `).join('');
 
-    const seguridadItems = (coach.seguridad_estrategia || []).map(item => `
-        <li class="flex items-start gap-2 text-xs text-slate-200">
-            <span class="text-sky-400 shrink-0 text-sm">🛡️</span>
-            <span class="leading-relaxed">${esc(item)}</span>
-        </li>
-    `).join('') || '<li class="text-xs text-slate-400">Sin alertas críticas de seguridad.</li>';
+    let segArr = coach.seguridad_estrategia;
+    if (typeof segArr === 'string') segArr = [segArr];
+    if (!Array.isArray(segArr)) segArr = [];
+    const seguridadItems = segArr.length > 0
+        ? segArr.map(item => `
+            <li class="flex items-start gap-2 text-xs text-slate-200">
+                <span class="text-sky-400 shrink-0 text-sm">🛡️</span>
+                <span class="leading-relaxed">${esc(item)}</span>
+            </li>
+        `).join('')
+        : '<li class="text-xs text-slate-400">Sin alertas críticas de seguridad.</li>';
 
-    const materialItems = (coach.material_recomendado || []).map(item => `
-        <li class="flex items-start gap-2 text-xs text-slate-200">
-            <span class="text-amber-400 shrink-0 text-sm">🎒</span>
-            <span class="leading-relaxed">${esc(item)}</span>
-        </li>
-    `).join('') || '<li class="text-xs text-slate-400">Leash obligatorio y chaleco 50N.</li>';
+    let matArr = coach.material_recomendado;
+    if (typeof matArr === 'string') matArr = [matArr];
+    if (!Array.isArray(matArr)) matArr = [];
+    const materialItems = matArr.length > 0
+        ? matArr.map(item => `
+            <li class="flex items-start gap-2 text-xs text-slate-200">
+                <span class="text-amber-400 shrink-0 text-sm">🎒</span>
+                <span class="leading-relaxed">${esc(item)}</span>
+            </li>
+        `).join('')
+        : '<li class="text-xs text-slate-400">Leash obligatorio y chaleco 50N.</li>';
 
     const fuenteLabel = fuente && fuente.includes("gemini")
         ? "✨ Análisis del Coach"
@@ -1804,15 +1839,6 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
     if (!cont) return;
 
     cont.classList.remove('hidden');
-    cont.innerHTML = `
-        <div class="flex items-center gap-2.5 animate-pulse">
-            <span class="text-lg">🤖</span>
-            <div class="flex-1">
-                <p class="text-xs text-emerald-400 font-bold">Coach preparando consejo...</p>
-                <p class="text-[10px] text-slate-400">Adaptando a nivel ${esc(userLvl || 'Intermedio')}...</p>
-            </div>
-        </div>
-    `;
 
     const wkVal = dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0);
     const gustsVal = dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35));
@@ -1841,15 +1867,47 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
         userLevel: userLvl || "Intermedio"
     };
 
+    // Renderizado local instantáneo a 0ms (sin bloqueo ni espera)
+    const v = payload.condiciones.viento;
+    const o = payload.condiciones.oleaje;
+    const dir = payload.condiciones.direccion;
+    const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+    const cardinal = dirs[Math.round(((dir % 360) + 360) % 360 / 45) % 8];
+    const downwindDir = Math.round((dir + 180) % 360);
+    const cardDownwind = dirs[Math.round(((downwindDir % 360) + 360) % 360 / 45) % 8];
+
+    cont.innerHTML = `
+        <div class="flex flex-col gap-2">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">✨ Coach (${esc(userLvl || 'Intermedio')})</span>
+                <span class="text-[10px] text-slate-400 font-mono">Consejo Inmediato</span>
+            </div>
+            <p class="text-xs text-slate-200 leading-relaxed">
+                ${v > 14 
+                    ? `Viento notable de ${v} km/h (${cardinal}): Comienza navegando en contra del viento para que la vuelta sea con viento a favor (downwind) y menos exigente.` 
+                    : `Viento plácido (${v} km/h) y mar accesible (${o}m): Condiciones idóneas para trabajar cadencia fluida y rotación del core.`}
+            </p>
+            <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
+                <span class="shrink-0">💨</span>
+                <span><strong>Momento más fácil:</strong> Con rumbo ~${downwindDir}° (${cardDownwind}) tendrás viento en popa que empujará la tabla.</span>
+            </div>
+            <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20">
+                <span class="shrink-0">💡</span>
+                <span class="italic font-semibold">Regla del 30%: Reserva siempre un tercio de tu energía y agua para el regreso a la orilla.</span>
+            </div>
+        </div>
+    `;
+
+    // Enriquecimiento opcional en segundo plano
     try {
         const resp = await fetchConTimeout(`${BACKEND_API_URL}?action=coach`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
-        }, 2500);
+        }, 2000);
 
         const data = await resp.json();
-        if (data.ok && data.coach) {
+        if (data.ok && data.coach && (data.coach.resumen || data.coach.veredicto)) {
             const coach = data.coach;
             const score = Math.max(0, Math.min(100, Math.round(Number(coach.score) || 70)));
             let scoreCls = score >= 75 ? "text-emerald-400" : (score >= 45 ? "text-amber-400" : "text-rose-400");
@@ -1881,40 +1939,9 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
                     </div>` : ''}
                 </div>
             `;
-            return;
         }
-        throw new Error("No data");
     } catch (e) {
-        // Fallback local inmediato y enriquecido
-        const v = payload.condiciones.viento;
-        const o = payload.condiciones.oleaje;
-        const dir = payload.condiciones.direccion;
-        const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
-        const cardinal = dirs[Math.round(((dir % 360) + 360) % 360 / 45) % 8];
-        const downwindDir = Math.round((dir + 180) % 360);
-        const cardDownwind = dirs[Math.round(((downwindDir % 360) + 360) % 360 / 45) % 8];
-
-        cont.innerHTML = `
-            <div class="flex flex-col gap-2">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                    <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">✨ Coach (${esc(userLvl || 'Intermedio')})</span>
-                    <span class="text-[10px] text-slate-400 font-mono">Consejo Inmediato</span>
-                </div>
-                <p class="text-xs text-slate-200 leading-relaxed">
-                    ${v > 14 
-                        ? `Viento notable de ${v} km/h (${cardinal}): Comienza navegando en contra del viento para que la vuelta sea con viento a favor (downwind) y menos exigente.` 
-                        : `Viento plácido (${v} km/h) y mar accesible (${o}m): Condiciones idóneas para trabajar cadencia fluida y rotación del core.`}
-                </p>
-                <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
-                    <span class="shrink-0">💨</span>
-                    <span><strong>Momento más fácil:</strong> Con rumbo ~${downwindDir}° (${cardDownwind}) tendrás viento en popa que empujará la tabla.</span>
-                </div>
-                <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20">
-                    <span class="shrink-0">💡</span>
-                    <span class="italic font-semibold">Regla del 30%: Reserva siempre un tercio de tu energía y agua para el regreso a la orilla.</span>
-                </div>
-            </div>
-        `;
+        // Silencioso: el usuario ya tiene la tarjeta del Coach cargada
     }
 }
 
