@@ -2,3 +2,12 @@
 Thumbs.db
 *.zip
 *.log
+
+# Prohibido backend o sql
+api/
+lib/
+sql/
+*.sql
+node_modules/
+package*.json
+vercel.json
