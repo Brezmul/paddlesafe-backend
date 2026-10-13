@@ -5,6 +5,7 @@ const MIN_STEP_TIMEOUT_MS = 350;
 const FETCH_GEOCODE_TIMEOUT_MS = 1500;
 const FETCH_TIMEOUT_MS = 2200;
 const FETCH_MARINE_TIMEOUT_MS = 1400;
+const FETCH_RETRY_DELAY_MS = 250;
 
 function crearPresupuesto(limiteTotalMs = MAX_EXECUTION_BUDGET_MS) {
   const inicio = Date.now();
@@ -37,6 +38,14 @@ function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS, presu
     ...options,
     signal: AbortSignal.timeout(effectiveTimeout)
   });
+}
+
+function esErrorTransitorioProveedor(error) {
+  return error?.name === "AbortError" ||
+    error?.name === "TimeoutError" ||
+    error instanceof TypeError ||
+    error?.status === 429 ||
+    error?.status >= 500;
 }
 
 function obtenerVentanaHoraria(date, timeRange) {
@@ -272,11 +281,20 @@ export async function llamarOpenMeteo(lat, lon, date, timeRange, incluirMarine =
   try {
     weatherData = await weatherResponse.json();
   } catch {
-    weatherData = null;
+    throw Object.assign(new Error("Open-Meteo devolvió una respuesta JSON no válida"), {
+      status: 502
+    });
   }
 
   if (!weatherResponse.ok) {
-    throw new Error(`Open-Meteo error ${weatherResponse.status}`);
+    throw Object.assign(new Error(`Open-Meteo error ${weatherResponse.status}`), {
+      status: weatherResponse.status
+    });
+  }
+  if (typeof weatherData?.timezone !== "string" || !weatherData.hourly) {
+    throw Object.assign(new Error("Open-Meteo devolvió una respuesta incompleta"), {
+      status: 502
+    });
   }
 
   const marineData = incluirMarine
@@ -475,15 +493,30 @@ export function debeUsarFallback(res) {
   }
 }
 
+async function obtenerMeteoConReintento(lat, lon, date, timeRange, presupuesto) {
+  try {
+    return await llamarOpenMeteo(lat, lon, date, timeRange, false, presupuesto);
+  } catch (error) {
+    if (!esErrorTransitorioProveedor(error) ||
+        !presupuesto.tieneMargen(MIN_STEP_TIMEOUT_MS + FETCH_RETRY_DELAY_MS)) {
+      throw error;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, FETCH_RETRY_DELAY_MS));
+    return llamarOpenMeteo(lat, lon, date, timeRange, false, presupuesto);
+  }
+}
+
 export async function obtenerForecast(lat, lon, date, timeRange, presupuesto = crearPresupuesto()) {
   let meteo;
   try {
-    meteo = await llamarOpenMeteo(lat, lon, date, timeRange, false, presupuesto);
-  } catch {
-    meteo = null;
+    meteo = await obtenerMeteoConReintento(lat, lon, date, timeRange, presupuesto);
+  } catch (error) {
+    const detalle = error instanceof Error ? `: ${error.message}` : "";
+    throw new Error(`Open-Meteo no pudo obtener el pronóstico y su zona horaria${detalle}`);
   }
   if (!meteo?.timezone) {
-    throw new Error("No se pudo determinar la zona horaria para la fecha y franja seleccionadas");
+    throw new Error("Open-Meteo respondió sin una zona horaria válida para la fecha y franja seleccionadas");
   }
 
   let principal = null;
