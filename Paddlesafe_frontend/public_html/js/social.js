@@ -423,9 +423,34 @@ export const socialFeed = {
         try {
             const { misClubsIds, misAmigosIds } = await this.obtenerFiltrosUsuario();
             
-            const qMiembros = supabaseClient.from('clubs_usuarios').select('joined_at, club_id, user_id, perfiles(nombre, avatar_url), clubs(nombre)').order('joined_at', { ascending: false }).limit(15);
-            const qRutas = supabaseClient.from('club_rutas').select('created_at, club_id, ruta_id, rutas(ubicacion, distancia_km), clubs(nombre)').order('created_at', { ascending: false }).limit(15);
-            const qChat = supabaseClient.from('club_chat').select('created_at, club_id, user_id, mensaje, perfiles(nombre, avatar_url), clubs(nombre)').order('created_at', { ascending: false }).limit(15);
+            // 1. Consultar altas de miembros en clubes
+            const qMiembros = supabaseClient
+                .from('clubs_usuarios')
+                .select('joined_at, club_id, user_id, perfiles(nombre, avatar_url), clubs(nombre, is_private)')
+                .order('joined_at', { ascending: false })
+                .limit(15);
+
+            // 2. Consultar rutas registradas por clubes
+            const qRutas = supabaseClient
+                .from('club_rutas')
+                .select('created_at, club_id, ruta_id, rutas(ubicacion, distancia_km, is_private), clubs(nombre, is_private)')
+                .order('created_at', { ascending: false })
+                .limit(15);
+
+            // 3. Consultar chat de clubes:
+            // FILTRO ESTRICTO DE PRIVACIDAD:
+            // Los chats de los clubes son privados de la tripulación (visibility = 'club_only').
+            // Si el usuario no pertenece a ningún club, qChat no consulta la tabla club_chat.
+            // Si pertenece a clubes, se restringe estrictamente por .in('club_id', misClubsIds).
+            let qChat = Promise.resolve({ data: [] });
+            if (Array.isArray(misClubsIds) && misClubsIds.length > 0) {
+                qChat = supabaseClient
+                    .from('club_chat')
+                    .select('created_at, club_id, user_id, mensaje, visibility, is_public, perfiles(nombre, avatar_url), clubs(nombre)')
+                    .in('club_id', misClubsIds)
+                    .order('created_at', { ascending: false })
+                    .limit(15);
+            }
             
             const [resM, resR, resC] = await Promise.allSettled([qMiembros, qRutas, qChat]);
             let acts = [];
@@ -434,34 +459,76 @@ export const socialFeed = {
             const dataR = resR.status === 'fulfilled' && resR.value?.data ? resR.value.data : [];
             const dataC = resC.status === 'fulfilled' && resC.value?.data ? resC.value.data : [];
 
+            // A) Altas en clubes
             dataM.forEach(i => {
+                const esMiembro = misClubsIds.includes(i.club_id);
+                const esPublico = !i.clubs?.is_private;
                 acts.push({
+                    tipo: 'miembro',
                     date: new Date(i.joined_at),
                     clubId: i.club_id,
                     userId: i.user_id,
+                    is_public: esPublico,
                     html: `<div class="flex items-center gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full border-2 border-emerald-100 dark:border-emerald-800 object-cover shadow-sm shrink-0"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre || 'Paddler')}</strong> se unió a <strong class="text-emerald-600 dark:text-emerald-400 font-bold">${esc(i.clubs?.nombre || 'un club')}</strong>.</p></div>`
                 });
             });
 
+            // B) Rutas de clubes
             dataR.forEach(i => {
+                const esMiembro = misClubsIds.includes(i.club_id);
+                const esPublico = !i.clubs?.is_private && !i.rutas?.is_private;
                 acts.push({
+                    tipo: 'ruta',
                     date: new Date(i.created_at),
                     clubId: i.club_id,
                     userId: null,
+                    is_public: esPublico,
                     html: `<div class="flex items-center gap-4"><div class="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800/50 flex items-center justify-center text-xl shadow-sm text-sky-500 shrink-0">🗺️</div><div class="flex-1 min-w-0"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug">El club <strong class="text-marine dark:text-white font-black">${esc(i.clubs?.nombre || 'Club')}</strong> trazó ruta en <strong class="text-marine dark:text-white">${esc(i.rutas?.ubicacion || 'Ruta marina')}</strong>.</p><div class="inline-block mt-1 bg-water/10 dark:bg-sky-500/20 px-2 py-0.5 rounded text-[10px] font-black text-water dark:text-sky-400 uppercase tracking-widest">${i.rutas?.distancia_km || 0} km</div></div></div>`
                 });
             });
 
+            // C) Mensajes de chat de clubes (Privados de la tripulación)
             dataC.forEach(i => {
+                // FILTRO DE PRIVACIDAD OBLIGATORIO:
+                // Solo si el usuario es miembro confirmado del club se permite procesar
+                if (!misClubsIds.includes(i.club_id)) return;
+
                 acts.push({
+                    tipo: 'chat',
                     date: new Date(i.created_at),
                     clubId: i.club_id,
                     userId: i.user_id,
-                    html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700 shadow-sm mt-1 shrink-0"><div class="flex-1 min-w-0"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre || 'Paddler')}</strong> comentó en <strong class="text-marine dark:text-white font-bold">${esc(i.clubs?.nombre || 'Club')}</strong>.</p><div class="mt-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/50 p-3 rounded-2xl rounded-tl-sm text-sm text-slate-700 dark:text-slate-300 italic shadow-sm">"${esc(i.mensaje)}"</div></div></div>`
+                    visibility: i.visibility || 'club_only',
+                    is_public: i.is_public === true,
+                    html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700 shadow-sm mt-1 shrink-0"><div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap mb-1"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre || 'Paddler')}</strong><span class="text-[9px] bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-sky-200 dark:border-sky-800/50"><span>🔒</span> Chat Tripulación</span></div><p class="text-xs text-slate-500 dark:text-slate-400">En <strong class="text-marine dark:text-white font-bold">${esc(i.clubs?.nombre || 'Club')}</strong></p><div class="mt-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/50 p-3 rounded-2xl rounded-tl-sm text-sm text-slate-700 dark:text-slate-300 italic shadow-sm">"${esc(i.mensaje)}"</div></div></div>`
                 });
             });
             
-            if (filtro === 'mis_clubs') {
+            // ====================================================
+            // FILTRADO ESTRICTO SEGÚN PESTAÑA DEL FEED
+            // ====================================================
+            if (filtro === 'global') {
+                // FILTRO OBLIGATORIO FEED GLOBAL:
+                // 1. Mostrar publicaciones públicas (is_public = true).
+                // 2. Mostrar contenido de clubes ÚNICAMENTE si el usuario pertenece a ese club
+                //    (club_id IN (SELECT club_id FROM memberships WHERE user_id = $user_id)).
+                // 3. Los mensajes tipo 'chat' tienen visibility = 'club_only' y NUNCA aparecen para usuarios externos.
+                acts = acts.filter(i => {
+                    // Si es mensaje de chat: nunca mostrar a usuarios externos que no pertenecen al club
+                    if (i.tipo === 'chat') {
+                        return misClubsIds.includes(i.clubId);
+                    }
+                    // Si es contenido de un club (rutas, miembros):
+                    if (i.clubId) {
+                        // Si el usuario pertenece al club, se muestra
+                        if (misClubsIds.includes(i.clubId)) return true;
+                        // Si es usuario externo, solo si la publicación es pública
+                        return i.is_public === true;
+                    }
+                    // Publicaciones generales: solo públicas
+                    return i.is_public === true;
+                });
+            } else if (filtro === 'mis_clubs') {
                 acts = misClubsIds.length ? acts.filter(i => misClubsIds.includes(i.clubId)) : [];
             } else if (filtro === 'mis_amigos') {
                 acts = misAmigosIds.length ? acts.filter(i => i.userId && misAmigosIds.includes(i.userId)) : [];
@@ -470,11 +537,17 @@ export const socialFeed = {
             acts.sort((a, b) => b.date - a.date);
             
             if (!acts || acts.length === 0) {
+                let mensajeVacio = "Cuando tú, tus amigos o tu club registréis nuevas travesías, aparecerán aquí.";
+                if (filtro === 'mis_clubs' && misClubsIds.length === 0) {
+                    mensajeVacio = "Aún no perteneces a ningún club. ¡Únete a un club para ver la actividad interna y el chat de la tripulación!";
+                } else if (filtro === 'mis_amigos' && misAmigosIds.length === 0) {
+                    mensajeVacio = "Aún no tienes amigos añadidos. Puedes buscar otros paddlers y enviarles solicitudes de amistad.";
+                }
                 c.innerHTML = `
                     <div class="flex flex-col items-center justify-center p-8 text-center bg-slate-800/40 rounded-2xl border border-slate-700/50 my-4">
                         <span class="text-3xl mb-2">🌊</span>
-                        <p class="text-sm font-bold text-slate-300">No se ha publicado nada</p>
-                        <p class="text-xs text-slate-500 mt-1">Cuando tú, tus amigos o tu club registréis nuevas travesías, aparecerán aquí.</p>
+                        <p class="text-sm font-bold text-slate-300">No hay actividad disponible</p>
+                        <p class="text-xs text-slate-500 mt-1">${mensajeVacio}</p>
                     </div>`;
                 return;
             }
