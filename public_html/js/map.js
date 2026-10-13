@@ -216,7 +216,9 @@ export function limpiarRuta() {
     
     // Reset de seguridad para eventos de club
     clubParaEvento = null;
-    const btnSave = document.getElementById('btnSaveClubEvent');
+    const panelQuedada = document.getElementById('panelQuedadaMap');
+    if (panelQuedada) panelQuedada.classList.add('hidden');
+    const btnSave = document.getElementById('btnGuardarQuedadaMap') || document.getElementById('btnSaveClubEvent');
     if (btnSave) btnSave.classList.add('hidden');
 }
 

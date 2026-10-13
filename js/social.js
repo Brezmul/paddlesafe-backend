@@ -134,7 +134,7 @@ export async function enviarSolicitudAmistad(amigoId) {
     const myId = appState.sesionActual.user.id;
     if (myId === amigoId) return alert("No puedes añadirte a ti mismo.");
     
-    const btn = document.getElementById('btnAñadirAmigoSPA');
+    const btn = document.getElementById('btnAnadirAmigoSPA') || document.getElementById('btnAñadirAmigoSPA');
     if(btn) { btn.disabled = true; btn.textContent = "Procesando..."; }
     
     try {
@@ -208,7 +208,7 @@ export async function responderSolicitudAmistad(amistadId, accion) {
 
 export async function verificarEstadoAmistad(targetUserId) {
     if (!appState.sesionActual || appState.esInvitado) return;
-    const btn = document.getElementById('btnAñadirAmigoSPA');
+    const btn = document.getElementById('btnAnadirAmigoSPA') || document.getElementById('btnAñadirAmigoSPA');
     if (!btn) return;
     
     document.getElementById('btnRechazarAmistad')?.remove();

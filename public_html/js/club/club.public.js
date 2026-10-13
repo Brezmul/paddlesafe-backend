@@ -6,7 +6,7 @@ import { ClubEvents } from './club.events.js';
 
 export const ClubPublic = {
     async open(clubId) {
-        const modal = document.getElementById('clubPublicViewModal');
+        const modal = document.getElementById('clubProfileViewModal') || document.getElementById('clubPublicViewModal');
         if (!modal) return;
 
         ClubState.publicId = clubId;
@@ -104,7 +104,7 @@ export const ClubPublic = {
 
     close() {
         ClubChat.desuscribirRealtime();
-        const modal = document.getElementById('clubPublicViewModal');
+        const modal = document.getElementById('clubProfileViewModal') || document.getElementById('clubPublicViewModal');
         if (modal) {
             modal.classList.add('opacity-0');
             const box = modal.querySelector('div');

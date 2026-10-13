@@ -140,7 +140,7 @@ async function inicializarAplicacion() {
     if (document.getElementById('date')) document.getElementById('date').value = strHoy;
     if (document.getElementById('proDate')) document.getElementById('proDate').value = strHoy;
 
-    if (supabaseClient) {
+    if (supabaseClient && supabaseClient.auth) {
         try {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) {
@@ -264,7 +264,8 @@ export async function abrirPerfilPublicoSPA(userId) {
             // Botón 1: Añadir Amigo (Visible siempre que no sea mi propio perfil)
             if (!isMe) {
                 const btnAmigo = document.createElement('button');
-                btnAmigo.id = 'btnAñadirAmigoSPA';
+                btnAmigo.id = 'btnAnadirAmigoSPA';
+                btnAmigo.setAttribute('data-id', 'btnAnadirAmigoSPA');
                 btnAmigo.className = 'bg-water hover:bg-sky-600 text-white text-[10px] font-bold px-5 py-2 rounded-full uppercase transition-colors shadow-sm active:scale-95 cursor-pointer';
                 btnAmigo.textContent = 'Añadir Amigo';
                 if (!appState.sesionActual || appState.esInvitado) {

@@ -8,7 +8,7 @@ import { parseGPX } from './gpxParser.js';
 import { calcularNivelYProgreso, obtenerPosicionRanking, guardarRutaDeportivaConGamificacion } from './gamification.js';
 
 export function initAuthListeners() {
-    if (supabaseClient) {
+    if (supabaseClient && supabaseClient.auth) {
         supabaseClient.auth.onAuthStateChange((event, session) => {
             if (event === 'PASSWORD_RECOVERY') { setTimeout(abrirModalRecuperacionFinal, 500); return; }
             if (event === 'INITIAL_SESSION') return;

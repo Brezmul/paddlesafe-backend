@@ -54,7 +54,7 @@
         }
     </style>
     <script>
-        // Handlers inmediatos y defensivos para modales de cabecera
+        // Handlers inmediatos y defensivos para modales de cabecera (evita ReferenceError si el usuario hace clic antes de cargar main.js)
         window.abrirModalClubs = function() {
             const m = document.getElementById('clubsModal');
             if (m) {
@@ -79,6 +79,106 @@
             }
             if (window.Club && typeof window.Club.cerrarModal === 'function') {
                 window.Club.cerrarModal();
+            }
+        };
+
+        window.abrirModalAuth = function() {
+            const m = document.getElementById('authModal');
+            if (m) {
+                m.classList.remove('hidden');
+                setTimeout(() => {
+                    m.classList.remove('opacity-0');
+                    const box = m.querySelector('div');
+                    if (box) box.classList.remove('scale-95');
+                }, 10);
+            }
+            if (typeof window.restaurarFormularioAuth === 'function') {
+                window.restaurarFormularioAuth();
+            }
+        };
+        window.cerrarModalAuth = function() {
+            const m = document.getElementById('authModal');
+            if (m) {
+                m.classList.add('opacity-0');
+                const box = m.querySelector('div');
+                if (box) box.classList.add('scale-95');
+                setTimeout(() => m.classList.add('hidden'), 300);
+            }
+        };
+
+        window.abrirModalRanking = function() {
+            const m = document.getElementById('rankingModal');
+            if (m) {
+                m.classList.remove('hidden');
+                setTimeout(() => {
+                    m.classList.remove('opacity-0');
+                    const box = m.querySelector('div');
+                    if (box) box.classList.remove('scale-95');
+                }, 10);
+            }
+            if (typeof window.cargarTopPaddlers === 'function') {
+                window.cargarTopPaddlers('diario');
+            }
+        };
+        window.cerrarModalRanking = function() {
+            const m = document.getElementById('rankingModal');
+            if (m) {
+                m.classList.add('opacity-0');
+                const box = m.querySelector('div');
+                if (box) box.classList.add('scale-95');
+                setTimeout(() => m.classList.add('hidden'), 300);
+            }
+        };
+
+        window.abrirModalFeed = function() {
+            const m = document.getElementById('socialFeedModal');
+            if (m) {
+                m.classList.remove('hidden');
+                setTimeout(() => {
+                    m.classList.remove('opacity-0');
+                    const box = m.querySelector('div');
+                    if (box) box.classList.remove('scale-95');
+                }, 10);
+            }
+            if (window.socialFeed && typeof window.socialFeed.abrirModal === 'function') {
+                window.socialFeed.abrirModal();
+            }
+        };
+        window.cerrarModalFeed = function() {
+            const m = document.getElementById('socialFeedModal');
+            if (m) {
+                m.classList.add('opacity-0');
+                const box = m.querySelector('div');
+                if (box) box.classList.add('scale-95');
+                setTimeout(() => m.classList.add('hidden'), 300);
+            }
+        };
+
+        window.mostrarPanelAvisos = function() {
+            const m = document.getElementById('notificationsModal');
+            if (m) {
+                m.classList.remove('hidden');
+                m.classList.add('flex');
+                setTimeout(() => {
+                    m.classList.remove('opacity-0');
+                    const box = m.querySelector('div');
+                    if (box) box.classList.remove('scale-95');
+                }, 10);
+            }
+            if (window.socialNotifications && typeof window.socialNotifications.cargarNotificaciones === 'function') {
+                window.socialNotifications.cargarNotificaciones();
+            }
+        };
+        window.cerrarPanelAvisos = function() {
+            const m = document.getElementById('notificationsModal');
+            if (m) {
+                m.classList.add('opacity-0');
+                const box = m.querySelector('div');
+                if (box) box.classList.add('scale-95');
+                setTimeout(() => {
+                    m.classList.add('hidden');
+                    m.classList.remove('flex');
+                }, 300);
             }
         };
     </script>

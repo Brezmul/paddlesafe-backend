@@ -1,28 +1,31 @@
-﻿DirectoryIndex index.html index.php
+DirectoryIndex index.html index.php
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Seguridad: bloqueo total contra peticiones a backend, lib o sql
+  # Seguridad estricta: bloqueo total contra peticiones a backend, lib o sql
   RewriteRule ^(api|lib|sql|\.git)(/|$) - [F,L]
   RewriteRule \.(sql|env|log)$ - [F,L]
 
-  # Servir archivos fÃ­sicos directamente
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
 </IfModule>
 
+# Impedir listado de directorios
 Options -Indexes
 
 <IfModule mod_headers.c>
+  # Evitar caché agresiva en index.html, version.json y sw.js para actualizaciones inmediatas
   <FilesMatch "^(index\.html|version\.json|sw\.js)$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires "0"
   </FilesMatch>
+
+  # Los scripts JS se revalidan siempre contra el servidor
   <FilesMatch "\.(js)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
