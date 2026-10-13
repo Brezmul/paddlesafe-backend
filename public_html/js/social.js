@@ -89,25 +89,36 @@ export const socialNotifications = {
 
 export function mostrarPanelAvisos() {
     let m = document.getElementById('notificationsModal');
-    if (!m) return;
+    if (!m) {
+        const modalHTML = `
+        <div id="notificationsModal" class="fixed inset-0 z-[9999] hidden flex-col items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity opacity-0">
+            <div class="bg-slate-50 dark:bg-slate-900 w-[90%] max-w-md rounded-[32px] shadow-2xl p-6 transform scale-95 transition-transform relative max-h-[80vh] flex flex-col">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-200 dark:border-slate-700 pb-3">
+                    <h3 class="text-lg font-black text-marine dark:text-white uppercase tracking-widest">Avisos</h3>
+                    <div class="flex gap-3">
+                        <button onclick="socialNotifications.marcarTodasLeidas()" class="text-[10px] text-water dark:text-sky-400 font-bold uppercase tracking-widest bg-sky-50 dark:bg-sky-900/30 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">✓ Leídas</button>
+                        <button onclick="cerrarPanelAvisos()" class="text-slate-400 hover:text-red-500 transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                <div id="notifContainerList" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2"></div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        m = document.getElementById('notificationsModal');
+    }
     m.classList.remove('hidden');
     m.classList.add('flex');
-    requestAnimationFrame(() => { 
-        m.classList.remove('opacity-0'); 
-        const box = m.querySelector('div');
-        if (box) box.classList.remove('scale-95'); 
-    });
-    if (socialNotifications && typeof socialNotifications.cargarNotificaciones === 'function') {
-        socialNotifications.cargarNotificaciones();
-    }
+    requestAnimationFrame(() => { m.classList.remove('opacity-0'); m.querySelector('div').classList.remove('scale-95'); });
+    socialNotifications.cargarNotificaciones();
 }
 
 export function cerrarPanelAvisos() {
     const m = document.getElementById('notificationsModal');
     if (!m) return;
     m.classList.add('opacity-0');
-    const box = m.querySelector('div');
-    if (box) box.classList.add('scale-95');
+    m.querySelector('div').classList.add('scale-95');
     setTimeout(() => { m.classList.add('hidden'); m.classList.remove('flex'); }, 300);
 }
 
@@ -323,20 +334,10 @@ export async function cambiarTabAmistades(tab) {
     const btnLista = document.getElementById('tabMisAmigos');
     const btnSol = document.getElementById('tabSolicitudesAmistad');
     const c = document.getElementById('friendSystemContent');
-    if (!c) return;
-
-    if (!appState.sesionActual || appState.esInvitado) {
-        c.innerHTML = `
-            <div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner mt-4 p-4">
-                <span class="text-3xl block mb-2 opacity-50">🔒</span>
-                <p class="text-xs font-bold text-slate-500 dark:text-slate-400">Inicia sesión para gestionar tus amistades.</p>
-            </div>`;
-        return;
-    }
     
     if(tab === 'lista') {
-        if (btnLista) btnLista.className = "h-10 px-2 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-lg shadow flex-1 cursor-pointer transition-colors";
-        if (btnSol) btnSol.className = "h-10 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors relative";
+        btnLista.className = "h-10 px-2 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-lg shadow flex-1 cursor-pointer transition-colors";
+        btnSol.className = "h-10 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors relative";
         c.innerHTML = '<p class="text-center text-slate-400 dark:text-slate-500 mt-5 animate-pulse">Cargando...</p>';
         
         const { data } = await supabaseClient.from('amistades').select('usuario_id, amigo_id, perfiles!usuario_id(id,nombre,avatar_url), perfiles_amigo:perfiles!amigo_id(id,nombre,avatar_url)').eq('estado', 'aceptada').or(`usuario_id.eq.${appState.sesionActual.user.id},amigo_id.eq.${appState.sesionActual.user.id}`);
@@ -402,7 +403,7 @@ export async function comprobarNuevasSolicitudesSilencioso() {
 // ====================================================
 export const socialFeed = {
     async obtenerFiltrosUsuario() {
-        if (!appState.sesionActual || appState.esInvitado) return { misClubsIds: [], misAmigosIds: [], miId: null };
+        if (!appState.sesionActual || appState.esInvitado) return { misClubsIds: [], misAmigosIds: [] };
         const miId = appState.sesionActual.user.id;
         let misClubsIds = [];
         let misAmigosIds = [];
@@ -413,7 +414,7 @@ export const socialFeed = {
             const { data: amistades } = await supabaseClient.from('amistades').select('usuario_id, amigo_id').eq('estado', 'aceptada').or(`usuario_id.eq.${miId},amigo_id.eq.${miId}`);
             if (amistades && amistades.length) misAmigosIds = amistades.map(a => a.usuario_id === miId ? a.amigo_id : a.usuario_id);
         } catch (e) { console.warn('Aviso no crítico (Filtros feed):', e); }
-        return { misClubsIds, misAmigosIds, miId };
+        return { misClubsIds, misAmigosIds };
     },
     async cargarActividad(filtro = 'global') {
         const c = document.getElementById('feedContainerList');
@@ -423,18 +424,32 @@ export const socialFeed = {
             const { misClubsIds, misAmigosIds } = await this.obtenerFiltrosUsuario();
             
             // 1. Consultar altas de miembros en clubes
-            const qMiembros = supabaseClient
-                .from('clubs_usuarios')
-                .select('joined_at, club_id, user_id, perfiles(nombre, avatar_url), clubs(nombre, is_private)')
-                .order('joined_at', { ascending: false })
-                .limit(15);
+            let qMiembros;
+            if ((filtro === 'mis_clubs' && misClubsIds.length === 0) ||
+                (filtro === 'mis_amigos' && misAmigosIds.length === 0)) {
+                qMiembros = Promise.resolve({ data: [] });
+            } else {
+                qMiembros = supabaseClient
+                    .from('clubs_usuarios')
+                    .select('joined_at, club_id, user_id, perfiles(nombre, avatar_url), clubs(nombre, is_private)');
+                if (filtro === 'mis_clubs') qMiembros = qMiembros.in('club_id', misClubsIds);
+                if (filtro === 'mis_amigos') qMiembros = qMiembros.in('user_id', misAmigosIds);
+                qMiembros = qMiembros.order('joined_at', { ascending: false }).limit(15);
+            }
 
             // 2. Consultar rutas registradas por clubes
-            const qRutas = supabaseClient
-                .from('club_rutas')
-                .select('created_at, club_id, ruta_id, rutas(ubicacion, distancia_km, is_private), clubs(nombre, is_private)')
-                .order('created_at', { ascending: false })
-                .limit(15);
+            let qRutas;
+            if ((filtro === 'mis_clubs' && misClubsIds.length === 0) ||
+                (filtro === 'mis_amigos' && misAmigosIds.length === 0)) {
+                qRutas = Promise.resolve({ data: [] });
+            } else {
+                qRutas = supabaseClient
+                    .from('club_rutas')
+                    .select('created_at, club_id, ruta_id, rutas!inner(user_id, ubicacion, distancia_km, is_private), clubs(nombre, is_private)');
+                if (filtro === 'mis_clubs') qRutas = qRutas.in('club_id', misClubsIds);
+                if (filtro === 'mis_amigos') qRutas = qRutas.in('rutas.user_id', misAmigosIds);
+                qRutas = qRutas.order('created_at', { ascending: false }).limit(15);
+            }
 
             // 3. Consultar chat de clubes:
             // FILTRO ESTRICTO DE PRIVACIDAD:
@@ -442,13 +457,14 @@ export const socialFeed = {
             // Si el usuario no pertenece a ningún club, qChat no consulta la tabla club_chat.
             // Si pertenece a clubes, se restringe estrictamente por .in('club_id', misClubsIds).
             let qChat = Promise.resolve({ data: [] });
-            if (Array.isArray(misClubsIds) && misClubsIds.length > 0) {
+            if (Array.isArray(misClubsIds) && misClubsIds.length > 0 &&
+                (filtro !== 'mis_amigos' || misAmigosIds.length > 0)) {
                 qChat = supabaseClient
                     .from('club_chat')
-                    .select('created_at, club_id, user_id, mensaje, perfiles(nombre, avatar_url), clubs(nombre)')
-                    .in('club_id', misClubsIds)
-                    .order('created_at', { ascending: false })
-                    .limit(15);
+                    .select('created_at, club_id, user_id, mensaje, visibility, is_public, perfiles(nombre, avatar_url), clubs(nombre)');
+                qChat = qChat.in('club_id', misClubsIds);
+                if (filtro === 'mis_amigos') qChat = qChat.in('user_id', misAmigosIds);
+                qChat = qChat.order('created_at', { ascending: false }).limit(15);
             }
             
             const [resM, resR, resC] = await Promise.allSettled([qMiembros, qRutas, qChat]);
@@ -460,7 +476,6 @@ export const socialFeed = {
 
             // A) Altas en clubes
             dataM.forEach(i => {
-                const esMiembro = misClubsIds.includes(i.club_id);
                 const esPublico = !i.clubs?.is_private;
                 acts.push({
                     tipo: 'miembro',
@@ -474,13 +489,12 @@ export const socialFeed = {
 
             // B) Rutas de clubes
             dataR.forEach(i => {
-                const esMiembro = misClubsIds.includes(i.club_id);
                 const esPublico = !i.clubs?.is_private && !i.rutas?.is_private;
                 acts.push({
                     tipo: 'ruta',
                     date: new Date(i.created_at),
                     clubId: i.club_id,
-                    userId: null,
+                    userId: i.rutas?.user_id || null,
                     is_public: esPublico,
                     html: `<div class="flex items-center gap-4"><div class="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800/50 flex items-center justify-center text-xl shadow-sm text-sky-500 shrink-0">🗺️</div><div class="flex-1 min-w-0"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug">El club <strong class="text-marine dark:text-white font-black">${esc(i.clubs?.nombre || 'Club')}</strong> trazó ruta en <strong class="text-marine dark:text-white">${esc(i.rutas?.ubicacion || 'Ruta marina')}</strong>.</p><div class="inline-block mt-1 bg-water/10 dark:bg-sky-500/20 px-2 py-0.5 rounded text-[10px] font-black text-water dark:text-sky-400 uppercase tracking-widest">${i.rutas?.distancia_km || 0} km</div></div></div>`
                 });
@@ -599,17 +613,19 @@ export const socialFeed = {
 // FUNCIÓN PARA INYECTAR BOTONES SIN MUTATION OBSERVER
 // ====================================================
 export function inicializarBotonesSociales() {
-    // Si existe algún botón residual duplicado de la campana inyectado por versiones anteriores en caché, lo eliminamos
-    const viejoBotonCampana = document.getElementById('btnNotificacionesTop');
-    if (viejoBotonCampana) {
-        viejoBotonCampana.remove();
+    const headerBtnContainer = document.querySelector('.w-full.flex.justify-between.items-start.relative.z-20 .flex.items-center.gap-2') ||
+                               document.querySelector('.w-full.flex.justify-between.items-start.relative.z-20 .flex.items-center');
+    const yaExisteBotonAvisos = document.getElementById('btnAvisos') || document.getElementById('btnNotificacionesTop');
+    if (headerBtnContainer && appState.sesionActual && !appState.esInvitado && !yaExisteBotonAvisos) {
+        const btnCampanaHTML = `<button type="button" id="btnNotificacionesTop" onclick="mostrarPanelAvisos()" class="relative text-white/70 hover:text-white transition-all hover:scale-105 flex flex-col items-center cursor-pointer mr-3"><svg class="h-7 w-7 sm:h-8 sm:w-8 drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg><span class="text-[11px] sm:text-xs font-black mt-1 uppercase tracking-widest">Avisos</span><span id="notifBadge" class="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] w-5 h-5 flex items-center justify-center rounded-full hidden border-2 border-marine font-black shadow-lg">0</span></button>`;
+        headerBtnContainer.insertAdjacentHTML('afterbegin', btnCampanaHTML);
     }
-
+    
     if (appState.sesionActual && !appState.esInvitado) {
-        // Ejecución inmediata inicial para actualizar el badge de la campana estática (#btnAvisos)
+        // Ejecución inmediata inicial para actualizar el badge de la campana
         socialNotifications.cargarNotificaciones();
         
-        // SISTEMA RECURSIVO (Evita apilamiento de promesas en redes lentas)
+        // NUEVO SISTEMA RECURSIVO (Evita apilamiento de promesas en redes lentas)
         if (!window._notifTimerActivo) {
             window._notifTimerActivo = true;
             
@@ -627,6 +643,12 @@ export function inicializarBotonesSociales() {
             
             setTimeout(cicloNotificaciones, 60000);
         }
+    }
+    
+    const topBarGroups = document.querySelector('.w-full.flex.justify-between.items-start.relative.z-20 .flex.gap-4');
+    if (topBarGroups && !document.getElementById('btnModalFeed')) {
+        const btnFeedHTML = `<button type="button" id="btnModalFeed" onclick="socialFeed.abrirModal()" class="text-white/70 hover:text-white transition-transform hover:scale-105 flex flex-col items-center cursor-pointer"><span class="text-2xl sm:text-3xl drop-shadow-md">📰</span><span class="text-[11px] sm:text-xs font-black mt-1 uppercase tracking-widest">Feed</span></button>`;
+        topBarGroups.insertAdjacentHTML('beforeend', btnFeedHTML);
     }
 }
 

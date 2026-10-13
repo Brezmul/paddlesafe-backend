@@ -17,22 +17,9 @@ export const ClubAPI = {
         return supabaseClient.storage.from('paddlesafe').getPublicUrl(path).data.publicUrl;
     },
     async deleteClub(clubId) {
-        // 1. Intentar con RPC si la función de base de datos está disponible
-        try {
-            const { error: rpcErr } = await supabaseClient.rpc('club_eliminar', { p_club: clubId });
-            if (!rpcErr) return true;
-        } catch (_) {}
-
-        // 2. Eliminación directa sobre tabla clubs con limpieza preventiva en cascada
-        try { await supabaseClient.from('clubs_invitaciones').delete().eq('club_id', clubId); } catch (_) {}
-        try { await supabaseClient.from('clubs_solicitudes').delete().eq('club_id', clubId); } catch (_) {}
-        try { await supabaseClient.from('club_chat').delete().eq('club_id', clubId); } catch (_) {}
-        try { await supabaseClient.from('club_rutas').delete().eq('club_id', clubId); } catch (_) {}
-        try { await supabaseClient.from('club_eventos').delete().eq('club_id', clubId); } catch (_) {}
-        try { await supabaseClient.from('clubs_usuarios').delete().eq('club_id', clubId); } catch (_) {}
-
-        const { error } = await supabaseClient.from('clubs').delete().eq('id', clubId);
+        const { data, error } = await supabaseClient.rpc('club_eliminar', { p_club: clubId });
         if (error) throw error;
+        if (data !== true) throw new Error('La base de datos no confirmó la eliminación del club.');
         return true;
     }
 };

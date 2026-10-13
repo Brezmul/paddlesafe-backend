@@ -151,12 +151,10 @@ export const ClubRender = {
                 ${extraFields}
                 ${dangerZoneCard}
                 <div class="flex gap-1.5 mt-5 pt-4 border-t border-slate-100 dark:border-slate-700 overflow-x-auto custom-scrollbar pb-1">
-                    <button type="button" id="btnClubTabTripulacion" onclick="window.Club.cambiarVistaInterna('tripulacion')" class="flex-1 min-w-[85px] px-2.5 py-2.5 rounded-xl bg-marine text-white font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">👥 Tripulación</button>
-                    <button type="button" id="btnClubTabChat" onclick="window.Club.cambiarVistaInterna('chat')" class="flex-1 min-w-[70px] px-2.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">💬 Chat</button>
-                    <button type="button" id="btnClubTabEventos" onclick="window.Club.cambiarVistaInterna('eventos')" class="flex-1 min-w-[80px] px-2.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">📅 Quedadas</button>
-                    <button type="button" id="btnClubTabRutas" onclick="window.Club.cambiarVistaInterna('rutas')" class="flex-1 min-w-[70px] px-2.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">🧭 Rutas</button>
-                    <button type="button" id="btnClubTabVitrina" onclick="window.Club.cambiarVistaInterna('vitrina')" class="flex-1 min-w-[70px] px-2.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">🏆 Vitrina</button>
-                    ${isAdmin ? `<button type="button" id="btnClubTabGestion" onclick="window.Club.cambiarVistaInterna('gestion')" class="flex-1 min-w-[75px] px-2.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">⚙️ Gestión</button>` : ''}
+                    <button type="button" id="btnClubTabTripulacion" onclick="window.Club.cambiarVistaInterna('tripulacion')" class="flex-1 min-w-[90px] px-3 py-2.5 rounded-xl bg-marine text-white font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">👥 Tripulación</button>
+                    <button type="button" id="btnClubTabChat" onclick="window.Club.cambiarVistaInterna('chat')" class="flex-1 min-w-[90px] px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">💬 Chat</button>
+                    <button type="button" id="btnClubTabEventos" onclick="window.Club.cambiarVistaInterna('eventos')" class="flex-1 min-w-[90px] px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">📅 Quedadas</button>
+                    ${isAdmin ? `<button type="button" id="btnClubTabGestion" onclick="window.Club.cambiarVistaInterna('gestion')" class="flex-1 min-w-[80px] px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">⚙️ Gestión</button>` : ''}
                 </div>
             </div>
         </div>
@@ -327,20 +325,9 @@ export const ClubRender = {
                 return;
             }
 
-            const miUserId = appState.sesionActual?.user?.id;
-            const clubActivoId = ClubState.activeId;
-            const clubActivo = clubActivoId ? ClubState.myClubs?.find(c => c.club_id === clubActivoId) : null;
-            const clubRol = (clubActivo?.club_rol || '').toLowerCase();
-            const puedeInvitar = clubActivoId && (clubRol === 'creador' || clubRol === 'admin' || clubActivo?.creador_id === miUserId);
-
             lista.innerHTML = paddlers.map(p => {
                 const avatar = safeUrl(p.avatar_url, IMG_FALLBACK);
                 const vipTag = p.is_vip ? `<span class="bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-[9px] px-1.5 py-0.5 rounded uppercase font-black ml-1">VIP</span>` : '';
-                const esYo = p.id === miUserId;
-                const btnInvitar = (puedeInvitar && !esYo) ? `
-                    <button type="button" onclick="if(window.Club && window.Club.invitarPaddler) window.Club.invitarPaddler('${esc(p.id)}', '${esc(clubActivoId)}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform shrink-0 cursor-pointer flex items-center gap-1" title="Invitar a tu club">
-                        <span>➕</span> Invitar
-                    </button>` : '';
 
                 return `
                     <div class="flex items-center justify-between p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm gap-3 hover:shadow-md transition-shadow">
@@ -351,10 +338,7 @@ export const ClubRender = {
                                 <p class="text-[10px] text-slate-400 font-bold truncate">Nivel ${p.nivel || 1} • ${p.puntos || 0} pts • ${Number(p.km_totales || 0).toFixed(1)} km</p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 shrink-0">
-                            ${btnInvitar}
-                            <button type="button" onclick="if(window.navigateSPA) window.navigateSPA('/user/${esc(p.id)}'); else if(window.abrirPerfilPublicoSPA) window.abrirPerfilPublicoSPA('${esc(p.id)}'); if(window.Club) window.Club.cerrarModal();" class="px-3.5 py-1.5 bg-water hover:bg-sky-600 text-white rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform shrink-0 cursor-pointer">Ver Perfil</button>
-                        </div>
+                        <button type="button" onclick="if(window.navigateSPA) window.navigateSPA('/user/${esc(p.id)}'); else if(window.abrirPerfilPublicoSPA) window.abrirPerfilPublicoSPA('${esc(p.id)}'); if(window.Club) window.Club.cerrarModal();" class="px-3.5 py-1.5 bg-water hover:bg-sky-600 text-white rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform shrink-0 cursor-pointer">Ver Perfil</button>
                     </div>`;
             }).join('');
         } catch (e) {

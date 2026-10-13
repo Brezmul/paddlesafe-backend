@@ -4,7 +4,6 @@
 
 import { supabaseClient, appState } from './config.js';
 import { IMG_FALLBACK, esc, safeUrl } from './utils.js'; // AÑADIDO: esc y safeUrl
-import { calcularNivelYProgreso } from './gamification.js';
 import * as Auth from './auth.js';
 import * as MapModule from './map.js';
 import * as Social from './social.js';
@@ -140,15 +139,6 @@ async function inicializarAplicacion() {
     const strHoy = `${hoy.getFullYear()}-${mes}-${dia}`;
     if (document.getElementById('date')) document.getElementById('date').value = strHoy;
     if (document.getElementById('proDate')) document.getElementById('proDate').value = strHoy;
-    const proTimeEl = document.getElementById('proTime');
-    if (proTimeEl && !proTimeEl.value) {
-        const horaStr = String(hoy.getHours()).padStart(2, '0');
-        proTimeEl.value = `${horaStr}:00`;
-    }
-    const proLocEl = document.getElementById('proLocation');
-    if (proLocEl && !proLocEl.value && MapModule.latitudActual && MapModule.longitudActual) {
-        proLocEl.value = `${MapModule.latitudActual.toFixed(4)}, ${MapModule.longitudActual.toFixed(4)}`;
-    }
 
     if (supabaseClient && supabaseClient.auth) {
         try {
@@ -245,7 +235,7 @@ export async function abrirPerfilPublicoSPA(userId) {
     
     if(user) {
         appState.spaCurrentUser = user;
-        document.getElementById('modalUserName').textContent = user.nombre || 'Paddler';
+        document.getElementById('modalUserName').textContent = user.nombre;
         
         const avatarEl = document.getElementById('spaAvatar');
         avatarEl.src = user.avatar_url || IMG_FALLBACK || '';
@@ -253,10 +243,7 @@ export async function abrirPerfilPublicoSPA(userId) {
         avatarEl.onerror = function() { this.onerror=null; this.src=IMG_FALLBACK; };
         
         const levelEl = document.getElementById('spaUserLevel');
-        const pts = Number(user.total_xp || user.puntos || 0);
-        const progreso = calcularNivelYProgreso(pts);
-        const lvl = user.current_level || user.nivel || progreso.nivel;
-        if (levelEl) levelEl.textContent = `Nivel ${lvl}`;
+        if (levelEl) levelEl.textContent = `Nivel ${user.nivel || 1}`;
         
         const myId = appState.sesionActual?.user?.id;
         const isMe = myId === userId;
@@ -299,12 +286,20 @@ export async function abrirPerfilPublicoSPA(userId) {
                 btnSubirGPX.className = 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-[10px] sm:text-xs font-black px-4 py-2 rounded-full uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-1.5';
                 btnSubirGPX.innerHTML = '<span>🚀</span> Subir Sesión GPX';
                 btnSubirGPX.onclick = () => {
-                    if (typeof window.abrirDialogoSubirGPX === 'function') {
-                        window.abrirDialogoSubirGPX();
-                    } else {
-                        let input = document.getElementById('gpxUploadInputSPA') || document.getElementById('gpxUploadInput');
-                        if (input) input.click();
+                    let input = document.getElementById('gpxUploadInputSPA');
+                    if (!input) {
+                        input = document.createElement('input');
+                        input.type = 'file';
+                        input.id = 'gpxUploadInputSPA';
+                        input.accept = '.gpx,application/gpx+xml';
+                        input.className = 'hidden';
+                        input.onchange = (e) => {
+                            if (window.subirArchivoGPX) window.subirArchivoGPX(e);
+                            setTimeout(() => cambiarTabPerfilSPA('rutas'), 1000);
+                        };
+                        document.body.appendChild(input);
                     }
+                    input.click();
                 };
                 btnContainer.appendChild(btnSubirGPX);
             }
@@ -380,7 +375,7 @@ export async function abrirPerfilPublicoSPA(userId) {
             return; // Detenemos la carga de contenido privado
         } else {
             // Aseguramos que las pestañas sean visibles
-            ['spaTabInsignias', 'spaTabRutas', 'spaTabAmigos'].forEach(id => {
+            ['spaTabInsignias', 'spaTabRutas'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.classList.remove('hidden');
             });
@@ -421,18 +416,14 @@ export async function cambiarTabPerfilSPA(tab) {
                     id: r.id,
                     title: r.title || 'Ruta Deportiva',
                     distancia_km: Number(r.distance_km || 0),
-                    distance_km: Number(r.distance_km || 0),
                     tiempo_minutos: Math.max(1, Math.round(Number(r.duration_seconds || 0) / 60)),
-                    duration_seconds: Number(r.duration_seconds || 0),
                     avg_speed: Number(r.avg_speed || 0),
                     max_speed: Number(r.max_speed || 0),
                     fecha: r.created_at,
-                    created_at: r.created_at,
                     route_coordinates: r.route_coordinates,
                     splits_data: r.splits_data,
                     ai_feedback: r.ai_feedback,
-                    puntos: Number(r.xp_earned || 0),
-                    xp_earned: Number(r.xp_earned || 0)
+                    puntos: Number(r.xp_earned || 0)
                 }));
             }
         } catch (e) {
@@ -456,16 +447,12 @@ export async function cambiarTabPerfilSPA(tab) {
                             id: r.id,
                             title: 'Travesía GPS',
                             distancia_km: dist,
-                            distance_km: dist,
                             tiempo_minutos: mins,
-                            duration_seconds: mins * 60,
                             avg_speed: avg,
                             max_speed: avg * 1.35,
                             fecha: r.fecha,
-                            created_at: r.fecha,
                             route_coordinates: r.ruta_json,
-                            puntos: Number(r.points_earned || (Math.round(dist * 10) + mins)),
-                            xp_earned: Number(r.points_earned || (Math.round(dist * 10) + mins))
+                            puntos: Number(r.points_earned || (Math.round(dist * 10) + mins))
                         });
                     }
                 });
@@ -491,7 +478,7 @@ export async function cambiarTabPerfilSPA(tab) {
                             <p class="text-[10px] text-white/90 font-medium">Sube tu archivo .GPX y suma +100 XP por km</p>
                         </div>
                     </div>
-                    <button type="button" onclick="if(window.abrirDialogoSubirGPX) window.abrirDialogoSubirGPX(); else document.getElementById('gpxUploadInputSPA')?.click() || document.getElementById('gpxUploadInput')?.click();" class="bg-white text-marine font-black text-xs px-3 py-2 rounded-xl shadow active:scale-95 transition-all cursor-pointer">
+                    <button type="button" onclick="document.getElementById('gpxUploadInputSPA')?.click() || document.getElementById('gpxUploadInput')?.click()" class="bg-white text-marine font-black text-xs px-3 py-2 rounded-xl shadow active:scale-95 transition-all cursor-pointer">
                         Subir GPX
                     </button>
                 </div>
@@ -565,49 +552,26 @@ export async function cambiarTabPerfilSPA(tab) {
         content.innerHTML = html + '</div>';
     }
     else if (tab === 'insignias') {
-        const rawCodigos = spaCurrentUser.insignias;
-        let insigniasCodigos = [];
-        if (Array.isArray(rawCodigos)) {
-            insigniasCodigos = rawCodigos;
-        } else if (typeof rawCodigos === 'string') {
-            try {
-                const parsed = JSON.parse(rawCodigos);
-                if (Array.isArray(parsed)) insigniasCodigos = parsed;
-            } catch (_) {
-                insigniasCodigos = rawCodigos.replace(/[{}]/g, '').split(',').map(s => s.trim()).filter(Boolean);
-            }
-        }
+        const insigniasCodigos = spaCurrentUser.insignias || [];
         if(!insigniasCodigos.length) return content.innerHTML = '<div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner mt-4"><p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Vitrina vacía.</p></div>';
         
-        let catalogo = [];
-        try {
-            const { data } = await supabaseClient.from('catalog_insignias').select('*').in('codigo', insigniasCodigos);
-            if (Array.isArray(data) && data.length > 0) {
-                catalogo = data;
-            }
-        } catch (_) {}
-
-        if (!catalogo.length) {
-            catalogo = insigniasCodigos.map(item => {
-                if (typeof item === 'object' && item !== null) return item;
-                const nom = String(item).replace(/_/g, ' ');
-                return { codigo: item, nombre: nom, icono: '🏅', descripcion: 'Insignia conseguida en el mar' };
-            });
-        }
+        const { data: catalogo } = await supabaseClient.from('catalog_insignias').select('*').in('codigo', insigniasCodigos);
         
         let html = '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4 pb-4">';
-        html += catalogo.map(item => {
-            const nombreEsc = esc(item.nombre || 'Insignia');
-            return `
-            <div class="flex flex-col items-center justify-center bg-gradient-to-b from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 p-5 border border-slate-200 dark:border-slate-700 rounded-3xl text-center shadow-lg shadow-slate-200/50 dark:shadow-none hover:-translate-y-2 hover:shadow-2xl hover:border-amber-200 dark:hover:border-amber-700/50 transition-all duration-300 relative overflow-hidden group">
-                <div class="absolute inset-0 bg-gradient-to-tr from-amber-100/30 to-transparent dark:from-amber-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <div class="w-16 h-16 mx-auto bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-md border border-slate-100 dark:border-slate-700 mb-3 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                    <span class="text-4xl drop-shadow-md">${esc(item.icono || '🏅')}</span>
-                </div>
-                <p class="text-[11px] font-black text-marine dark:text-white uppercase tracking-widest leading-tight relative z-10 px-1">${nombreEsc}</p>
-                ${item.descripcion ? `<p class="text-[9px] text-slate-400 dark:text-slate-500 mt-2 font-bold leading-relaxed relative z-10 px-2 hidden group-hover:block transition-all">${esc(item.descripcion)}</p>` : ''}
-            </div>`;
-        }).join('');
+        if(catalogo) {
+            html += catalogo.map(item => {
+                const nombreEsc = esc(item.nombre);
+                return `
+                <div class="flex flex-col items-center justify-center bg-gradient-to-b from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 p-5 border border-slate-200 dark:border-slate-700 rounded-3xl text-center shadow-lg shadow-slate-200/50 dark:shadow-none hover:-translate-y-2 hover:shadow-2xl hover:border-amber-200 dark:hover:border-amber-700/50 transition-all duration-300 relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-amber-100/30 to-transparent dark:from-amber-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div class="w-16 h-16 mx-auto bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-md border border-slate-100 dark:border-slate-700 mb-3 group-hover:scale-110 transition-transform duration-300 relative z-10">
+                        <span class="text-4xl drop-shadow-md">${esc(item.icono || '🏅')}</span>
+                    </div>
+                    <p class="text-[11px] font-black text-marine dark:text-white uppercase tracking-widest leading-tight relative z-10 px-1">${nombreEsc}</p>
+                    ${item.descripcion ? `<p class="text-[9px] text-slate-400 dark:text-slate-500 mt-2 font-bold leading-relaxed relative z-10 px-2 hidden group-hover:block transition-all">${esc(item.descripcion)}</p>` : ''}
+                </div>`;
+            }).join('');
+        }
         content.innerHTML = html + '</div>';
     } else if (tab === 'amigos') {
         if(typeof Social.cargarTabAmigosSPA === 'function') Social.cargarTabAmigosSPA();

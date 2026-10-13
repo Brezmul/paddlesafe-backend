@@ -2,50 +2,15 @@
 // js/auth.js - AUTENTICACIÓN, PERFIL Y STORAGE
 // ====================================================
 
-import { supabaseClient, appState } from './config.js';
+import { supabaseClient, appState, BACKEND_API_URL } from './config.js';
 import { esc, safeUrl, validarImagen, calcularRangoMaritimo, IMG_FALLBACK, fetchConTimeout } from './utils.js';
 import { parseGPX } from './gpxParser.js';
 import { calcularNivelYProgreso, obtenerPosicionRanking, guardarRutaDeportivaConGamificacion } from './gamification.js';
 
-export function comprobarRecuperacionPasswordUrl() {
-    const hash = window.location.hash || '';
-    const search = window.location.search || '';
-    const params = new URLSearchParams(search);
-    const hashParams = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
-
-    const errorDesc = hashParams.get('error_description') || params.get('error_description');
-    if (errorDesc) {
-        alert("⚠️ El enlace de recuperación no es válido o ha expirado: " + decodeURIComponent(errorDesc.replace(/\+/g, ' ')));
-        window.history.replaceState(null, null, window.location.pathname);
-        return false;
-    }
-
-    const esRecovery = hash.includes('type=recovery') || 
-                       search.includes('type=recovery') || 
-                       params.get('type') === 'recovery' ||
-                       hashParams.get('type') === 'recovery' ||
-                       hash.toLowerCase() === '#recovery';
-
-    if (esRecovery) {
-        appState.isPasswordRecoveryMode = true;
-        setTimeout(() => {
-            abrirModalRecuperacionFinal();
-        }, 200);
-        return true;
-    }
-    return false;
-}
-
 export function initAuthListeners() {
-    comprobarRecuperacionPasswordUrl();
-
     if (supabaseClient && supabaseClient.auth) {
         supabaseClient.auth.onAuthStateChange((event, session) => {
-            if (event === 'PASSWORD_RECOVERY') {
-                appState.isPasswordRecoveryMode = true;
-                setTimeout(abrirModalRecuperacionFinal, 300);
-                return;
-            }
+            if (event === 'PASSWORD_RECOVERY') { setTimeout(abrirModalRecuperacionFinal, 500); return; }
             if (event === 'INITIAL_SESSION') return;
             
             const mismoUsuario = session?.user?.id && session.user.id === appState.perfilUsuario?.id;
@@ -61,16 +26,8 @@ export function initAuthListeners() {
                 }
                 else { appState.perfilUsuario = null; actualizarBotonCabecera(); }
                 
-                // Si el usuario está en proceso de restablecer su contraseña, preservar el modal
-                if (appState.isPasswordRecoveryMode || document.getElementById('nuevaPassword')) {
-                    abrirModalRecuperacionFinal();
-                    return;
-                }
-
                 const modal = document.getElementById('authModal');
-                if (modal && !modal.classList.contains('hidden') && appState.sesionActual && appState.perfilUsuario) {
-                    cerrarModalAuth();
-                }
+                if (modal && !modal.classList.contains('hidden') && appState.sesionActual && !document.getElementById('nuevaPassword') && appState.perfilUsuario) cerrarModalAuth();
             }, 0);
         });
     }
@@ -86,40 +43,12 @@ export async function cargarPerfilUsuarioActivo() {
         const { data: creado } = await supabaseClient.from('perfiles').upsert([nuevo], { onConflict: 'id', ignoreDuplicates: true }).select().maybeSingle();
         data = creado || nuevo;
     }
-    if (!data) {
-        const u = appState.sesionActual.user;
-        const nombreMeta = u.user_metadata?.full_name || u.user_metadata?.name || (u.email || 'Paddler').split('@')[0];
-        data = {
-            id: userId,
-            nombre: nombreMeta,
-            avatar_url: u.user_metadata?.avatar_url || null,
-            nivel: 1,
-            current_level: 1,
-            puntos: 0,
-            total_xp: 0,
-            km_totales: 0,
-            total_distance_km: 0,
-            tiempo_total: 0,
-            insignias: [],
-            is_private: false,
-            titulo: 'Paddler en Ascenso'
-        };
-    }
-    if (data.insignias && typeof data.insignias === 'string') {
-        try {
-            data.insignias = JSON.parse(data.insignias);
-        } catch (_) {
-            data.insignias = data.insignias.replace(/[{}]/g, '').split(',').map(s => s.trim()).filter(Boolean);
+    if (data) { 
+        appState.perfilUsuario = data; 
+        actualizarBotonCabecera(); 
+        if (window.socialNotifications && typeof window.socialNotifications.cargarNotificaciones === 'function') {
+            window.socialNotifications.cargarNotificaciones();
         }
-    }
-    if (!Array.isArray(data.insignias)) {
-        data.insignias = [];
-    }
-
-    appState.perfilUsuario = data; 
-    actualizarBotonCabecera(); 
-    if (window.socialNotifications && typeof window.socialNotifications.cargarNotificaciones === 'function') {
-        window.socialNotifications.cargarNotificaciones();
     }
 }
 
@@ -141,33 +70,18 @@ export function actualizarBotonCabecera() {
     }
 }
 
-export async function abrirModalAuth() {
+export function abrirModalAuth() {
     // Defensive UX: Bloqueamos apertura si el usuario está en plena travesía GPS
     const trackingPanel = document.getElementById('liveTrackingPanel');
     if (trackingPanel && !trackingPanel.classList.contains('hidden')) {
         return alert("⚠️ Finaliza o cancela la grabación de la travesía GPS antes de abrir los menús.");
     }
 
-    if (!appState.sesionActual && !appState.esInvitado && supabaseClient?.auth) {
-        try {
-            const { data: sData } = await supabaseClient.auth.getSession();
-            if (sData?.session) {
-                appState.sesionActual = sData.session;
-            }
-        } catch (e) {
-            console.warn('[abrirModalAuth] Error recuperando sesión:', e);
-        }
-    }
-
-    if (appState.sesionActual && !appState.perfilUsuario) {
-        await cargarPerfilUsuarioActivo();
-    }
-
     restaurarFormularioAuth();
     const m = document.getElementById('authModal');
     if (m) {
         m.classList.remove('hidden');
-        setTimeout(() => { m.classList.remove('opacity-0'); m.querySelector('div')?.classList.remove('scale-95'); }, 10);
+        setTimeout(() => { m.classList.remove('opacity-0'); m.querySelector('div').classList.remove('scale-95'); }, 10);
     }
 }
 
@@ -183,74 +97,26 @@ export function restaurarFormularioAuth() {
     const c = document.getElementById('authModalContent');
     if(!c) return;
     appState.isLoginMode = true;
-
-    // Si hay sesión pero el perfil aún está cargando, mostrar estado transitorio seguro
-    if (appState.sesionActual && !appState.perfilUsuario && !appState.esInvitado) {
-        c.innerHTML = `
-            <div class="text-center py-16 dark:bg-slate-900 rounded-3xl">
-                <div class="w-12 h-12 border-4 border-water border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p class="text-sm font-bold text-marine dark:text-white">Cargando tu perfil...</p>
-            </div>
-        `;
-        cargarPerfilUsuarioActivo().then(() => {
-            restaurarFormularioAuth();
-        }).catch(() => {
-            const u = appState.sesionActual?.user;
-            if (u) {
-                appState.perfilUsuario = {
-                    id: u.id,
-                    nombre: u.user_metadata?.full_name || (u.email || 'Paddler').split('@')[0],
-                    nivel: 1,
-                    current_level: 1,
-                    puntos: 0,
-                    total_xp: 0,
-                    km_totales: 0,
-                    total_distance_km: 0,
-                    tiempo_total: 0,
-                    insignias: [],
-                    is_private: false,
-                    titulo: 'Paddler en Ascenso'
-                };
-            }
-            restaurarFormularioAuth();
-        });
-        return;
-    }
-
     if ((appState.sesionActual && appState.perfilUsuario) || appState.esInvitado) {
         const avatarSrc = appState.perfilUsuario?.avatar_url || `https://api.dicebear.com/9.x/adventurer/svg?seed=guest`;
         const horasNav = Math.floor((appState.perfilUsuario?.tiempo_total || 0) / 60);
         const minNav = (appState.perfilUsuario?.tiempo_total || 0) % 60;
-        const pts = Number(appState.perfilUsuario?.total_xp ?? appState.perfilUsuario?.puntos ?? 0);
+        const pts = appState.perfilUsuario?.total_xp ?? appState.perfilUsuario?.puntos ?? 0;
         const distTot = Number(appState.perfilUsuario?.total_distance_km ?? appState.perfilUsuario?.km_totales ?? 0).toFixed(1);
         const progresoGamif = calcularNivelYProgreso(pts);
-        const nivelActual = appState.perfilUsuario?.current_level || appState.perfilUsuario?.nivel || progresoGamif.nivel;
-        const rango = calcularRangoMaritimo(pts, nivelActual);
-        const tituloPerfil = appState.perfilUsuario?.titulo || rango.titulo;
+        const nivelActual = progresoGamif.nivel;
+        const rango = calcularRangoMaritimo(pts);
         
         let insigniasHTML = `<p class="text-[10px] text-slate-400 dark:text-slate-500 font-medium my-2">Aún no has ganado insignias en quedadas.</p>`;
-        const rawInsignias = appState.perfilUsuario?.insignias;
-        let listaInsignias = [];
-        if (Array.isArray(rawInsignias)) {
-            listaInsignias = rawInsignias;
-        } else if (typeof rawInsignias === 'string') {
-            try {
-                const parsed = JSON.parse(rawInsignias);
-                if (Array.isArray(parsed)) listaInsignias = parsed;
-            } catch (_) {
-                listaInsignias = rawInsignias.replace(/[{}]/g, '').split(',').map(s => s.trim()).filter(Boolean);
-            }
-        }
-
-        if (listaInsignias.length > 0) {
+        if (appState.perfilUsuario?.insignias && appState.perfilUsuario.insignias.length > 0) {
             insigniasHTML = `<div class="grid grid-cols-3 sm:grid-cols-4 gap-3 justify-items-center mt-3">`;
-            insigniasHTML += listaInsignias.map(rawIns => {
-                const ins = typeof rawIns === 'string' ? { nombre: rawIns.replace(/_/g, ' '), icono: '🏅' } : (rawIns || { nombre: 'Insignia', icono: '🏅' }); 
+            insigniasHTML += appState.perfilUsuario.insignias.map(rawIns => {
+                const ins = typeof rawIns === 'string' ? { nombre: rawIns.replace(/_/g, ' '), icono: '🏅' } : rawIns; 
                 return `
                     <div class="flex flex-col items-center bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 text-center w-full relative group">
                         <div class="absolute inset-0 bg-gradient-to-tr from-amber-200/20 to-transparent dark:from-amber-900/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <span class="text-4xl drop-shadow-lg mb-3 transform group-hover:scale-110 transition-transform">${esc(ins.icono || '🏅')}</span>
-                        <span class="text-[9px] sm:text-[10px] font-black text-marine dark:text-white uppercase tracking-widest leading-tight z-10 break-words w-full">${esc(ins.nombre || 'Insignia')}</span>
+                        <span class="text-[9px] sm:text-[10px] font-black text-marine dark:text-white uppercase tracking-widest leading-tight z-10 break-words w-full">${esc(ins.nombre)}</span>
                     </div>`;
             }).join('');
             insigniasHTML += `</div>`;
@@ -276,7 +142,7 @@ export function restaurarFormularioAuth() {
                         <input type="text" id="perfilNombre" value="${esc(appState.perfilUsuario?.nombre || 'Invitado')}" class="text-center bg-transparent border-b-2 border-transparent hover:border-slate-200 dark:hover:border-slate-700 focus:border-water dark:focus:border-sky-500 focus:outline-none transition-colors w-full dark:text-white pb-1" placeholder="Tu Nombre" ${disableInput}>
                     </h2>
                     <div class="inline-flex items-center justify-center gap-2 mt-2 bg-slate-50 dark:bg-slate-800/80 px-4 py-1.5 rounded-full border border-slate-100 dark:border-slate-700 shadow-sm">
-                        <span class="text-xs sm:text-sm font-black text-water dark:text-sky-400 uppercase tracking-widest">${esc(tituloPerfil)}</span>
+                        <span class="text-xs sm:text-sm font-black text-water dark:text-sky-400 uppercase tracking-widest">${rango.titulo}</span>
                     </div>
                 </div>
                 <div class="bg-white dark:bg-slate-800 rounded-[24px] p-6 mb-6 grid grid-cols-3 gap-4 shadow-xl shadow-slate-200/40 dark:shadow-none border border-slate-100 dark:border-slate-700 relative overflow-hidden">
@@ -336,16 +202,9 @@ export function restaurarFormularioAuth() {
                     </button>
                 </div>
 
-                <!-- ACCESO RÁPIDO A AMIGOS Y COMUNIDAD -->
-                <div class="flex gap-2 mb-4">
-                    <button type="button" onclick="if(window.abrirPanelMisAmigos) window.abrirPanelMisAmigos();" class="w-full h-11 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 font-black text-xs uppercase tracking-wider rounded-2xl border border-sky-400/30 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer shadow-sm">
-                        <span>🤝</span> Mis Amigos & Solicitudes
-                    </button>
-                </div>
-
                 <!-- BOTÓN DESTACADO: SUBIR RUTA PARA SUMAR XP Y ESCALAR EN EL RANKING -->
                 <div class="mb-8">
-                    <button type="button" onclick="window.abrirDialogoSubirGPX()" class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white p-4 sm:p-5 rounded-3xl shadow-xl shadow-teal-900/30 active:scale-[0.98] transition-all flex items-center justify-between cursor-pointer group border border-emerald-400/30 relative overflow-hidden ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
+                    <button type="button" onclick="document.getElementById('gpxUploadInput')?.click()" class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white p-4 sm:p-5 rounded-3xl shadow-xl shadow-teal-900/30 active:scale-[0.98] transition-all flex items-center justify-between cursor-pointer group border border-emerald-400/30 relative overflow-hidden ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
                         <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
                         <div class="flex items-center gap-3.5 relative z-10 text-left min-w-0">
                             <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-2xl shadow-inner group-hover:rotate-6 transition-transform shrink-0">
@@ -391,22 +250,17 @@ export function restaurarFormularioAuth() {
                             <svg class="w-4 h-4 text-water dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg> 
                             Diario de Aventuras
                         </h3>
-                        <button type="button" onclick="window.abrirDialogoSubirGPX()" class="cursor-pointer bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1.5 ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
+                        <button type="button" onclick="document.getElementById('gpxUploadInput')?.click()" class="cursor-pointer bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1.5 ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
                             <span>📥</span> Subir GPX
                         </button>
                     </div>
                     <div id="contenedorHistorial" class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar pb-4"></div>
                 </div>
-                <div class="mb-3">
-                    <button type="button" onclick="window.abrirModalRecuperacionFinal()" class="w-full h-11 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-wider rounded-2xl border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer shadow-sm">
-                        <span>🔑</span> Cambiar Contraseña
-                    </button>
-                </div>
                 <button onclick="cerrarSesion()" class="w-full h-14 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 font-black uppercase tracking-widest text-[11px] rounded-2xl border-2 border-red-100 dark:border-red-900/30 transition-all shadow-sm active:scale-95">
                     ${appState.esInvitado ? 'Salir del Modo Invitado' : 'Cerrar Sesión'}
                 </button>
                 <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.37</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.26</p>
                     <button type="button" onclick="if(window.forzarActualizacion) window.forzarActualizacion(); else window.location.reload();" class="mt-1 text-[9px] text-water dark:text-sky-400 hover:underline font-bold uppercase tracking-wider cursor-pointer">🔄 Buscar actualizaciones / Limpiar caché</button>
                 </div>
             </div>
@@ -418,8 +272,7 @@ export function restaurarFormularioAuth() {
     
     c.innerHTML = `
         <div class="text-center mb-8 dark:bg-slate-900 pt-6 rounded-t-3xl relative">
-            <div class="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-4"></div>
-            <img src="/icons/PaddleSafe_192x192.png" alt="PaddleSafe Logo" class="w-16 h-16 rounded-2xl mx-auto mb-3 shadow-md border border-slate-200 dark:border-slate-700 object-contain">
+            <div class="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6"></div>
             <h2 id="authTitle" class="text-3xl sm:text-4xl font-black text-marine dark:text-white mb-2 tracking-tight">Iniciar Sesión</h2>
             <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Accede a tu diario y progreso en el mar.</p>
         </div>
@@ -451,242 +304,65 @@ export function restaurarFormularioAuth() {
             <button type="button" onclick="toggleAuthMode()" class="text-water dark:text-sky-400 font-black cursor-pointer ml-1 hover:underline" id="authToggleBtn">Regístrate</button>
         </div>
         <div class="mt-4 text-center dark:bg-slate-900 pb-6">
-            <button type="button" id="btnRecuperarPass" onclick="mostrarVistaSolicitarRecuperacion()" class="text-[11px] font-bold text-slate-400 dark:text-slate-500 hover:text-water dark:hover:text-sky-400 uppercase tracking-widest transition-colors cursor-pointer">¿Olvidaste tu contraseña?</button>
-        </div>
-    `;
-}
-
-export function mostrarVistaSolicitarRecuperacion() {
-    const c = document.getElementById('authModalContent');
-    if (!c) return;
-    const emailPrevio = document.getElementById('authEmail')?.value?.trim() || '';
-    c.innerHTML = `
-        <div class="text-center mb-6 dark:bg-slate-900 pt-6 rounded-t-3xl">
-            <div class="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6"></div>
-            <div class="w-16 h-16 bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner">
-                📧
-            </div>
-            <h2 class="text-2xl sm:text-3xl font-black text-marine dark:text-white mb-2 tracking-tight">Recuperar Contraseña</h2>
-            <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium px-4">
-                Introduce el correo electrónico asociado a tu cuenta de PaddleSafe y te enviaremos un enlace seguro para restablecerla.
-            </p>
-        </div>
-        <div class="space-y-4 w-full dark:bg-slate-900 pb-4 px-2">
-            <div class="relative">
-                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path></svg>
-                </span>
-                <input type="email" id="recuperarEmailInput" value="${esc(emailPrevio)}" class="block w-full h-14 pl-12 pr-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-water dark:focus:ring-sky-500 outline-none transition-all shadow-sm" placeholder="tu-email@ejemplo.com" autofocus>
-            </div>
-            <button type="button" id="btnEnviarRecuperacion" onclick="enviarEmailRecuperacion()" class="w-full h-14 bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-water/30 dark:shadow-none transition-transform active:scale-95 cursor-pointer flex items-center justify-center gap-2">
-                <span>Enviar Enlace de Recuperación</span>
-                <span>📨</span>
-            </button>
-            <button type="button" onclick="restaurarFormularioAuth()" class="w-full h-12 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all cursor-pointer">
-                ⬅️ Volver al Inicio de Sesión
-            </button>
-        </div>
-    `;
-}
-
-export function mostrarVistaConfirmacionEmailEnviado(email) {
-    const c = document.getElementById('authModalContent');
-    if (!c) return;
-    c.innerHTML = `
-        <div class="text-center mb-6 dark:bg-slate-900 pt-6 rounded-t-3xl">
-            <div class="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6"></div>
-            <div class="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner">
-                ✅
-            </div>
-            <h2 class="text-2xl sm:text-3xl font-black text-marine dark:text-white mb-2 tracking-tight">¡Correo Enviado!</h2>
-            <p class="text-slate-600 dark:text-slate-300 text-xs sm:text-sm font-medium px-4 mb-2">
-                Hemos enviado un correo a:
-            </p>
-            <p class="text-sm font-black text-water dark:text-sky-400 bg-sky-50 dark:bg-slate-800 py-1.5 px-3 rounded-xl inline-block mb-4 border border-sky-100 dark:border-slate-700">
-                ${esc(email)}
-            </p>
-            <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-2xl p-4 mx-2 text-left mb-4">
-                <p class="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-                    💡 <strong>Siguientes pasos:</strong><br>
-                    1. Revisa tu bandeja de entrada (o carpeta de spam).<br>
-                    2. Haz clic en el enlace recibido en el correo.<br>
-                    3. Se abrirá automáticamente esta aplicación en el espacio seguro para que introduzcas tu nueva contraseña.
-                </p>
-            </div>
-        </div>
-        <div class="space-y-3 w-full dark:bg-slate-900 pb-4 px-2">
-            <button type="button" onclick="abrirModalRecuperacionFinal()" class="w-full h-13 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition-transform active:scale-95 cursor-pointer flex items-center justify-center gap-2">
-                <span>¿Ya abriste el enlace? Escribir Nueva Contraseña</span>
-                <span>🔑</span>
-            </button>
-            <button type="button" onclick="restaurarFormularioAuth()" class="w-full h-11 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all cursor-pointer">
-                Volver a Iniciar Sesión
-            </button>
+            <button type="button" id="btnRecuperarPass" onclick="enviarEmailRecuperacion()" class="text-[11px] font-bold text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 uppercase tracking-widest transition-colors">¿Olvidaste tu contraseña?</button>
         </div>
     `;
 }
 
 export async function enviarEmailRecuperacion() {
-    const input = document.getElementById('recuperarEmailInput') || document.getElementById('authEmail');
-    const email = input?.value?.trim();
-    if (!email || !email.includes('@')) {
-        alert("Por favor, introduce un correo electrónico válido.");
-        return;
-    }
-    const btn = document.getElementById('btnEnviarRecuperacion') || document.getElementById('btnRecuperarPass');
-    if (btn) { btn.disabled = true; btn.textContent = "Enviando enlace..."; }
+    const email = document.getElementById('authEmail').value;
+    if (!email) return alert("Por favor, escribe tu email en el campo de arriba y pulsa este botón.");
+    const btn = document.getElementById('btnRecuperarPass');
+    if (btn) { btn.disabled = true; btn.textContent = "Enviando..."; }
     
-    try {
-        const redirectToUrl = `${window.location.origin}${window.location.pathname}#recovery`;
-        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: redirectToUrl });
-        if (error) {
-            alert("Error: " + error.message);
-            if (btn) { btn.disabled = false; btn.textContent = "Enviar Enlace de Recuperación"; }
-        } else {
-            mostrarVistaConfirmacionEmailEnviado(email);
-        }
-    } catch (err) {
-        alert("Ocurrió un error al enviar el correo: " + (err.message || err));
-        if (btn) { btn.disabled = false; btn.textContent = "Enviar Enlace de Recuperación"; }
-    }
-}
-
-export function toggleVerPassword(inputId, btnEl) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    if (input.type === 'password') {
-        input.type = 'text';
-        if (btnEl) btnEl.innerHTML = '🙈';
-    } else {
-        input.type = 'password';
-        if (btnEl) btnEl.innerHTML = '👁️';
-    }
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/' });
+    
+    if (error) { alert("Error: " + error.message); } 
+    else { alert("✅ Te hemos enviado un enlace para restablecer tu contraseña. Revisa tu email."); }
+    
+    if (btn) { btn.disabled = false; btn.textContent = "¿Olvidaste tu contraseña?"; }
 }
 
 export function abrirModalRecuperacionFinal() {
-    appState.isPasswordRecoveryMode = true;
     const c = document.getElementById('authModalContent');
     if (!c) return;
     c.innerHTML = `
-        <div class="text-center mb-6 dark:bg-slate-900 pt-6 rounded-t-3xl">
+        <div class="text-center mb-8 dark:bg-slate-900 pt-8 rounded-t-3xl">
             <div class="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6"></div>
-            <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-3xl flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg shadow-emerald-500/30">
-                🔑
-            </div>
-            <h2 class="text-2xl sm:text-3xl font-black text-marine dark:text-white mb-2 tracking-tight">Establecer Nueva Contraseña</h2>
-            <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium px-4">
-                Elige una contraseña segura (mínimo 6 caracteres) para acceder a tu cuenta de PaddleSafe.
-            </p>
+            <h2 class="text-3xl font-black text-marine dark:text-white mb-2 tracking-tight">Nueva Contraseña</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Ingresa tu nueva contraseña para acceder.</p>
         </div>
         <div class="space-y-4 w-full dark:bg-slate-900 pb-6 px-2">
-            <div class="space-y-1">
-                <label class="block text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 pl-1">Nueva Contraseña</label>
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                    </span>
-                    <input type="password" id="nuevaPassword" class="block w-full h-14 pl-12 pr-12 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm" placeholder="Mínimo 6 caracteres" autofocus>
-                    <button type="button" onclick="window.toggleVerPassword('nuevaPassword', this)" class="absolute inset-y-0 right-0 pr-4 flex items-center text-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
-                        👁️
-                    </button>
-                </div>
+            <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></span>
+                <input type="password" id="nuevaPassword" class="block w-full h-14 pl-12 pr-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm" placeholder="Nueva contraseña (mín. 6 caracteres)">
             </div>
-
-            <div class="space-y-1">
-                <label class="block text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 pl-1">Confirmar Contraseña</label>
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    </span>
-                    <input type="password" id="confirmarPassword" class="block w-full h-14 pl-12 pr-12 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm" placeholder="Repite tu nueva contraseña">
-                    <button type="button" onclick="window.toggleVerPassword('confirmarPassword', this)" class="absolute inset-y-0 right-0 pr-4 flex items-center text-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
-                        👁️
-                    </button>
-                </div>
-            </div>
-
-            <div id="passwordErrorMsg" class="hidden text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-200 dark:border-red-800/40"></div>
-
-            <button type="button" id="btnGuardarPassword" onclick="guardarNuevaPassword()" class="w-full h-14 mt-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 dark:shadow-none transition-transform active:scale-95 cursor-pointer flex items-center justify-center gap-2">
-                <span>Guardar Nueva Contraseña</span>
-                <span>✨</span>
-            </button>
-            <button type="button" onclick="cerrarModalAuth()" class="w-full h-11 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all cursor-pointer">
-                Cancelar
-            </button>
+            <button type="button" onclick="guardarNuevaPassword()" class="w-full h-14 mt-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 dark:shadow-none transition-transform active:scale-95 cursor-pointer">Guardar Contraseña</button>
         </div>
     `;
     const m = document.getElementById('authModal');
     if (m) {
         m.classList.remove('hidden');
-        setTimeout(() => { 
-            m.classList.remove('opacity-0'); 
-            m.querySelector('div')?.classList.remove('scale-95'); 
-        }, 10);
+        setTimeout(() => { m.classList.remove('opacity-0'); m.querySelector('div').classList.remove('scale-95'); }, 10);
     }
 }
 
 export async function guardarNuevaPassword() {
-    const pass = document.getElementById('nuevaPassword')?.value;
-    const confirmPass = document.getElementById('confirmarPassword')?.value;
-    const errBox = document.getElementById('passwordErrorMsg');
-    const mostrarError = (msg) => {
-        if (errBox) {
-            errBox.textContent = msg;
-            errBox.classList.remove('hidden');
-        } else {
-            alert(msg);
-        }
-    };
-
-    if (!pass || pass.length < 6) {
-        return mostrarError("La contraseña debe tener al menos 6 caracteres.");
-    }
-    if (confirmPass !== undefined && pass !== confirmPass) {
-        return mostrarError("Las dos contraseñas no coinciden. Por favor, verifícalas.");
-    }
-
-    if (errBox) errBox.classList.add('hidden');
-
-    const btn = document.getElementById('btnGuardarPassword');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = `<span>Guardando...</span> <span class="animate-spin">⏳</span>`;
-    }
-
-    try {
-        const { data, error } = await supabaseClient.auth.updateUser({ password: pass });
-        if (error) {
-            mostrarError("Error al guardar: " + error.message);
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = `<span>Guardar Nueva Contraseña</span> <span>✨</span>`;
-            }
-            return;
-        }
-
-        appState.isPasswordRecoveryMode = false;
-        alert("✅ ¡Contraseña actualizada con éxito! Ahora ya puedes continuar navegando con tu nueva clave.");
-        
-        // Limpiar hash y parámetros de recuperación de la URL
+    const pass = document.getElementById('nuevaPassword').value;
+    if (!pass || pass.length < 6) return alert("La contraseña debe tener al menos 6 caracteres.");
+    const { error } = await supabaseClient.auth.updateUser({ password: pass });
+    if (error) { alert("Error: " + error.message); } 
+    else {
+        alert("✅ Contraseña actualizada correctamente.");
+        cerrarModalAuth();
         window.history.replaceState(null, null, window.location.pathname);
-        
-        // Cargar perfil activo y restaurar vista
-        await cargarPerfilUsuarioActivo();
-        restaurarFormularioAuth();
-    } catch (err) {
-        mostrarError("Ocurrió un error inesperado: " + (err.message || err));
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = `<span>Guardar Nueva Contraseña</span> <span>✨</span>`;
-        }
     }
 }
 
 export async function subirAvatar(event) {
     if (appState.esInvitado) return alert("Los invitados no pueden subir foto.");
-    if (!appState.sesionActual?.user) return alert("Sesión inválida.");
-    const fileInput = event?.target || document.getElementById('avatarUpload');
+    if (!appState.sesionActual) return alert("Sesión inválida.");
+    const fileInput = event.target || document.getElementById('avatarUpload');
     const file = fileInput?.files?.[0];
     if (!file) return;
     
@@ -697,24 +373,21 @@ export async function subirAvatar(event) {
     if (preview) preview.style.opacity = '0.5';
     
     const mime = file.type || 'image/jpeg';
-    const userId = appState.sesionActual.user.id;
-    const filePath = `avatars/${userId}.jpg`;
+    
+    // Nombramos el archivo SIEMPRE igual (solo con el ID de usuario) para evitar saturar el storage
+    const filePath = `avatars/${appState.sesionActual.user.id}.jpg`;
     
     try {
         const { error: uploadError } = await supabaseClient.storage.from('paddlesafe').upload(filePath, file, { upsert: true, contentType: mime });
         if (uploadError) throw uploadError;
         
         const { data } = supabaseClient.storage.from('paddlesafe').getPublicUrl(filePath);
+        
+        // Cache-Buster para forzar al navegador a renderizar la nueva imagen
         const urlConCacheBuster = `${data.publicUrl}?t=${Date.now()}`;
         
-        const { error: updErr } = await supabaseClient.from('perfiles').update({ avatar_url: urlConCacheBuster }).eq('id', userId);
-        if (updErr) {
-            await supabaseClient.from('perfiles').upsert({ id: userId, avatar_url: urlConCacheBuster }, { onConflict: 'id' });
-        }
+        await supabaseClient.from('perfiles').upsert({ id: appState.sesionActual.user.id, avatar_url: urlConCacheBuster });
         
-        // Mantener metadatos de usuario sincronizados
-        await supabaseClient.auth.updateUser({ data: { avatar_url: urlConCacheBuster } }).catch(() => {});
-
         if (!appState.perfilUsuario) appState.perfilUsuario = {};
         appState.perfilUsuario.avatar_url = urlConCacheBuster;
         if (preview) preview.src = urlConCacheBuster;
@@ -730,41 +403,26 @@ export async function subirAvatar(event) {
 
 export async function guardarPerfil() {
     if (appState.esInvitado) return alert("Los invitados no pueden modificar su perfil. ¡Regístrate!");
-    if (!appState.sesionActual?.user) return alert("No hay sesión activa.");
-    const inputNombre = document.getElementById('perfilNombre');
-    const inputPrivado = document.getElementById('perfilPrivado');
-    if (!inputNombre) return;
-
-    const nuevoNombre = inputNombre.value.trim().slice(0, 30);
+    if (!appState.sesionActual) return alert("No hay sesión activa.");
+    const nuevoNombre = document.getElementById('perfilNombre').value.trim().slice(0, 30);
     if (nuevoNombre.length < 2) return alert("El nombre debe tener entre 2 y 30 caracteres.");
-    const esPrivado = inputPrivado ? inputPrivado.checked : false;
+    const esPrivado = document.getElementById('perfilPrivado').checked;
     const btn = document.getElementById('btnGuardarPerfil');
     
-    if (btn) { btn.disabled = true; btn.textContent = "Guardando..."; }
+    btn.disabled = true; btn.textContent = "Guardando...";
     
-    try {
-        const userId = appState.sesionActual.user.id;
-        const { error } = await supabaseClient.from('perfiles').update({ nombre: nuevoNombre, is_private: esPrivado }).eq('id', userId);
-        if (error) {
-            alert("❌ Error al guardar: " + error.message);
-            if (btn) { btn.textContent = "Guardar"; btn.disabled = false; }
-            return;
-        }
-
-        // Sincronizar nombre en metadatos de autenticación Supabase
-        await supabaseClient.auth.updateUser({ data: { full_name: nuevoNombre } }).catch(() => {});
-
+    const { error } = await supabaseClient.from('perfiles').update({ nombre: nuevoNombre, is_private: esPrivado }).eq('id', appState.sesionActual.user.id);
+    if (error) {
+        alert("❌ Error al guardar: " + error.message);
+        btn.textContent = "Guardar";
+        btn.disabled = false;
+    } else {
         if (!appState.perfilUsuario) appState.perfilUsuario = {};
         appState.perfilUsuario.nombre = nuevoNombre;
         appState.perfilUsuario.is_private = esPrivado;
         actualizarBotonCabecera();
-        if (btn) {
-            btn.textContent = "✅ Guardado!";
-            setTimeout(() => { btn.textContent = "Guardar"; btn.disabled = false; }, 2000);
-        }
-    } catch (err) {
-        alert("❌ Error al guardar: " + (err.message || err));
-        if (btn) { btn.textContent = "Guardar"; btn.disabled = false; }
+        btn.textContent = "✅ Guardado!";
+        setTimeout(() => { btn.textContent = "Guardar"; btn.disabled = false; }, 2000);
     }
 }
 
@@ -855,37 +513,11 @@ export function entrarComoInvitado() {
     actualizarBotonCabecera(); cerrarModalAuth();
 }
 
-export function abrirDialogoSubirGPX() {
-    if (appState.esInvitado) {
-        return alert("Los usuarios invitados no pueden guardar rutas. ¡Regístrate gratis!");
-    }
-    if (!appState.sesionActual?.user) {
-        alert("Debes iniciar sesión para subir tus rutas.");
-        if (typeof window.abrirModalAuth === 'function') window.abrirModalAuth();
-        return;
-    }
-    let input = document.getElementById('gpxUploadInputGlobal');
-    if (!input) {
-        input = document.createElement('input');
-        input.type = 'file';
-        input.id = 'gpxUploadInputGlobal';
-        input.accept = '.gpx,application/gpx+xml';
-        input.className = 'hidden';
-        input.onchange = (e) => {
-            if (typeof window.subirArchivoGPX === 'function') {
-                window.subirArchivoGPX(e);
-            }
-        };
-        document.body.appendChild(input);
-    }
-    input.click();
-}
-
 export async function subirArchivoGPX(event) {
     if (appState.esInvitado) return alert("Los usuarios invitados no pueden guardar rutas. ¡Regístrate gratis!");
     if (!appState.sesionActual?.user) return alert("Debes iniciar sesión para subir tus rutas.");
 
-    const fileInput = event?.target || document.getElementById('gpxUploadInputGlobal') || document.getElementById('gpxUploadInputSPA') || document.getElementById('gpxUploadInput');
+    const fileInput = event?.target || document.getElementById('gpxUploadInput');
     const file = fileInput?.files?.[0];
     if (!file) return;
 
@@ -955,12 +587,6 @@ export async function subirArchivoGPX(event) {
             await cargarPerfilUsuarioActivo();
             restaurarFormularioAuth();
 
-            // Si el modal de perfil SPA (/user/:id) está abierto, refrescar su pestaña de rutas
-            const spaModal = document.getElementById('userProfileModal');
-            if (spaModal && !spaModal.classList.contains('hidden') && typeof window.cambiarTabPerfilSPA === 'function') {
-                window.cambiarTabPerfilSPA('rutas');
-            }
-
             const calculo = resGuardado.calculoXp;
             if (calculo.esTrampa) {
                 alert(`⚠️ Ruta guardada, pero la velocidad media (${velMedia} km/h) superó los 45 km/h.\nSe ha clasificado como vehículo motorizado y no otorga XP.`);
@@ -973,11 +599,6 @@ export async function subirArchivoGPX(event) {
                     msgExito += `\n\n🎊 ¡ENHORABUENA! ¡HAS SUBIDO AL NIVEL ${resGuardado.perfil.current_level}! 🚀`;
                 }
                 alert(msgExito);
-            }
-
-            // Abrir automáticamente la vista interactiva de detalles con mapa y análisis Coach de la ruta subida
-            if (resGuardado.ruta?.id && typeof window.abrirModalDetallesRuta === 'function') {
-                window.abrirModalDetallesRuta(resGuardado.ruta.id);
             }
 
         } catch (err) {
@@ -1280,7 +901,6 @@ export async function solicitarFeedbackIARuta(ruta) {
     }
 
     // 3. Enviar datos de la ruta al backend para el análisis con IA (Gemini Flash)
-    const BACKEND_API_URL = 'https://paddlesafe-backend.vercel.app/api/backend';
     const payload = {
         routeId: ruta.id,
         distance_km: Number(ruta.distance_km || ruta.distancia_km || 0),
@@ -1525,10 +1145,7 @@ export function cerrarModalDetallesRuta() {
 
 window.abrirModalAuth = abrirModalAuth;
 window.cerrarModalAuth = cerrarModalAuth;
-window.mostrarVistaSolicitarRecuperacion = mostrarVistaSolicitarRecuperacion;
-window.mostrarVistaConfirmacionEmailEnviado = mostrarVistaConfirmacionEmailEnviado;
 window.enviarEmailRecuperacion = enviarEmailRecuperacion;
-window.toggleVerPassword = toggleVerPassword;
 window.abrirModalRecuperacionFinal = abrirModalRecuperacionFinal;
 window.guardarNuevaPassword = guardarNuevaPassword;
 window.subirAvatar = subirAvatar;
@@ -1538,7 +1155,6 @@ window.procesarAuth = procesarAuth;
 window.cerrarSesion = cerrarSesion;
 window.entrarComoInvitado = entrarComoInvitado;
 window.subirArchivoGPX = subirArchivoGPX;
-window.abrirDialogoSubirGPX = abrirDialogoSubirGPX;
 window.verRutaEnMapa = verRutaEnMapa;
 window.cargarHistorialRutas = cargarHistorialRutas;
 window.actualizarBadgeRanking = actualizarBadgeRanking;

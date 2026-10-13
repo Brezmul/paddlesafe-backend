@@ -62,7 +62,7 @@ export const ClubChat = {
         try {
             const { data: msgs, error } = await supabaseClient
                 .from('club_chat')
-                .select('id, user_id, mensaje, created_at, perfiles(nombre, avatar_url)')
+                .select('id, user_id, mensaje, visibility, is_public, created_at, perfiles(nombre, avatar_url)')
                 .eq('club_id', clubId)
                 .order('created_at', { ascending: true })
                 .limit(60);

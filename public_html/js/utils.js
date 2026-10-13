@@ -46,9 +46,8 @@ export function formatearTiempo(minutos) {
     return resto === 0 ? `${h}h` : `${h}h ${resto} min`;
 }
 
-export function calcularRangoMaritimo(puntos, nivelOpcional = null) {
-    const pts = Math.max(0, Number(puntos) || 0);
-    const nivel = nivelOpcional != null ? Math.min(99, Math.max(1, Number(nivelOpcional))) : Math.min(99, 1 + Math.floor(pts / 500));
+export function calcularRangoMaritimo(puntos) {
+    const nivel = Math.min(99, 1 + Math.floor(puntos / 500));
     const titulos = [
         "Grumete de Agua Dulce", "Marinero de Cala", "Navegante Costero",
         "Timonel de Travesía", "Contramaestre de Oleaje", "Patrón de Bajura",
@@ -59,8 +58,8 @@ export function calcularRangoMaritimo(puntos, nivelOpcional = null) {
     const titulo = titulos[index];
     
     const puntosNivelActual = (nivel - 1) * 500;
-    const puntosParaSubir = nivel >= 99 ? 0 : Math.max(0, (nivel * 500) - pts);
-    const progresoPorcentaje = nivel >= 99 ? 100 : Math.min(100, Math.max(0, (((pts - puntosNivelActual) / 500) * 100)));
+    const puntosParaSubir = nivel === 99 ? 0 : (nivel * 500) - puntos;
+    const progresoPorcentaje = nivel === 99 ? 100 : (((puntos - puntosNivelActual) / 500) * 100);
     
     return { nivel, titulo, progresoPorcentaje, puntosParaSubir };
 }

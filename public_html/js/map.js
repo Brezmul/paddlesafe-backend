@@ -1,25 +1,17 @@
 // ====================================================
 // js/map.js - MAPA, TRAZADOS, CLIMA Y TRACKING GPS
 // ====================================================
-import { supabaseClient, appState } from './config.js';
+import { supabaseClient, appState, BACKEND_API_URL } from './config.js';
 import { fetchConTimeout, esc, formatearTiempo, calcularVeredicto } from './utils.js';
 import { ClubState } from './club/state.js';
 
-const BACKEND_API_URL = 'https://paddlesafe-backend.vercel.app/api/backend';
 
 function crearFranjaForecast(horaSalida, duracionMinutos = 120) {
-    let horaInicio = 10;
-    if (typeof horaSalida === 'string' && horaSalida.trim()) {
-        const match = /(\d{1,2}):?(\d{2})?/.exec(horaSalida);
-        if (match) {
-            const h = parseInt(match[1], 10);
-            if (!isNaN(h) && h >= 0 && h <= 23) {
-                horaInicio = h;
-            }
-        }
-    }
-    const durMin = Math.max(30, Number(duracionMinutos) || 120);
-    const horasDuracion = Math.max(1, Math.ceil(durMin / 60));
+    const match = /^([01]\d|2[0-3]):[0-5]\d$/.exec(horaSalida || '');
+    if (!match) throw new Error('La hora de salida no es válida.');
+
+    const horaInicio = Number(match[1]);
+    const horasDuracion = Math.max(1, Math.ceil(Number(duracionMinutos) / 60));
     const horaFin = Math.min(24, horaInicio + horasDuracion);
     return `Salida (${String(horaInicio).padStart(2, '0')}:00 - ${String(horaFin).padStart(2, '0')}:00)`;
 }
@@ -199,37 +191,16 @@ export function toggleModoTravesia() {
 
 export function toggleRutaLibre() {
     if(modoTravesiaActivo) toggleModoTravesia();
-    if (modoRutaLibreActivo && marcadoresRuta.length >= 2) {
-        modoRutaLibreActivo = false;
-        const b = document.getElementById('btnRutaLibre');
-        if (b) {
-            b.classList.replace('bg-red-500','bg-teal-600');
-            b.classList.replace('hover:bg-red-400','hover:bg-teal-500');
-            b.innerHTML = "🔗 Multipunto";
-        }
-        const leyenda = document.getElementById('leyendaMapa');
-        if (leyenda) leyenda.classList.replace('flex','hidden');
-        const msg = document.getElementById('mapMsg');
-        if (msg) msg.textContent = "✅ Ruta multipunto fijada. Calculando análisis...";
-        consultarRutaPro();
-        return;
-    }
     modoRutaLibreActivo = !modoRutaLibreActivo;
     const b = document.getElementById('btnRutaLibre'); const msg = document.getElementById('mapMsg');
     if(modoRutaLibreActivo) {
         b.classList.replace('bg-teal-600','bg-red-500'); b.classList.replace('hover:bg-teal-500','hover:bg-red-400');
-        b.innerHTML = "❌ Cancelar Multi...";
-        const leyenda = document.getElementById('leyendaMapa');
-        if (leyenda) leyenda.classList.replace('flex','hidden');
+        b.innerHTML = "❌ Cancelar Multi..."; document.getElementById('leyendaMapa').classList.replace('flex','hidden');
         if(marcador) map.removeLayer(marcador); limpiarRuta(); msg.textContent = "📍 Toca el mapa para añadir puntos";
     } else {
         b.classList.replace('bg-red-500','bg-teal-600'); b.classList.replace('hover:bg-red-400','hover:bg-teal-500');
-        b.innerHTML = "🔗 Multipunto";
-        const leyenda = document.getElementById('leyendaMapa');
-        if (leyenda) leyenda.classList.replace('flex','hidden');
-        const toolbar = document.getElementById('multipuntoToolbar');
-        if (toolbar) toolbar.classList.replace('flex','hidden');
-        limpiarRuta();
+        b.innerHTML = "🔗 Multipunto"; document.getElementById('leyendaMapa').classList.replace('flex','hidden');
+        document.getElementById('multipuntoToolbar').classList.replace('flex','hidden'); limpiarRuta();
         if(map) marcador = L.marker([latitudActual,longitudActual]).addTo(map); msg.textContent = "📍 Toca el mar para Punto Fijo o Traza Ruta Completa";
     }
 }
@@ -262,11 +233,8 @@ export function gestionarClicRuta(l) {
         const dist = (p1.distanceTo(p2) / 1000).toFixed(2);
         const midLat = (p1.lat + p2.lat) / 2; const midLng = (p1.lng + p2.lng) / 2;
         const etiq = L.marker([midLat, midLng], { icon: L.divIcon({ className: 'dist-label-map', html: `${dist} km`, iconSize: [null, null] }) }).addTo(map);
-        map.fitBounds(lineaRuta.getBounds(), {padding:[50,50]}); msg.textContent = "✅ Ruta marcada. Analizando con el Coach...";
-        const panelPro = document.getElementById("panelPro");
-        if (panelPro && panelPro.style.gridTemplateRows !== "0fr") {
-            consultarRutaPro();
-        }
+        etiquetasDistancia.push(etiq);
+        map.fitBounds(lineaRuta.getBounds(), {padding:[50,50]}); msg.textContent = "✅ Ruta marcada. Calcula abajo.";
     } else {
         // Permite corregir el Punto B sin borrar el Punto A
         map.removeLayer(marcadoresRuta[1]);
@@ -432,13 +400,13 @@ export async function consultarBasico() {
             const lElBasic = document.getElementById("basicLevel");
             const veredicto = calcularVeredicto({
                 alerta: a, vientoKmh: parseFloat(wk), olaM: wv !== null ? parseFloat(wv) : NaN,
-                rachasKmh: dx.windGusts != null ? Number(dx.windGusts) * 3.6 : NaN, nivelUsuario: u || "Intermedio"
+                rachasKmh: dx.windGusts != null ? Number(dx.windGusts) * 3.6 : NaN, nivelUsuario: u
             });
             
             lElBasic.className = `text-sm font-black text-center w-full px-2 py-1 ${veredicto.cls}`; 
             lElBasic.textContent = veredicto.estado;
             res.innerHTML = `<strong>📍 ${esc((p.received?.location || loc).split(',')[0])}</strong><br>📅 ${esc(p.received?.date || d)} | 🕒 ${esc(p.received?.timeRange || r)}<br><br>💡 <strong>Veredicto:</strong> ${esc(veredicto.mensaje)}`;
-            solicitarCoachIABasico(dx, u || "Intermedio", loc);
+            solicitarCoachIABasico(dx, u, loc);
         } else { 
             res.textContent = "Error del servidor."; 
             const bC = document.getElementById('basicCoachContainer'); if (bC) bC.classList.add('hidden');
@@ -481,61 +449,28 @@ export async function consultarPuntoProInstantaneo(lat, lon, d, t) {
 export async function consultarRutaPro() {
     if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
     const alertCont = document.getElementById('proAlertContainer');
-    if (alertCont) { alertCont.classList.add('hidden'); alertCont.innerHTML = ""; }
+    alertCont.classList.add('hidden'); alertCont.innerHTML = "";
     
-    let locVal = document.getElementById('proLocation')?.value?.trim();
-    let d = document.getElementById('proDate')?.value;
-    let t = document.getElementById('proTime')?.value;
-    const u = document.getElementById('proLevelOption')?.value || "Intermedio";
+    const locVal = document.getElementById('proLocation').value;
+    const d = document.getElementById('proDate').value;
+    const t = document.getElementById('proTime').value;
+    const u = document.getElementById('proLevelOption').value;
     
-    // Auto-recuperación si faltan coordenadas pero hay posición en mapa
-    if (!locVal && latitudActual && longitudActual) {
-        locVal = `${latitudActual.toFixed(4)}, ${longitudActual.toFixed(4)}`;
-        const ploc = document.getElementById('proLocation');
-        if (ploc) ploc.value = locVal;
-    }
-
-    // Auto-recuperación si falta fecha u hora
-    if (!d) {
-        const hoy = new Date();
-        d = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
-        const pdate = document.getElementById('proDate');
-        if (pdate) pdate.value = d;
-    }
-    if (!t) {
-        t = "10:00";
-        const ptime = document.getElementById('proTime');
-        if (ptime) ptime.value = t;
-    }
-
     if(!locVal || !d || !t) {
-        if (alertCont) {
-            alertCont.innerHTML = "⚠️ Toca el mapa para fijar tu posición e indica Fecha/Hora.";
-            alertCont.className = "text-sm font-bold text-red-400 bg-red-900/30 p-4 rounded-xl text-center w-full block mt-2";
-            alertCont.classList.remove('hidden');
-        }
+        alertCont.innerHTML = "⚠️ Toca el mapa e indica Fecha/Hora.";
+        alertCont.className = "text-sm font-bold text-red-400 bg-red-900/30 p-4 rounded-xl text-center w-full block mt-2";
+        alertCont.classList.remove('hidden');
         return;
     }
     
     const btn = document.getElementById('btnCalcPro');
-    if (btn) { btn.disabled = true; btn.innerHTML = "Calculando..."; }
+    btn.disabled = true; btn.innerHTML = "Calculando...";
     
     let lat, lon;
     if (marcadoresRuta.length >= 2) {
-        lat = Number(marcadoresRuta[0].getLatLng().lat.toFixed(5));
-        lon = Number(marcadoresRuta[0].getLatLng().lng.toFixed(5));
+        lat = marcadoresRuta[0].getLatLng().lat.toFixed(5); lon = marcadoresRuta[0].getLatLng().lng.toFixed(5);
     } else {
-        const matches = locVal ? locVal.match(/-?\d+(?:\.\d+)?/g) : null;
-        if (matches && matches.length >= 2) {
-            lat = parseFloat(matches[0]);
-            lon = parseFloat(matches[1]);
-        } else if (Number.isFinite(latitudActual) && Number.isFinite(longitudActual)) {
-            lat = Number(latitudActual.toFixed(5));
-            lon = Number(longitudActual.toFixed(5));
-        } else {
-            lat = 38.3452;
-            lon = -0.4810;
-        }
+        const partes = locVal.split(','); lat = parseFloat(partes[0]); lon = parseFloat(partes[1]);
     }
     
     let duracionEstimada = 120;
@@ -827,25 +762,6 @@ export async function iniciarCreacionQuedadaClub(clubIdPreseleccionado = null) {
         } catch (_) {}
     }
 
-    // Fallback directo a clubs_usuarios si la RPC no devolvió filas o falló
-    if (!misClubes || misClubes.length === 0) {
-        try {
-            const { data: cuData } = await supabaseClient
-                .from('clubs_usuarios')
-                .select('club_id, rol, clubs(id, nombre, ubicacion)')
-                .eq('user_id', appState.sesionActual.user.id);
-            if (cuData && cuData.length > 0) {
-                misClubes = cuData.map(cu => ({
-                    club_id: cu.club_id,
-                    nombre: cu.clubs?.nombre || 'Club Náutico',
-                    ubicacion: cu.clubs?.ubicacion || '',
-                    club_rol: cu.rol
-                }));
-                ClubState.myClubs = misClubes;
-            }
-        } catch (_) {}
-    }
-
     if (!misClubes || misClubes.length === 0) {
         alert("Aún no perteneces a ningún club. Funda un club o únete a uno existente para organizar quedadas.");
         if (window.Club && window.Club.abrirModal) window.Club.abrirModal();
@@ -898,16 +814,9 @@ export async function iniciarCreacionQuedadaClub(clubIdPreseleccionado = null) {
     }
     modoQuedadaClubActivo = true;
 
-    // Mostrar panel flotante del mapa y botón de guardar quedada
+    // Mostrar panel flotante del mapa
     const panel = document.getElementById('panelQuedadaMap');
     if (panel) panel.classList.remove('hidden');
-
-    const btnSave = document.getElementById('btnGuardarQuedadaMap') || document.getElementById('btnSaveClubEvent');
-    if (btnSave) {
-        btnSave.classList.remove('hidden');
-        btnSave.disabled = false;
-        btnSave.textContent = "Publicar Quedada";
-    }
 
     const msg = document.getElementById('mapMsg');
     if (msg) {
@@ -1488,19 +1397,15 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
 
     if (badgeLvl) badgeLvl.textContent = `Nivel: ${userLvl || 'Intermedio'}`;
 
-    const wkRaw = Number(dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0));
-    const wkVal = Number.isFinite(wkRaw) ? wkRaw : 2.5;
-    const gustsRaw = Number(dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35)));
-    const gustsVal = Number.isFinite(gustsRaw) ? gustsRaw : (wkVal * 1.35);
-    const wvRaw = parseFloat(dx.waveHeight !== undefined && dx.waveHeight !== null ? dx.waveHeight : (dx.wave_height || 0.2));
-    const wv = Number.isFinite(wvRaw) ? wvRaw : 0.2;
-    const wPeriodRaw = parseFloat(dx.wavePeriod !== undefined && dx.wavePeriod !== null && dx.wavePeriod !== "--" ? dx.wavePeriod : (dx.wave_period || 0));
-    const wPeriod = Number.isFinite(wPeriodRaw) ? wPeriodRaw : 0;
+    const wkVal = dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0);
+    const gustsVal = dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35));
+    const wv = (dx.waveHeight !== undefined && dx.waveHeight !== null) ? parseFloat(dx.waveHeight) : (dx.wave_height ? parseFloat(dx.wave_height) : 0);
+    const wPeriod = (dx.wavePeriod !== undefined && dx.wavePeriod !== null && dx.wavePeriod !== "--") ? parseFloat(dx.wavePeriod) : 0;
     const tempAireValue = dx.tempAire || dx.temperature || dx.temp || "N/D";
     const tempAguaValue = dx.tempAgua || dx.waterTemperature || dx.water_temp || "N/D";
-    const pm = (dx.precipitation !== undefined && dx.precipitation !== null && dx.precipitation !== "") ? Number(dx.precipitation) || 0 : 0;
-    const pl = (dx.precipProbability !== undefined && dx.precipProbability !== null && dx.precipProbability !== "") ? Number(dx.precipProbability) || 0 : (Number(dx.precipitation_probability) || 0);
-    const uv = (dx.uvIndex !== undefined && dx.uvIndex !== null && dx.uvIndex !== "--") ? Number(dx.uvIndex) || 0 : 0;
+    const pm = (dx.precipitation !== undefined && dx.precipitation !== null && dx.precipitation !== "") ? dx.precipitation : 0;
+    const pl = (dx.precipProbability !== undefined && dx.precipProbability !== null && dx.precipProbability !== "") ? dx.precipProbability : (dx.precipitation_probability || 0);
+    const uv = (dx.uvIndex !== undefined && dx.uvIndex !== null && dx.uvIndex !== "--") ? dx.uvIndex : 0;
 
     const payload = {
         condiciones: {
@@ -1533,7 +1438,7 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
-        }, 8500);
+        }, 2500);
 
         const data = await resp.json();
         if (data.ok && data.coach && (data.coach.resumen || data.coach.veredicto)) {
@@ -1571,48 +1476,46 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
         badgeScore.innerHTML = `<span>${scoreIcon}</span> Score SUP: ${score}/100`;
     }
 
-    const localRef = window._ultimoCoachLocal || {};
-
-    // Normalización defensiva de dureza (preserva cálculo local si remoto devuelve null)
+    // Normalización defensiva de dureza
     const dureza = (coach.dureza_ruta && typeof coach.dureza_ruta === 'object')
         ? {
-            nivel: coach.dureza_ruta.nivel || localRef.dureza_ruta?.nivel || "Moderada (5/10)",
-            descripcion: coach.dureza_ruta.descripcion || localRef.dureza_ruta?.descripcion || "Exigencia física media acorde a la distancia y viento previsto."
+            nivel: coach.dureza_ruta.nivel || "Moderada (5/10)",
+            descripcion: coach.dureza_ruta.descripcion || "Exigencia física media acorde a la distancia y viento previsto."
         }
-        : (localRef.dureza_ruta || {
+        : {
             nivel: typeof coach.dureza_ruta === 'string' ? coach.dureza_ruta : "Moderada (5/10)",
             descripcion: "Exigencia física acorde a la distancia y viento previsto."
-        });
+        };
 
-    // Normalización defensiva de estrategia_viento (preserva cálculo local de rumbos downwind)
+    // Normalización defensiva de estrategia_viento
     const estViento = (coach.estrategia_viento && typeof coach.estrategia_viento === 'object')
         ? {
-            tramo_facil: coach.estrategia_viento.tramo_facil || localRef.estrategia_viento?.tramo_facil || "Aprovecha los tramos con viento a favor para deslizar la tabla.",
-            tramo_exigente: coach.estrategia_viento.tramo_exigente || localRef.estrategia_viento?.tramo_exigente || "Rema con postura baja en los tramos contra el viento.",
-            consejo_pacing: coach.estrategia_viento.consejo_pacing || localRef.estrategia_viento?.consejo_pacing || "Sal contra el viento y guarda un 30% de energía para el regreso."
+            tramo_facil: coach.estrategia_viento.tramo_facil || "Aprovecha los tramos con viento a favor para deslizar la tabla.",
+            tramo_exigente: coach.estrategia_viento.tramo_exigente || "Rema con postura baja en los tramos contra el viento.",
+            consejo_pacing: coach.estrategia_viento.consejo_pacing || "Sal contra el viento y guarda un 30% de energía para el regreso."
         }
-        : (localRef.estrategia_viento || {
+        : {
             tramo_facil: typeof coach.estrategia_viento === 'string' ? coach.estrategia_viento : "Aprovecha los tramos con viento a favor para deslizar la tabla.",
             tramo_exigente: "Rema con postura baja en los tramos contra el viento.",
             consejo_pacing: "Sal contra el viento y guarda un 30% de energía para el regreso."
-        });
+        };
 
     // Normalización defensiva de análisis de zona y peligros
-    let rawPeligros = coach.analisis_zona?.peligros_detectados || coach.peligros_detectados || localRef.analisis_zona?.peligros_detectados || [];
+    let rawPeligros = coach.analisis_zona?.peligros_detectados || coach.peligros_detectados || [];
     if (typeof rawPeligros === 'string') rawPeligros = [rawPeligros];
     if (!Array.isArray(rawPeligros)) rawPeligros = [];
 
     const zona = (coach.analisis_zona && typeof coach.analisis_zona === 'object')
         ? {
-            orografia: coach.analisis_zona.orografia || localRef.analisis_zona?.orografia || "Costa abierta con exposición normal al viento.",
+            orografia: coach.analisis_zona.orografia || "Costa abierta con exposición normal al viento.",
             peligros_detectados: rawPeligros,
-            recomendacion_seguridad: coach.analisis_zona.recomendacion_seguridad || localRef.analisis_zona?.recomendacion_seguridad || ""
+            recomendacion_seguridad: coach.analisis_zona.recomendacion_seguridad || ""
         }
-        : (localRef.analisis_zona || {
+        : {
             orografia: typeof coach.analisis_zona === 'string' ? coach.analisis_zona : "Costa abierta con exposición normal al viento.",
             peligros_detectados: rawPeligros.length > 0 ? rawPeligros : ["Atención a posibles ráfagas en salientes y cabos."],
             recomendacion_seguridad: "Mantén navegación paralela a la costa."
-        });
+        };
 
     let consejosNivel = [];
     if (Array.isArray(coach.consejos_nivel) && coach.consejos_nivel.length > 0) {
@@ -1763,8 +1666,8 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
             ` : ''}
         </div>
 
-        <!-- 4. BLOQUE TRIPLE: TÉCNICA NIVEL, SEGURIDAD Y MATERIAL -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <!-- 4. BLOQUE DOBLE: TÉCNICA NIVEL Y MATERIAL -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <!-- Consejos por nivel -->
             <div class="bg-slate-800/70 rounded-2xl p-3.5 border border-teal-500/20 flex flex-col gap-2">
                 <span class="text-[11px] font-black uppercase tracking-wider text-teal-400 flex items-center gap-1.5 border-b border-slate-700/50 pb-1.5">
@@ -1775,20 +1678,10 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
                 </ul>
             </div>
 
-            <!-- Seguridad y Protocolo -->
-            <div class="bg-slate-800/70 rounded-2xl p-3.5 border border-sky-500/20 flex flex-col gap-2">
-                <span class="text-[11px] font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5 border-b border-slate-700/50 pb-1.5">
-                    <span>🛡️</span> Seguridad & Protocolo
-                </span>
-                <ul class="flex flex-col gap-2">
-                    ${seguridadItems}
-                </ul>
-            </div>
-
             <!-- Material Clave -->
             <div class="bg-slate-800/70 rounded-2xl p-3.5 border border-amber-500/20 flex flex-col gap-2">
                 <span class="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5 border-b border-slate-700/50 pb-1.5">
-                    <span>🎒</span> Material Recomendado
+                    <span>🎒</span> Material & Seguridad SUP
                 </span>
                 <ul class="flex flex-col gap-2">
                     ${materialItems}
@@ -1820,7 +1713,7 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
 
     const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
     const cardIdx = Math.round((((cond.direccion || 0) % 360) + 360) % 360 / 45) % 8;
-    const cardinal = dirs[cardIdx] || "N";
+    const cardinal = dirs[cardIdx];
 
     const isOffshore = ((cond.direccion || 0) >= 150 && (cond.direccion || 0) <= 240);
 
@@ -1886,7 +1779,7 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
     }
 
     const rumboDownwind = Math.round(((cond.direccion || 0) + 180) % 360);
-    const cardDownwind = dirs[Math.round(((rumboDownwind % 360) + 360) % 360 / 45) % 8] || "S";
+    const cardDownwind = dirs[Math.round(((rumboDownwind % 360) + 360) % 360 / 45) % 8];
 
     const tramoFacilTxt = tramoFavor
         ? `El tramo más fácil será "${tramoFavor.nombre}" (rumbo ${tramoFavor.rumbo}°): contarás con viento a favor (downwind) de componente ${cardinal} que impulsará tu avance con mínimo esfuerzo.`
@@ -1949,7 +1842,6 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
             : "Reserva siempre un 30% de tus fuerzas y agua para el tramo final del regreso."
     };
 
-    window._ultimoCoachLocal = coachLocal;
     renderizarCoachProCard(coachLocal, "coach-experto-sup (instantáneo)", userLvl);
 }
 
@@ -1959,26 +1851,21 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
 
     cont.classList.remove('hidden');
 
-    const wkRaw = Number(dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0));
-    const wkVal = Number.isFinite(wkRaw) ? wkRaw : 2.5;
-    const gustsRaw = Number(dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35)));
-    const gustsVal = Number.isFinite(gustsRaw) ? gustsRaw : (wkVal * 1.35);
-    const wvRaw = parseFloat(dx.waveHeight !== undefined && dx.waveHeight !== null ? dx.waveHeight : (dx.wave_height || 0.2));
-    const wv = Number.isFinite(wvRaw) ? wvRaw : 0.2;
-    const wPeriodRaw = parseFloat(dx.wavePeriod !== undefined && dx.wavePeriod !== null && dx.wavePeriod !== "--" ? dx.wavePeriod : (dx.wave_period || 0));
-    const wPeriod = Number.isFinite(wPeriodRaw) ? wPeriodRaw : 0;
+    const wkVal = dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0);
+    const gustsVal = dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35));
+    const wv = (dx.waveHeight !== undefined && dx.waveHeight !== null) ? parseFloat(dx.waveHeight) : (dx.wave_height ? parseFloat(dx.wave_height) : 0);
+    const wPeriod = (dx.wavePeriod !== undefined && dx.wavePeriod !== null && dx.wavePeriod !== "--") ? parseFloat(dx.wavePeriod) : 0;
     const tempAireValue = dx.tempAire || dx.temperature || dx.temp || "N/D";
     const tempAguaValue = dx.tempAgua || dx.waterTemperature || dx.water_temp || "N/D";
-    const pm = (dx.precipitation !== undefined && dx.precipitation !== null && dx.precipitation !== "") ? Number(dx.precipitation) || 0 : 0;
-    const pl = (dx.precipProbability !== undefined && dx.precipProbability !== null && dx.precipProbability !== "") ? Number(dx.precipProbability) || 0 : (Number(dx.precipitation_probability) || 0);
-    const uv = (dx.uvIndex !== undefined && dx.uvIndex !== null && dx.uvIndex !== "--") ? Number(dx.uvIndex) || 0 : 0;
-    const dirVal = Number.isFinite(Number(dx.windDirection)) ? Number(dx.windDirection) : 0;
+    const pm = (dx.precipitation !== undefined && dx.precipitation !== null && dx.precipitation !== "") ? dx.precipitation : 0;
+    const pl = (dx.precipProbability !== undefined && dx.precipProbability !== null && dx.precipProbability !== "") ? dx.precipProbability : (dx.precipitation_probability || 0);
+    const uv = (dx.uvIndex !== undefined && dx.uvIndex !== null && dx.uvIndex !== "--") ? dx.uvIndex : 0;
 
     const payload = {
         condiciones: {
             viento: Number((wkVal * 3.6).toFixed(1)),
             rachas: Number((gustsVal * 3.6).toFixed(1)),
-            direccion: dirVal,
+            direccion: Number(dx.windDirection) || 0,
             oleaje: Number(wv.toFixed(1)),
             periodo: Number(wPeriod),
             tempAire: tempAireValue,
@@ -1996,176 +1883,71 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
     const o = payload.condiciones.oleaje;
     const dir = payload.condiciones.direccion;
     const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
-    const cardinal = dirs[Math.round(((dir % 360) + 360) % 360 / 45) % 8] || "N";
+    const cardinal = dirs[Math.round(((dir % 360) + 360) % 360 / 45) % 8];
     const downwindDir = Math.round((dir + 180) % 360);
-    const cardDownwind = dirs[Math.round(((downwindDir % 360) + 360) % 360 / 45) % 8] || "S";
-
-    let scoreLocal = 85;
-    if (v >= 18) scoreLocal -= 40;
-    else if (v >= 12) scoreLocal -= 20;
-    if (o > 0.8) scoreLocal -= 25;
-    else if (o > 0.4) scoreLocal -= 10;
-    if (userLvl === "Principiante" && (v > 11 || o > 0.3)) scoreLocal -= 25;
-    scoreLocal = Math.max(15, Math.min(100, scoreLocal));
-    const scoreLocalCls = scoreLocal >= 75 ? "text-emerald-400 border-emerald-500/30 bg-emerald-950/60" : (scoreLocal >= 45 ? "text-amber-400 border-amber-500/30 bg-amber-950/60" : "text-rose-400 border-rose-500/30 bg-rose-950/60");
-
-    let tecLocal = "Rotación de tronco (core) manteniendo rodillas desbloqueadas y mirada fija en el horizonte.";
-    if (userLvl === "Principiante") {
-        tecLocal = "Si notas desequilibrio o rachas imprevistas, pasa de inmediato a posición de rodillas para no derivar.";
-    } else if (userLvl === "Avanzado") {
-        tecLocal = "Aprovecha la ondulación atrasando el pie dominante para surfear el chop con bombeo enérgico.";
-    }
-
-    let matLocal = o > 0.6 ? "Leash recto al tobillo, chaleco 50N y funda estanca con móvil cargado." : "Leash coiled de rodilla, chaleco 50N y protección solar.";
-    let segLocal = v > 13
-        ? `Viento de ${v} km/h (${cardinal}). Inicia la travesía contra el viento para que el regreso sea con viento a favor.`
-        : "Condiciones estables. Mantén referencia visual fija en tierra y navega paralelo a la costa.";
+    const cardDownwind = dirs[Math.round(((downwindDir % 360) + 360) % 360 / 45) % 8];
 
     cont.innerHTML = `
-        <div class="flex flex-col gap-3">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                <div class="flex items-center gap-1.5">
-                    <span class="text-base">✨</span>
-                    <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">Coach SUP (${esc(userLvl || 'Intermedio')})</span>
-                </div>
-                <span class="text-[10px] font-mono px-2 py-0.5 rounded ${scoreLocalCls} border font-bold">Score: ${scoreLocal}/100</span>
+        <div class="flex flex-col gap-2">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">✨ Coach (${esc(userLvl || 'Intermedio')})</span>
+                <span class="text-[10px] text-slate-400 font-mono">Consejo Inmediato</span>
             </div>
-            <p class="text-xs text-slate-200 leading-relaxed font-medium">
+            <p class="text-xs text-slate-200 leading-relaxed">
                 ${v > 14 
-                    ? `Viento notable de ${v} km/h (${cardinal}) con olas de ${o}m. Requiere anticipación táctica y control de deriva.` 
-                    : `Viento suave (${v} km/h) y mar accesible (${o}m). Excelente ventana para trabajar cadencia fluida y técnica.`}
+                    ? `Viento notable de ${v} km/h (${cardinal}): Comienza navegando en contra del viento para que la vuelta sea con viento a favor (downwind) y menos exigente.` 
+                    : `Viento plácido (${v} km/h) y mar accesible (${o}m): Condiciones idóneas para trabajar cadencia fluida y rotación del core.`}
             </p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                <div class="bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-500/20 text-emerald-200 flex items-start gap-2">
-                    <span class="shrink-0 text-sm">💨</span>
-                    <div>
-                        <strong class="text-emerald-300 block mb-0.5">Viento a favor (Downwind):</strong>
-                        <span>Con rumbo ~${downwindDir}° (${cardDownwind}) tendrás viento en popa que empujará la tabla.</span>
-                    </div>
-                </div>
-                <div class="bg-rose-950/30 p-2.5 rounded-xl border border-rose-500/20 text-rose-200 flex items-start gap-2">
-                    <span class="shrink-0 text-sm">🛑</span>
-                    <div>
-                        <strong class="text-rose-300 block mb-0.5">Tramo más exigente:</strong>
-                        <span>Remando hacia ~${dir}° (${cardinal}) tendrás viento en contra; baja la postura de remada.</span>
-                    </div>
-                </div>
+            <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
+                <span class="shrink-0">💨</span>
+                <span><strong>Momento más fácil:</strong> Con rumbo ~${downwindDir}° (${cardDownwind}) tendrás viento en popa que empujará la tabla.</span>
             </div>
-            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-teal-500/20 text-[11px] text-teal-200 flex items-start gap-2">
-                <span class="shrink-0 text-sm">🏄</span>
-                <div>
-                    <strong class="text-teal-300 block mb-0.5">Clave técnica (${esc(userLvl || 'Intermedio')}):</strong>
-                    <span>${esc(tecLocal)}</span>
-                </div>
-            </div>
-            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-sky-500/20 text-[11px] text-sky-200 flex items-start gap-2">
-                <span class="shrink-0 text-sm">🛡️</span>
-                <div>
-                    <strong class="text-sky-300 block mb-0.5">Seguridad & Material:</strong>
-                    <span>${esc(segLocal)} Material: ${esc(matLocal)}</span>
-                </div>
-            </div>
-            <div class="bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-teal-500/20 p-2.5 rounded-xl border border-amber-500/30 text-[11px] text-amber-200 flex items-start gap-2">
-                <span class="shrink-0 text-sm">💡</span>
-                <span class="italic font-semibold"><strong>Regla del 30%:</strong> Reserva siempre un tercio de tu energía y agua para el regreso a la orilla.</span>
+            <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20">
+                <span class="shrink-0">💡</span>
+                <span class="italic font-semibold">Regla del 30%: Reserva siempre un tercio de tu energía y agua para el regreso a la orilla.</span>
             </div>
         </div>
     `;
 
-    // Enriquecimiento con IA en segundo plano
+    // Enriquecimiento opcional en segundo plano
     try {
         const resp = await fetchConTimeout(`${BACKEND_API_URL}?action=coach`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
-        }, 8500);
+        }, 2000);
 
         const data = await resp.json();
         if (data.ok && data.coach && (data.coach.resumen || data.coach.veredicto)) {
             const coach = data.coach;
             const score = Math.max(0, Math.min(100, Math.round(Number(coach.score) || 70)));
-            let scoreCls = score >= 75 ? "text-emerald-400 border-emerald-500/30 bg-emerald-950/60" : (score >= 45 ? "text-amber-400 border-amber-500/30 bg-amber-950/60" : "text-rose-400 border-rose-500/30 bg-rose-950/60");
-
-            const estVientoFacil = coach.estrategia_viento && typeof coach.estrategia_viento === 'object'
-                ? coach.estrategia_viento.tramo_facil
-                : (typeof coach.estrategia_viento === 'string' ? coach.estrategia_viento : `Con rumbo ~${downwindDir}° (${cardDownwind}) tendrás viento en popa empujando la tabla.`);
-
-            const estVientoExigente = coach.estrategia_viento && typeof coach.estrategia_viento === 'object'
-                ? coach.estrategia_viento.tramo_exigente
-                : `Evita regresar con rumbo directo hacia el viento (${cardinal}) cuando estés cansado.`;
-
-            let tecTips = [];
-            if (Array.isArray(coach.consejos_nivel) && coach.consejos_nivel.length > 0) tecTips = coach.consejos_nivel;
-            else if (Array.isArray(coach.tecnica_postura) && coach.tecnica_postura.length > 0) tecTips = coach.tecnica_postura;
-            else if (typeof coach.consejos_nivel === 'string') tecTips = [coach.consejos_nivel];
-            else tecTips = [tecLocal];
-
-            let segTips = [];
-            if (Array.isArray(coach.seguridad_estrategia) && coach.seguridad_estrategia.length > 0) segTips = coach.seguridad_estrategia;
-            else if (typeof coach.seguridad_estrategia === 'string') segTips = [coach.seguridad_estrategia];
-            else segTips = [segLocal];
-
-            let matTips = [];
-            if (Array.isArray(coach.material_recomendado) && coach.material_recomendado.length > 0) matTips = coach.material_recomendado;
-            else if (typeof coach.material_recomendado === 'string') matTips = [coach.material_recomendado];
-            else matTips = [matLocal];
-
-            const reglaOroTxt = coach.regla_oro || "Reserva siempre un tercio de tu energía y agua para el regreso a la orilla.";
+            let scoreCls = score >= 75 ? "text-emerald-400" : (score >= 45 ? "text-amber-400" : "text-rose-400");
 
             cont.innerHTML = `
-                <div class="flex flex-col gap-3">
+                <div class="flex flex-col gap-2.5">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                         <div class="flex items-center gap-1.5">
                             <span class="text-base">✨</span>
-                            <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">Coach SUP (${esc(userLvl || 'Intermedio')})</span>
+                            <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">Coach (${esc(userLvl || 'Intermedio')})</span>
                         </div>
-                        <span class="text-[10px] font-mono px-2 py-0.5 rounded ${scoreCls} border font-bold">Score: ${score}/100</span>
+                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 ${scoreCls} border border-slate-700 font-bold">Score: ${score}/100</span>
                     </div>
-                    <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
-                        <span class="text-[10px] font-black uppercase tracking-wider text-emerald-400 block mb-1">🧭 ${esc(coach.veredicto || 'EVALUACIÓN DEL COACH')}</span>
-                        <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(coach.resumen || '')}</p>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                        <div class="bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-500/20 text-emerald-200 flex items-start gap-2">
-                            <span class="shrink-0 text-sm">💨</span>
-                            <div>
-                                <strong class="text-emerald-300 block mb-0.5">Viento a favor (Downwind):</strong>
-                                <span>${esc(estVientoFacil)}</span>
-                            </div>
-                        </div>
-                        <div class="bg-rose-950/30 p-2.5 rounded-xl border border-rose-500/20 text-rose-200 flex items-start gap-2">
-                            <span class="shrink-0 text-sm">🛑</span>
-                            <div>
-                                <strong class="text-rose-300 block mb-0.5">Tramo más exigente:</strong>
-                                <span>${esc(estVientoExigente)}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-slate-800/80 p-2.5 rounded-xl border border-teal-500/20 text-[11px] text-teal-200 flex items-start gap-2">
-                        <span class="shrink-0 text-sm">🏄</span>
-                        <div>
-                            <strong class="text-teal-300 block mb-0.5">Claves técnicas para ${esc(userLvl || 'Intermedio')}:</strong>
-                            <ul class="list-disc list-inside space-y-1 text-slate-300">
-                                ${tecTips.map(t => `<li>${esc(t)}</li>`).join('')}
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="bg-slate-800/80 p-2.5 rounded-xl border border-sky-500/20 text-[11px] text-sky-200 flex items-start gap-2">
-                        <span class="shrink-0 text-sm">🛡️</span>
-                        <div>
-                            <strong class="text-sky-300 block mb-0.5">Seguridad & Protocolo:</strong>
-                            <ul class="list-disc list-inside space-y-1 text-slate-300">
-                                ${segTips.map(s => `<li>${esc(s)}</li>`).join('')}
-                            </ul>
-                            <div class="mt-1.5 pt-1.5 border-t border-slate-700/60 text-slate-400">
-                                <strong class="text-amber-300">Material:</strong> ${esc(matTips.join(' • '))}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-teal-500/20 p-2.5 rounded-xl border border-amber-500/30 text-[11px] text-amber-200 flex items-start gap-2">
-                        <span class="shrink-0 text-sm">💡</span>
-                        <span class="italic font-semibold"><strong>Regla de Oro:</strong> "${esc(reglaOroTxt)}"</span>
-                    </div>
+                    <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(coach.resumen || '')}</p>
+                    ${coach.estrategia_viento && coach.estrategia_viento.tramo_facil ? `
+                    <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
+                        <span class="shrink-0">💨</span>
+                        <span><strong>Viento a favor:</strong> ${esc(coach.estrategia_viento.tramo_facil)}</span>
+                    </div>` : ''}
+                    ${coach.seguridad_estrategia && coach.seguridad_estrategia[0] ? `
+                    <div class="text-[11px] text-sky-300 flex items-start gap-1.5 bg-sky-950/40 p-2 rounded-lg border border-sky-500/20">
+                        <span class="shrink-0">🛡️</span>
+                        <span>${esc(coach.seguridad_estrategia[0])}</span>
+                    </div>` : ''}
+                    ${coach.regla_oro ? `
+                    <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20">
+                        <span class="shrink-0">💡</span>
+                        <span class="italic font-semibold">${esc(coach.regla_oro)}</span>
+                    </div>` : ''}
                 </div>
             `;
         }
@@ -2196,12 +1978,6 @@ window.guardarEventoClub = guardarEventoClub;
 window.sincronizarRutasPendientes = sincronizarRutasPendientes;
 window.normalizarYLimitarRutaGPS = normalizarYLimitarRutaGPS;
 window.cargarRutaDeportivaEnMapa = cargarRutaDeportivaEnMapa;
-window.iniciarCreacionQuedadaClub = iniciarCreacionQuedadaClub;
-window.cancelarCreacionQuedadaClub = cancelarCreacionQuedadaClub;
-window.deshacerUltimoPuntoQuedada = deshacerUltimoPuntoQuedada;
-window.reiniciarPuntosQuedada = reiniciarPuntosQuedada;
-window.guardarQuedadaDesdeMapa = guardarQuedadaDesdeMapa;
-window.actualizarMetricasQuedada = actualizarMetricasQuedada;
 window.addEventListener('online', () => {
     if (appState.sesionActual?.user?.id) void sincronizarRutasPendientes();
 });
