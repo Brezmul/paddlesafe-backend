@@ -859,6 +859,9 @@ export async function iniciarCreacionQuedadaClub(clubIdPreseleccionado = null) {
     }
     modoQuedadaClubActivo = true;
 
+    const btnGuardarQuedada = document.getElementById('btnGuardarQuedadaMap');
+    if (btnGuardarQuedada) btnGuardarQuedada.classList.remove('hidden');
+
     // Mostrar panel flotante del mapa
     const panel = document.getElementById('panelQuedadaMap');
     if (panel) panel.classList.remove('hidden');
