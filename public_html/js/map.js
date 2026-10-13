@@ -274,10 +274,12 @@ export function limpiarRuta() {
     
     // Reset de seguridad para eventos de club
     clubParaEvento = null;
-    const panelQuedada = document.getElementById('panelQuedadaMap');
-    if (panelQuedada) panelQuedada.classList.add('hidden');
-    const btnSave = document.getElementById('btnGuardarQuedadaMap') || document.getElementById('btnSaveClubEvent');
-    if (btnSave) btnSave.classList.add('hidden');
+    if (!modoQuedadaClubActivo) {
+        const panelQuedada = document.getElementById('panelQuedadaMap');
+        const formQuedada = document.getElementById('quedadaFormPanel');
+        if (panelQuedada) panelQuedada.classList.add('hidden');
+        if (formQuedada) formQuedada.classList.add('hidden');
+    }
 }
 
 export function gestionarClicRuta(l) {
@@ -780,12 +782,40 @@ export function actualizarMetricasQuedada() {
     const tiempoMin = Math.round(((dt / 1000) / 4.5) * 60);
 
     const elPuntos = document.getElementById('quedadaPuntosCount');
+    const elLabelPuntos = document.getElementById('quedadaPuntosLabel');
     const elDist = document.getElementById('quedadaDistanciaKm');
     const elTiempo = document.getElementById('quedadaTiempoMin');
 
     if (elPuntos) elPuntos.textContent = marcadoresRuta.length;
+    if (elLabelPuntos) elLabelPuntos.textContent = marcadoresRuta.length === 1 ? 'punto' : 'puntos';
     if (elDist) elDist.textContent = `${distKm} km`;
     if (elTiempo) elTiempo.textContent = `${tiempoMin} min`;
+
+    const indicacion = document.getElementById('quedadaIndicacionMapa');
+    if (indicacion) {
+        if (marcadoresRuta.length === 0) indicacion.textContent = 'Toca el mapa para marcar el primer punto';
+        else if (marcadoresRuta.length === 1) indicacion.textContent = 'Toca el mapa para añadir otro punto';
+        else indicacion.textContent = 'Sigue añadiendo puntos o abre los datos';
+    }
+}
+
+export function mostrarFormularioQuedada() {
+    const form = document.getElementById('quedadaFormPanel');
+    if (!form || !modoQuedadaClubActivo) return;
+    form.classList.remove('hidden');
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+export function volverAlMapaQuedada() {
+    const form = document.getElementById('quedadaFormPanel');
+    const mapContainer = document.getElementById('mapContainer');
+    if (form) form.classList.add('hidden');
+    if (mapContainer) {
+        mapContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => {
+            if (map) map.invalidateSize();
+        }, 350);
+    }
 }
 
 export async function iniciarCreacionQuedadaClub(clubIdPreseleccionado = null) {
@@ -862,9 +892,11 @@ export async function iniciarCreacionQuedadaClub(clubIdPreseleccionado = null) {
     const btnGuardarQuedada = document.getElementById('btnGuardarQuedadaMap');
     if (btnGuardarQuedada) btnGuardarQuedada.classList.remove('hidden');
 
-    // Mostrar panel flotante del mapa
+    // Mantener libre el mapa durante el trazado; el formulario queda fuera del mapa.
     const panel = document.getElementById('panelQuedadaMap');
     if (panel) panel.classList.remove('hidden');
+    const form = document.getElementById('quedadaFormPanel');
+    if (form) form.classList.add('hidden');
 
     const msg = document.getElementById('mapMsg');
     if (msg) {
@@ -882,6 +914,8 @@ export function cancelarCreacionQuedadaClub() {
     modoQuedadaClubActivo = false;
     const panel = document.getElementById('panelQuedadaMap');
     if (panel) panel.classList.add('hidden');
+    const form = document.getElementById('quedadaFormPanel');
+    if (form) form.classList.add('hidden');
 
     limpiarRuta();
     if (modoRutaLibreActivo) {
@@ -2019,6 +2053,8 @@ window.renderizarCoachProCard = renderizarCoachProCard;
 window.solicitarCoachIABasico = solicitarCoachIABasico;
 window.iniciarTravesia = iniciarTravesia;
 window.finalizarTravesia = finalizarTravesia;
+window.mostrarFormularioQuedada = mostrarFormularioQuedada;
+window.volverAlMapaQuedada = volverAlMapaQuedada;
 window.restaurarTracker = restaurarTracker;
 window.inicializarMapa = inicializarMapa;
 window.activarModoPlanificacionEvento = activarModoPlanificacionEvento;

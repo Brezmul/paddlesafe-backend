@@ -61,8 +61,8 @@
             #tabMisAmigos, #tabSolicitudesAmistad,
             [id^="tabRank"], #spaTabInsignias, #spaTabRutas,
             #authToggleBtn, #btnRecuperarPass { min-height: 44px; }
-            #panelQuedadaMap { max-height: calc(100% - 1.5rem); overflow-y: auto; }
-            #panelQuedadaMap button, #panelQuedadaMap input, #panelQuedadaMap select { min-height: 44px; }
+            #panelQuedadaMap button, #quedadaFormPanel button,
+            #quedadaFormPanel input, #quedadaFormPanel select { min-height: 44px; }
             [id$="Modal"] button.w-10.h-10 { width: 44px; height: 44px; }
         }
         @media (max-width: 374px) {
@@ -360,67 +360,22 @@
                                     <button type="button" onclick="reiniciarRutaMultipunto()" class="px-4 py-2.5 bg-red-900/50 hover:bg-red-800/80 text-red-400 font-bold text-xs rounded-full active:scale-95 transition-colors cursor-pointer">🗑️ Limpiar</button>
                                 </div>
 
-                                <!-- PANEL FLOTANTE DE PLANIFICACIÓN DE QUEDADA EN MAPA -->
-                                <div id="panelQuedadaMap" class="hidden absolute top-3 left-3 right-3 sm:right-auto sm:w-[380px] z-[450] bg-slate-900/95 backdrop-blur-md border border-indigo-500/50 rounded-2xl p-4 shadow-2xl text-white flex flex-col gap-3">
-                                    <div class="flex items-center justify-between border-b border-slate-700 pb-2">
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-xl">⛵</span>
-                                            <div>
-                                                <h4 class="text-xs font-black uppercase tracking-wider text-water">Planificar Quedada</h4>
-                                                <p class="text-[9px] text-slate-400">Toca el mar para añadir puntos</p>
-                                            </div>
+                                <div id="panelQuedadaMap" class="hidden absolute top-3 left-3 right-3 sm:left-4 sm:right-auto sm:w-[340px] z-[450] bg-slate-900/95 backdrop-blur-md border border-indigo-500/50 rounded-2xl p-3 shadow-2xl text-white">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <h4 class="text-[11px] font-black uppercase tracking-wider text-water">⛵ Planificar quedada</h4>
+                                            <p id="quedadaIndicacionMapa" class="text-[10px] text-slate-300 mt-0.5">Toca el mapa para marcar el primer punto</p>
                                         </div>
-                                        <button type="button" onclick="cancelarCreacionQuedadaClub()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer" title="Cerrar">✕</button>
+                                        <button type="button" onclick="cancelarCreacionQuedadaClub()" aria-label="Cancelar quedada" class="shrink-0 w-10 h-10 text-slate-300 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer">✕</button>
                                     </div>
-
-                                    <!-- Métricas en vivo -->
-                                    <div class="grid grid-cols-3 gap-2 text-center bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/50">
-                                        <div>
-                                            <span class="text-[9px] text-slate-400 uppercase tracking-widest block">PUNTOS</span>
-                                            <span id="quedadaPuntosCount" class="font-black text-sm text-water">0</span>
+                                    <div class="flex items-center justify-between gap-2 mt-2">
+                                        <div class="flex items-center gap-3 text-[10px] font-bold">
+                                            <span><span id="quedadaPuntosCount" class="text-water">0</span> <span id="quedadaPuntosLabel">puntos</span></span>
+                                            <span id="quedadaDistanciaKm" class="text-emerald-400">0.00 km</span>
+                                            <span id="quedadaTiempoMin" class="text-amber-400">0 min</span>
                                         </div>
-                                        <div>
-                                            <span class="text-[9px] text-slate-400 uppercase tracking-widest block">DISTANCIA</span>
-                                            <span id="quedadaDistanciaKm" class="font-black text-sm text-emerald-400">0.00 km</span>
-                                        </div>
-                                        <div>
-                                            <span class="text-[9px] text-slate-400 uppercase tracking-widest block">DURACIÓN</span>
-                                            <span id="quedadaTiempoMin" class="font-black text-sm text-amber-400">0 min</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Formulario de la Quedada -->
-                                    <div class="space-y-2.5">
-                                        <div>
-                                            <label class="text-[9px] font-bold text-slate-400 uppercase block mb-1">Club Destinatario</label>
-                                            <select id="quedadaClubSelect" class="w-full h-9 px-2 bg-slate-800 border border-slate-700 rounded-lg text-xs font-bold text-white outline-none focus:border-water"></select>
-                                        </div>
-                                        <div>
-                                            <label class="text-[9px] font-bold text-slate-400 uppercase block mb-1">Nombre de la Travesía</label>
-                                            <input type="text" id="quedadaTituloInput" placeholder="Ej: Travesía a la Cueva del Lobo" maxlength="80" class="w-full h-9 px-3 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white outline-none focus:border-water placeholder:text-slate-500">
-                                        </div>
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <div>
-                                                <label class="text-[9px] font-bold text-slate-400 uppercase block mb-1">Fecha (Máx 7 días)</label>
-                                                <input type="date" id="quedadaFechaInput" class="w-full h-9 px-2 bg-slate-800 border border-slate-700 rounded-lg text-xs font-bold text-white outline-none focus:border-water">
-                                            </div>
-                                            <div>
-                                                <label class="text-[9px] font-bold text-slate-400 uppercase block mb-1">Hora Salida</label>
-                                                <input type="time" id="quedadaHoraInput" value="10:00" class="w-full h-9 px-2 bg-slate-800 border border-slate-700 rounded-lg text-xs font-bold text-white outline-none focus:border-water">
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label class="text-[9px] font-bold text-slate-400 uppercase block mb-1">Notas / Material (Opcional)</label>
-                                            <input type="text" id="quedadaDescInput" placeholder="Chaleco, agua, dificultad media..." maxlength="120" class="w-full h-9 px-3 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white outline-none focus:border-water placeholder:text-slate-500">
-                                        </div>
-                                    </div>
-
-                                    <!-- Botones de Acción -->
-                                    <div class="flex items-center gap-2 pt-1">
-                                        <button type="button" onclick="deshacerUltimoPuntoQuedada()" class="px-3 h-9 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[11px] rounded-lg transition-colors cursor-pointer shrink-0" title="Deshacer último punto">↩️ Deshacer</button>
-                                        <button type="button" onclick="reiniciarPuntosQuedada()" class="px-3 h-9 bg-slate-800 hover:bg-slate-700 text-rose-400 font-bold text-[11px] rounded-lg transition-colors cursor-pointer shrink-0" title="Borrar todos los puntos">🗑️ Limpiar</button>
-                                        <button type="button" id="btnGuardarQuedadaMap" onclick="guardarQuedadaDesdeMapa()" class="flex-1 h-9 bg-gradient-to-r from-water to-sky-600 hover:from-sky-500 hover:to-sky-700 text-white font-black text-xs uppercase tracking-wider rounded-lg shadow-md active:scale-95 transition-all cursor-pointer">
-                                            🚀 Publicar
+                                        <button type="button" onclick="mostrarFormularioQuedada()" class="shrink-0 px-3 h-10 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wide rounded-xl transition-colors cursor-pointer">
+                                            Datos
                                         </button>
                                     </div>
                                 </div>
@@ -429,6 +384,47 @@
                                 <div id="mapaInteractivo" class="w-full h-full min-h-[350px] sm:min-h-[500px] z-0 relative"></div>
                             </div>
                         </div>
+
+                        <section id="quedadaFormPanel" class="hidden scroll-mt-4 bg-slate-900 rounded-2xl border border-indigo-500/40 p-4 sm:p-5 shadow-xl text-white">
+                            <div class="flex items-start justify-between gap-3 mb-4">
+                                <div>
+                                    <h3 class="text-sm font-black uppercase tracking-wider text-water">Detalles de la quedada</h3>
+                                    <p class="text-xs text-slate-400 mt-1">Completa la información de la salida. La ruta se marca directamente en el mapa.</p>
+                                </div>
+                                <button type="button" onclick="volverAlMapaQuedada()" class="shrink-0 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white transition-colors">
+                                    Volver al mapa
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div class="sm:col-span-2">
+                                    <label for="quedadaClubSelect" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Club destinatario</label>
+                                    <select id="quedadaClubSelect" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white outline-none focus:ring-2 focus:ring-water"></select>
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label for="quedadaTituloInput" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Nombre de la travesía</label>
+                                    <input type="text" id="quedadaTituloInput" placeholder="Ej: Travesía a la Cueva del Lobo" maxlength="80" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-water placeholder:text-slate-500">
+                                </div>
+                                <div>
+                                    <label for="quedadaFechaInput" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Fecha (máx. 7 días)</label>
+                                    <input type="date" id="quedadaFechaInput" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white outline-none focus:ring-2 focus:ring-water">
+                                </div>
+                                <div>
+                                    <label for="quedadaHoraInput" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Hora de salida</label>
+                                    <input type="time" id="quedadaHoraInput" value="10:00" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white outline-none focus:ring-2 focus:ring-water">
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label for="quedadaDescInput" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Notas / material (opcional)</label>
+                                    <input type="text" id="quedadaDescInput" placeholder="Chaleco, agua, dificultad media..." maxlength="120" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-water placeholder:text-slate-500">
+                                </div>
+                            </div>
+                            <div class="flex flex-col-reverse sm:flex-row gap-2 mt-4">
+                                <button type="button" onclick="deshacerUltimoPuntoQuedada()" class="sm:flex-1 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors">↩️ Deshacer punto</button>
+                                <button type="button" onclick="reiniciarPuntosQuedada()" class="sm:flex-1 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-400 font-bold text-xs transition-colors">🗑️ Limpiar ruta</button>
+                                <button type="button" id="btnGuardarQuedadaMap" onclick="guardarQuedadaDesdeMapa()" class="sm:flex-[2] px-5 rounded-xl bg-gradient-to-r from-water to-sky-600 hover:from-sky-500 hover:to-sky-700 text-white font-black text-xs uppercase tracking-wider shadow-md active:scale-95 transition-all">
+                                    🚀 Publicar quedada
+                                </button>
+                            </div>
+                        </section>
 
                         <!-- PLANIFICADOR PRO -->
                         <div id="proPlanificador" class="bg-slate-800 rounded-2xl p-5 shadow-lg border border-slate-700 flex flex-col gap-4">
