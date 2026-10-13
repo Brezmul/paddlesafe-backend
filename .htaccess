@@ -1,0 +1,22 @@
+﻿DirectoryIndex public_html/index.html index.html index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Seguridad: denegar cualquier intento a carpetas no autorizadas
+  RewriteRule ^(api|lib|sql|\.git)(/|$) - [F,L]
+  RewriteRule \.(sql|env|log)$ - [F,L]
+
+  # Si el recurso solicitado existe fisicamente en public_html, servirlo
+  RewriteCond %{DOCUMENT_ROOT}/public_html/ -f [OR]
+  RewriteCond %{DOCUMENT_ROOT}/public_html/ -d
+  RewriteRule ^(.*)$ public_html/ [L]
+
+  # Fallback para rutas amigables SPA
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . public_html/index.html [L]
+</IfModule>
+
+Options -Indexes
