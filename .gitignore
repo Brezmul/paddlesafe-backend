@@ -16,3 +16,6 @@ node_modules/
 .DS_Store
 Thumbs.db
 
+# Deployment builds
+*.zip
+hostinger_public_html_ready.zip

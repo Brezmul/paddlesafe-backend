@@ -7,6 +7,9 @@
   RewriteRule . /index.html [L]
 </IfModule>
 
+# Impedir listado de directorios
+Options -Indexes
+
 <IfModule mod_headers.c>
   # Evitar caché agresiva en index.html, version.json y sw.js para actualizaciones inmediatas
   <FilesMatch "^(index\.html|version\.json|sw\.js)$">
