@@ -60,12 +60,19 @@ if (Test-Path $zipOutput) { Remove-Item $zipOutput -Force }
 Write-Host "`nGenerando paquete ZIP para Hostinger: $zipOutput ..." -ForegroundColor Cyan
 $compressScript = {
     param($src, $dst)
+    Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    [System.IO.Compression.ZipFile]::CreateFromDirectory($src, $dst)
+    $zip = [System.IO.Compression.ZipFile]::Open($dst, [System.IO.Compression.ZipArchiveMode]::Create)
+    $files = Get-ChildItem -Path $src -Recurse -File
+    foreach ($file in $files) {
+        $relPath = $file.FullName.Substring($src.Length + 1).Replace('\', '/')
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $file.FullName, $relPath) | Out-Null
+    }
+    $zip.Dispose()
 }
 & $compressScript $publicHtmlDir $zipOutput
 
-Write-Host "¡Paquete ZIP creado con éxito! Contiene solo los archivos de public_html en la raíz del ZIP." -ForegroundColor Green
+Write-Host "¡Paquete ZIP creado con éxito! Contiene solo los archivos de public_html en la raíz del ZIP con rutas compatibles (/). " -ForegroundColor Green
 
 # 4. Si se especificaron credenciales FTP, realizar subida directa
 if (-not [string]::IsNullOrWhiteSpace($FtpServer) -and -not [string]::IsNullOrWhiteSpace($FtpUser) -and -not $CreateZipOnly) {
