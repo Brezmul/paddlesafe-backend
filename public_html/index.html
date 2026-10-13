@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>PaddleSafe | Pronóstico y Comunidad</title>
     
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
@@ -51,6 +51,25 @@
         @media (min-width: 640px) {
             #mapContainer { min-height: 500px; height: 50vh; }
             #mapaInteractivo { min-height: 500px; }
+        }
+        @media (max-width: 639px) {
+            .mobile-header-row.mobile-header-row { flex-wrap: nowrap; }
+            .mobile-header-row button { min-width: 44px; min-height: 44px; }
+            #btn-gps { min-height: 44px; padding-block: 0.5rem; }
+            #tabMiClub, #tabBuscarClub, #tabPaddlers,
+            #tabFeedGlobal, #tabFeedClubs, #tabFeedAmigos,
+            #tabMisAmigos, #tabSolicitudesAmistad,
+            [id^="tabRank"], #spaTabInsignias, #spaTabRutas,
+            #authToggleBtn, #btnRecuperarPass { min-height: 44px; }
+            [id$="Modal"] button.w-10.h-10 { width: 44px; height: 44px; }
+        }
+        @media (max-width: 374px) {
+            .mobile-header-row .mobile-header-links { gap: 0.25rem; }
+            .mobile-header-row .mobile-header-actions { gap: 0.125rem; }
+        }
+        @media (max-width: 359px) {
+            .mobile-header-row.mobile-header-row { flex-wrap: wrap; row-gap: 0.5rem; }
+            .mobile-header-row .mobile-header-actions { margin-left: auto; }
         }
     </style>
     <script>
@@ -191,8 +210,8 @@
         <div class="bg-marine p-5 sm:p-8 text-center relative flex flex-col items-center justify-center shadow-inner z-50">
             <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-water via-blue-400 to-emerald-400"></div>
             
-            <div class="w-full flex justify-between items-start relative z-20 mb-4 px-1">
-                <div class="flex gap-4">
+            <div class="mobile-header-row w-full flex justify-between items-start relative z-20 mb-4 px-1 gap-y-2">
+                <div class="mobile-header-links flex gap-2 sm:gap-4">
                     <button type="button" id="btnModalRanking" onclick="abrirModalRanking()" class="text-white/70 hover:text-white transition-transform hover:scale-105 flex flex-col items-center cursor-pointer">
                         <span class="text-2xl sm:text-3xl drop-shadow-md">🏆</span>
                         <span class="text-[11px] sm:text-xs font-black mt-1 uppercase tracking-widest">Ranking</span>
@@ -206,7 +225,7 @@
                         <span class="text-[11px] sm:text-xs font-black mt-1 uppercase tracking-widest">Feed</span>
                     </button>
                 </div>
-                <div class="flex items-center gap-2 sm:gap-3">
+                <div class="mobile-header-actions flex items-center gap-1 sm:gap-3">
                     <button type="button" id="btnAvisos" onclick="if(window.mostrarPanelAvisos) window.mostrarPanelAvisos()" class="relative text-white/70 hover:text-white transition-all hover:scale-105 flex flex-col items-center cursor-pointer">
                         <span class="text-2xl sm:text-3xl drop-shadow-md">🔔</span>
                         <span id="notifBadge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center border-2 border-marine"></span>
@@ -564,7 +583,7 @@
     <!-- Modal de Autenticación / Perfil Propio -->
     <div id="authModal" class="fixed inset-0 z-[100] hidden bg-marine/90 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 max-h-[90vh] overflow-hidden">
-            <button type="button" onclick="cerrarModalAuth()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
+            <button type="button" aria-label="Cerrar perfil" onclick="cerrarModalAuth()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
                 <svg class="w-6 h-6 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
             </button>
             <div class="flex-1 overflow-y-auto p-5 pt-10 custom-scrollbar w-full" id="authModalContent">
@@ -577,7 +596,7 @@
     <div id="clubsModal" class="fixed inset-0 z-[100] hidden bg-marine/90 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 max-h-[85vh] overflow-hidden">
             <div class="p-5 pb-4 border-b border-slate-100 bg-white relative z-10 text-center w-full">
-                <button type="button" onclick="cerrarModalClubs()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
+                <button type="button" aria-label="Cerrar comunidad" onclick="cerrarModalClubs()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
                     <svg class="w-6 h-6 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
                 </button>
                 <h2 class="text-2xl sm:text-3xl font-black text-marine mb-3 mt-1">Comunidad ⛺</h2>
@@ -595,7 +614,7 @@
     <div id="socialFeedModal" class="fixed inset-0 z-[100] hidden bg-marine/90 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 dark:border-slate-800 max-h-[85vh] overflow-hidden">
             <div class="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 relative z-10 text-center w-full">
-                <button type="button" onclick="cerrarModalFeed()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
+                <button type="button" aria-label="Cerrar feed" onclick="cerrarModalFeed()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
                     <svg class="w-6 h-6 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
                 </button>
                 <h2 class="text-2xl sm:text-3xl font-black text-marine dark:text-white mb-3 mt-1">Feed Social 📰</h2>
@@ -613,7 +632,7 @@
     <div id="rankingModal" class="fixed inset-0 z-[100] hidden bg-marine/90 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 max-h-[85vh] overflow-hidden">
             <div class="p-5 pb-3 border-b border-slate-100 bg-white relative z-10 text-center">
-                <button type="button" onclick="cerrarModalRanking()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
+                <button type="button" aria-label="Cerrar ranking" onclick="cerrarModalRanking()" class="absolute top-4 left-4 text-slate-500 hover:text-marine dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full w-10 h-10 flex justify-center items-center transition-all cursor-pointer shadow-sm active:scale-95 z-20">
                     <svg class="w-6 h-6 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
                 </button>
                 <h2 class="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-400 mb-2 mt-1">Top Paddlers</h2>

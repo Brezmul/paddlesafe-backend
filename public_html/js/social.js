@@ -431,7 +431,7 @@ export const socialFeed = {
             } else {
                 qMiembros = supabaseClient
                     .from('clubs_usuarios')
-                    .select('joined_at, club_id, user_id, perfiles(nombre, avatar_url), clubs(nombre, is_private)');
+                    .select('joined_at, club_id, user_id, perfiles(nombre, avatar_url), clubs(nombre)');
                 if (filtro === 'mis_clubs') qMiembros = qMiembros.in('club_id', misClubsIds);
                 if (filtro === 'mis_amigos') qMiembros = qMiembros.in('user_id', misAmigosIds);
                 qMiembros = qMiembros.order('joined_at', { ascending: false }).limit(15);
@@ -445,7 +445,7 @@ export const socialFeed = {
             } else {
                 qRutas = supabaseClient
                     .from('club_rutas')
-                    .select('created_at, club_id, ruta_id, rutas!inner(user_id, ubicacion, distancia_km, is_private), clubs(nombre, is_private)');
+                    .select('created_at, club_id, ruta_id, rutas!inner(user_id, ubicacion, distancia_km), clubs(nombre)');
                 if (filtro === 'mis_clubs') qRutas = qRutas.in('club_id', misClubsIds);
                 if (filtro === 'mis_amigos') qRutas = qRutas.in('rutas.user_id', misAmigosIds);
                 qRutas = qRutas.order('created_at', { ascending: false }).limit(15);
@@ -469,14 +469,22 @@ export const socialFeed = {
             
             const [resM, resR, resC] = await Promise.allSettled([qMiembros, qRutas, qChat]);
             let acts = [];
-            
+
+            const queryResults = [resM, resR, resC];
+            const queryErrors = queryResults.flatMap(result => {
+                if (result.status === 'rejected') return [result.reason];
+                return result.value?.error ? [result.value.error] : [];
+            });
+            queryErrors.forEach(error => console.warn('[socialFeed] Error consultando actividad:', error));
+
             const dataM = resM.status === 'fulfilled' && resM.value?.data ? resM.value.data : [];
             const dataR = resR.status === 'fulfilled' && resR.value?.data ? resR.value.data : [];
             const dataC = resC.status === 'fulfilled' && resC.value?.data ? resC.value.data : [];
 
             // A) Altas en clubes
             dataM.forEach(i => {
-                const esPublico = !i.clubs?.is_private;
+                // La tabla clubs no tiene una columna de visibilidad en el esquema actual.
+                const esPublico = true;
                 acts.push({
                     tipo: 'miembro',
                     date: new Date(i.joined_at),
@@ -489,7 +497,8 @@ export const socialFeed = {
 
             // B) Rutas de clubes
             dataR.forEach(i => {
-                const esPublico = !i.clubs?.is_private && !i.rutas?.is_private;
+                // La tabla rutas no tiene una columna de privacidad en el esquema actual.
+                const esPublico = true;
                 acts.push({
                     tipo: 'ruta',
                     date: new Date(i.created_at),
@@ -550,6 +559,10 @@ export const socialFeed = {
             acts.sort((a, b) => b.date - a.date);
             
             if (!acts || acts.length === 0) {
+                if (queryErrors.length > 0) {
+                    c.innerHTML = `<p class="text-center text-rose-500 text-xs py-10">No se pudo cargar la actividad. Inténtalo de nuevo más tarde.</p>`;
+                    return;
+                }
                 let mensajeVacio = "Cuando tú, tus amigos o tu club registréis nuevas travesías, aparecerán aquí.";
                 if (filtro === 'mis_clubs' && misClubsIds.length === 0) {
                     mensajeVacio = "Aún no perteneces a ningún club. ¡Únete a un club para ver la actividad interna y el chat de la tripulación!";
@@ -566,6 +579,9 @@ export const socialFeed = {
             }
             
             let h = '<div class="space-y-4">';
+            if (queryErrors.length > 0) {
+                h += `<p class="text-center text-amber-600 dark:text-amber-400 text-xs py-2">No se pudo cargar toda la actividad.</p>`;
+            }
             h += acts.map(i => `<div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 rounded-[24px] shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">${i.html}<div class="mt-4 pt-3 border-t border-slate-50 dark:border-slate-700/50 flex justify-end"><span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-900/50 px-2 py-1 rounded-md">${i.date.toLocaleDateString(undefined, {month:'short', day:'numeric'})} • ${i.date.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})}</span></div></div>`).join('');
             c.innerHTML = h + '</div>';
         } catch (e) { 

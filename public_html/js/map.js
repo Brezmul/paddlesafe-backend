@@ -16,6 +16,65 @@ function crearFranjaForecast(horaSalida, duracionMinutos = 120) {
     return `Salida (${String(horaInicio).padStart(2, '0')}:00 - ${String(horaFin).padStart(2, '0')}:00)`;
 }
 
+async function solicitarPronostico(payload) {
+    let ultimoError;
+
+    for (let intento = 0; intento < 2; intento += 1) {
+        let response;
+        try {
+            response = await fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+        } catch (error) {
+            const esTransitorio = error?.name === 'AbortError' || error instanceof TypeError;
+            if (intento > 0 || !esTransitorio) throw error;
+            ultimoError = error;
+            await new Promise(resolve => setTimeout(resolve, 350));
+            continue;
+        }
+
+        let resultado;
+        try {
+            resultado = await response.json();
+        } catch {
+            const error = new Error("El servidor devolvió una respuesta no válida.");
+            if (response.status < 500 || intento > 0) throw error;
+            ultimoError = error;
+            await new Promise(resolve => setTimeout(resolve, 350));
+            continue;
+        }
+
+        if (!response.ok) {
+            const error = new Error(resultado?.details || resultado?.error || `Error del servidor (${response.status}).`);
+            if (response.status < 500 || intento > 0) throw error;
+            ultimoError = error;
+            await new Promise(resolve => setTimeout(resolve, 350));
+            continue;
+        }
+
+        if (!resultado?.datos) {
+            throw new Error(resultado?.details || resultado?.error || "El servidor no devolvió datos del pronóstico.");
+        }
+
+        return resultado;
+    }
+
+    throw ultimoError || new Error("No se pudo obtener el pronóstico.");
+}
+
+function mostrarCoachPronosticoNoDisponible(container) {
+    if (!container) return;
+    container.classList.remove('hidden');
+    container.innerHTML = `
+        <div class="flex flex-col gap-2">
+            <span class="font-black text-amber-300 text-xs uppercase tracking-wider">✨ Coach</span>
+            <p class="text-xs text-slate-200 leading-relaxed">No se pueden generar consejos personalizados sin datos meteorológicos fiables.</p>
+            <p class="text-[11px] text-amber-200">Consulta el parte marítimo oficial antes de salir y vuelve a intentarlo cuando se recupere el pronóstico.</p>
+        </div>`;
+}
+
 export let map;
 export let marcador;
 export let datosMeteoActuales = null;
@@ -364,7 +423,18 @@ export async function consultarBasico() {
     res.className = "text-sm font-mono text-slate-600 bg-slate-50 p-5 rounded-2xl border border-slate-200 whitespace-pre-wrap leading-relaxed min-h-[80px]";
     buscarYCentrarMapa(loc);
     btn.disabled = true; sp.classList.remove('hidden'); bt.textContent = "Analizando..."; res.textContent = "Contactando servidores...";
-    
+    ['basicWindSpeed', 'basicWindDir', 'basicWave', 'basicPrecip', 'basicPrecipProb'].forEach(id => {
+        document.getElementById(id).textContent = '--';
+    });
+    const nivelBasico = document.getElementById('basicLevel');
+    nivelBasico.className = 'text-sm font-black text-slate-400 text-center px-2';
+    nivelBasico.textContent = 'Esperando...';
+    const coachBasico = document.getElementById('basicCoachContainer');
+    if (coachBasico) {
+        coachBasico.classList.add('hidden');
+        coachBasico.innerHTML = '';
+    }
+
     const alC = document.getElementById('global-alert-container'); if(alC) alC.innerHTML = '';
     
     const payload = {
@@ -375,11 +445,7 @@ export async function consultarBasico() {
     };
 
     try {
-        const response = await fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
-        });
-        const txt = await response.text();
-        const p = JSON.parse(txt);
+        const p = await solicitarPronostico(payload);
         
         if(p.datos) {
             const dx = p.datos;
@@ -407,14 +473,11 @@ export async function consultarBasico() {
             lElBasic.textContent = veredicto.estado;
             res.innerHTML = `<strong>📍 ${esc((p.received?.location || loc).split(',')[0])}</strong><br>📅 ${esc(p.received?.date || d)} | 🕒 ${esc(p.received?.timeRange || r)}<br><br>💡 <strong>Veredicto:</strong> ${esc(veredicto.mensaje)}`;
             solicitarCoachIABasico(dx, u, loc);
-        } else { 
-            res.textContent = "Error del servidor."; 
-            const bC = document.getElementById('basicCoachContainer'); if (bC) bC.classList.add('hidden');
         }
     } catch(e) { 
-        res.innerHTML = `<strong>Error de Red o Fallo de decodificación.</strong> Revisa tu conexión.`; 
-        console.warn('Aviso no crítico (fetch meteo):', e); 
-        const bC = document.getElementById('basicCoachContainer'); if (bC) bC.classList.add('hidden');
+        res.innerHTML = `<strong>No se pudo cargar el pronóstico.</strong> ${esc(e?.message || 'Revisa tu conexión e inténtalo de nuevo.')}`;
+        console.warn('Error al consultar el pronóstico básico:', e);
+        mostrarCoachPronosticoNoDisponible(document.getElementById('basicCoachContainer'));
     } finally {
         btn.disabled = false; sp.classList.add('hidden'); bt.textContent = 'Análisis Básico Rápido';
     }
@@ -432,15 +495,11 @@ export async function consultarPuntoProInstantaneo(lat, lon, d, t) {
             timeRange: crearFranjaForecast(t || "12:00"),
             userLevel: u
         };
-        const response = await fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
-        });
-        const txt = await response.text();
-        const p = JSON.parse(txt);
-        if(p.datos) renderizarDashboardPro(p.datos, t, u, false, lat, lon, d);
+        const p = await solicitarPronostico(payload);
+        renderizarDashboardPro(p.datos, t, u, false, lat, lon, d);
     } catch(e) {
         console.warn('Aviso no crítico:', e);
-        alert('❌ No se pudo obtener el pronóstico. Revisa tu conexión.');
+        alert(`❌ No se pudo obtener el pronóstico. ${e?.message || 'Revisa tu conexión e inténtalo de nuevo.'}`);
     } finally {
         if(btn) { btn.disabled = false; btn.innerHTML = "✨ Procesar Análisis Pro"; }
     }
@@ -492,26 +551,12 @@ export async function consultarRutaPro() {
             timeRange: crearFranjaForecast(t, duracionEstimada),
             userLevel: u
         };
-        const response = await fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
-        });
-        
-        const txt = await response.text();
-        
-        let p;
-        try {
-            p = JSON.parse(txt);
-        } catch(parseError) {
-            throw new Error("El servidor devolvió un formato no válido.");
-        }
-        
-        if(p.datos) {
-            renderizarDashboardPro(p.datos, t, u, marcadoresRuta.length >= 2, lat, lon, d);
-        } else {
-            alertCont.innerHTML = "⚠️ Sin datos climáticos marinos."; alertCont.classList.remove('hidden');
-        }
+        const p = await solicitarPronostico(payload);
+        renderizarDashboardPro(p.datos, t, u, marcadoresRuta.length >= 2, lat, lon, d);
     } catch(e) {
-        alertCont.innerHTML = `❌ Error de conexión o servidor.`; alertCont.classList.remove('hidden');
+        alertCont.innerHTML = `❌ <strong>No se pudo cargar el pronóstico.</strong> ${esc(e?.message || 'Revisa tu conexión e inténtalo de nuevo.')}<br><span class="font-normal">El coach no puede generar consejos personalizados sin datos fiables. Consulta el parte marítimo oficial antes de salir.</span>`;
+        alertCont.className = "text-sm font-bold text-red-400 bg-red-900/30 p-4 rounded-xl text-center w-full block mt-2";
+        alertCont.classList.remove('hidden');
         console.warn('Aviso crítico (Fetch Pro):', e);
     } finally {
         btn.disabled = false; btn.innerHTML = "✨ Procesar Análisis Pro";
