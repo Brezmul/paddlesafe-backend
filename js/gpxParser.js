@@ -208,6 +208,8 @@ export function parseGPX(gpxXmlContent) {
         avg_speed_kmh: avgSpeedKmh,
         max_speed_kmh: maxSpeedKmh,
         splits,
+        startTime,
+        endTime,
         // Aliases para compatibilidad con la tabla user_routes
         distance_km: totalDistanceKm,
         duration_seconds: totalDurationSeconds,

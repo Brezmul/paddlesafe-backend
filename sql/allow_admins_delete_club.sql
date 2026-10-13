@@ -79,3 +79,4 @@ EXCEPTION
     WHEN undefined_table THEN
         NULL;
 END $$;
+

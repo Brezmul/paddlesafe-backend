@@ -184,7 +184,7 @@ export function restaurarFormularioAuth() {
                 </div>
 
                 <!-- POSICIÓN EN EL RANKING GLOBAL -->
-                <div class="flex items-center justify-between bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 p-4 rounded-3xl mb-8 shadow-xl relative overflow-hidden group">
+                <div class="flex items-center justify-between bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 p-4 rounded-3xl mb-4 shadow-xl relative overflow-hidden group">
                     <div class="flex items-center gap-3 relative z-10">
                         <div class="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform">
                             🏆
@@ -200,6 +200,29 @@ export function restaurarFormularioAuth() {
                         <span>Ranking</span>
                         <span>→</span>
                     </button>
+                </div>
+
+                <!-- BOTÓN DESTACADO: SUBIR RUTA PARA SUMAR XP Y ESCALAR EN EL RANKING -->
+                <div class="mb-8">
+                    <label for="gpxUploadInput" class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white p-4 sm:p-5 rounded-3xl shadow-xl shadow-teal-900/30 active:scale-[0.98] transition-all flex items-center justify-between cursor-pointer group border border-emerald-400/30 relative overflow-hidden ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
+                        <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
+                        <div class="flex items-center gap-3.5 relative z-10 text-left min-w-0">
+                            <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-2xl shadow-inner group-hover:rotate-6 transition-transform shrink-0">
+                                🚀
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h4 class="text-xs sm:text-sm font-black text-white tracking-wide uppercase">Subir Ruta Deportiva</h4>
+                                    <span class="text-[9px] font-black bg-white/25 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">GPX</span>
+                                </div>
+                                <p class="text-[11px] text-white/90 font-medium mt-0.5 truncate sm:whitespace-normal">Suma XP (+100/km), sube de nivel y escala en el ranking global</p>
+                            </div>
+                        </div>
+                        <div class="relative z-10 bg-white text-marine font-black text-xs px-3.5 py-2.5 rounded-2xl shadow-md group-hover:bg-amber-300 group-hover:text-slate-900 transition-colors flex items-center gap-1.5 shrink-0 ml-2">
+                            <span>Subir</span>
+                            <span class="text-xs">📥</span>
+                        </div>
+                    </label>
                 </div>
 
                 <div class="mb-8 text-left">
@@ -237,7 +260,7 @@ export function restaurarFormularioAuth() {
                     ${appState.esInvitado ? 'Salir del Modo Invitado' : 'Cerrar Sesión'}
                 </button>
                 <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.24</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.25</p>
                     <button type="button" onclick="if(window.forzarActualizacion) window.forzarActualizacion(); else window.location.reload();" class="mt-1 text-[9px] text-water dark:text-sky-400 hover:underline font-bold uppercase tracking-wider cursor-pointer">🔄 Buscar actualizaciones / Limpiar caché</button>
                 </div>
             </div>
@@ -541,13 +564,20 @@ export async function subirArchivoGPX(event) {
                 routeName = file.name.replace(/\.gpx$/i, '').replace(/[-_]/g, ' ').trim();
             }
 
+            // Telemetría calculada punto a punto con Haversine y tiempo
+            const distKm = Number(parsed.total_distance_km || parsed.distance_km || 0);
+            const durSecs = Math.max(0, Math.round(Number(parsed.total_duration_seconds || parsed.duration_seconds || 0)));
+            const durMins = Math.max(1, Math.round(durSecs / 60));
+            const velMedia = Number(parsed.avg_speed_kmh || parsed.avg_speed || 0);
+            const velMax = Number(parsed.max_speed_kmh || parsed.max_speed || (velMedia * 1.35));
+
             const resGuardado = await guardarRutaDeportivaConGamificacion({
                 userId: appState.sesionActual.user.id,
                 title: routeName,
                 distanceKm: distKm,
                 durationSeconds: durSecs,
-                avgSpeed: Number(parsed.avgSpeedKmh || parsed.avg_speed || 0),
-                maxSpeed: Number(parsed.maxSpeedKmh || parsed.max_speed || 0),
+                avgSpeed: velMedia,
+                maxSpeed: velMax,
                 routeCoordinates: parsed.coordinates,
                 splitsData: parsed.splits || [],
                 createdAt: parsed.startTime ? new Date(parsed.startTime).toISOString() : new Date().toISOString()
@@ -559,9 +589,12 @@ export async function subirArchivoGPX(event) {
 
             const calculo = resGuardado.calculoXp;
             if (calculo.esTrampa) {
-                alert(`⚠️ Ruta guardada, pero la velocidad media (${resGuardado.ruta.avg_speed} km/h) superó los 45 km/h.\nSe ha clasificado como vehículo motorizado y no otorga XP.`);
+                alert(`⚠️ Ruta guardada, pero la velocidad media (${velMedia} km/h) superó los 45 km/h.\nSe ha clasificado como vehículo motorizado y no otorga XP.`);
             } else {
-                let msgExito = `🎉 ¡Ruta subida con éxito!\n\n📍 ${routeName}\n📏 Distancia: ${distKm} km\n⏱️ Tiempo: ${durMins} min\n⚡ Vel. Media: ${resGuardado.ruta.avg_speed} km/h\n🚀 Vel. Máx: ${resGuardado.ruta.max_speed} km/h\n🏆 +${calculo.xpGanado} XP ganados (${calculo.xpBase} XP base${calculo.bonusVelocidad > 0 ? ' + 50 XP bonus velocidad' : ''})\n⭐ Nivel actual: ${resGuardado.perfil?.current_level || 1}`;
+                const totalXpActual = Number(resGuardado.perfil?.total_xp || resGuardado.perfil?.puntos || 0);
+                const { posicion } = await obtenerPosicionRanking(totalXpActual);
+                
+                let msgExito = `🎉 ¡Ruta subida con éxito!\n\n📍 ${routeName}\n📏 Distancia: ${distKm} km\n⏱️ Tiempo: ${durMins} min\n⚡ Vel. Media: ${velMedia} km/h\n🚀 Vel. Máx: ${velMax} km/h\n\n🏆 +${calculo.xpGanado} XP ganados (${calculo.xpBase} XP base${calculo.bonusVelocidad > 0 ? ' + 50 XP bonus velocidad' : ''})\n⭐ Nivel actual: ${resGuardado.perfil?.current_level || 1}\n🏅 Posición en el Ranking: #${posicion}`;
                 if (resGuardado.subioDeNivel) {
                     msgExito += `\n\n🎊 ¡ENHORABUENA! ¡HAS SUBIDO AL NIVEL ${resGuardado.perfil.current_level}! 🚀`;
                 }
