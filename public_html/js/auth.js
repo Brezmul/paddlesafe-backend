@@ -7,10 +7,45 @@ import { esc, safeUrl, validarImagen, calcularRangoMaritimo, IMG_FALLBACK, fetch
 import { parseGPX } from './gpxParser.js';
 import { calcularNivelYProgreso, obtenerPosicionRanking, guardarRutaDeportivaConGamificacion } from './gamification.js';
 
+export function comprobarRecuperacionPasswordUrl() {
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    const params = new URLSearchParams(search);
+    const hashParams = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+
+    const errorDesc = hashParams.get('error_description') || params.get('error_description');
+    if (errorDesc) {
+        alert("⚠️ El enlace de recuperación no es válido o ha expirado: " + decodeURIComponent(errorDesc.replace(/\+/g, ' ')));
+        window.history.replaceState(null, null, window.location.pathname);
+        return false;
+    }
+
+    const esRecovery = hash.includes('type=recovery') || 
+                       search.includes('type=recovery') || 
+                       params.get('type') === 'recovery' ||
+                       hashParams.get('type') === 'recovery' ||
+                       hash.toLowerCase() === '#recovery';
+
+    if (esRecovery) {
+        appState.isPasswordRecoveryMode = true;
+        setTimeout(() => {
+            abrirModalRecuperacionFinal();
+        }, 200);
+        return true;
+    }
+    return false;
+}
+
 export function initAuthListeners() {
+    comprobarRecuperacionPasswordUrl();
+
     if (supabaseClient && supabaseClient.auth) {
         supabaseClient.auth.onAuthStateChange((event, session) => {
-            if (event === 'PASSWORD_RECOVERY') { setTimeout(abrirModalRecuperacionFinal, 500); return; }
+            if (event === 'PASSWORD_RECOVERY') {
+                appState.isPasswordRecoveryMode = true;
+                setTimeout(abrirModalRecuperacionFinal, 300);
+                return;
+            }
             if (event === 'INITIAL_SESSION') return;
             
             const mismoUsuario = session?.user?.id && session.user.id === appState.perfilUsuario?.id;
@@ -26,8 +61,16 @@ export function initAuthListeners() {
                 }
                 else { appState.perfilUsuario = null; actualizarBotonCabecera(); }
                 
+                // Si el usuario está en proceso de restablecer su contraseña, preservar el modal
+                if (appState.isPasswordRecoveryMode || document.getElementById('nuevaPassword')) {
+                    abrirModalRecuperacionFinal();
+                    return;
+                }
+
                 const modal = document.getElementById('authModal');
-                if (modal && !modal.classList.contains('hidden') && appState.sesionActual && !document.getElementById('nuevaPassword') && appState.perfilUsuario) cerrarModalAuth();
+                if (modal && !modal.classList.contains('hidden') && appState.sesionActual && appState.perfilUsuario) {
+                    cerrarModalAuth();
+                }
             }, 0);
         });
     }
@@ -263,11 +306,16 @@ export function restaurarFormularioAuth() {
                     </div>
                     <div id="contenedorHistorial" class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar pb-4"></div>
                 </div>
+                <div class="mb-3">
+                    <button type="button" onclick="window.abrirModalRecuperacionFinal()" class="w-full h-11 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-wider rounded-2xl border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer shadow-sm">
+                        <span>🔑</span> Cambiar Contraseña
+                    </button>
+                </div>
                 <button onclick="cerrarSesion()" class="w-full h-14 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 font-black uppercase tracking-widest text-[11px] rounded-2xl border-2 border-red-100 dark:border-red-900/30 transition-all shadow-sm active:scale-95">
                     ${appState.esInvitado ? 'Salir del Modo Invitado' : 'Cerrar Sesión'}
                 </button>
                 <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.31</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.32</p>
                     <button type="button" onclick="if(window.forzarActualizacion) window.forzarActualizacion(); else window.location.reload();" class="mt-1 text-[9px] text-water dark:text-sky-400 hover:underline font-bold uppercase tracking-wider cursor-pointer">🔄 Buscar actualizaciones / Limpiar caché</button>
                 </div>
             </div>
@@ -311,58 +359,235 @@ export function restaurarFormularioAuth() {
             <button type="button" onclick="toggleAuthMode()" class="text-water dark:text-sky-400 font-black cursor-pointer ml-1 hover:underline" id="authToggleBtn">Regístrate</button>
         </div>
         <div class="mt-4 text-center dark:bg-slate-900 pb-6">
-            <button type="button" id="btnRecuperarPass" onclick="enviarEmailRecuperacion()" class="text-[11px] font-bold text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 uppercase tracking-widest transition-colors">¿Olvidaste tu contraseña?</button>
+            <button type="button" id="btnRecuperarPass" onclick="mostrarVistaSolicitarRecuperacion()" class="text-[11px] font-bold text-slate-400 dark:text-slate-500 hover:text-water dark:hover:text-sky-400 uppercase tracking-widest transition-colors cursor-pointer">¿Olvidaste tu contraseña?</button>
+        </div>
+    `;
+}
+
+export function mostrarVistaSolicitarRecuperacion() {
+    const c = document.getElementById('authModalContent');
+    if (!c) return;
+    const emailPrevio = document.getElementById('authEmail')?.value?.trim() || '';
+    c.innerHTML = `
+        <div class="text-center mb-6 dark:bg-slate-900 pt-6 rounded-t-3xl">
+            <div class="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6"></div>
+            <div class="w-16 h-16 bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner">
+                📧
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-black text-marine dark:text-white mb-2 tracking-tight">Recuperar Contraseña</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium px-4">
+                Introduce el correo electrónico asociado a tu cuenta de PaddleSafe y te enviaremos un enlace seguro para restablecerla.
+            </p>
+        </div>
+        <div class="space-y-4 w-full dark:bg-slate-900 pb-4 px-2">
+            <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path></svg>
+                </span>
+                <input type="email" id="recuperarEmailInput" value="${esc(emailPrevio)}" class="block w-full h-14 pl-12 pr-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-water dark:focus:ring-sky-500 outline-none transition-all shadow-sm" placeholder="tu-email@ejemplo.com" autofocus>
+            </div>
+            <button type="button" id="btnEnviarRecuperacion" onclick="enviarEmailRecuperacion()" class="w-full h-14 bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-water/30 dark:shadow-none transition-transform active:scale-95 cursor-pointer flex items-center justify-center gap-2">
+                <span>Enviar Enlace de Recuperación</span>
+                <span>📨</span>
+            </button>
+            <button type="button" onclick="restaurarFormularioAuth()" class="w-full h-12 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all cursor-pointer">
+                ⬅️ Volver al Inicio de Sesión
+            </button>
+        </div>
+    `;
+}
+
+export function mostrarVistaConfirmacionEmailEnviado(email) {
+    const c = document.getElementById('authModalContent');
+    if (!c) return;
+    c.innerHTML = `
+        <div class="text-center mb-6 dark:bg-slate-900 pt-6 rounded-t-3xl">
+            <div class="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6"></div>
+            <div class="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner">
+                ✅
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-black text-marine dark:text-white mb-2 tracking-tight">¡Correo Enviado!</h2>
+            <p class="text-slate-600 dark:text-slate-300 text-xs sm:text-sm font-medium px-4 mb-2">
+                Hemos enviado un correo a:
+            </p>
+            <p class="text-sm font-black text-water dark:text-sky-400 bg-sky-50 dark:bg-slate-800 py-1.5 px-3 rounded-xl inline-block mb-4 border border-sky-100 dark:border-slate-700">
+                ${esc(email)}
+            </p>
+            <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-2xl p-4 mx-2 text-left mb-4">
+                <p class="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                    💡 <strong>Siguientes pasos:</strong><br>
+                    1. Revisa tu bandeja de entrada (o carpeta de spam).<br>
+                    2. Haz clic en el enlace recibido en el correo.<br>
+                    3. Se abrirá automáticamente esta aplicación en el espacio seguro para que introduzcas tu nueva contraseña.
+                </p>
+            </div>
+        </div>
+        <div class="space-y-3 w-full dark:bg-slate-900 pb-4 px-2">
+            <button type="button" onclick="abrirModalRecuperacionFinal()" class="w-full h-13 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition-transform active:scale-95 cursor-pointer flex items-center justify-center gap-2">
+                <span>¿Ya abriste el enlace? Escribir Nueva Contraseña</span>
+                <span>🔑</span>
+            </button>
+            <button type="button" onclick="restaurarFormularioAuth()" class="w-full h-11 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all cursor-pointer">
+                Volver a Iniciar Sesión
+            </button>
         </div>
     `;
 }
 
 export async function enviarEmailRecuperacion() {
-    const email = document.getElementById('authEmail').value;
-    if (!email) return alert("Por favor, escribe tu email en el campo de arriba y pulsa este botón.");
-    const btn = document.getElementById('btnRecuperarPass');
-    if (btn) { btn.disabled = true; btn.textContent = "Enviando..."; }
+    const input = document.getElementById('recuperarEmailInput') || document.getElementById('authEmail');
+    const email = input?.value?.trim();
+    if (!email || !email.includes('@')) {
+        alert("Por favor, introduce un correo electrónico válido.");
+        return;
+    }
+    const btn = document.getElementById('btnEnviarRecuperacion') || document.getElementById('btnRecuperarPass');
+    if (btn) { btn.disabled = true; btn.textContent = "Enviando enlace..."; }
     
-    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/' });
-    
-    if (error) { alert("Error: " + error.message); } 
-    else { alert("✅ Te hemos enviado un enlace para restablecer tu contraseña. Revisa tu email."); }
-    
-    if (btn) { btn.disabled = false; btn.textContent = "¿Olvidaste tu contraseña?"; }
+    try {
+        const redirectToUrl = `${window.location.origin}${window.location.pathname}#recovery`;
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: redirectToUrl });
+        if (error) {
+            alert("Error: " + error.message);
+            if (btn) { btn.disabled = false; btn.textContent = "Enviar Enlace de Recuperación"; }
+        } else {
+            mostrarVistaConfirmacionEmailEnviado(email);
+        }
+    } catch (err) {
+        alert("Ocurrió un error al enviar el correo: " + (err.message || err));
+        if (btn) { btn.disabled = false; btn.textContent = "Enviar Enlace de Recuperación"; }
+    }
+}
+
+export function toggleVerPassword(inputId, btnEl) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    if (input.type === 'password') {
+        input.type = 'text';
+        if (btnEl) btnEl.innerHTML = '🙈';
+    } else {
+        input.type = 'password';
+        if (btnEl) btnEl.innerHTML = '👁️';
+    }
 }
 
 export function abrirModalRecuperacionFinal() {
+    appState.isPasswordRecoveryMode = true;
     const c = document.getElementById('authModalContent');
     if (!c) return;
     c.innerHTML = `
-        <div class="text-center mb-8 dark:bg-slate-900 pt-8 rounded-t-3xl">
+        <div class="text-center mb-6 dark:bg-slate-900 pt-6 rounded-t-3xl">
             <div class="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6"></div>
-            <h2 class="text-3xl font-black text-marine dark:text-white mb-2 tracking-tight">Nueva Contraseña</h2>
-            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Ingresa tu nueva contraseña para acceder.</p>
+            <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-3xl flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg shadow-emerald-500/30">
+                🔑
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-black text-marine dark:text-white mb-2 tracking-tight">Establecer Nueva Contraseña</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium px-4">
+                Elige una contraseña segura (mínimo 6 caracteres) para acceder a tu cuenta de PaddleSafe.
+            </p>
         </div>
         <div class="space-y-4 w-full dark:bg-slate-900 pb-6 px-2">
-            <div class="relative">
-                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></span>
-                <input type="password" id="nuevaPassword" class="block w-full h-14 pl-12 pr-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm" placeholder="Nueva contraseña (mín. 6 caracteres)">
+            <div class="space-y-1">
+                <label class="block text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 pl-1">Nueva Contraseña</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    </span>
+                    <input type="password" id="nuevaPassword" class="block w-full h-14 pl-12 pr-12 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm" placeholder="Mínimo 6 caracteres" autofocus>
+                    <button type="button" onclick="window.toggleVerPassword('nuevaPassword', this)" class="absolute inset-y-0 right-0 pr-4 flex items-center text-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+                        👁️
+                    </button>
+                </div>
             </div>
-            <button type="button" onclick="guardarNuevaPassword()" class="w-full h-14 mt-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 dark:shadow-none transition-transform active:scale-95 cursor-pointer">Guardar Contraseña</button>
+
+            <div class="space-y-1">
+                <label class="block text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 pl-1">Confirmar Contraseña</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </span>
+                    <input type="password" id="confirmarPassword" class="block w-full h-14 pl-12 pr-12 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm" placeholder="Repite tu nueva contraseña">
+                    <button type="button" onclick="window.toggleVerPassword('confirmarPassword', this)" class="absolute inset-y-0 right-0 pr-4 flex items-center text-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+                        👁️
+                    </button>
+                </div>
+            </div>
+
+            <div id="passwordErrorMsg" class="hidden text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-200 dark:border-red-800/40"></div>
+
+            <button type="button" id="btnGuardarPassword" onclick="guardarNuevaPassword()" class="w-full h-14 mt-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 dark:shadow-none transition-transform active:scale-95 cursor-pointer flex items-center justify-center gap-2">
+                <span>Guardar Nueva Contraseña</span>
+                <span>✨</span>
+            </button>
+            <button type="button" onclick="cerrarModalAuth()" class="w-full h-11 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all cursor-pointer">
+                Cancelar
+            </button>
         </div>
     `;
     const m = document.getElementById('authModal');
     if (m) {
         m.classList.remove('hidden');
-        setTimeout(() => { m.classList.remove('opacity-0'); m.querySelector('div').classList.remove('scale-95'); }, 10);
+        setTimeout(() => { 
+            m.classList.remove('opacity-0'); 
+            m.querySelector('div')?.classList.remove('scale-95'); 
+        }, 10);
     }
 }
 
 export async function guardarNuevaPassword() {
-    const pass = document.getElementById('nuevaPassword').value;
-    if (!pass || pass.length < 6) return alert("La contraseña debe tener al menos 6 caracteres.");
-    const { error } = await supabaseClient.auth.updateUser({ password: pass });
-    if (error) { alert("Error: " + error.message); } 
-    else {
-        alert("✅ Contraseña actualizada correctamente.");
-        cerrarModalAuth();
+    const pass = document.getElementById('nuevaPassword')?.value;
+    const confirmPass = document.getElementById('confirmarPassword')?.value;
+    const errBox = document.getElementById('passwordErrorMsg');
+    const mostrarError = (msg) => {
+        if (errBox) {
+            errBox.textContent = msg;
+            errBox.classList.remove('hidden');
+        } else {
+            alert(msg);
+        }
+    };
+
+    if (!pass || pass.length < 6) {
+        return mostrarError("La contraseña debe tener al menos 6 caracteres.");
+    }
+    if (confirmPass !== undefined && pass !== confirmPass) {
+        return mostrarError("Las dos contraseñas no coinciden. Por favor, verifícalas.");
+    }
+
+    if (errBox) errBox.classList.add('hidden');
+
+    const btn = document.getElementById('btnGuardarPassword');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>Guardando...</span> <span class="animate-spin">⏳</span>`;
+    }
+
+    try {
+        const { data, error } = await supabaseClient.auth.updateUser({ password: pass });
+        if (error) {
+            mostrarError("Error al guardar: " + error.message);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<span>Guardar Nueva Contraseña</span> <span>✨</span>`;
+            }
+            return;
+        }
+
+        appState.isPasswordRecoveryMode = false;
+        alert("✅ ¡Contraseña actualizada con éxito! Ahora ya puedes continuar navegando con tu nueva clave.");
+        
+        // Limpiar hash y parámetros de recuperación de la URL
         window.history.replaceState(null, null, window.location.pathname);
+        
+        // Cargar perfil activo y restaurar vista
+        await cargarPerfilUsuarioActivo();
+        restaurarFormularioAuth();
+    } catch (err) {
+        mostrarError("Ocurrió un error inesperado: " + (err.message || err));
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span>Guardar Nueva Contraseña</span> <span>✨</span>`;
+        }
     }
 }
 
@@ -1190,7 +1415,10 @@ export function cerrarModalDetallesRuta() {
 
 window.abrirModalAuth = abrirModalAuth;
 window.cerrarModalAuth = cerrarModalAuth;
+window.mostrarVistaSolicitarRecuperacion = mostrarVistaSolicitarRecuperacion;
+window.mostrarVistaConfirmacionEmailEnviado = mostrarVistaConfirmacionEmailEnviado;
 window.enviarEmailRecuperacion = enviarEmailRecuperacion;
+window.toggleVerPassword = toggleVerPassword;
 window.abrirModalRecuperacionFinal = abrirModalRecuperacionFinal;
 window.guardarNuevaPassword = guardarNuevaPassword;
 window.subirAvatar = subirAvatar;
