@@ -14,3 +14,4 @@ vercel.json
 paddlesafe-backend-main/
 Paddlesafe_frontend/
 scratch/
+.vscode/
