@@ -835,59 +835,126 @@
 
         (async function() {
             const APP_FILES = ['/js/main.js']; 
+            const CACHE_REPAIR_KEY = 'paddlesafe_cache_repair_v1';
+            let appVersion = null;
+            let appRecoveryAttempted = false;
+            let cacheRepairPending = false;
+
+            async function limpiarCachesPaddleSafe() {
+                if ('caches' in window) {
+                    const cacheKeys = await caches.keys();
+                    await Promise.all(cacheKeys
+                        .filter(key => key.startsWith('paddlesafe-'))
+                        .map(key => caches.delete(key)));
+                }
+
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    const registroPaddleSafe = registrations.filter(registration =>
+                        [registration.active, registration.waiting, registration.installing]
+                            .filter(Boolean)
+                            .some(worker => {
+                                const workerUrl = new URL(worker.scriptURL);
+                                return workerUrl.origin === window.location.origin && workerUrl.pathname === '/sw.js';
+                            })
+                    );
+                    await Promise.all(registroPaddleSafe.map(registration => registration.unregister()));
+                }
+            }
+
+            function mostrarErrorCargaApp() {
+                if (document.getElementById('appLoadError')) return;
+                const panel = document.createElement('div');
+                panel.id = 'appLoadError';
+                panel.setAttribute('role', 'alert');
+                panel.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;background:#0f172a;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center';
+
+                const contenido = document.createElement('div');
+                const mensaje = document.createElement('p');
+                mensaje.textContent = 'PaddleSafe no ha podido cargar sus funciones. Comprueba la conexión y vuelve a intentarlo.';
+                const boton = document.createElement('button');
+                boton.type = 'button';
+                boton.textContent = 'Volver a cargar';
+                boton.style.cssText = 'margin-top:16px;padding:12px 20px;border:0;border-radius:12px;background:#0ea5e9;color:#fff;font-weight:700';
+                boton.addEventListener('click', () => window.location.reload());
+                contenido.append(mensaje, boton);
+                panel.appendChild(contenido);
+                document.body.appendChild(panel);
+            }
+
+            function cargarModuloApp(file, retry = false) {
+                const script = document.createElement('script');
+                script.type = 'module';
+                const query = appVersion
+                    ? `?v=${encodeURIComponent(appVersion)}${retry ? `&retry=${Date.now()}` : ''}`
+                    : `?retry=${Date.now()}`;
+                script.src = `${file}${query}`;
+                script.onload = () => {
+                    if (appVersion) {
+                        try {
+                            localStorage.setItem('paddlesafe_version', appVersion);
+                            if (cacheRepairPending) localStorage.setItem(CACHE_REPAIR_KEY, 'done');
+                        } catch (error) {
+                            console.error('[app] No se pudo guardar la versión cargada:', error);
+                        }
+                    }
+                    appRecoveryAttempted = false;
+                };
+                script.onerror = () => {
+                    console.error(`[app] No se pudo cargar el módulo ${file}.`);
+                    if (appRecoveryAttempted) {
+                        mostrarErrorCargaApp();
+                        return;
+                    }
+
+                    appRecoveryAttempted = true;
+                    limpiarCachesPaddleSafe()
+                        .then(() => {
+                            try {
+                                localStorage.removeItem('paddlesafe_version');
+                            } catch (error) {
+                                console.error('[app] No se pudo invalidar la versión local:', error);
+                            }
+                            cargarModuloApp(file, true);
+                        })
+                        .catch(error => {
+                            console.error('[app] No se pudo limpiar la caché local:', error);
+                            mostrarErrorCargaApp();
+                        });
+                };
+                document.body.appendChild(script);
+            }
             
             try {
                 // 1. Consultar version.json evadiendo caché del navegador
                 const timestamp = new Date().getTime();
                 const response = await fetch(`/version.json?t=${timestamp}`, { cache: "no-store" });
+                if (!response.ok) throw new Error(`version.json devolvió HTTP ${response.status}.`);
                 const data = await response.json();
-                const newHash = data.hash;
+                if (typeof data.hash !== 'string' || !data.hash) throw new Error('version.json no contiene un hash válido.');
+                appVersion = data.hash;
                 
                 // 2. Comprobar versión instalada
                 const currentHash = localStorage.getItem('paddlesafe_version');
+                const necesitaRepararCache = localStorage.getItem(CACHE_REPAIR_KEY) !== 'done';
                 
-                if (currentHash && currentHash !== newHash) {
-                    console.log(`🔄 Actualizando de ${currentHash} a ${newHash}...`);
-                    
-                    // 2.1 Limpiar Caché Storage de la PWA
-                    if ('caches' in window) {
-                        const cacheKeys = await caches.keys();
-                        await Promise.all(cacheKeys.map(key => caches.delete(key)));
+                if (necesitaRepararCache || (currentHash && currentHash !== appVersion)) {
+                    console.info(`[app] Reparando caché local de PaddleSafe${currentHash && currentHash !== appVersion ? ` (${currentHash} → ${appVersion})` : ''}.`);
+                    await limpiarCachesPaddleSafe();
+                    cacheRepairPending = true;
+                    if (currentHash && currentHash !== appVersion) {
+                        localStorage.removeItem('paddlesafe_version');
                     }
-                    
-                    // 2.2 Desregistrar Service Workers antiguos
-                    if ('serviceWorker' in navigator) {
-                        const registrations = await navigator.serviceWorker.getRegistrations();
-                        for (let reg of registrations) {
-                            await reg.unregister();
-                        }
-                    }
-                    
-                    // 2.3 Guardar nueva versión y recargar con query param para romper la caché HTTP de index.html
-                    localStorage.setItem('paddlesafe_version', newHash);
-                    const destUrl = new URL(window.location.href);
-                    destUrl.searchParams.set('v', newHash);
-                    window.location.replace(destUrl.toString());
-                    return; // Bloquear ejecución hasta que recargue
-                }
-                
-                // Si es la primera vez, guardamos la versión
-                if (!currentHash) {
-                    localStorage.setItem('paddlesafe_version', newHash);
                 }
 
                 // 3. Inyectar archivos dinámicamente con el Hash de versión
                 APP_FILES.forEach(file => {
                     if (file.endsWith('.js')) {
-                        const script = document.createElement('script');
-                        script.type = 'module';
-                        script.src = `${file}?v=${newHash}`;
-                        script.defer = true;
-                        document.body.appendChild(script);
+                        cargarModuloApp(file);
                     } else if (file.endsWith('.css')) {
                         const link = document.createElement('link');
                         link.rel = 'stylesheet';
-                        link.href = `${file}?v=${newHash}`;
+                        link.href = `${file}?v=${appVersion}`;
                         document.head.appendChild(link);
                     }
                 });
@@ -895,40 +962,40 @@
                 // Función global para forzar actualización manual o desde ajustes
                 window.forzarActualizacion = async () => {
                     try {
+                        await limpiarCachesPaddleSafe();
                         localStorage.removeItem('paddlesafe_version');
-                        if ('caches' in window) {
-                            const cacheKeys = await caches.keys();
-                            await Promise.all(cacheKeys.map(key => caches.delete(key)));
-                        }
-                        if ('serviceWorker' in navigator) {
-                            const registrations = await navigator.serviceWorker.getRegistrations();
-                            for (let reg of registrations) await reg.unregister();
-                        }
-                    } catch (_) {}
+                    } catch (error) {
+                        console.error('[app] No se pudo limpiar la caché para actualizar:', error);
+                        mostrarErrorCargaApp();
+                        return;
+                    }
                     const destUrl = new URL(window.location.href);
-                    destUrl.searchParams.set('force_update', Date.now());
+                    destUrl.searchParams.set('force_update', Date.now().toString());
                     window.location.replace(destUrl.toString());
                 };
 
                 // 4. Registrar el Service Worker
                 if ('serviceWorker' in navigator) {
                     window.addEventListener('load', () => {
-                        navigator.serviceWorker.register('/sw.js').then(reg => {
+                        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
                             // Escuchar cuando el SW detecta una nueva versión byte a byte
                             reg.onupdatefound = () => {
                                 const installingWorker = reg.installing;
+                                if (!installingWorker) return;
                                 installingWorker.onstatechange = () => {
                                     if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                         // Nueva versión detectada por el navegador. Forzamos chequeo de version.json
                                         fetch(`/version.json?t=${new Date().getTime()}`, { cache: "no-store" })
                                             .then(r => r.json())
                                             .then(async newData => {
-                                                if (newData.hash !== localStorage.getItem('paddlesafe_version')) {
+                                                if (newData.hash && newData.hash !== localStorage.getItem('paddlesafe_version')) {
                                                     if ('caches' in window) {
                                                         const cacheKeys = await caches.keys();
-                                                        await Promise.all(cacheKeys.map(key => caches.delete(key)));
+                                                        await Promise.all(cacheKeys
+                                                            .filter(key => key.startsWith('paddlesafe-'))
+                                                            .map(key => caches.delete(key)));
                                                     }
-                                                    localStorage.setItem('paddlesafe_version', newData.hash);
+                                                    localStorage.removeItem('paddlesafe_version');
                                                     const destUrl = new URL(window.location.href);
                                                     destUrl.searchParams.set('v', newData.hash);
                                                     window.location.replace(destUrl.toString());
@@ -942,20 +1009,19 @@
                 }
 
             } catch (e) {
-                console.warn("⚠️ Modo Offline o error en version.json. Cargando fallback.");
+                console.warn("[app] No se pudo comprobar version.json; intentando cargar el módulo con recuperación:", e);
                 // Fallback para modo offline
                 APP_FILES.forEach(file => {
                     if (file.endsWith('.js')) {
-                        const script = document.createElement('script');
-                        script.type = 'module';
-                        script.src = file; // Sin hash, usa lo que haya en caché
-                        script.defer = true;
-                        document.body.appendChild(script);
+                        cargarModuloApp(file);
                     }
                 });
                 
                 if ('serviceWorker' in navigator) {
-                    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+                    window.addEventListener('load', () => {
+                        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+                            .catch(error => console.error('[app] No se pudo registrar el service worker:', error));
+                    });
                 }
             }
         })();
