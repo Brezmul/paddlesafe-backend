@@ -4,6 +4,7 @@
 
 import { supabaseClient, appState } from './config.js';
 import { IMG_FALLBACK, esc, safeUrl } from './utils.js'; // AÑADIDO: esc y safeUrl
+import { calcularNivelYProgreso } from './gamification.js';
 import * as Auth from './auth.js';
 import * as MapModule from './map.js';
 import * as Social from './social.js';
@@ -244,7 +245,7 @@ export async function abrirPerfilPublicoSPA(userId) {
     
     if(user) {
         appState.spaCurrentUser = user;
-        document.getElementById('modalUserName').textContent = user.nombre;
+        document.getElementById('modalUserName').textContent = user.nombre || 'Paddler';
         
         const avatarEl = document.getElementById('spaAvatar');
         avatarEl.src = user.avatar_url || IMG_FALLBACK || '';
@@ -252,7 +253,10 @@ export async function abrirPerfilPublicoSPA(userId) {
         avatarEl.onerror = function() { this.onerror=null; this.src=IMG_FALLBACK; };
         
         const levelEl = document.getElementById('spaUserLevel');
-        if (levelEl) levelEl.textContent = `Nivel ${user.nivel || 1}`;
+        const pts = Number(user.total_xp || user.puntos || 0);
+        const progreso = calcularNivelYProgreso(pts);
+        const lvl = user.current_level || user.nivel || progreso.nivel;
+        if (levelEl) levelEl.textContent = `Nivel ${lvl}`;
         
         const myId = appState.sesionActual?.user?.id;
         const isMe = myId === userId;
@@ -417,14 +421,18 @@ export async function cambiarTabPerfilSPA(tab) {
                     id: r.id,
                     title: r.title || 'Ruta Deportiva',
                     distancia_km: Number(r.distance_km || 0),
+                    distance_km: Number(r.distance_km || 0),
                     tiempo_minutos: Math.max(1, Math.round(Number(r.duration_seconds || 0) / 60)),
+                    duration_seconds: Number(r.duration_seconds || 0),
                     avg_speed: Number(r.avg_speed || 0),
                     max_speed: Number(r.max_speed || 0),
                     fecha: r.created_at,
+                    created_at: r.created_at,
                     route_coordinates: r.route_coordinates,
                     splits_data: r.splits_data,
                     ai_feedback: r.ai_feedback,
-                    puntos: Number(r.xp_earned || 0)
+                    puntos: Number(r.xp_earned || 0),
+                    xp_earned: Number(r.xp_earned || 0)
                 }));
             }
         } catch (e) {
@@ -448,12 +456,16 @@ export async function cambiarTabPerfilSPA(tab) {
                             id: r.id,
                             title: 'Travesía GPS',
                             distancia_km: dist,
+                            distance_km: dist,
                             tiempo_minutos: mins,
+                            duration_seconds: mins * 60,
                             avg_speed: avg,
                             max_speed: avg * 1.35,
                             fecha: r.fecha,
+                            created_at: r.fecha,
                             route_coordinates: r.ruta_json,
-                            puntos: Number(r.points_earned || (Math.round(dist * 10) + mins))
+                            puntos: Number(r.points_earned || (Math.round(dist * 10) + mins)),
+                            xp_earned: Number(r.points_earned || (Math.round(dist * 10) + mins))
                         });
                     }
                 });
@@ -553,26 +565,49 @@ export async function cambiarTabPerfilSPA(tab) {
         content.innerHTML = html + '</div>';
     }
     else if (tab === 'insignias') {
-        const insigniasCodigos = spaCurrentUser.insignias || [];
+        const rawCodigos = spaCurrentUser.insignias;
+        let insigniasCodigos = [];
+        if (Array.isArray(rawCodigos)) {
+            insigniasCodigos = rawCodigos;
+        } else if (typeof rawCodigos === 'string') {
+            try {
+                const parsed = JSON.parse(rawCodigos);
+                if (Array.isArray(parsed)) insigniasCodigos = parsed;
+            } catch (_) {
+                insigniasCodigos = rawCodigos.replace(/[{}]/g, '').split(',').map(s => s.trim()).filter(Boolean);
+            }
+        }
         if(!insigniasCodigos.length) return content.innerHTML = '<div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner mt-4"><p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Vitrina vacía.</p></div>';
         
-        const { data: catalogo } = await supabaseClient.from('catalog_insignias').select('*').in('codigo', insigniasCodigos);
+        let catalogo = [];
+        try {
+            const { data } = await supabaseClient.from('catalog_insignias').select('*').in('codigo', insigniasCodigos);
+            if (Array.isArray(data) && data.length > 0) {
+                catalogo = data;
+            }
+        } catch (_) {}
+
+        if (!catalogo.length) {
+            catalogo = insigniasCodigos.map(item => {
+                if (typeof item === 'object' && item !== null) return item;
+                const nom = String(item).replace(/_/g, ' ');
+                return { codigo: item, nombre: nom, icono: '🏅', descripcion: 'Insignia conseguida en el mar' };
+            });
+        }
         
         let html = '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4 pb-4">';
-        if(catalogo) {
-            html += catalogo.map(item => {
-                const nombreEsc = esc(item.nombre);
-                return `
-                <div class="flex flex-col items-center justify-center bg-gradient-to-b from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 p-5 border border-slate-200 dark:border-slate-700 rounded-3xl text-center shadow-lg shadow-slate-200/50 dark:shadow-none hover:-translate-y-2 hover:shadow-2xl hover:border-amber-200 dark:hover:border-amber-700/50 transition-all duration-300 relative overflow-hidden group">
-                    <div class="absolute inset-0 bg-gradient-to-tr from-amber-100/30 to-transparent dark:from-amber-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                    <div class="w-16 h-16 mx-auto bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-md border border-slate-100 dark:border-slate-700 mb-3 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                        <span class="text-4xl drop-shadow-md">${esc(item.icono || '🏅')}</span>
-                    </div>
-                    <p class="text-[11px] font-black text-marine dark:text-white uppercase tracking-widest leading-tight relative z-10 px-1">${nombreEsc}</p>
-                    ${item.descripcion ? `<p class="text-[9px] text-slate-400 dark:text-slate-500 mt-2 font-bold leading-relaxed relative z-10 px-2 hidden group-hover:block transition-all">${esc(item.descripcion)}</p>` : ''}
-                </div>`;
-            }).join('');
-        }
+        html += catalogo.map(item => {
+            const nombreEsc = esc(item.nombre || 'Insignia');
+            return `
+            <div class="flex flex-col items-center justify-center bg-gradient-to-b from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 p-5 border border-slate-200 dark:border-slate-700 rounded-3xl text-center shadow-lg shadow-slate-200/50 dark:shadow-none hover:-translate-y-2 hover:shadow-2xl hover:border-amber-200 dark:hover:border-amber-700/50 transition-all duration-300 relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-tr from-amber-100/30 to-transparent dark:from-amber-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div class="w-16 h-16 mx-auto bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-md border border-slate-100 dark:border-slate-700 mb-3 group-hover:scale-110 transition-transform duration-300 relative z-10">
+                    <span class="text-4xl drop-shadow-md">${esc(item.icono || '🏅')}</span>
+                </div>
+                <p class="text-[11px] font-black text-marine dark:text-white uppercase tracking-widest leading-tight relative z-10 px-1">${nombreEsc}</p>
+                ${item.descripcion ? `<p class="text-[9px] text-slate-400 dark:text-slate-500 mt-2 font-bold leading-relaxed relative z-10 px-2 hidden group-hover:block transition-all">${esc(item.descripcion)}</p>` : ''}
+            </div>`;
+        }).join('');
         content.innerHTML = html + '</div>';
     } else if (tab === 'amigos') {
         if(typeof Social.cargarTabAmigosSPA === 'function') Social.cargarTabAmigosSPA();

@@ -86,12 +86,40 @@ export async function cargarPerfilUsuarioActivo() {
         const { data: creado } = await supabaseClient.from('perfiles').upsert([nuevo], { onConflict: 'id', ignoreDuplicates: true }).select().maybeSingle();
         data = creado || nuevo;
     }
-    if (data) { 
-        appState.perfilUsuario = data; 
-        actualizarBotonCabecera(); 
-        if (window.socialNotifications && typeof window.socialNotifications.cargarNotificaciones === 'function') {
-            window.socialNotifications.cargarNotificaciones();
+    if (!data) {
+        const u = appState.sesionActual.user;
+        const nombreMeta = u.user_metadata?.full_name || u.user_metadata?.name || (u.email || 'Paddler').split('@')[0];
+        data = {
+            id: userId,
+            nombre: nombreMeta,
+            avatar_url: u.user_metadata?.avatar_url || null,
+            nivel: 1,
+            current_level: 1,
+            puntos: 0,
+            total_xp: 0,
+            km_totales: 0,
+            total_distance_km: 0,
+            tiempo_total: 0,
+            insignias: [],
+            is_private: false,
+            titulo: 'Paddler en Ascenso'
+        };
+    }
+    if (data.insignias && typeof data.insignias === 'string') {
+        try {
+            data.insignias = JSON.parse(data.insignias);
+        } catch (_) {
+            data.insignias = data.insignias.replace(/[{}]/g, '').split(',').map(s => s.trim()).filter(Boolean);
         }
+    }
+    if (!Array.isArray(data.insignias)) {
+        data.insignias = [];
+    }
+
+    appState.perfilUsuario = data; 
+    actualizarBotonCabecera(); 
+    if (window.socialNotifications && typeof window.socialNotifications.cargarNotificaciones === 'function') {
+        window.socialNotifications.cargarNotificaciones();
     }
 }
 
@@ -113,18 +141,33 @@ export function actualizarBotonCabecera() {
     }
 }
 
-export function abrirModalAuth() {
+export async function abrirModalAuth() {
     // Defensive UX: Bloqueamos apertura si el usuario está en plena travesía GPS
     const trackingPanel = document.getElementById('liveTrackingPanel');
     if (trackingPanel && !trackingPanel.classList.contains('hidden')) {
         return alert("⚠️ Finaliza o cancela la grabación de la travesía GPS antes de abrir los menús.");
     }
 
+    if (!appState.sesionActual && !appState.esInvitado && supabaseClient?.auth) {
+        try {
+            const { data: sData } = await supabaseClient.auth.getSession();
+            if (sData?.session) {
+                appState.sesionActual = sData.session;
+            }
+        } catch (e) {
+            console.warn('[abrirModalAuth] Error recuperando sesión:', e);
+        }
+    }
+
+    if (appState.sesionActual && !appState.perfilUsuario) {
+        await cargarPerfilUsuarioActivo();
+    }
+
     restaurarFormularioAuth();
     const m = document.getElementById('authModal');
     if (m) {
         m.classList.remove('hidden');
-        setTimeout(() => { m.classList.remove('opacity-0'); m.querySelector('div').classList.remove('scale-95'); }, 10);
+        setTimeout(() => { m.classList.remove('opacity-0'); m.querySelector('div')?.classList.remove('scale-95'); }, 10);
     }
 }
 
@@ -140,26 +183,74 @@ export function restaurarFormularioAuth() {
     const c = document.getElementById('authModalContent');
     if(!c) return;
     appState.isLoginMode = true;
+
+    // Si hay sesión pero el perfil aún está cargando, mostrar estado transitorio seguro
+    if (appState.sesionActual && !appState.perfilUsuario && !appState.esInvitado) {
+        c.innerHTML = `
+            <div class="text-center py-16 dark:bg-slate-900 rounded-3xl">
+                <div class="w-12 h-12 border-4 border-water border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p class="text-sm font-bold text-marine dark:text-white">Cargando tu perfil...</p>
+            </div>
+        `;
+        cargarPerfilUsuarioActivo().then(() => {
+            restaurarFormularioAuth();
+        }).catch(() => {
+            const u = appState.sesionActual?.user;
+            if (u) {
+                appState.perfilUsuario = {
+                    id: u.id,
+                    nombre: u.user_metadata?.full_name || (u.email || 'Paddler').split('@')[0],
+                    nivel: 1,
+                    current_level: 1,
+                    puntos: 0,
+                    total_xp: 0,
+                    km_totales: 0,
+                    total_distance_km: 0,
+                    tiempo_total: 0,
+                    insignias: [],
+                    is_private: false,
+                    titulo: 'Paddler en Ascenso'
+                };
+            }
+            restaurarFormularioAuth();
+        });
+        return;
+    }
+
     if ((appState.sesionActual && appState.perfilUsuario) || appState.esInvitado) {
         const avatarSrc = appState.perfilUsuario?.avatar_url || `https://api.dicebear.com/9.x/adventurer/svg?seed=guest`;
         const horasNav = Math.floor((appState.perfilUsuario?.tiempo_total || 0) / 60);
         const minNav = (appState.perfilUsuario?.tiempo_total || 0) % 60;
-        const pts = appState.perfilUsuario?.total_xp ?? appState.perfilUsuario?.puntos ?? 0;
+        const pts = Number(appState.perfilUsuario?.total_xp ?? appState.perfilUsuario?.puntos ?? 0);
         const distTot = Number(appState.perfilUsuario?.total_distance_km ?? appState.perfilUsuario?.km_totales ?? 0).toFixed(1);
         const progresoGamif = calcularNivelYProgreso(pts);
-        const nivelActual = progresoGamif.nivel;
-        const rango = calcularRangoMaritimo(pts);
+        const nivelActual = appState.perfilUsuario?.current_level || appState.perfilUsuario?.nivel || progresoGamif.nivel;
+        const rango = calcularRangoMaritimo(pts, nivelActual);
+        const tituloPerfil = appState.perfilUsuario?.titulo || rango.titulo;
         
         let insigniasHTML = `<p class="text-[10px] text-slate-400 dark:text-slate-500 font-medium my-2">Aún no has ganado insignias en quedadas.</p>`;
-        if (appState.perfilUsuario?.insignias && appState.perfilUsuario.insignias.length > 0) {
+        const rawInsignias = appState.perfilUsuario?.insignias;
+        let listaInsignias = [];
+        if (Array.isArray(rawInsignias)) {
+            listaInsignias = rawInsignias;
+        } else if (typeof rawInsignias === 'string') {
+            try {
+                const parsed = JSON.parse(rawInsignias);
+                if (Array.isArray(parsed)) listaInsignias = parsed;
+            } catch (_) {
+                listaInsignias = rawInsignias.replace(/[{}]/g, '').split(',').map(s => s.trim()).filter(Boolean);
+            }
+        }
+
+        if (listaInsignias.length > 0) {
             insigniasHTML = `<div class="grid grid-cols-3 sm:grid-cols-4 gap-3 justify-items-center mt-3">`;
-            insigniasHTML += appState.perfilUsuario.insignias.map(rawIns => {
-                const ins = typeof rawIns === 'string' ? { nombre: rawIns.replace(/_/g, ' '), icono: '🏅' } : rawIns; 
+            insigniasHTML += listaInsignias.map(rawIns => {
+                const ins = typeof rawIns === 'string' ? { nombre: rawIns.replace(/_/g, ' '), icono: '🏅' } : (rawIns || { nombre: 'Insignia', icono: '🏅' }); 
                 return `
                     <div class="flex flex-col items-center bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 text-center w-full relative group">
                         <div class="absolute inset-0 bg-gradient-to-tr from-amber-200/20 to-transparent dark:from-amber-900/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <span class="text-4xl drop-shadow-lg mb-3 transform group-hover:scale-110 transition-transform">${esc(ins.icono || '🏅')}</span>
-                        <span class="text-[9px] sm:text-[10px] font-black text-marine dark:text-white uppercase tracking-widest leading-tight z-10 break-words w-full">${esc(ins.nombre)}</span>
+                        <span class="text-[9px] sm:text-[10px] font-black text-marine dark:text-white uppercase tracking-widest leading-tight z-10 break-words w-full">${esc(ins.nombre || 'Insignia')}</span>
                     </div>`;
             }).join('');
             insigniasHTML += `</div>`;
@@ -185,7 +276,7 @@ export function restaurarFormularioAuth() {
                         <input type="text" id="perfilNombre" value="${esc(appState.perfilUsuario?.nombre || 'Invitado')}" class="text-center bg-transparent border-b-2 border-transparent hover:border-slate-200 dark:hover:border-slate-700 focus:border-water dark:focus:border-sky-500 focus:outline-none transition-colors w-full dark:text-white pb-1" placeholder="Tu Nombre" ${disableInput}>
                     </h2>
                     <div class="inline-flex items-center justify-center gap-2 mt-2 bg-slate-50 dark:bg-slate-800/80 px-4 py-1.5 rounded-full border border-slate-100 dark:border-slate-700 shadow-sm">
-                        <span class="text-xs sm:text-sm font-black text-water dark:text-sky-400 uppercase tracking-widest">${rango.titulo}</span>
+                        <span class="text-xs sm:text-sm font-black text-water dark:text-sky-400 uppercase tracking-widest">${esc(tituloPerfil)}</span>
                     </div>
                 </div>
                 <div class="bg-white dark:bg-slate-800 rounded-[24px] p-6 mb-6 grid grid-cols-3 gap-4 shadow-xl shadow-slate-200/40 dark:shadow-none border border-slate-100 dark:border-slate-700 relative overflow-hidden">
@@ -315,7 +406,7 @@ export function restaurarFormularioAuth() {
                     ${appState.esInvitado ? 'Salir del Modo Invitado' : 'Cerrar Sesión'}
                 </button>
                 <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.33</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.37</p>
                     <button type="button" onclick="if(window.forzarActualizacion) window.forzarActualizacion(); else window.location.reload();" class="mt-1 text-[9px] text-water dark:text-sky-400 hover:underline font-bold uppercase tracking-wider cursor-pointer">🔄 Buscar actualizaciones / Limpiar caché</button>
                 </div>
             </div>
@@ -594,8 +685,8 @@ export async function guardarNuevaPassword() {
 
 export async function subirAvatar(event) {
     if (appState.esInvitado) return alert("Los invitados no pueden subir foto.");
-    if (!appState.sesionActual) return alert("Sesión inválida.");
-    const fileInput = event.target || document.getElementById('avatarUpload');
+    if (!appState.sesionActual?.user) return alert("Sesión inválida.");
+    const fileInput = event?.target || document.getElementById('avatarUpload');
     const file = fileInput?.files?.[0];
     if (!file) return;
     
@@ -606,21 +697,24 @@ export async function subirAvatar(event) {
     if (preview) preview.style.opacity = '0.5';
     
     const mime = file.type || 'image/jpeg';
-    
-    // Nombramos el archivo SIEMPRE igual (solo con el ID de usuario) para evitar saturar el storage
-    const filePath = `avatars/${appState.sesionActual.user.id}.jpg`;
+    const userId = appState.sesionActual.user.id;
+    const filePath = `avatars/${userId}.jpg`;
     
     try {
         const { error: uploadError } = await supabaseClient.storage.from('paddlesafe').upload(filePath, file, { upsert: true, contentType: mime });
         if (uploadError) throw uploadError;
         
         const { data } = supabaseClient.storage.from('paddlesafe').getPublicUrl(filePath);
-        
-        // Cache-Buster para forzar al navegador a renderizar la nueva imagen
         const urlConCacheBuster = `${data.publicUrl}?t=${Date.now()}`;
         
-        await supabaseClient.from('perfiles').upsert({ id: appState.sesionActual.user.id, avatar_url: urlConCacheBuster });
+        const { error: updErr } = await supabaseClient.from('perfiles').update({ avatar_url: urlConCacheBuster }).eq('id', userId);
+        if (updErr) {
+            await supabaseClient.from('perfiles').upsert({ id: userId, avatar_url: urlConCacheBuster }, { onConflict: 'id' });
+        }
         
+        // Mantener metadatos de usuario sincronizados
+        await supabaseClient.auth.updateUser({ data: { avatar_url: urlConCacheBuster } }).catch(() => {});
+
         if (!appState.perfilUsuario) appState.perfilUsuario = {};
         appState.perfilUsuario.avatar_url = urlConCacheBuster;
         if (preview) preview.src = urlConCacheBuster;
@@ -636,26 +730,41 @@ export async function subirAvatar(event) {
 
 export async function guardarPerfil() {
     if (appState.esInvitado) return alert("Los invitados no pueden modificar su perfil. ¡Regístrate!");
-    if (!appState.sesionActual) return alert("No hay sesión activa.");
-    const nuevoNombre = document.getElementById('perfilNombre').value.trim().slice(0, 30);
+    if (!appState.sesionActual?.user) return alert("No hay sesión activa.");
+    const inputNombre = document.getElementById('perfilNombre');
+    const inputPrivado = document.getElementById('perfilPrivado');
+    if (!inputNombre) return;
+
+    const nuevoNombre = inputNombre.value.trim().slice(0, 30);
     if (nuevoNombre.length < 2) return alert("El nombre debe tener entre 2 y 30 caracteres.");
-    const esPrivado = document.getElementById('perfilPrivado').checked;
+    const esPrivado = inputPrivado ? inputPrivado.checked : false;
     const btn = document.getElementById('btnGuardarPerfil');
     
-    btn.disabled = true; btn.textContent = "Guardando...";
+    if (btn) { btn.disabled = true; btn.textContent = "Guardando..."; }
     
-    const { error } = await supabaseClient.from('perfiles').update({ nombre: nuevoNombre, is_private: esPrivado }).eq('id', appState.sesionActual.user.id);
-    if (error) {
-        alert("❌ Error al guardar: " + error.message);
-        btn.textContent = "Guardar";
-        btn.disabled = false;
-    } else {
+    try {
+        const userId = appState.sesionActual.user.id;
+        const { error } = await supabaseClient.from('perfiles').update({ nombre: nuevoNombre, is_private: esPrivado }).eq('id', userId);
+        if (error) {
+            alert("❌ Error al guardar: " + error.message);
+            if (btn) { btn.textContent = "Guardar"; btn.disabled = false; }
+            return;
+        }
+
+        // Sincronizar nombre en metadatos de autenticación Supabase
+        await supabaseClient.auth.updateUser({ data: { full_name: nuevoNombre } }).catch(() => {});
+
         if (!appState.perfilUsuario) appState.perfilUsuario = {};
         appState.perfilUsuario.nombre = nuevoNombre;
         appState.perfilUsuario.is_private = esPrivado;
         actualizarBotonCabecera();
-        btn.textContent = "✅ Guardado!";
-        setTimeout(() => { btn.textContent = "Guardar"; btn.disabled = false; }, 2000);
+        if (btn) {
+            btn.textContent = "✅ Guardado!";
+            setTimeout(() => { btn.textContent = "Guardar"; btn.disabled = false; }, 2000);
+        }
+    } catch (err) {
+        alert("❌ Error al guardar: " + (err.message || err));
+        if (btn) { btn.textContent = "Guardar"; btn.disabled = false; }
     }
 }
 
