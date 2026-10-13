@@ -261,10 +261,40 @@ export async function abrirPerfilPublicoSPA(userId) {
         if (btnContainer) {
             btnContainer.innerHTML = ''; // Limpiar botones anteriores
 
+            // Botón 0: Subir Sesión GPX (Visible si es mi propio perfil)
+            if (isMe) {
+                const btnSubirGPX = document.createElement('button');
+                btnSubirGPX.id = 'btnSubirGPXSPA';
+                btnSubirGPX.type = 'button';
+                btnSubirGPX.className = 'bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white text-[11px] font-black px-5 py-2.5 rounded-full uppercase transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer';
+                btnSubirGPX.innerHTML = '<span>🚀</span> Subir Sesión GPX';
+                btnSubirGPX.onclick = () => {
+                    let input = document.getElementById('gpxUploadInputSPA');
+                    if (!input) {
+                        input = document.createElement('input');
+                        input.type = 'file';
+                        input.id = 'gpxUploadInputSPA';
+                        input.accept = '.gpx,application/gpx+xml';
+                        input.className = 'hidden';
+                        input.onchange = (e) => {
+                            if (typeof window.subirArchivoGPX === 'function') {
+                                window.subirArchivoGPX(e).then(() => {
+                                    cambiarTabPerfilSPA('rutas');
+                                });
+                            }
+                        };
+                        document.body.appendChild(input);
+                    }
+                    input.click();
+                };
+                btnContainer.appendChild(btnSubirGPX);
+            }
+
             // Botón 1: Añadir Amigo (Visible siempre que no sea mi propio perfil)
             if (!isMe) {
                 const btnAmigo = document.createElement('button');
-                btnAmigo.id = 'btnAñadirAmigoSPA';
+                btnAmigo.id = 'btnAnadirAmigoSPA';
+                btnAmigo.setAttribute('data-id', 'btnAnadirAmigoSPA');
                 btnAmigo.className = 'bg-water hover:bg-sky-600 text-white text-[10px] font-bold px-5 py-2 rounded-full uppercase transition-colors shadow-sm active:scale-95 cursor-pointer';
                 btnAmigo.textContent = 'Añadir Amigo';
                 if (!appState.sesionActual || appState.esInvitado) {
@@ -377,46 +407,153 @@ export async function cambiarTabPerfilSPA(tab) {
     if(activeBtn) activeBtn.className="h-10 px-2 bg-marine dark:bg-water text-white shadow-md text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors";
     
     if (tab === 'rutas') {
-        // PREVENCIÓN DE COLAPSO DE RAM: Seleccionamos estrictamente la metadata omitiendo ruta_json
-        const { data } = await supabaseClient
-            .from('rutas')
-            .select('id, distancia_km, tiempo_minutos, fecha')
-            .eq('user_id', spaCurrentUser.id)
-            .order('fecha', { ascending: false });
-            
-        if(!data || !data.length) return content.innerHTML = '<div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner mt-4"><p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Aún no tiene rutas registradas.</p></div>';
-        
-        let html = '<div class="space-y-4 mt-4 pb-4">';
-        html += data.map(ruta => {
-            const dist = Number(ruta.distancia_km || 0);
-            const time = Number(ruta.tiempo_minutos || 0);
-            const pts = Math.round(dist * 10) + time;
-            const fechaFormateada = ruta.fecha ? new Date(ruta.fecha).toLocaleDateString(undefined, {day: 'numeric', month: 'short'}) : '--/--';
-            
+        content.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs font-bold animate-pulse">Cargando sesiones de navegación...</div>';
+        const myId = appState.sesionActual?.user?.id;
+        const isMe = myId === spaCurrentUser.id;
+
+        const rutas = [];
+        // 1. user_routes (tabla moderna con telemetría, mapa interactivo y coordenadas GPX)
+        try {
+            const { data: urData } = await supabaseClient
+                .from('user_routes')
+                .select('id, title, distance_km, duration_seconds, avg_speed, max_speed, xp_earned, created_at, route_coordinates, splits_data, ai_feedback')
+                .eq('user_id', spaCurrentUser.id)
+                .order('created_at', { ascending: false });
+            if (Array.isArray(urData)) {
+                urData.forEach(r => rutas.push({
+                    id: r.id,
+                    title: r.title || 'Sesión GPX',
+                    distance_km: Number(r.distance_km || 0),
+                    duration_seconds: Number(r.duration_seconds || 0),
+                    avg_speed: Number(r.avg_speed || 0),
+                    max_speed: Number(r.max_speed || 0),
+                    xp_earned: Number(r.xp_earned || 0),
+                    created_at: r.created_at,
+                    route_coordinates: r.route_coordinates,
+                    splits_data: r.splits_data,
+                    ai_feedback: r.ai_feedback
+                }));
+            }
+        } catch (_) {}
+
+        // 2. rutas (tabla legacy para máxima compatibilidad)
+        try {
+            const { data: legData } = await supabaseClient
+                .from('rutas')
+                .select('id, distancia_km, tiempo_minutos, fecha, ruta_json, avg_speed_kmh, points_earned')
+                .eq('user_id', spaCurrentUser.id)
+                .order('fecha', { ascending: false });
+            if (Array.isArray(legData)) {
+                legData.forEach(r => {
+                    if (!rutas.some(x => String(x.id) === String(r.id))) {
+                        const dist = Number(r.distancia_km || 0);
+                        const mins = Number(r.tiempo_minutos || 0);
+                        const avg = Number(r.avg_speed_kmh || (mins > 0 ? (dist / (mins / 60)) : 0));
+                        rutas.push({
+                            id: r.id,
+                            title: 'Travesía GPS',
+                            distance_km: dist,
+                            duration_seconds: mins * 60,
+                            avg_speed: avg,
+                            max_speed: avg * 1.35,
+                            xp_earned: Number(r.points_earned || (Math.round(dist * 10) + mins)),
+                            created_at: r.fecha,
+                            route_coordinates: r.ruta_json
+                        });
+                    }
+                });
+            }
+        } catch (_) {}
+
+        // Cache para interacción con mapa
+        if (!window.__rutasUsuarioCache) window.__rutasUsuarioCache = new Map();
+        rutas.forEach(r => window.__rutasUsuarioCache.set(String(r.id), r));
+
+        // Botón superior para subir sesión si es mi propio perfil
+        let uploadBanner = '';
+        if (isMe) {
+            uploadBanner = `
+                <div class="mb-4">
+                    <button type="button" onclick="const i = document.getElementById('gpxUploadInputSPA') || document.getElementById('gpxUploadInput'); if(i) i.click();" class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white p-3.5 rounded-2xl shadow-md active:scale-95 transition-all flex items-center justify-between cursor-pointer border border-emerald-400/30">
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-xl">🚀</span>
+                            <div class="text-left">
+                                <h4 class="text-xs font-black uppercase tracking-wide">Subir Nueva Sesión (GPX)</h4>
+                                <p class="text-[10px] text-white/90">Suma XP (+100/km), sube de nivel y escala en el ranking</p>
+                            </div>
+                        </div>
+                        <span class="bg-white text-marine font-black text-[10px] uppercase px-3 py-1.5 rounded-xl shadow">Subir 📥</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        if (!rutas.length) {
+            content.innerHTML = uploadBanner + `
+                <div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner mt-2">
+                    <span class="text-3xl mb-2 block">🏄‍♂️</span>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mb-1">Aún no hay rutas registradas.</p>
+                    ${isMe ? '<p class="text-[10px] text-slate-400 dark:text-slate-500">Pulsa el botón de arriba para subir tu primer archivo GPX.</p>' : ''}
+                </div>
+            `;
+            return;
+        }
+
+        let html = uploadBanner + '<div class="space-y-4 pb-4">';
+        html += rutas.map(ruta => {
+            const dist = Number(ruta.distance_km || 0).toFixed(2);
+            const totalSecs = Number(ruta.duration_seconds || 0);
+            const mins = Math.max(1, Math.round(totalSecs / 60));
+            const avgSpd = Number(ruta.avg_speed || 0).toFixed(1);
+            const maxSpd = Number(ruta.max_speed || (avgSpd * 1.3)).toFixed(1);
+            const xp = Number(ruta.xp_earned || (Math.round(dist * 10) + mins));
+            const fechaFormateada = ruta.created_at ? new Date(ruta.created_at).toLocaleDateString(undefined, {day: 'numeric', month: 'short', year: 'numeric'}) : '--/--';
+            const rutaIdEsc = String(ruta.id).replace(/'/g, "\\'");
+
             return `
-            <div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[24px] p-5 shadow-md shadow-slate-200/40 dark:shadow-none hover:shadow-xl hover:border-water dark:hover:border-sky-500 transition-all duration-300 relative overflow-hidden group cursor-pointer">
-                <div class="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-water/10 dark:from-sky-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <div class="flex justify-between items-center mb-4 border-b border-slate-50 dark:border-slate-700/50 pb-4 relative z-10">
+            <div onclick="if(window.verRutaEnMapa) window.verRutaEnMapa('${rutaIdEsc}'); else if(window.cargarRutaDeportivaEnMapa) window.cargarRutaDeportivaEnMapa(window.__rutasUsuarioCache?.get('${rutaIdEsc}'));"
+                 class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[24px] p-5 shadow-md shadow-slate-200/40 dark:shadow-none hover:shadow-xl hover:border-water dark:hover:border-sky-500 transition-all duration-300 relative overflow-hidden group cursor-pointer active:scale-[0.99]"
+                 title="Toca para trazar esta ruta en el mapa interactivo">
+                <div class="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-water/10 dark:from-sky-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                <div class="flex justify-between items-center mb-3 border-b border-slate-50 dark:border-slate-700/50 pb-3 relative z-10">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-100 to-sky-50 dark:from-sky-900/40 dark:to-sky-800/20 text-sky-500 flex items-center justify-center text-lg border border-sky-200 dark:border-sky-700/50 shadow-inner group-hover:scale-110 transition-transform duration-300">🗺️</div>
                         <div>
-                            <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none mb-1.5">Exploración</p>
-                            <span class="text-sm font-black text-marine dark:text-white">${fechaFormateada}</span>
+                            <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none mb-1.5">${fechaFormateada}</p>
+                            <span class="text-sm font-black text-marine dark:text-white truncate max-w-[150px] sm:max-w-[200px] block">${esc(ruta.title)}</span>
                         </div>
                     </div>
-                    <div class="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700/50 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
-                        <span class="text-emerald-500 font-black text-[11px] uppercase tracking-widest">Validada</span>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" onclick="event.stopPropagation(); if(window.abrirModalDetallesRuta) window.abrirModalDetallesRuta('${rutaIdEsc}');" class="bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700/50 px-2 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer">
+                            <span>🧠</span> Coach
+                        </button>
+                        <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50 px-2 py-1 rounded-xl flex items-center gap-1 shadow-sm">
+                            <span class="text-amber-500 text-xs">🏆</span>
+                            <span class="text-[10px] font-black text-amber-600 dark:text-amber-400">+${xp} XP</span>
+                        </div>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4 px-2 relative z-10">
-                    <div class="flex flex-col border-r border-slate-100 dark:border-slate-700/50">
-                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-1.5">Distancia</span>
-                        <p class="font-black text-marine dark:text-white text-2xl tracking-tighter">${dist.toFixed(1)}<span class="text-xs text-slate-400 font-bold ml-1">km</span></p>
+                <div class="grid grid-cols-4 gap-2 px-1 relative z-10 text-center">
+                    <div class="flex flex-col border-r border-slate-100 dark:border-slate-700/50 pr-1">
+                        <span class="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-0.5">Distancia</span>
+                        <p class="font-black text-marine dark:text-white text-base tracking-tight">${dist}<span class="text-[9px] font-bold text-slate-400 ml-0.5">km</span></p>
                     </div>
-                    <div class="flex flex-col pl-4">
-                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-1.5">Puntuación</span>
-                        <p class="font-black text-amber-500 text-2xl tracking-tighter">${pts}<span class="text-xs text-amber-400/80 font-bold ml-1">pts</span></p>
+                    <div class="flex flex-col border-r border-slate-100 dark:border-slate-700/50 pr-1">
+                        <span class="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-0.5">Tiempo</span>
+                        <p class="font-black text-marine dark:text-white text-base tracking-tight">${mins}<span class="text-[9px] font-bold text-slate-400 ml-0.5">m</span></p>
                     </div>
+                    <div class="flex flex-col border-r border-slate-100 dark:border-slate-700/50 pr-1">
+                        <span class="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-0.5">Vel. Med</span>
+                        <p class="font-black text-marine dark:text-white text-base tracking-tight">${avgSpd}<span class="text-[9px] font-bold text-slate-400 ml-0.5">k/h</span></p>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-0.5">Vel. Máx</span>
+                        <p class="font-black text-emerald-600 dark:text-emerald-400 text-base tracking-tight">${maxSpd}<span class="text-[9px] font-bold text-slate-400 ml-0.5">k/h</span></p>
+                    </div>
+                </div>
+                <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 group-hover:text-water dark:group-hover:text-sky-400 transition-colors">
+                    <span class="flex items-center gap-1 font-bold">📍 Trazar en mapa interactivo</span>
+                    <span class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">🧠 Ver Análisis IA →</span>
                 </div>
             </div>`;
         }).join('');

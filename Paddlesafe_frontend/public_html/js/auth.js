@@ -204,7 +204,8 @@ export function restaurarFormularioAuth() {
 
                 <!-- BOTÓN DESTACADO: SUBIR RUTA PARA SUMAR XP Y ESCALAR EN EL RANKING -->
                 <div class="mb-8">
-                    <label for="gpxUploadInput" class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white p-4 sm:p-5 rounded-3xl shadow-xl shadow-teal-900/30 active:scale-[0.98] transition-all flex items-center justify-between cursor-pointer group border border-emerald-400/30 relative overflow-hidden ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
+                    <input type="file" id="gpxUploadInput" accept=".gpx,application/gpx+xml" class="hidden" onchange="subirArchivoGPX(event)" ${appState.esInvitado ? 'disabled' : ''}>
+                    <button type="button" onclick="const inp = document.getElementById('gpxUploadInput'); if(inp) inp.click();" id="btnSubirGPXCard" class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white p-4 sm:p-5 rounded-3xl shadow-xl shadow-teal-900/30 active:scale-[0.98] transition-all flex items-center justify-between cursor-pointer group border border-emerald-400/30 relative overflow-hidden text-left ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
                         <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
                         <div class="flex items-center gap-3.5 relative z-10 text-left min-w-0">
                             <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-2xl shadow-inner group-hover:rotate-6 transition-transform shrink-0">
@@ -212,17 +213,17 @@ export function restaurarFormularioAuth() {
                             </div>
                             <div class="min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <h4 class="text-xs sm:text-sm font-black text-white tracking-wide uppercase">Subir Ruta Deportiva</h4>
+                                    <h4 class="text-xs sm:text-sm font-black text-white tracking-wide uppercase">Subir Sesión de Entrenamiento</h4>
                                     <span class="text-[9px] font-black bg-white/25 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">GPX</span>
                                 </div>
-                                <p class="text-[11px] text-white/90 font-medium mt-0.5 truncate sm:whitespace-normal">Suma XP (+100/km), sube de nivel y escala en el ranking global</p>
+                                <p class="text-[11px] text-white/90 font-medium mt-0.5 truncate sm:whitespace-normal">Sube tu archivo .gpx: suma XP (+100/km), sube de nivel y visualiza tu ruta con mapa interactivo y estadísticas</p>
                             </div>
                         </div>
                         <div class="relative z-10 bg-white text-marine font-black text-xs px-3.5 py-2.5 rounded-2xl shadow-md group-hover:bg-amber-300 group-hover:text-slate-900 transition-colors flex items-center gap-1.5 shrink-0 ml-2">
-                            <span>Subir</span>
+                            <span>Subir GPX</span>
                             <span class="text-xs">📥</span>
                         </div>
-                    </label>
+                    </button>
                 </div>
 
                 <div class="mb-8 text-left">
@@ -249,10 +250,9 @@ export function restaurarFormularioAuth() {
                             <svg class="w-4 h-4 text-water dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg> 
                             Diario de Aventuras
                         </h3>
-                        <label for="gpxUploadInput" class="cursor-pointer bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1.5 ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
+                        <button type="button" onclick="const inp = document.getElementById('gpxUploadInput'); if(inp) inp.click();" class="cursor-pointer bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-3.5 py-2 rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1.5 ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
                             <span>📥</span> Subir GPX
-                        </label>
-                        <input type="file" id="gpxUploadInput" accept=".gpx,application/gpx+xml" class="hidden" onchange="subirArchivoGPX(event)" ${appState.esInvitado ? 'disabled' : ''}>
+                        </button>
                     </div>
                     <div id="contenedorHistorial" class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar pb-4"></div>
                 </div>
