@@ -1011,7 +1011,15 @@ export function cargarRutaDeportivaEnMapa(ruta) {
 
     // 1. Cerrar modales que tapen la vista
     if (typeof window.cerrarModalAuth === 'function') window.cerrarModalAuth();
+    if (typeof window.cerrarModalDetallesRuta === 'function') window.cerrarModalDetallesRuta();
+    if (typeof window.cerrarModalRanking === 'function') window.cerrarModalRanking();
+    if (typeof window.cerrarModalFeed === 'function') window.cerrarModalFeed();
     if (window.Club && window.Club.cerrarModal) window.Club.cerrarModal();
+    const spaModal = document.getElementById('userProfileModal');
+    if (spaModal && !spaModal.classList.contains('hidden')) {
+        if (typeof window.goBackSPA === 'function') window.goBackSPA();
+        else spaModal.classList.add('hidden', 'opacity-0');
+    }
 
     // 2. Desplegar panel Pro si estuviera contraído
     const panelPro = document.getElementById("panelPro");

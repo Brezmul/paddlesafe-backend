@@ -1,5 +1,5 @@
 // ====================================================
-// js/auth.js - AUTENTICACI├ôN, PERFIL Y STORAGE
+// js/auth.js - AUTENTICACIÓN, PERFIL Y STORAGE
 // ====================================================
 
 import { supabaseClient, appState } from './config.js';
@@ -8,7 +8,7 @@ import { parseGPX } from './gpxParser.js';
 import { calcularNivelYProgreso, obtenerPosicionRanking, guardarRutaDeportivaConGamificacion } from './gamification.js';
 
 export function initAuthListeners() {
-    if (supabaseClient) {
+    if (supabaseClient && supabaseClient.auth) {
         supabaseClient.auth.onAuthStateChange((event, session) => {
             if (event === 'PASSWORD_RECOVERY') { setTimeout(abrirModalRecuperacionFinal, 500); return; }
             if (event === 'INITIAL_SESSION') return;
@@ -71,10 +71,10 @@ export function actualizarBotonCabecera() {
 }
 
 export function abrirModalAuth() {
-    // Defensive UX: Bloqueamos apertura si el usuario est├í en plena traves├¡a GPS
+    // Defensive UX: Bloqueamos apertura si el usuario está en plena travesía GPS
     const trackingPanel = document.getElementById('liveTrackingPanel');
     if (trackingPanel && !trackingPanel.classList.contains('hidden')) {
-        return alert("ÔÜá´©Å Finaliza o cancela la grabaci├│n de la traves├¡a GPS antes de abrir los men├║s.");
+        return alert("⚠️ Finaliza o cancela la grabación de la travesía GPS antes de abrir los menús.");
     }
 
     restaurarFormularioAuth();
@@ -107,15 +107,15 @@ export function restaurarFormularioAuth() {
         const nivelActual = progresoGamif.nivel;
         const rango = calcularRangoMaritimo(pts);
         
-        let insigniasHTML = `<p class="text-[10px] text-slate-400 dark:text-slate-500 font-medium my-2">A├║n no has ganado insignias en quedadas.</p>`;
+        let insigniasHTML = `<p class="text-[10px] text-slate-400 dark:text-slate-500 font-medium my-2">Aún no has ganado insignias en quedadas.</p>`;
         if (appState.perfilUsuario?.insignias && appState.perfilUsuario.insignias.length > 0) {
             insigniasHTML = `<div class="grid grid-cols-3 sm:grid-cols-4 gap-3 justify-items-center mt-3">`;
             insigniasHTML += appState.perfilUsuario.insignias.map(rawIns => {
-                const ins = typeof rawIns === 'string' ? { nombre: rawIns.replace(/_/g, ' '), icono: '­ƒÅà' } : rawIns; 
+                const ins = typeof rawIns === 'string' ? { nombre: rawIns.replace(/_/g, ' '), icono: '🏅' } : rawIns; 
                 return `
                     <div class="flex flex-col items-center bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 text-center w-full relative group">
                         <div class="absolute inset-0 bg-gradient-to-tr from-amber-200/20 to-transparent dark:from-amber-900/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <span class="text-4xl drop-shadow-lg mb-3 transform group-hover:scale-110 transition-transform">${esc(ins.icono || '­ƒÅà')}</span>
+                        <span class="text-4xl drop-shadow-lg mb-3 transform group-hover:scale-110 transition-transform">${esc(ins.icono || '🏅')}</span>
                         <span class="text-[9px] sm:text-[10px] font-black text-marine dark:text-white uppercase tracking-widest leading-tight z-10 break-words w-full">${esc(ins.nombre)}</span>
                     </div>`;
             }).join('');
@@ -125,7 +125,7 @@ export function restaurarFormularioAuth() {
         const disableInput = appState.esInvitado ? 'disabled' : '';
         const cursorInput = appState.esInvitado ? 'cursor-not-allowed' : 'cursor-pointer';
         const colorInput = appState.esInvitado ? 'bg-slate-400 dark:bg-slate-600' : 'bg-water hover:bg-sky-600';
-        const bannerInvitado = appState.esInvitado ? `<div class="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold py-3 px-4 rounded-2xl mb-4 shadow-sm border border-blue-100 dark:border-blue-800/50">Modo Invitado: Tus rutas y avatar no se guardar├ín permanentemente.</div>` : '';
+        const bannerInvitado = appState.esInvitado ? `<div class="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold py-3 px-4 rounded-2xl mb-4 shadow-sm border border-blue-100 dark:border-blue-800/50">Modo Invitado: Tus rutas y avatar no se guardarán permanentemente.</div>` : '';
         
         c.innerHTML = `
             <div class="text-center pt-2 relative dark:bg-slate-900 rounded-b-3xl pb-6">
@@ -164,11 +164,11 @@ export function restaurarFormularioAuth() {
                     </div>
                 </div>
                 
-                <!-- GAMIFICACI├ôN: NIVEL Y PROGRESO XP -->
+                <!-- GAMIFICACIÓN: NIVEL Y PROGRESO XP -->
                 <div class="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-3xl p-6 mb-4 shadow-inner text-left relative overflow-hidden">
                     <div class="flex justify-between items-end mb-2.5">
                         <div class="flex items-center gap-1.5">
-                            <span class="text-base">ÔÜí</span>
+                            <span class="text-base">⚡</span>
                             <span class="text-xs font-black text-marine dark:text-white uppercase tracking-wider">Nivel ${progresoGamif.nivel}</span>
                         </div>
                         <span class="text-[10px] font-bold text-water dark:text-sky-400 bg-blue-50 dark:bg-blue-900/40 px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-800/40">
@@ -183,14 +183,14 @@ export function restaurarFormularioAuth() {
                     </div>
                 </div>
 
-                <!-- POSICI├ôN EN EL RANKING GLOBAL -->
+                <!-- POSICIÓN EN EL RANKING GLOBAL -->
                 <div class="flex items-center justify-between bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 p-4 rounded-3xl mb-4 shadow-xl relative overflow-hidden group">
                     <div class="flex items-center gap-3 relative z-10">
                         <div class="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform">
-                            ­ƒÅå
+                            🏆
                         </div>
                         <div>
-                            <p class="text-[9px] font-black uppercase tracking-widest text-indigo-300 mb-0.5">Clasificaci├│n Global</p>
+                            <p class="text-[9px] font-black uppercase tracking-widest text-indigo-300 mb-0.5">Clasificación Global</p>
                             <h4 id="perfilRankingTexto" class="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
                                 <span class="animate-pulse text-indigo-200 text-[11px]">Consultando ranking...</span>
                             </h4>
@@ -198,32 +198,32 @@ export function restaurarFormularioAuth() {
                     </div>
                     <button type="button" onclick="cerrarModalAuth(); if(window.abrirModalRanking) window.abrirModalRanking();" class="relative z-10 text-[10px] font-black uppercase tracking-wider bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-400/40 text-indigo-200 px-3 py-2 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center gap-1">
                         <span>Ranking</span>
-                        <span>ÔåÆ</span>
+                        <span>→</span>
                     </button>
                 </div>
 
-                <!-- BOT├ôN DESTACADO: SUBIR RUTA PARA SUMAR XP Y ESCALAR EN EL RANKING -->
+                <!-- BOTÓN DESTACADO: SUBIR RUTA PARA SUMAR XP Y ESCALAR EN EL RANKING -->
                 <div class="mb-8">
-                    <input type="file" id="gpxUploadInput" accept=".gpx,application/gpx+xml" class="hidden" onchange="subirArchivoGPX(event)" ${appState.esInvitado ? 'disabled' : ''}>
-                    <button type="button" onclick="const inp = document.getElementById('gpxUploadInput'); if(inp) inp.click();" id="btnSubirGPXCard" class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white p-4 sm:p-5 rounded-3xl shadow-xl shadow-teal-900/30 active:scale-[0.98] transition-all flex items-center justify-between cursor-pointer group border border-emerald-400/30 relative overflow-hidden text-left ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
+                    <button type="button" onclick="document.getElementById('gpxUploadInput')?.click()" class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white p-4 sm:p-5 rounded-3xl shadow-xl shadow-teal-900/30 active:scale-[0.98] transition-all flex items-center justify-between cursor-pointer group border border-emerald-400/30 relative overflow-hidden ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
                         <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
                         <div class="flex items-center gap-3.5 relative z-10 text-left min-w-0">
                             <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-2xl shadow-inner group-hover:rotate-6 transition-transform shrink-0">
-                                ­ƒÜÇ
+                                🚀
                             </div>
                             <div class="min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <h4 class="text-xs sm:text-sm font-black text-white tracking-wide uppercase">Subir Sesi├│n de Entrenamiento</h4>
+                                    <h4 class="text-xs sm:text-sm font-black text-white tracking-wide uppercase">Subir Ruta Deportiva</h4>
                                     <span class="text-[9px] font-black bg-white/25 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">GPX</span>
                                 </div>
-                                <p class="text-[11px] text-white/90 font-medium mt-0.5 truncate sm:whitespace-normal">Sube tu archivo .gpx: suma XP (+100/km), sube de nivel y visualiza tu ruta con mapa interactivo y estad├¡sticas</p>
+                                <p class="text-[11px] text-white/90 font-medium mt-0.5 truncate sm:whitespace-normal">Suma XP (+100/km), sube de nivel y escala en el ranking global</p>
                             </div>
                         </div>
                         <div class="relative z-10 bg-white text-marine font-black text-xs px-3.5 py-2.5 rounded-2xl shadow-md group-hover:bg-amber-300 group-hover:text-slate-900 transition-colors flex items-center gap-1.5 shrink-0 ml-2">
-                            <span>Subir GPX</span>
-                            <span class="text-xs">­ƒôÑ</span>
+                            <span>Subir</span>
+                            <span class="text-xs">📥</span>
                         </div>
                     </button>
+                    <input type="file" id="gpxUploadInput" accept=".gpx,application/gpx+xml" class="hidden" onchange="subirArchivoGPX(event)" ${appState.esInvitado ? 'disabled' : ''}>
                 </div>
 
                 <div class="mb-8 text-left">
@@ -250,18 +250,18 @@ export function restaurarFormularioAuth() {
                             <svg class="w-4 h-4 text-water dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg> 
                             Diario de Aventuras
                         </h3>
-                        <button type="button" onclick="const inp = document.getElementById('gpxUploadInput'); if(inp) inp.click();" class="cursor-pointer bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-3.5 py-2 rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1.5 ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
-                            <span>­ƒôÑ</span> Subir GPX
+                        <button type="button" onclick="document.getElementById('gpxUploadInput')?.click()" class="cursor-pointer bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1.5 ${appState.esInvitado ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}">
+                            <span>📥</span> Subir GPX
                         </button>
                     </div>
                     <div id="contenedorHistorial" class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar pb-4"></div>
                 </div>
                 <button onclick="cerrarSesion()" class="w-full h-14 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 font-black uppercase tracking-widest text-[11px] rounded-2xl border-2 border-red-100 dark:border-red-900/30 transition-all shadow-sm active:scale-95">
-                    ${appState.esInvitado ? 'Salir del Modo Invitado' : 'Cerrar Sesi├│n'}
+                    ${appState.esInvitado ? 'Salir del Modo Invitado' : 'Cerrar Sesión'}
                 </button>
                 <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
                     <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PaddleSafe v5.26</p>
-                    <button type="button" onclick="if(window.forzarActualizacion) window.forzarActualizacion(); else window.location.reload();" class="mt-1 text-[9px] text-water dark:text-sky-400 hover:underline font-bold uppercase tracking-wider cursor-pointer">­ƒöä Buscar actualizaciones / Limpiar cach├®</button>
+                    <button type="button" onclick="if(window.forzarActualizacion) window.forzarActualizacion(); else window.location.reload();" class="mt-1 text-[9px] text-water dark:text-sky-400 hover:underline font-bold uppercase tracking-wider cursor-pointer">🔄 Buscar actualizaciones / Limpiar caché</button>
                 </div>
             </div>
         `;
@@ -273,13 +273,13 @@ export function restaurarFormularioAuth() {
     c.innerHTML = `
         <div class="text-center mb-8 dark:bg-slate-900 pt-6 rounded-t-3xl relative">
             <div class="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6"></div>
-            <h2 id="authTitle" class="text-3xl sm:text-4xl font-black text-marine dark:text-white mb-2 tracking-tight">Iniciar Sesi├│n</h2>
+            <h2 id="authTitle" class="text-3xl sm:text-4xl font-black text-marine dark:text-white mb-2 tracking-tight">Iniciar Sesión</h2>
             <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Accede a tu diario y progreso en el mar.</p>
         </div>
         <div class="space-y-4 w-full dark:bg-slate-900 pb-4 px-2">
             <div class="relative">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path></svg></span>
-                <input type="email" id="authEmail" class="block w-full h-14 pl-12 pr-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-water dark:focus:ring-sky-500 outline-none transition-all shadow-sm" placeholder="Correo electr├│nico">
+                <input type="email" id="authEmail" class="block w-full h-14 pl-12 pr-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-water dark:focus:ring-sky-500 outline-none transition-all shadow-sm" placeholder="Correo electrónico">
             </div>
             <div class="relative hidden" id="authNombreContainer">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></span>
@@ -287,7 +287,7 @@ export function restaurarFormularioAuth() {
             </div>
             <div class="relative">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></span>
-                <input type="password" id="authPassword" class="block w-full h-14 pl-12 pr-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-water dark:focus:ring-sky-500 outline-none transition-all shadow-sm" placeholder="Contrase├▒a">
+                <input type="password" id="authPassword" class="block w-full h-14 pl-12 pr-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-water dark:focus:ring-sky-500 outline-none transition-all shadow-sm" placeholder="Contraseña">
             </div>
             <button type="button" id="authSubmitBtn" onclick="procesarAuth()" class="w-full h-14 mt-4 bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-water/30 dark:shadow-none transition-transform active:scale-95 cursor-pointer">Entrar</button>
             <button type="button" id="authRegisterBtn" onclick="procesarAuth()" class="hidden w-full h-14 mt-4 bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-water/30 dark:shadow-none transition-transform active:scale-95 cursor-pointer">Registrarme</button>
@@ -297,30 +297,30 @@ export function restaurarFormularioAuth() {
                 <span class="flex-shrink-0 mx-4 text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-widest">O</span>
                 <div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
             </div>
-            <button type="button" onclick="entrarComoInvitado()" class="w-full h-14 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl border-2 border-slate-100 dark:border-slate-700 active:scale-95 transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2">­ƒÅäÔÇìÔÖé´©Å Acceder como Invitado</button>
+            <button type="button" onclick="entrarComoInvitado()" class="w-full h-14 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl border-2 border-slate-100 dark:border-slate-700 active:scale-95 transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2">🏄‍♂️ Acceder como Invitado</button>
         </div>
         <div class="mt-4 text-center text-sm dark:bg-slate-900 pb-2">
-            <span id="authToggleText" class="text-slate-500 dark:text-slate-400 font-medium">┬┐No tienes cuenta?</span> 
-            <button type="button" onclick="toggleAuthMode()" class="text-water dark:text-sky-400 font-black cursor-pointer ml-1 hover:underline" id="authToggleBtn">Reg├¡strate</button>
+            <span id="authToggleText" class="text-slate-500 dark:text-slate-400 font-medium">¿No tienes cuenta?</span> 
+            <button type="button" onclick="toggleAuthMode()" class="text-water dark:text-sky-400 font-black cursor-pointer ml-1 hover:underline" id="authToggleBtn">Regístrate</button>
         </div>
         <div class="mt-4 text-center dark:bg-slate-900 pb-6">
-            <button type="button" id="btnRecuperarPass" onclick="enviarEmailRecuperacion()" class="text-[11px] font-bold text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 uppercase tracking-widest transition-colors">┬┐Olvidaste tu contrase├▒a?</button>
+            <button type="button" id="btnRecuperarPass" onclick="enviarEmailRecuperacion()" class="text-[11px] font-bold text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 uppercase tracking-widest transition-colors">¿Olvidaste tu contraseña?</button>
         </div>
     `;
 }
 
 export async function enviarEmailRecuperacion() {
     const email = document.getElementById('authEmail').value;
-    if (!email) return alert("Por favor, escribe tu email en el campo de arriba y pulsa este bot├│n.");
+    if (!email) return alert("Por favor, escribe tu email en el campo de arriba y pulsa este botón.");
     const btn = document.getElementById('btnRecuperarPass');
     if (btn) { btn.disabled = true; btn.textContent = "Enviando..."; }
     
     const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/' });
     
     if (error) { alert("Error: " + error.message); } 
-    else { alert("Ô£à Te hemos enviado un enlace para restablecer tu contrase├▒a. Revisa tu email."); }
+    else { alert("✅ Te hemos enviado un enlace para restablecer tu contraseña. Revisa tu email."); }
     
-    if (btn) { btn.disabled = false; btn.textContent = "┬┐Olvidaste tu contrase├▒a?"; }
+    if (btn) { btn.disabled = false; btn.textContent = "¿Olvidaste tu contraseña?"; }
 }
 
 export function abrirModalRecuperacionFinal() {
@@ -329,15 +329,15 @@ export function abrirModalRecuperacionFinal() {
     c.innerHTML = `
         <div class="text-center mb-8 dark:bg-slate-900 pt-8 rounded-t-3xl">
             <div class="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6"></div>
-            <h2 class="text-3xl font-black text-marine dark:text-white mb-2 tracking-tight">Nueva Contrase├▒a</h2>
-            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Ingresa tu nueva contrase├▒a para acceder.</p>
+            <h2 class="text-3xl font-black text-marine dark:text-white mb-2 tracking-tight">Nueva Contraseña</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Ingresa tu nueva contraseña para acceder.</p>
         </div>
         <div class="space-y-4 w-full dark:bg-slate-900 pb-6 px-2">
             <div class="relative">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></span>
-                <input type="password" id="nuevaPassword" class="block w-full h-14 pl-12 pr-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm" placeholder="Nueva contrase├▒a (m├¡n. 6 caracteres)">
+                <input type="password" id="nuevaPassword" class="block w-full h-14 pl-12 pr-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm" placeholder="Nueva contraseña (mín. 6 caracteres)">
             </div>
-            <button type="button" onclick="guardarNuevaPassword()" class="w-full h-14 mt-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 dark:shadow-none transition-transform active:scale-95 cursor-pointer">Guardar Contrase├▒a</button>
+            <button type="button" onclick="guardarNuevaPassword()" class="w-full h-14 mt-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 dark:shadow-none transition-transform active:scale-95 cursor-pointer">Guardar Contraseña</button>
         </div>
     `;
     const m = document.getElementById('authModal');
@@ -349,11 +349,11 @@ export function abrirModalRecuperacionFinal() {
 
 export async function guardarNuevaPassword() {
     const pass = document.getElementById('nuevaPassword').value;
-    if (!pass || pass.length < 6) return alert("La contrase├▒a debe tener al menos 6 caracteres.");
+    if (!pass || pass.length < 6) return alert("La contraseña debe tener al menos 6 caracteres.");
     const { error } = await supabaseClient.auth.updateUser({ password: pass });
     if (error) { alert("Error: " + error.message); } 
     else {
-        alert("Ô£à Contrase├▒a actualizada correctamente.");
+        alert("✅ Contraseña actualizada correctamente.");
         cerrarModalAuth();
         window.history.replaceState(null, null, window.location.pathname);
     }
@@ -361,7 +361,7 @@ export async function guardarNuevaPassword() {
 
 export async function subirAvatar(event) {
     if (appState.esInvitado) return alert("Los invitados no pueden subir foto.");
-    if (!appState.sesionActual) return alert("Sesi├│n inv├ílida.");
+    if (!appState.sesionActual) return alert("Sesión inválida.");
     const fileInput = event.target || document.getElementById('avatarUpload');
     const file = fileInput?.files?.[0];
     if (!file) return;
@@ -394,7 +394,7 @@ export async function subirAvatar(event) {
         actualizarBotonCabecera();
     } catch (error) {
         console.warn('Aviso al subir imagen:', error);
-        alert("ÔØî Error al subir la imagen. Verifica tu conexi├│n o formato.");
+        alert("❌ Error al subir la imagen. Verifica tu conexión o formato.");
     } finally {
         if (preview) preview.style.opacity = '1';
         if (fileInput) fileInput.value = '';
@@ -402,8 +402,8 @@ export async function subirAvatar(event) {
 }
 
 export async function guardarPerfil() {
-    if (appState.esInvitado) return alert("Los invitados no pueden modificar su perfil. ┬íReg├¡strate!");
-    if (!appState.sesionActual) return alert("No hay sesi├│n activa.");
+    if (appState.esInvitado) return alert("Los invitados no pueden modificar su perfil. ¡Regístrate!");
+    if (!appState.sesionActual) return alert("No hay sesión activa.");
     const nuevoNombre = document.getElementById('perfilNombre').value.trim().slice(0, 30);
     if (nuevoNombre.length < 2) return alert("El nombre debe tener entre 2 y 30 caracteres.");
     const esPrivado = document.getElementById('perfilPrivado').checked;
@@ -413,7 +413,7 @@ export async function guardarPerfil() {
     
     const { error } = await supabaseClient.from('perfiles').update({ nombre: nuevoNombre, is_private: esPrivado }).eq('id', appState.sesionActual.user.id);
     if (error) {
-        alert("ÔØî Error al guardar: " + error.message);
+        alert("❌ Error al guardar: " + error.message);
         btn.textContent = "Guardar";
         btn.disabled = false;
     } else {
@@ -421,16 +421,16 @@ export async function guardarPerfil() {
         appState.perfilUsuario.nombre = nuevoNombre;
         appState.perfilUsuario.is_private = esPrivado;
         actualizarBotonCabecera();
-        btn.textContent = "Ô£à Guardado!";
+        btn.textContent = "✅ Guardado!";
         setTimeout(() => { btn.textContent = "Guardar"; btn.disabled = false; }, 2000);
     }
 }
 
 export function toggleAuthMode() {
     appState.isLoginMode = !appState.isLoginMode;
-    document.getElementById('authTitle').textContent = appState.isLoginMode ? "Iniciar Sesi├│n" : "Crear Cuenta";
-    document.getElementById('authToggleText').textContent = appState.isLoginMode ? "┬┐No tienes cuenta?" : "┬┐Ya tienes cuenta?";
-    document.getElementById('authToggleBtn').textContent = appState.isLoginMode ? "Reg├¡strate" : "Inicia Sesi├│n";
+    document.getElementById('authTitle').textContent = appState.isLoginMode ? "Iniciar Sesión" : "Crear Cuenta";
+    document.getElementById('authToggleText').textContent = appState.isLoginMode ? "¿No tienes cuenta?" : "¿Ya tienes cuenta?";
+    document.getElementById('authToggleBtn').textContent = appState.isLoginMode ? "Regístrate" : "Inicia Sesión";
     const authNombreContainer = document.getElementById('authNombreContainer');
     if (authNombreContainer) authNombreContainer.classList.toggle('hidden', appState.isLoginMode);
     document.getElementById('authSubmitBtn').classList.toggle('hidden', !appState.isLoginMode);
@@ -443,16 +443,16 @@ export async function procesarAuth() {
     const nombre = document.getElementById('authNombre').value;
     const btn = appState.isLoginMode ? document.getElementById('authSubmitBtn') : document.getElementById('authRegisterBtn');
     
-    if (!email || !pass) return alert("Rellena email y contrase├▒a.");
+    if (!email || !pass) return alert("Rellena email y contraseña.");
     const tx = btn.textContent; btn.disabled = true; btn.textContent = "Procesando...";
     
     if (appState.isLoginMode) {
         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
         if (error) { 
-            alert("ÔØî Error: " + error.message); 
+            alert("❌ Error: " + error.message); 
             btn.disabled = false; btn.textContent = tx; 
         } else if (!data.session) {
-            alert("ÔÜá´©Å Debes verificar tu correo electr├│nico antes de iniciar sesi├│n.");
+            alert("⚠️ Debes verificar tu correo electrónico antes de iniciar sesión.");
             btn.disabled = false; btn.textContent = tx;
         } else { 
             appState.sesionActual = data.session; 
@@ -467,16 +467,16 @@ export async function procesarAuth() {
         });
         
         btn.disabled = false; btn.textContent = tx;
-        if (error) { alert("ÔØî Error: " + error.message); } 
+        if (error) { alert("❌ Error: " + error.message); } 
         else if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) { 
-            alert("ÔÜá´©Å Ese email ya est├í registrado. Inicia sesi├│n o recupera tu contrase├▒a."); 
+            alert("⚠️ Ese email ya está registrado. Inicia sesión o recupera tu contraseña."); 
         } else if (data?.user && !data.session) { 
-            alert("Ô£à Cuenta creada. Revisa tu email para confirmarla y despu├®s inicia sesi├│n."); 
+            alert("✅ Cuenta creada. Revisa tu email para confirmarla y después inicia sesión."); 
             cerrarModalAuth(); 
         } else { 
             appState.sesionActual = data.session; 
             await cargarPerfilUsuarioActivo(); 
-            alert("­ƒÄë ┬íRegistro completado!"); 
+            alert("🎉 ¡Registro completado!"); 
             cerrarModalAuth(); 
         }
     }
@@ -495,7 +495,7 @@ export async function cerrarSesion() {
     const overlay = document.createElement('div');
     overlay.className = 'fixed inset-0 z-[9999] flex h-screen w-full items-center justify-center bg-marine font-bold text-white animate-pulse';
     overlay.style.zIndex = '9999';
-    overlay.textContent = 'Cerrando sesi├│n de forma segura...';
+    overlay.textContent = 'Cerrando sesión de forma segura...';
     document.body.appendChild(overlay);
     
     await supabaseClient.auth.signOut(); 
@@ -514,15 +514,15 @@ export function entrarComoInvitado() {
 }
 
 export async function subirArchivoGPX(event) {
-    if (appState.esInvitado) return alert("Los usuarios invitados no pueden guardar rutas. ┬íReg├¡strate gratis!");
-    if (!appState.sesionActual?.user) return alert("Debes iniciar sesi├│n para subir tus rutas.");
+    if (appState.esInvitado) return alert("Los usuarios invitados no pueden guardar rutas. ¡Regístrate gratis!");
+    if (!appState.sesionActual?.user) return alert("Debes iniciar sesión para subir tus rutas.");
 
     const fileInput = event?.target || document.getElementById('gpxUploadInput');
     const file = fileInput?.files?.[0];
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith('.gpx')) {
-        alert("Por favor selecciona un archivo con formato .gpx v├ílido.");
+        alert("Por favor selecciona un archivo con formato .gpx válido.");
         if (fileInput) fileInput.value = '';
         return;
     }
@@ -532,7 +532,7 @@ export async function subirArchivoGPX(event) {
     if (contenedor) {
         contenedor.innerHTML = `
             <div class="text-center py-8 bg-slate-50 dark:bg-slate-800/60 rounded-3xl border border-water/30 dark:border-sky-500/30 shadow-inner px-4 animate-pulse">
-                <span class="text-3xl mb-2 inline-block">ÔÅ│</span>
+                <span class="text-3xl mb-2 inline-block">⏳</span>
                 <p class="text-xs font-black text-marine dark:text-white uppercase tracking-wider mb-1">Procesando archivo GPX...</p>
                 <p class="text-[10px] text-slate-400 dark:text-slate-500">Calculando distancia, velocidades con Haversine y tramos...</p>
             </div>
@@ -541,7 +541,7 @@ export async function subirArchivoGPX(event) {
 
     const reader = new FileReader();
     reader.onerror = () => {
-        alert("ÔØî Error al leer el archivo desde tu dispositivo.");
+        alert("❌ Error al leer el archivo desde tu dispositivo.");
         if (contenedor) contenedor.innerHTML = prevHTML;
         if (fileInput) fileInput.value = '';
     };
@@ -564,7 +564,7 @@ export async function subirArchivoGPX(event) {
                 routeName = file.name.replace(/\.gpx$/i, '').replace(/[-_]/g, ' ').trim();
             }
 
-            // Telemetr├¡a calculada punto a punto con Haversine y tiempo
+            // Telemetría calculada punto a punto con Haversine y tiempo
             const distKm = Number(parsed.total_distance_km || parsed.distance_km || 0);
             const durSecs = Math.max(0, Math.round(Number(parsed.total_duration_seconds || parsed.duration_seconds || 0)));
             const durMins = Math.max(1, Math.round(durSecs / 60));
@@ -589,21 +589,21 @@ export async function subirArchivoGPX(event) {
 
             const calculo = resGuardado.calculoXp;
             if (calculo.esTrampa) {
-                alert(`ÔÜá´©Å Ruta guardada, pero la velocidad media (${velMedia} km/h) super├│ los 45 km/h.\nSe ha clasificado como veh├¡culo motorizado y no otorga XP.`);
+                alert(`⚠️ Ruta guardada, pero la velocidad media (${velMedia} km/h) superó los 45 km/h.\nSe ha clasificado como vehículo motorizado y no otorga XP.`);
             } else {
                 const totalXpActual = Number(resGuardado.perfil?.total_xp || resGuardado.perfil?.puntos || 0);
                 const { posicion } = await obtenerPosicionRanking(totalXpActual);
                 
-                let msgExito = `­ƒÄë ┬íRuta subida con ├®xito!\n\n­ƒôì ${routeName}\n­ƒôÅ Distancia: ${distKm} km\nÔÅ▒´©Å Tiempo: ${durMins} min\nÔÜí Vel. Media: ${velMedia} km/h\n­ƒÜÇ Vel. M├íx: ${velMax} km/h\n\n­ƒÅå +${calculo.xpGanado} XP ganados (${calculo.xpBase} XP base${calculo.bonusVelocidad > 0 ? ' + 50 XP bonus velocidad' : ''})\nÔ¡É Nivel actual: ${resGuardado.perfil?.current_level || 1}\n­ƒÅà Posici├│n en el Ranking: #${posicion}`;
+                let msgExito = `🎉 ¡Ruta subida con éxito!\n\n📍 ${routeName}\n📏 Distancia: ${distKm} km\n⏱️ Tiempo: ${durMins} min\n⚡ Vel. Media: ${velMedia} km/h\n🚀 Vel. Máx: ${velMax} km/h\n\n🏆 +${calculo.xpGanado} XP ganados (${calculo.xpBase} XP base${calculo.bonusVelocidad > 0 ? ' + 50 XP bonus velocidad' : ''})\n⭐ Nivel actual: ${resGuardado.perfil?.current_level || 1}\n🏅 Posición en el Ranking: #${posicion}`;
                 if (resGuardado.subioDeNivel) {
-                    msgExito += `\n\n­ƒÄè ┬íENHORABUENA! ┬íHAS SUBIDO AL NIVEL ${resGuardado.perfil.current_level}! ­ƒÜÇ`;
+                    msgExito += `\n\n🎊 ¡ENHORABUENA! ¡HAS SUBIDO AL NIVEL ${resGuardado.perfil.current_level}! 🚀`;
                 }
                 alert(msgExito);
             }
 
         } catch (err) {
             console.error("Error al procesar archivo GPX:", err);
-            alert("ÔØî No se pudo procesar el archivo GPX: " + (err.message || err));
+            alert("❌ No se pudo procesar el archivo GPX: " + (err.message || err));
             if (contenedor) contenedor.innerHTML = prevHTML;
         } finally {
             if (fileInput) fileInput.value = '';
@@ -670,7 +670,7 @@ export async function cargarHistorialRutas() {
                     const avg = Number(r.avg_speed_kmh || (mins > 0 ? (dist / (mins / 60)) : 0));
                     rutas.push({
                         id: r.id,
-                        title: 'Traves├¡a GPS',
+                        title: 'Travesía GPS',
                         distance_km: dist,
                         duration_seconds: mins * 60,
                         avg_speed: avg,
@@ -686,19 +686,19 @@ export async function cargarHistorialRutas() {
         console.warn("[cargarHistorialRutas] Error leyendo rutas:", e);
     }
 
-    // Ordenar cronol├│gicamente
+    // Ordenar cronológicamente
     rutas.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    // Almacenar en cach├® en memoria para dibujado instant├íneo en el mapa
+    // Almacenar en caché en memoria para dibujado instantáneo en el mapa
     window.__rutasUsuarioCache = new Map();
     rutas.forEach(r => window.__rutasUsuarioCache.set(String(r.id), r));
 
     if (rutas.length === 0) {
         contenedor.innerHTML = `
             <div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner px-4">
-                <span class="text-3xl mb-2 block">­ƒÅäÔÇìÔÖé´©Å</span>
-                <p class="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">A├║n no has registrado rutas</p>
-                <p class="text-[10px] text-slate-400 dark:text-slate-500">Pulsa en <b>"Subir GPX"</b> arriba para importar sesiones de tu reloj deportivo o app de m├│vil.</p>
+                <span class="text-3xl mb-2 block">🏄‍♂️</span>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">Aún no has registrado rutas</p>
+                <p class="text-[10px] text-slate-400 dark:text-slate-500">Pulsa en <b>"Subir GPX"</b> arriba para importar sesiones de tu reloj deportivo o app de móvil.</p>
             </div>`;
         return;
     }
@@ -721,7 +721,7 @@ export async function cargarHistorialRutas() {
                 <div class="flex justify-between items-center mb-3 border-b border-slate-50 dark:border-slate-700/50 pb-3 relative z-10">
                     <div class="flex items-center gap-3">
                         <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-water/20 to-blue-500/10 dark:from-sky-900/40 dark:to-sky-800/20 text-water dark:text-sky-400 flex items-center justify-center text-xl border border-water/30 dark:border-sky-700/50 shadow-inner group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
-                            ­ƒù║´©Å
+                            🗺️
                         </div>
                         <div>
                             <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none mb-1.5">${fechaStr}</p>
@@ -730,13 +730,13 @@ export async function cargarHistorialRutas() {
                     </div>
                     <div class="flex items-center gap-2">
                         <button type="button" onclick="event.stopPropagation(); abrirModalDetallesRuta('${esc(ruta.id)}')" class="bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-800/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700/50 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer">
-                            <span>­ƒºá</span> Coach
+                            <span>🧠</span> Coach
                         </button>
                         <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50 px-2.5 py-1 rounded-xl flex items-center gap-1 shadow-sm">
-                            <span class="text-amber-500 text-xs drop-shadow-sm">­ƒÅå</span>
+                            <span class="text-amber-500 text-xs drop-shadow-sm">🏆</span>
                             <span class="text-[11px] font-black text-amber-600 dark:text-amber-400">+${xp} XP</span>
                         </div>
-                        <span class="text-xs text-water dark:text-sky-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">­ƒôì</span>
+                        <span class="text-xs text-water dark:text-sky-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">📍</span>
                     </div>
                 </div>
 
@@ -754,30 +754,56 @@ export async function cargarHistorialRutas() {
                         <p class="font-black text-marine dark:text-white text-base sm:text-lg tracking-tight">${avgSpd}<span class="text-[9px] font-bold text-slate-400 ml-0.5">k/h</span></p>
                     </div>
                     <div class="flex flex-col">
-                        <span class="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-0.5">Vel. M├íx</span>
+                        <span class="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-0.5">Vel. Máx</span>
                         <p class="font-black text-emerald-600 dark:text-emerald-400 text-base sm:text-lg tracking-tight">${maxSpd}<span class="text-[9px] font-bold text-slate-400 ml-0.5">k/h</span></p>
                     </div>
                 </div>
 
                 <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 group-hover:text-water dark:group-hover:text-sky-400 transition-colors">
-                    <span class="flex items-center gap-1 font-bold">­ƒôì Ver en mapa interactivo</span>
-                    <span class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">­ƒºá Ver An├ílisis IA ÔåÆ</span>
+                    <span class="flex items-center gap-1 font-bold">📍 Ver en mapa interactivo</span>
+                    <span class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">🧠 Ver Análisis IA →</span>
                 </div>
             </div>`;
     }).join('');
 }
 
-export function verRutaEnMapa(rutaId) {
-    if (!window.__rutasUsuarioCache) return;
-    const ruta = window.__rutasUsuarioCache.get(String(rutaId));
+export async function verRutaEnMapa(rutaId) {
+    let ruta = window.__rutasUsuarioCache?.get(String(rutaId));
+    if (!ruta && supabaseClient && rutaId) {
+        try {
+            const { data } = await supabaseClient.from('user_routes').select('*').eq('id', rutaId).maybeSingle();
+            if (data) {
+                ruta = data;
+                if (!window.__rutasUsuarioCache) window.__rutasUsuarioCache = new Map();
+                window.__rutasUsuarioCache.set(String(data.id), data);
+            } else {
+                const { data: legacy } = await supabaseClient.from('rutas').select('*').eq('id', rutaId).maybeSingle();
+                if (legacy) {
+                    ruta = {
+                        id: legacy.id,
+                        title: 'Travesía GPS',
+                        distance_km: Number(legacy.distancia_km || 0),
+                        duration_seconds: Number(legacy.tiempo_minutos || 0) * 60,
+                        avg_speed: Number(legacy.avg_speed_kmh || 0),
+                        max_speed: Number(legacy.avg_speed_kmh || 0) * 1.35,
+                        route_coordinates: legacy.ruta_json
+                    };
+                    if (!window.__rutasUsuarioCache) window.__rutasUsuarioCache = new Map();
+                    window.__rutasUsuarioCache.set(String(legacy.id), ruta);
+                }
+            }
+        } catch (e) {
+            console.warn('Error recuperando ruta para mapa:', e);
+        }
+    }
     if (!ruta) {
-        alert("No se encontr├│ la ruta seleccionada.");
+        alert("No se encontró la ruta seleccionada.");
         return;
     }
     if (typeof window.cargarRutaDeportivaEnMapa === 'function') {
         window.cargarRutaDeportivaEnMapa(ruta);
     } else {
-        alert("El mapa no est├í listo todav├¡a.");
+        alert("El mapa no está listo todavía.");
     }
 }
 
@@ -790,10 +816,10 @@ export async function actualizarBadgeRanking(totalXp) {
     }
     try {
         const { posicion, totalUsuarios } = await obtenerPosicionRanking(totalXp);
-        let medalla = '­ƒÄû´©Å';
-        if (posicion === 1) medalla = '­ƒÑç';
-        else if (posicion === 2) medalla = '­ƒÑê';
-        else if (posicion === 3) medalla = '­ƒÑë';
+        let medalla = '🎖️';
+        if (posicion === 1) medalla = '🥇';
+        else if (posicion === 2) medalla = '🥈';
+        else if (posicion === 3) medalla = '🥉';
 
         el.innerHTML = `
             <span class="text-base">${medalla}</span>
@@ -822,14 +848,14 @@ function generarAnalisisDeportivoFallback({ distance_km, duration_seconds, avg_s
         }
         return {
             bien: `Iniciaste con potencia y gran cadencia, alcanzando en el km ${mejorSplit.km || 1} una velocidad de ${mejorSplit.avg_speed_kmh} km/h superior al promedio.`,
-            mejora: `En el km ${peorSplit.km || 2} se registr├│ la mayor ca├¡da de ritmo descendiendo a ${peorSplit.avg_speed_kmh} km/h por acumulaci├│n de fatiga.`,
+            mejora: `En el km ${peorSplit.km || 2} se registró la mayor caída de ritmo descendiendo a ${peorSplit.avg_speed_kmh} km/h por acumulación de fatiga.`,
             proxima_salida: `Dosifica en los primeros 1,000 metros para no caer de ${Number((avg * 0.95).toFixed(1))} km/h en el tramo final del recorrido.`
         };
     }
     return {
-        bien: `Completaste una sesi├│n continuada de ${dist} km a una velocidad media de ${avg} km/h.`,
-        mejora: `En traves├¡as breves la cadencia debe consolidarse desde la primera palada para evitar p├®rdidas de inercia.`,
-        proxima_salida: `Alarga la sesi├│n por encima de 3 km para testear tu resistencia en series m├ís exigentes.`
+        bien: `Completaste una sesión continuada de ${dist} km a una velocidad media de ${avg} km/h.`,
+        mejora: `En travesías breves la cadencia debe consolidarse desde la primera palada para evitar pérdidas de inercia.`,
+        proxima_salida: `Alarga la sesión por encima de 3 km para testear tu resistencia en series más exigentes.`
     };
 }
 
@@ -847,7 +873,7 @@ export async function solicitarFeedbackIARuta(ruta) {
         }
     }
 
-    // 2. Si no est├í en memoria, verificar en la tabla user_routes
+    // 2. Si no está en memoria, verificar en la tabla user_routes
     if (ruta.id && supabaseClient) {
         try {
             const { data: dbData } = await supabaseClient
@@ -874,7 +900,7 @@ export async function solicitarFeedbackIARuta(ruta) {
         }
     }
 
-    // 3. Enviar datos de la ruta al backend para el an├ílisis con IA (Gemini Flash)
+    // 3. Enviar datos de la ruta al backend para el análisis con IA (Gemini Flash)
     const BACKEND_API_URL = 'https://paddlesafe-backend.vercel.app/api/backend';
     const payload = {
         routeId: ruta.id,
@@ -918,7 +944,7 @@ export async function solicitarFeedbackIARuta(ruta) {
         }
     }
 
-    // Actualizar cach├® en memoria
+    // Actualizar caché en memoria
     ruta.ai_feedback = feedbackResultado;
     if (window.__rutasUsuarioCache?.has(String(ruta.id))) {
         window.__rutasUsuarioCache.get(String(ruta.id)).ai_feedback = feedbackResultado;
@@ -948,7 +974,7 @@ export async function abrirModalDetallesRuta(rutaId) {
         }
     }
     if (!ruta) {
-        alert("No se encontr├│ la ruta seleccionada.");
+        alert("No se encontró la ruta seleccionada.");
         return;
     }
 
@@ -962,14 +988,14 @@ export async function abrirModalDetallesRuta(rutaId) {
     titleEl.textContent = ruta.title || 'Ruta Deportiva';
     dateEl.textContent = fecha;
 
-    // Splits por kil├│metro
+    // Splits por kilómetro
     const splits = Array.isArray(ruta.splits_data) ? ruta.splits_data : [];
     let splitsHTML = '';
     if (splits.length > 0) {
         splitsHTML = `
             <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
                 <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2.5 flex items-center gap-1.5">
-                    <span>ÔÅ▒´©Å</span> Rendimiento por Kil├│metro (Splits)
+                    <span>⏱️</span> Rendimiento por Kilómetro (Splits)
                 </p>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     ${splits.map(s => {
@@ -989,7 +1015,7 @@ export async function abrirModalDetallesRuta(rutaId) {
         `;
     }
 
-    // An├ílisis deportivo inmediato del Coach (0ms delay - nunca se queda pensando)
+    // Análisis deportivo inmediato del Coach (0ms delay - nunca se queda pensando)
     let feedback = ruta.ai_feedback;
     if (typeof feedback === 'string') {
         try { feedback = JSON.parse(feedback); } catch (e) { feedback = null; }
@@ -1007,28 +1033,28 @@ export async function abrirModalDetallesRuta(rutaId) {
         <div class="space-y-3.5">
             <div class="bg-emerald-950/40 border border-emerald-500/20 rounded-2xl p-3.5">
                 <p class="text-[10px] font-black uppercase tracking-wider text-emerald-400 mb-1 flex items-center gap-1.5">
-                    <span>­ƒƒó</span> 1. Qu├® hiciste bien seg├║n tus datos
+                    <span>🟢</span> 1. Qué hiciste bien según tus datos
                 </p>
-                <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(fb.bien || 'Buen rendimiento general y cadencia s├│lida.')}</p>
+                <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(fb.bien || 'Buen rendimiento general y cadencia sólida.')}</p>
             </div>
             <div class="bg-amber-950/40 border border-amber-500/20 rounded-2xl p-3.5">
                 <p class="text-[10px] font-black uppercase tracking-wider text-amber-400 mb-1 flex items-center gap-1.5">
-                    <span>­ƒƒí</span> 2. Punto de mejora (Tramo de ca├¡da de ritmo)
+                    <span>🟡</span> 2. Punto de mejora (Tramo de caída de ritmo)
                 </p>
-                <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(fb.mejora || 'Mantuviste el ritmo regular sin ca├¡das pronunciadas.')}</p>
+                <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(fb.mejora || 'Mantuviste el ritmo regular sin caídas pronunciadas.')}</p>
             </div>
             <div class="bg-sky-950/40 border border-sky-500/20 rounded-2xl p-3.5">
                 <p class="text-[10px] font-black uppercase tracking-wider text-sky-400 mb-1 flex items-center gap-1.5">
-                    <span>­ƒöÁ</span> 3. Objetivo para tu pr├│xima salida
+                    <span>🔵</span> 3. Objetivo para tu próxima salida
                 </p>
-                <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(fb.proxima_salida || 'Conserva un 30% de energ├¡a para mantener la velocidad en el regreso.')}</p>
+                <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(fb.proxima_salida || 'Conserva un 30% de energía para mantener la velocidad en el regreso.')}</p>
             </div>
         </div>
     `;
 
-    // Renderizar estructura completa de forma instant├ínea a 0ms
+    // Renderizar estructura completa de forma instantánea a 0ms
     content.innerHTML = `
-        <!-- M├ëTRICAS CLAVE -->
+        <!-- MÉTRICAS CLAVE -->
         <div class="grid grid-cols-4 gap-2 text-center bg-white dark:bg-slate-800/90 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
             <div class="border-r border-slate-100 dark:border-slate-800/80 pr-1">
                 <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest block mb-0.5">Distancia</span>
@@ -1043,7 +1069,7 @@ export async function abrirModalDetallesRuta(rutaId) {
                 <p class="font-black text-marine dark:text-white text-lg">${avgSpd}<span class="text-[9px] font-bold text-slate-400 ml-0.5">k/h</span></p>
             </div>
             <div>
-                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest block mb-0.5">Vel. M├íx</span>
+                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest block mb-0.5">Vel. Máx</span>
                 <p class="font-black text-emerald-500 dark:text-emerald-400 text-lg">${maxSpd}<span class="text-[9px] font-bold text-slate-400 ml-0.5">k/h</span></p>
             </div>
         </div>
@@ -1054,8 +1080,8 @@ export async function abrirModalDetallesRuta(rutaId) {
         <div id="contenedorFeedbackIA" class="bg-gradient-to-b from-slate-900 to-slate-950 p-5 rounded-3xl border border-emerald-500/30 shadow-xl text-left relative overflow-hidden">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
                 <div class="flex items-center gap-2">
-                    <span class="text-xl">Ô£¿</span>
-                    <h4 class="text-xs font-black text-emerald-400 uppercase tracking-widest">An├ílisis del Coach</h4>
+                    <span class="text-xl">✨</span>
+                    <h4 class="text-xs font-black text-emerald-400 uppercase tracking-widest">Análisis del Coach</h4>
                 </div>
                 <span class="text-[9px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">Coach</span>
             </div>
@@ -1067,7 +1093,7 @@ export async function abrirModalDetallesRuta(rutaId) {
         <!-- ACCIONES -->
         <div class="pt-2 flex gap-3">
             <button type="button" onclick="cerrarModalDetallesRuta(); verRutaEnMapa('${esc(ruta.id)}');" class="flex-1 h-12 bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer">
-                <span>­ƒù║´©Å</span> Trazar en el Mapa
+                <span>🗺️</span> Trazar en el Mapa
             </button>
             <button type="button" onclick="cerrarModalDetallesRuta()" class="h-12 px-5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all cursor-pointer">
                 Cerrar
@@ -1075,7 +1101,7 @@ export async function abrirModalDetallesRuta(rutaId) {
         </div>
     `;
 
-    // Mostrar modal con animaci├│n
+    // Mostrar modal con animación
     modal.classList.remove('hidden');
     setTimeout(() => {
         modal.classList.remove('opacity-0');
@@ -1089,7 +1115,7 @@ export async function abrirModalDetallesRuta(rutaId) {
                 document.getElementById('feedbackIAInner').innerHTML = renderFeedbackHTML(nuevoFeedback);
             }
         }).catch(err => {
-            console.warn('Aviso no cr├¡tico actualizando feedback en segundo plano:', err);
+            console.warn('Aviso no crítico actualizando feedback en segundo plano:', err);
         });
     }
 }
@@ -1120,3 +1146,4 @@ window.actualizarBadgeRanking = actualizarBadgeRanking;
 window.solicitarFeedbackIARuta = solicitarFeedbackIARuta;
 window.abrirModalDetallesRuta = abrirModalDetallesRuta;
 window.cerrarModalDetallesRuta = cerrarModalDetallesRuta;
+window.restaurarFormularioAuth = restaurarFormularioAuth;

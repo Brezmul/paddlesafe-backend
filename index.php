@@ -10,3 +10,4 @@ if (file_exists(__DIR__ . '/index.html')) {
 }
 header('Content-Type: text/plain; charset=utf-8');
 echo 'PaddleSafe Frontend';
+

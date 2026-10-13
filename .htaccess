@@ -26,3 +26,4 @@ DirectoryIndex public_html/index.html public_html/index.php index.html index.php
 </IfModule>
 
 Options -Indexes
+
