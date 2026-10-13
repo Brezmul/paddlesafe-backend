@@ -553,6 +553,7 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
     document.getElementById('proTextoClima').textContent = textoClima;
     
     let dt = 0, tt = 0, arrayHtmlTramos = [];
+    const tramosParaCoach = [];
     if (esRutaTrazada) {
         const coords = marcadoresRuta.map(m => m.getLatLng());
         lineasMultiPunto.forEach(l => map.removeLayer(l)); lineasMultiPunto.length = 0;
@@ -581,6 +582,15 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
             etiquetasDistancia.push(etiq);
             
             const tSeg = ((dSeg / 1000) / Math.max(2.0, 4.5 + iV.modVelocidad)) * 60; tt += tSeg;
+
+            tramosParaCoach.push({
+                nombre: nombreTramo,
+                distancia_km: Number((dSeg / 1000).toFixed(2)),
+                rumbo: rumbo,
+                viento_relativo: iV.texto,
+                modVelocidad: iV.modVelocidad,
+                minutos: Math.round(tSeg)
+            });
             
             arrayHtmlTramos.push(`
                 <div class="bg-slate-800 rounded-xl p-3 border-l-4 shadow-sm w-full relative overflow-hidden" style="border-color:${iV.hexLineColor}">
@@ -653,7 +663,7 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
     document.getElementById('proDashboardResumen').classList.remove('hidden'); document.getElementById('proDashboardResumen').classList.add('flex');
     const isoLlamada = `${fechaD}T${horaSalida}:00`;
     cargarPrevisionHorariaExacta(lat, lon, isoLlamada, tt > 0 ? tt : 120);
-    solicitarCoachIAPro(dx, userLvl, dt, tt, lat, lon, fechaD, horaSalida);
+    solicitarCoachIAPro(dx, userLvl, dt, tt, lat, lon, fechaD, horaSalida, tramosParaCoach);
 }
 
 export async function cargarPrevisionHorariaExacta(lat, lon, startISO, durationMinutes) {
@@ -1369,7 +1379,7 @@ export function restaurarTracker() {
 // COACH (MOTOR INTELIGENTE SUP)
 // ==========================================
 
-export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos, lat, lon, fechaD, horaSalida) {
+export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos, lat, lon, fechaD, horaSalida, tramosData = []) {
     const bodyCont = document.getElementById('proCoachBody');
     const badgeLvl = document.getElementById('proCoachLevelBadge');
     const badgeScore = document.getElementById('proCoachScoreBadge');
@@ -1382,14 +1392,14 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
     }
 
     bodyCont.innerHTML = `
-        <div class="bg-slate-800/80 rounded-xl p-3 border border-slate-700/60 flex items-center gap-3">
+        <div class="bg-slate-800/80 rounded-xl p-3.5 border border-slate-700/60 flex items-center gap-3">
             <span class="text-xl animate-bounce">🤖</span>
             <div class="flex-1">
                 <p class="text-xs text-emerald-400 font-bold flex items-center gap-2">
                     Consultando Coach...
                     <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                 </p>
-                <p class="text-[10px] text-slate-400 mt-0.5">Analizando viento, oleaje, periodo y seguridad para nivel ${esc(userLvl || 'Intermedio')}...</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Analizando dureza de la ruta, downwind y orografía costera para nivel ${esc(userLvl || 'Intermedio')}...</p>
             </div>
         </div>
     `;
@@ -1418,7 +1428,10 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
             uv: Number(uv),
             distanciaKm: distMetros > 0 ? Number((distMetros / 1000).toFixed(2)) : 0,
             duracionMin: tiempoMinutos > 0 ? Math.round(tiempoMinutos) : 60,
-            ubicacion: `${lat}, ${lon}`
+            ubicacion: `${lat}, ${lon}`,
+            tramos_data: tramosData,
+            lat,
+            lon
         },
         userLevel: userLvl || "Intermedio"
     };
@@ -1428,17 +1441,17 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
-        }, 9000);
+        }, 3500);
 
         const data = await resp.json();
         if (data.ok && data.coach) {
             renderizarCoachProCard(data.coach, data.fuente, userLvl);
         } else {
-            throw new Error("Respuesta inválida del coach");
+            throw new Error("Respuesta no válida del coach remoto");
         }
     } catch (e) {
-        console.warn("Aviso no crítico (Coach IA fallback local):", e);
-        renderizarCoachProFallbackLocal(payload.condiciones, userLvl);
+        console.warn("Aviso no crítico (activando Coach Experto local):", e);
+        renderizarCoachProFallbackLocal(payload.condiciones, userLvl, tramosData);
     }
 }
 
@@ -1469,23 +1482,45 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
         badgeScore.innerHTML = `<span>${scoreIcon}</span> Score SUP: ${score}/100`;
     }
 
+    const dureza = coach.dureza_ruta || { nivel: "Moderada (5/10)", descripcion: "Exigencia física media acorde a la distancia y viento previsto." };
+    const estViento = coach.estrategia_viento || {
+        tramo_facil: "Aprovecha los tramos con viento a favor para deslizar la tabla.",
+        tramo_exigente: "Rema con postura baja en los tramos contra el viento.",
+        consejo_pacing: "Sal contra el viento y guarda un 30% de energía para el regreso."
+    };
+    const zona = coach.analisis_zona || {
+        orografia: "Costa abierta con exposición normal al viento.",
+        peligros_detectados: ["Atención a posibles ráfagas en salientes y cabos."],
+        recomendacion_seguridad: "Mantén navegación paralela a la costa."
+    };
+    const consejosNivel = (Array.isArray(coach.consejos_nivel) && coach.consejos_nivel.length > 0)
+        ? coach.consejos_nivel
+        : (coach.tecnica_postura || ["Mantén flexión de rodillas y mirada al horizonte."]);
+
+    const peligrosHtml = (zona.peligros_detectados || []).map(p => `
+        <li class="flex items-start gap-2 text-xs text-amber-200/90">
+            <span class="text-amber-400 shrink-0 text-sm">⚠️</span>
+            <span class="leading-relaxed">${esc(p)}</span>
+        </li>
+    `).join('') || '<li class="text-xs text-slate-400">Sin peligros orográficos severos detectados.</li>';
+
+    const consejosNivelHtml = consejosNivel.map(c => `
+        <li class="flex items-start gap-2 text-xs text-slate-200">
+            <span class="text-teal-400 shrink-0 text-sm">🏄</span>
+            <span class="leading-relaxed">${esc(c)}</span>
+        </li>
+    `).join('');
+
     const seguridadItems = (coach.seguridad_estrategia || []).map(item => `
         <li class="flex items-start gap-2 text-xs text-slate-200">
-            <span class="text-sky-400 mt-0.5 shrink-0 text-sm">🛡️</span>
+            <span class="text-sky-400 shrink-0 text-sm">🛡️</span>
             <span class="leading-relaxed">${esc(item)}</span>
         </li>
-    `).join('') || '<li class="text-xs text-slate-400">Sin alertas de seguridad críticas.</li>';
-
-    const tecnicaItems = (coach.tecnica_postura || []).map(item => `
-        <li class="flex items-start gap-2 text-xs text-slate-200">
-            <span class="text-teal-400 mt-0.5 shrink-0 text-sm">🏄</span>
-            <span class="leading-relaxed">${esc(item)}</span>
-        </li>
-    `).join('') || '<li class="text-xs text-slate-400">Mantén postura atlética y mirada al horizonte.</li>';
+    `).join('') || '<li class="text-xs text-slate-400">Sin alertas críticas de seguridad.</li>';
 
     const materialItems = (coach.material_recomendado || []).map(item => `
         <li class="flex items-start gap-2 text-xs text-slate-200">
-            <span class="text-amber-400 mt-0.5 shrink-0 text-sm">🎒</span>
+            <span class="text-amber-400 shrink-0 text-sm">🎒</span>
             <span class="leading-relaxed">${esc(item)}</span>
         </li>
     `).join('') || '<li class="text-xs text-slate-400">Leash obligatorio y chaleco 50N.</li>';
@@ -1496,46 +1531,111 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
 
     bodyCont.innerHTML = `
         <!-- Veredicto Principal del Coach -->
-        <div class="bg-slate-800/90 rounded-xl p-3.5 border border-slate-700 shadow-sm flex flex-col gap-2">
+        <div class="bg-slate-800/90 rounded-2xl p-4 border border-slate-700 shadow-md flex flex-col gap-2.5">
             <div class="flex items-center justify-between gap-2 border-b border-slate-700/60 pb-2">
                 <span class="font-black text-xs uppercase tracking-wider text-white flex items-center gap-1.5">
                     <span>🧭</span> ${esc(coach.veredicto || 'EVALUACIÓN DEL DÍA')}
                 </span>
-                <span class="text-[10px] font-mono text-slate-400 font-bold">${score}/100</span>
+                <span class="text-[11px] font-mono text-emerald-400 font-bold bg-slate-900/80 px-2 py-0.5 rounded border border-emerald-500/20">${score}/100</span>
             </div>
-            <p class="text-xs text-slate-300 leading-relaxed">${esc(coach.resumen || '')}</p>
-            <!-- Barra de Idoneidad -->
-            <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden mt-1">
+            <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(coach.resumen || '')}</p>
+            <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden mt-0.5">
                 <div class="${scoreBarBg} h-full rounded-full transition-all duration-700" style="width: ${score}%"></div>
             </div>
         </div>
 
-        <!-- Bloques de Asesoramiento Específico -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-            <!-- Seguridad y Estrategia -->
-            <div class="bg-slate-800/70 rounded-xl p-3 border border-sky-500/20 flex flex-col gap-2">
-                <span class="text-[11px] font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5 border-b border-slate-700/50 pb-1.5">
-                    <span>🛡️</span> Seguridad & Rumbo
+        <!-- 1. DUREZA DE LA RUTA -->
+        <div class="bg-gradient-to-br from-slate-900 via-slate-800/80 to-slate-900 rounded-2xl p-4 border border-rose-500/30 flex flex-col gap-2 shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-2">
+                <span class="text-xs font-black uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
+                    <span>⚡</span> Dureza & Demanda Física
                 </span>
-                <ul class="flex flex-col gap-2">
-                    ${seguridadItems}
+                <span class="text-[10px] font-black uppercase font-mono px-2 py-0.5 rounded bg-rose-950/70 text-rose-300 border border-rose-500/40">
+                    ${esc(dureza.nivel || 'Moderada')}
+                </span>
+            </div>
+            <p class="text-xs text-slate-200 leading-relaxed">${esc(dureza.descripcion || '')}</p>
+        </div>
+
+        <!-- 2. ESTRATEGIA DE VIENTO & DOWNWIND -->
+        <div class="bg-gradient-to-br from-slate-900 via-slate-800/80 to-slate-900 rounded-2xl p-4 border border-emerald-500/30 flex flex-col gap-2.5 shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-2">
+                <span class="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <span>💨</span> Estrategia de Viento & Downwind
+                </span>
+                <span class="text-[10px] font-mono text-emerald-300 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">Viento Favorable</span>
+            </div>
+            
+            <!-- Tramo Favorable -->
+            <div class="bg-emerald-950/30 p-3 rounded-xl border border-emerald-500/30 flex items-start gap-2.5">
+                <span class="text-emerald-400 shrink-0 text-base mt-0.5">🟢</span>
+                <div class="flex-1">
+                    <span class="text-[11px] font-black text-emerald-300 uppercase tracking-wide block mb-0.5">Cuándo será más fácil (A favor):</span>
+                    <p class="text-xs text-slate-200 leading-relaxed">${esc(estViento.tramo_facil || '')}</p>
+                </div>
+            </div>
+
+            <!-- Tramo Exigente -->
+            <div class="bg-rose-950/25 p-3 rounded-xl border border-rose-500/30 flex items-start gap-2.5">
+                <span class="text-rose-400 shrink-0 text-base mt-0.5">🔴</span>
+                <div class="flex-1">
+                    <span class="text-[11px] font-black text-rose-300 uppercase tracking-wide block mb-0.5">Tramo más exigente (En contra/Lateral):</span>
+                    <p class="text-xs text-slate-200 leading-relaxed">${esc(estViento.tramo_exigente || '')}</p>
+                </div>
+            </div>
+
+            <!-- Consejo Pacing -->
+            <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-700/60 text-[11px] text-slate-300 flex items-start gap-2">
+                <span class="text-amber-400 shrink-0 text-sm">💡</span>
+                <span class="leading-relaxed"><strong>Pacing y Energía:</strong> ${esc(estViento.consejo_pacing || '')}</span>
+            </div>
+        </div>
+
+        <!-- 3. ANÁLISIS DE LA ZONA MARCADA EN EL MAPA -->
+        <div class="bg-gradient-to-br from-slate-900 via-slate-800/80 to-slate-900 rounded-2xl p-4 border border-sky-500/30 flex flex-col gap-2.5 shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-2">
+                <span class="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                    <span>🗺️</span> Análisis de la Zona & Orografía
+                </span>
+                <span class="text-[10px] font-mono text-sky-300 font-bold bg-sky-950/60 px-2 py-0.5 rounded border border-sky-500/30">Relieve y Costa</span>
+            </div>
+
+            <p class="text-xs text-slate-300 font-medium">${esc(zona.orografia || '')}</p>
+
+            <!-- Peligros / Dificultades Detectadas -->
+            <div class="bg-slate-900/90 rounded-xl p-3 border border-slate-700/70 flex flex-col gap-1.5">
+                <span class="text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                    <span>⚠️</span> Dificultades detectadas en el spot:
+                </span>
+                <ul class="flex flex-col gap-2 mt-1">
+                    ${peligrosHtml}
                 </ul>
             </div>
 
-            <!-- Técnica y Postura -->
-            <div class="bg-slate-800/70 rounded-xl p-3 border border-teal-500/20 flex flex-col gap-2">
+            ${zona.recomendacion_seguridad ? `
+            <div class="bg-sky-950/30 p-2.5 rounded-xl border border-sky-500/30 text-[11px] text-sky-200 flex items-start gap-2">
+                <span class="shrink-0 text-sm">📍</span>
+                <span class="leading-relaxed"><strong>Consejo para esta costa:</strong> ${esc(zona.recomendacion_seguridad)}</span>
+            </div>
+            ` : ''}
+        </div>
+
+        <!-- 4. BLOQUE DOBLE: TÉCNICA NIVEL Y MATERIAL -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <!-- Consejos por nivel -->
+            <div class="bg-slate-800/70 rounded-2xl p-3.5 border border-teal-500/20 flex flex-col gap-2">
                 <span class="text-[11px] font-black uppercase tracking-wider text-teal-400 flex items-center gap-1.5 border-b border-slate-700/50 pb-1.5">
-                    <span>🏄</span> Técnica & Postura
+                    <span>🏄</span> Claves Técnicas (${esc(userLvl || 'Intermedio')})
                 </span>
                 <ul class="flex flex-col gap-2">
-                    ${tecnicaItems}
+                    ${consejosNivelHtml}
                 </ul>
             </div>
 
-            <!-- Material Recomendado -->
-            <div class="bg-slate-800/70 rounded-xl p-3 border border-amber-500/20 flex flex-col gap-2">
+            <!-- Material Clave -->
+            <div class="bg-slate-800/70 rounded-2xl p-3.5 border border-amber-500/20 flex flex-col gap-2">
                 <span class="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5 border-b border-slate-700/50 pb-1.5">
-                    <span>🎒</span> Material Clave
+                    <span>🎒</span> Material & Seguridad SUP
                 </span>
                 <ul class="flex flex-col gap-2">
                     ${materialItems}
@@ -1545,62 +1645,158 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
 
         <!-- Regla de Oro -->
         ${coach.regla_oro ? `
-        <div class="bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-teal-500/15 border border-amber-500/40 rounded-xl p-3 text-center shadow-inner">
+        <div class="bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-teal-500/20 border border-amber-500/50 rounded-2xl p-3.5 text-center shadow-md">
             <span class="text-amber-300 font-black text-[10px] uppercase tracking-widest block mb-0.5">💡 Regla de Oro del Coach</span>
-            <p class="text-white text-xs font-semibold italic">"${esc(coach.regla_oro)}"</p>
+            <p class="text-white text-xs font-bold italic leading-relaxed">"${esc(coach.regla_oro)}"</p>
         </div>
         ` : ''}
 
-        <!-- Pie de Información y Transparencia IA -->
+        <!-- Pie de Información y Transparencia -->
         <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/80">
             <span>${fuenteLabel}</span>
-            <span class="font-mono text-slate-400">PaddleSafe AI Coach</span>
+            <span class="font-mono text-emerald-400 font-bold">PaddleSafe Coach</span>
         </div>
     `;
 }
 
-export function renderizarCoachProFallbackLocal(cond, userLvl) {
+export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) {
     let score = 85;
     const seg = [];
     const tec = [];
     const mat = [];
 
-    if (cond.viento > 15) {
-        score -= 30;
-        seg.push(`Viento notable (${cond.viento} km/h). Remar contra el viento en la ida.`);
-        tec.push("Flexiona rodillas y baja el centro de gravedad. Remada más corta y frecuente.");
+    const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+    const cardIdx = Math.round((((cond.direccion || 0) % 360) + 360) % 360 / 45) % 8;
+    const cardinal = dirs[cardIdx];
+
+    const isOffshore = ((cond.direccion || 0) >= 150 && (cond.direccion || 0) <= 240);
+
+    if (cond.viento >= 18) {
+        score -= 40;
+        seg.push(`⛔ Viento fuerte (${cond.viento} km/h). Remar contra el viento en la ida con máxima precaución.`);
+        tec.push("Flexiona rodillas y baja el centro de gravedad. Remada más corta y frecuente en la zona de proa.");
+    } else if (cond.viento >= 12) {
+        score -= 20;
+        seg.push(`Viento moderado (${cond.viento} km/h de componente ${cardinal}). Planifica la ida contra el viento.`);
+        tec.push("Adelanta la fase de agarre de la pala e inclina el torso levemente hacia el viento.");
     } else {
-        tec.push("Excelente para trabajar rotación de tronco (core) y cadencia regular.");
+        tec.push("Excelente para trabajar rotación de tronco (core) y cadencia regular (45-50 SPM).");
+    }
+
+    if (isOffshore && cond.viento >= 10) {
+        score -= 20;
+        seg.push(`🚨 Alerta Viento Offshore (${cardinal}): Sopla hacia mar adentro. No te alejes de la orilla.`);
     }
 
     if (cond.oleaje > 0.8) {
         score -= 25;
         seg.push(`Oleaje de ${cond.oleaje}m: Cuidado al embarcar y desembarcar en orilla.`);
         tec.push("Postura escalonada con pies no alineados horizontalmente para ganar estabilidad en mar movido.");
+    } else {
+        tec.push("Pies paralelos centrados en el asa de transporte, peso repartido en las bolas de los pies.");
     }
 
     if (userLvl === "Principiante" && (cond.viento > 11 || cond.oleaje > 0.4)) {
         score -= 25;
         seg.push("Como principiante, manténte a menos de 100m de costa y cerca de zonas resguardadas.");
-        tec.push("Si sientes inestabilidad, pasa a posición de rodillas de inmediato.");
+        tec.push("Si sientes inestabilidad o ráfagas repentinas, pasa a posición de rodillas de inmediato.");
     }
 
     mat.push(cond.oleaje > 0.7 ? "Leash recto fijado al tobillo para olas." : "Leash tipo coiled de rodilla para no arrastrar.");
     mat.push("Chaleco de flotabilidad 50N y funda de móvil estanca obligatorios.");
 
+    // Dureza de la ruta local
+    const dist = cond.distanciaKm || 0;
+    let baseDureza = 3.0;
+    if (dist > 6) baseDureza += 3.0;
+    else if (dist > 3) baseDureza += 2.0;
+    else if (dist > 1) baseDureza += 1.0;
+    if (cond.viento > 14) baseDureza += 2.0;
+    if (cond.oleaje > 0.6) baseDureza += 1.5;
+    if (userLvl === "Principiante") baseDureza += 1.5;
+    const scoreDureza = Math.max(1, Math.min(10, Math.round(baseDureza * 10) / 10));
+
+    let durezaTexto = scoreDureza >= 7 ? "Alta / Exigente" : (scoreDureza >= 4.5 ? "Moderada / Intermedia" : "Baja / Plácida");
+    let durezaDesc = scoreDureza >= 6
+        ? `Ruta con demanda física notable (${scoreDureza}/10). La combinación de ${dist > 0 ? dist + ' km' : 'distancia'} con viento de ${cond.viento} km/h generará fatiga muscular en hombros y piernas tras los primeros 30 minutos.`
+        : `Sesión de demanda física asequible (${scoreDureza}/10). Buenas condiciones para completar la distancia con ritmo estable y sin sobrecargas musculares.`;
+
+    // Estrategia de viento local
+    let tramoFavor = null;
+    let tramoContra = null;
+    if (Array.isArray(tramosData) && tramosData.length > 0) {
+        for (const t of tramosData) {
+            const vRel = (t.viento_relativo || "").toUpperCase();
+            if (vRel.includes("FAVOR") && !tramoFavor) tramoFavor = t;
+            if (vRel.includes("CONTRA") && !tramoContra) tramoContra = t;
+        }
+    }
+
+    const rumboDownwind = Math.round(((cond.direccion || 0) + 180) % 360);
+    const cardDownwind = dirs[Math.round(((rumboDownwind % 360) + 360) % 360 / 45) % 8];
+
+    const tramoFacilTxt = tramoFavor
+        ? `El tramo más fácil será "${tramoFavor.nombre}" (rumbo ${tramoFavor.rumbo}°): contarás con viento a favor (downwind) de componente ${cardinal} que impulsará tu avance con mínimo esfuerzo.`
+        : `Navegar con rumbo ~${rumboDownwind}° (${cardDownwind}) será el momento más fácil y fluido gracias al viento a favor empujando la popa.`;
+
+    const tramoDuroTxt = tramoContra
+        ? `Atención al tramo "${tramoContra.nombre}": remarás contra viento (${cond.viento} km/h). Rema inclinado hacia proa y baja el centro de gravedad.`
+        : `Evita regresar con rumbo directo hacia el viento (${cardinal}) cuando estés cansado; planifica bordadas suaves pegadas a la orilla.`;
+
+    const peligrosZona = [];
+    if (isOffshore && cond.viento >= 10) {
+        peligrosZona.push(`Viento terral (offshore): Sopla hacia el mar abierto. El agua parece engañosamente plana cerca de la orilla pero empuja hacia fuera.`);
+    }
+    if (cond.viento >= 14) {
+        peligrosZona.push("Aceleración de viento en salientes y cabos rocosos (Efecto Venturi).");
+    }
+    if (cond.oleaje >= 0.6) {
+        peligrosZona.push("Efecto clapotis (mar cruzado) cerca de paredes de roca o espigones.");
+    }
+    peligrosZona.push("Presta atención al calado de la quilla en la entrada y salida de la playa o cala.");
+
+    const consejosNivelLoc = [];
+    if (userLvl === "Principiante") {
+        consejosNivelLoc.push("Si sientes rachas de viento o desequilibrio, siéntate o ponte de rodillas (kneeling paddle) inmediatamente para no derivar.");
+        consejosNivelLoc.push("Mantén siempre una referencia visual fija en tierra para controlar la deriva lateral.");
+    } else if (userLvl === "Intermedio") {
+        consejosNivelLoc.push("Inicia la salida remando contra el viento para que el tramo de regreso sea con viento a favor (downwind).");
+        consejosNivelLoc.push("Usa la rotación del tronco (core) para traccionar con la pala y no cargues los bíceps.");
+    } else {
+        consejosNivelLoc.push("En tramos a favor con ondulación, bombea con 2 paladas enérgicas para coger la pendiente y planea atrasando el pie dominante.");
+        consejosNivelLoc.push("Mantén monitoreo constante de la evolución de las rachas de viento y salidas de emergencia en la costa.");
+    }
+
     score = Math.max(15, Math.min(100, score));
 
     const coachLocal = {
         score,
-        veredicto: score >= 70 ? "CONDICIONES APROPIADAS" : (score >= 45 ? "PRECAUCIÓN ACTIVA" : "RIESGO ELEVADO"),
-        resumen: `Análisis local para nivel ${userLvl}: Viento de ${cond.viento} km/h y ${cond.oleaje}m de ola. Ajusta tu esfuerzo al plan de navegación.`,
+        veredicto: score >= 75 ? "CONDICIONES APROPIADAS PARA SUP" : (score >= 50 ? "PRECAUCIÓN Y ATENCIÓN ACTIVA" : "CONDICIONES EXIGENTES - EVALÚA SALIR"),
+        resumen: `Análisis para nivel ${userLvl}: Viento de ${cond.viento} km/h (${cardinal}) y oleaje de ${cond.oleaje}m. Planifica tu navegación adaptando tu ritmo a la dirección del viento.`,
+        dureza_ruta: {
+            nivel: `${durezaTexto} (${scoreDureza}/10)`,
+            descripcion: durezaDesc
+        },
+        estrategia_viento: {
+            tramo_facil: tramoFacilTxt,
+            tramo_exigente: tramoDuroTxt,
+            consejo_pacing: "Regla del 30%: Sal siempre contra el viento mientras estés fresco y guarda un tercio de energía para la vuelta."
+        },
+        analisis_zona: {
+            orografia: "Costa con influencia del viento y relieve marítimo local.",
+            peligros_detectados: peligrosZona,
+            recomendacion_seguridad: "Navega respetando distancia con bañistas y mantén línea de costa a la vista."
+        },
+        consejos_nivel: consejosNivelLoc,
         seguridad_estrategia: seg,
         tecnica_postura: tec,
         material_recomendado: mat,
-        regla_oro: "Regla del 30%: Reserva siempre un tercio de tu energía y agua para el regreso."
+        regla_oro: userLvl === "Principiante"
+            ? "¡Ante cualquier racha imprevista: a rodillas, manos bajas y rema con calma hacia la orilla!"
+            : "Reserva siempre un 30% de tus fuerzas y agua para el tramo final del regreso."
     };
 
-    renderizarCoachProCard(coachLocal, "coach-experto-sup (offline)", userLvl);
+    renderizarCoachProCard(coachLocal, "coach-experto-sup (instantáneo)", userLvl);
 }
 
 export async function solicitarCoachIABasico(dx, userLvl, loc) {
@@ -1650,7 +1846,7 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
-        }, 8000);
+        }, 2500);
 
         const data = await resp.json();
         if (data.ok && data.coach) {
@@ -1659,7 +1855,7 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
             let scoreCls = score >= 75 ? "text-emerald-400" : (score >= 45 ? "text-amber-400" : "text-rose-400");
 
             cont.innerHTML = `
-                <div class="flex flex-col gap-2">
+                <div class="flex flex-col gap-2.5">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                         <div class="flex items-center gap-1.5">
                             <span class="text-base">✨</span>
@@ -1668,6 +1864,11 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
                         <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 ${scoreCls} border border-slate-700 font-bold">Score: ${score}/100</span>
                     </div>
                     <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(coach.resumen || '')}</p>
+                    ${coach.estrategia_viento && coach.estrategia_viento.tramo_facil ? `
+                    <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
+                        <span class="shrink-0">💨</span>
+                        <span><strong>Viento a favor:</strong> ${esc(coach.estrategia_viento.tramo_facil)}</span>
+                    </div>` : ''}
                     ${coach.seguridad_estrategia && coach.seguridad_estrategia[0] ? `
                     <div class="text-[11px] text-sky-300 flex items-start gap-1.5 bg-sky-950/40 p-2 rounded-lg border border-sky-500/20">
                         <span class="shrink-0">🛡️</span>
@@ -1680,13 +1881,38 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
                     </div>` : ''}
                 </div>
             `;
-        } else {
-            throw new Error("No data");
+            return;
         }
+        throw new Error("No data");
     } catch (e) {
+        // Fallback local inmediato y enriquecido
+        const v = payload.condiciones.viento;
+        const o = payload.condiciones.oleaje;
+        const dir = payload.condiciones.direccion;
+        const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+        const cardinal = dirs[Math.round(((dir % 360) + 360) % 360 / 45) % 8];
+        const downwindDir = Math.round((dir + 180) % 360);
+        const cardDownwind = dirs[Math.round(((downwindDir % 360) + 360) % 360 / 45) % 8];
+
         cont.innerHTML = `
-            <div class="flex items-center justify-between text-xs text-slate-300">
-                <span>💡 <strong>Consejo SUP:</strong> Comienza siempre tu recorrido remando contra el viento y guarda un 30% de energía para la vuelta.</span>
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                    <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">✨ Coach (${esc(userLvl || 'Intermedio')})</span>
+                    <span class="text-[10px] text-slate-400 font-mono">Consejo Inmediato</span>
+                </div>
+                <p class="text-xs text-slate-200 leading-relaxed">
+                    ${v > 14 
+                        ? `Viento notable de ${v} km/h (${cardinal}): Comienza navegando en contra del viento para que la vuelta sea con viento a favor (downwind) y menos exigente.` 
+                        : `Viento plácido (${v} km/h) y mar accesible (${o}m): Condiciones idóneas para trabajar cadencia fluida y rotación del core.`}
+                </p>
+                <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
+                    <span class="shrink-0">💨</span>
+                    <span><strong>Momento más fácil:</strong> Con rumbo ~${downwindDir}° (${cardDownwind}) tendrás viento en popa que empujará la tabla.</span>
+                </div>
+                <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20">
+                    <span class="shrink-0">💡</span>
+                    <span class="italic font-semibold">Regla del 30%: Reserva siempre un tercio de tu energía y agua para el regreso a la orilla.</span>
+                </div>
             </div>
         `;
     }
