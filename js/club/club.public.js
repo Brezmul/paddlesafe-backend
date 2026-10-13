@@ -297,15 +297,43 @@ export const ClubPublic = {
                 }
                 await ClubChat.render(c, clubId, esMiembro);
             }
-        }
         } else if (tab === 'admin' || tab === 'solicitudes') {
             const c = containers[tab];
             if (c) {
+                const myId = appState.sesionActual?.user?.id;
+                let esAdmin = false;
+                if (myId) {
+                    try {
+                        const { data: cu } = await supabaseClient.from('clubs_usuarios').select('rol').eq('club_id', clubId).eq('user_id', myId).maybeSingle();
+                        if (cu) esAdmin = cu.rol === 'creador' || cu.rol === 'admin';
+                    } catch (_) {}
+                }
+
+                const zonaPeligroHTML = esAdmin ? `
+                    <div class="mt-6 pt-5 border-t border-rose-200 dark:border-rose-900/40">
+                        <div class="p-4 bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 rounded-2xl">
+                            <div class="flex items-center gap-2 mb-1.5">
+                                <span class="text-lg">⚠️</span>
+                                <h4 class="text-xs font-black text-rose-700 dark:text-rose-400 uppercase tracking-wider">Zona de Peligro</h4>
+                            </div>
+                            <p class="text-[11px] text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+                                Como <strong>administrador o creador</strong>, puedes disolver y eliminar este club permanentemente.
+                            </p>
+                            <button type="button" onclick="window.Club.onDelete('${esc(clubId)}', event)" class="w-full h-11 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-rose-600/20 cursor-pointer flex items-center justify-center gap-2">
+                                🗑️ Eliminar Club para Siempre
+                            </button>
+                        </div>
+                    </div>` : '';
+
                 c.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando solicitudes...</p>';
                 try {
                     const { data: solicitudes, error } = await supabaseClient.rpc('obtener_solicitudes_club', { p_club_id: clubId });
                     if (error || !solicitudes || solicitudes.length === 0) {
-                        c.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold">No hay solicitudes pendientes.</p>';
+                        c.innerHTML = `
+                            <div class="text-center py-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                                <p class="text-slate-400 text-xs font-bold">No hay solicitudes pendientes.</p>
+                            </div>
+                            ${zonaPeligroHTML}`;
                     } else {
                         c.innerHTML = `
                             <div class="space-y-2.5">
@@ -327,10 +355,11 @@ export const ClubPublic = {
                                             </div>
                                         </div>`;
                                 }).join('')}
-                            </div>`;
+                            </div>
+                            ${zonaPeligroHTML}`;
                     }
                 } catch (e) {
-                    c.innerHTML = '<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar solicitudes.</p>';
+                    c.innerHTML = `<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar solicitudes.</p>${zonaPeligroHTML}`;
                 }
             }
         }

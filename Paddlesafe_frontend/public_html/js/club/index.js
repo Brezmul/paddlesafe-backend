@@ -161,7 +161,9 @@ const ClubFacade = {
         const esGestion = vista === 'gestion' || vista === 'admin';
 
         if (esGestion) {
-            const zonaPeligroHTML = soyCreador ? `
+            const puedeEliminar = soyCreador || soyAdmin;
+            const rolTextoPeligro = soyCreador ? 'creador del club' : 'administrador del club';
+            const zonaPeligroHTML = puedeEliminar ? `
                 <div class="mt-6 pt-5 border-t border-rose-200 dark:border-rose-900/40">
                     <div class="p-4 bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 rounded-2xl">
                         <div class="flex items-center gap-2 mb-1.5">
@@ -169,7 +171,7 @@ const ClubFacade = {
                             <h4 class="text-xs font-black text-rose-700 dark:text-rose-400 uppercase tracking-wider">Zona de Peligro</h4>
                         </div>
                         <p class="text-[11px] text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
-                            Como <strong>creador del club</strong>, puedes eliminarlo permanentemente. Esta acción disolverá el club para todos sus miembros y no se puede deshacer.
+                            Como <strong>${rolTextoPeligro}</strong>, puedes eliminar este club permanentemente. Esta acción disolverá el club para todos sus miembros y no se puede deshacer.
                         </p>
                         <button type="button" onclick="window.Club.onDelete('${esc(clubId)}', event)" class="w-full h-11 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-rose-600/20 cursor-pointer flex items-center justify-center gap-2">
                             🗑️ Eliminar Club para Siempre

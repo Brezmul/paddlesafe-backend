@@ -111,12 +111,16 @@ export const ClubRender = {
                 <textarea id="info_normas" oninput="window.Club.onInput('${cl.club_id}', 'info_normas', 'normas')" placeholder="Normas..." class="w-full h-16 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl outline-none focus:ring-1 focus:ring-water text-sm">${esc(cl.normas || '')}</textarea>
             </div>` : '';
 
-        const dangerZoneCard = isCreator ? `
-            <div class="mt-4 pt-3 border-t border-rose-100 dark:border-rose-950/40 flex items-center justify-between">
-                <span class="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Zona de Creador</span>
-                <button type="button" onclick="window.Club.onDelete('${esc(cl.club_id)}', event)" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 font-bold text-[11px] rounded-lg border border-rose-200 dark:border-rose-900/50 transition-colors flex items-center gap-1.5 active:scale-95 cursor-pointer">
-                    🗑️ Eliminar Club
-                </button>
+        const canDeleteClub = isCreator || isAdmin;
+        const dangerZoneCard = canDeleteClub ? `
+            <div class="mt-4 pt-3 border-t border-rose-100 dark:border-rose-950/40 flex items-center justify-between gap-2 flex-wrap">
+                <span class="text-[10px] font-bold text-rose-500 uppercase tracking-wider">${isCreator ? 'Zona de Creador' : 'Zona de Administración'}</span>
+                <div class="flex items-center gap-2">
+                    ${!isCreator ? `<button type="button" onclick="window.Club.abandonarClub('${esc(cl.club_id)}')" class="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-700/50 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold text-[11px] rounded-lg border border-slate-200 dark:border-slate-600 transition-colors flex items-center gap-1 active:scale-95 cursor-pointer">🏃 Salir</button>` : ''}
+                    <button type="button" onclick="window.Club.onDelete('${esc(cl.club_id)}', event)" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 font-bold text-[11px] rounded-lg border border-rose-200 dark:border-rose-900/50 transition-colors flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                        🗑️ Eliminar Club
+                    </button>
+                </div>
             </div>` : `
             <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Membresía</span>
