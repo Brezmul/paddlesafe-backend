@@ -8,9 +8,6 @@ import * as Auth from './auth.js';
 import * as MapModule from './map.js';
 import * as Social from './social.js';
 
-// NUEVA IMPORTACIÓN MODULAR DEL CLUB
-import ClubFacade from './club/index.js';
-
 // ====================================================
 // 1. EXPOSICIÓN GLOBAL (Para compatibilidad con HTML)
 // ====================================================
@@ -21,9 +18,6 @@ import ClubFacade from './club/index.js';
         }
     });
 });
-
-// Exponemos la nueva Fachada del Club globalmente
-window.Club = ClubFacade;
 
 // Adaptadores defensivos de retrocompatibilidad para el DOM
 window.abrirModalClubs = () => {
@@ -42,6 +36,14 @@ window.cerrarModalClubs = () => window.Club && window.Club.cerrarModal ? window.
 window.cambiarTabClubs = (tab) => window.Club && window.Club.cambiarTabClubs ? window.Club.cambiarTabClubs(tab) : null;
 window.abrirModalFeed = () => Social.abrirModalFeed ? Social.abrirModalFeed() : (window.socialFeed && window.socialFeed.abrirModal ? window.socialFeed.abrirModal() : null);
 window.cerrarModalFeed = () => Social.cerrarModalFeed ? Social.cerrarModalFeed() : (window.socialFeed && window.socialFeed.cerrarModal ? window.socialFeed.cerrarModal() : null);
+
+import('./club/index.js')
+    .then(({ default: ClubFacade }) => {
+        window.Club = ClubFacade;
+    })
+    .catch(error => {
+        console.error('[club] No se pudo cargar el módulo de clubes:', error);
+    });
 
 const openClubProfileSafe = (id) => {
     if (window.Club && typeof window.Club.openClubProfile === 'function') window.Club.openClubProfile(id);
