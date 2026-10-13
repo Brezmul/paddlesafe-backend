@@ -165,8 +165,7 @@ async function inicializarAplicacion() {
 }
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', inicializarAplicacion);
-    window.addEventListener('load', inicializarAplicacion);
+    document.addEventListener('DOMContentLoaded', inicializarAplicacion, { once: true });
 } else {
     inicializarAplicacion();
 }
@@ -566,10 +565,10 @@ export async function cambiarTabPerfilSPA(tab) {
                 <div class="flex flex-col items-center justify-center bg-gradient-to-b from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 p-5 border border-slate-200 dark:border-slate-700 rounded-3xl text-center shadow-lg shadow-slate-200/50 dark:shadow-none hover:-translate-y-2 hover:shadow-2xl hover:border-amber-200 dark:hover:border-amber-700/50 transition-all duration-300 relative overflow-hidden group">
                     <div class="absolute inset-0 bg-gradient-to-tr from-amber-100/30 to-transparent dark:from-amber-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                     <div class="w-16 h-16 mx-auto bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-md border border-slate-100 dark:border-slate-700 mb-3 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                        <span class="text-4xl drop-shadow-md">${item.icono || '🏅'}</span>
+                        <span class="text-4xl drop-shadow-md">${esc(item.icono || '🏅')}</span>
                     </div>
                     <p class="text-[11px] font-black text-marine dark:text-white uppercase tracking-widest leading-tight relative z-10 px-1">${nombreEsc}</p>
-                    ${item.descripcion ? `<p class="text-[9px] text-slate-400 dark:text-slate-500 mt-2 font-bold leading-relaxed relative z-10 px-2 hidden group-hover:block transition-all">${item.descripcion}</p>` : ''}
+                    ${item.descripcion ? `<p class="text-[9px] text-slate-400 dark:text-slate-500 mt-2 font-bold leading-relaxed relative z-10 px-2 hidden group-hover:block transition-all">${esc(item.descripcion)}</p>` : ''}
                 </div>`;
             }).join('');
         }
@@ -648,7 +647,7 @@ export async function cargarTopPaddlers(p) {
             const avatarEsc = esc(safeUrl(pd.avatar_url, IMG_FALLBACK));
             const nombreEsc = esc(pd.nombre);
             return `
-            <div role="button" tabindex="0" onclick="navigateSPA('/user/${pd.id}')" class="flex items-center gap-3 p-3 border border-slate-100 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-800 hover:shadow-md cursor-pointer w-full mb-2 transition-shadow">
+            <div role="button" tabindex="0" onclick="navigateSPA('/user/${esc(pd.id)}')" class="flex items-center gap-3 p-3 border border-slate-100 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-800 hover:shadow-md cursor-pointer w-full mb-2 transition-shadow">
                 <span class="w-6 text-[10px] font-black text-slate-400 text-center flex-shrink-0">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
                 <img src="${avatarEsc}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover flex-shrink-0 border border-slate-100 dark:border-slate-700">
                 <div class="flex-1 min-w-0">

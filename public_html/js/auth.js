@@ -968,6 +968,22 @@ export async function abrirModalDetallesRuta(rutaId) {
                 ruta = data;
                 if (!window.__rutasUsuarioCache) window.__rutasUsuarioCache = new Map();
                 window.__rutasUsuarioCache.set(String(data.id), data);
+            } else {
+                const { data: legacy } = await supabaseClient.from('rutas').select('*').eq('id', rutaId).maybeSingle();
+                if (legacy) {
+                    ruta = {
+                        id: legacy.id,
+                        title: legacy.ubicacion || 'Travesía GPS',
+                        distance_km: Number(legacy.distancia_km || 0),
+                        duration_seconds: Number(legacy.tiempo_minutos || 0) * 60,
+                        avg_speed: Number(legacy.avg_speed_kmh || 0),
+                        max_speed: Number(legacy.avg_speed_kmh || 0) * 1.35,
+                        route_coordinates: legacy.ruta_json,
+                        created_at: legacy.fecha
+                    };
+                    if (!window.__rutasUsuarioCache) window.__rutasUsuarioCache = new Map();
+                    window.__rutasUsuarioCache.set(String(legacy.id), ruta);
+                }
             }
         } catch (e) {
             console.warn('Error recuperando ruta para modal:', e);

@@ -243,7 +243,7 @@ export async function guardarRutaDeportivaConGamificacion({
         rutaGuardada = legData || legacyPayload;
     }
 
-    // 3. Actualizar el perfil del usuario: sumar total_xp, total_distance_km y calcular current_level
+    // 3. Obtener el perfil actualizado tras la ejecución del trigger en Supabase
     let perfilActualizado = null;
     let subioDeNivel = false;
 
@@ -254,37 +254,24 @@ export async function guardarRutaDeportivaConGamificacion({
             .eq('id', userId)
             .maybeSingle();
 
-        const xpPrevio = Number(perfilActual?.total_xp ?? perfilActual?.puntos ?? 0);
-        const distPrevia = Number(perfilActual?.total_distance_km ?? perfilActual?.km_totales ?? 0);
-        const nivelPrevio = Number(perfilActual?.current_level ?? perfilActual?.nivel ?? 1);
-
-        const nuevoTotalXp = xpPrevio + xpEarned;
-        const nuevoTotalDist = Number((distPrevia + rutaPayload.distance_km).toFixed(2));
-        
-        // Fórmula de nivel requerida:
-        const nuevoNivel = Math.floor(Math.sqrt(nuevoTotalXp / 100)) + 1;
-        subioDeNivel = nuevoNivel > nivelPrevio;
-
-        const updateData = {
-            total_xp: nuevoTotalXp,
-            total_distance_km: nuevoTotalDist,
-            current_level: nuevoNivel,
-            // Sincronización con campos heredados de la aplicación
-            puntos: nuevoTotalXp,
-            km_totales: nuevoTotalDist,
-            nivel: nuevoNivel
-        };
-
-        const { data: resUpd, error: errUpd } = await supabaseClient
-            .from('perfiles')
-            .update(updateData)
-            .eq('id', userId)
-            .select()
-            .maybeSingle();
-
-        perfilActualizado = resUpd || { ...(perfilActual || {}), ...updateData };
+        if (perfilActual) {
+            perfilActualizado = perfilActual;
+            const nivelActual = Number(perfilActual.current_level ?? perfilActual.nivel ?? 1);
+            subioDeNivel = Boolean(calculoXp?.nivelActual && nivelActual > (calculoXp.nivelActual - 1));
+        } else {
+            // Fallback en memoria si la consulta remota no devuelve fila
+            const nuevoTotalXp = (Number(appState.perfilUsuario?.total_xp ?? appState.perfilUsuario?.puntos ?? 0)) + xpEarned;
+            const nuevoNivel = Math.floor(Math.sqrt(nuevoTotalXp / 100)) + 1;
+            perfilActualizado = {
+                ...(appState.perfilUsuario || {}),
+                total_xp: nuevoTotalXp,
+                puntos: nuevoTotalXp,
+                current_level: nuevoNivel,
+                nivel: nuevoNivel
+            };
+        }
     } catch (errPerfil) {
-        console.warn('[gamification] Aviso al sincronizar perfil en base de datos:', errPerfil);
+        console.warn('[gamification] Aviso al refrescar perfil tras guardado:', errPerfil);
     }
 
     return {

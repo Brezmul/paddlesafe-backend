@@ -39,6 +39,10 @@ function extractTrackpoints(xmlString) {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlString, "application/xml");
         
+        if (xmlDoc.querySelector("parsererror")) {
+            throw new Error("El archivo no es un archivo GPX/XML válido o está corrupto.");
+        }
+
         let nodes = xmlDoc.querySelectorAll("trkpt");
         if (!nodes || nodes.length === 0) {
             nodes = xmlDoc.querySelectorAll("rtept"); // Soporte secundario para rutas
@@ -48,7 +52,7 @@ function extractTrackpoints(xmlString) {
             const node = nodes[i];
             const lat = parseFloat(node.getAttribute("lat"));
             const lon = parseFloat(node.getAttribute("lon"));
-            if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+            if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
 
             const timeEl = node.querySelector("time");
             const time = timeEl ? new Date(timeEl.textContent.trim()).getTime() : null;

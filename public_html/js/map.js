@@ -1033,6 +1033,7 @@ export function cargarRutaDeportivaEnMapa(ruta) {
 
     // 3. Limpiar capas previas en el mapa
     limpiarRuta();
+    if (!map) return;
 
     // 4. Formatear y añadir polilínea deportiva
     const latLngs = coords.map(pt => Array.isArray(pt) ? [pt[0], pt[1]] : [pt.lat, pt.lng]);
@@ -1304,6 +1305,7 @@ export async function finalizarTravesia() {
                 <p class="text-amber-300 font-bold text-[10px] uppercase tracking-widest mb-3">${pendingMessage}</p>
                 <button type="button" onclick="restaurarTracker()" class="bg-slate-700 text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest w-full active:scale-95 transition-transform cursor-pointer">Cerrar Panel</button>
             </div>`;
+        isSavingRoute = false;
         return;
     }
     
