@@ -144,6 +144,7 @@ async function inicializarAplicacion() {
 
     if (supabaseClient && supabaseClient.auth) {
         try {
+            if (Auth.initAuthListeners) Auth.initAuthListeners();
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) {
                 appState.sesionActual = session;
@@ -158,7 +159,6 @@ async function inicializarAplicacion() {
             } else {
                 Auth.actualizarBotonCabecera();
             }
-            if (Auth.initAuthListeners) Auth.initAuthListeners();
         } catch (authErr) {
             console.warn("Aviso no crítico inicializando sesión:", authErr);
         }

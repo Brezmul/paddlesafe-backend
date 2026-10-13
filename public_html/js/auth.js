@@ -330,15 +330,21 @@ export function abrirModalRecuperacionFinal() {
         <div class="text-center mb-8 dark:bg-slate-900 pt-8 rounded-t-3xl">
             <div class="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6"></div>
             <h2 class="text-3xl font-black text-marine dark:text-white mb-2 tracking-tight">Nueva Contraseña</h2>
-            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Ingresa tu nueva contraseña para acceder.</p>
+            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Crea una contraseña nueva para volver a acceder a tu cuenta.</p>
         </div>
-        <div class="space-y-4 w-full dark:bg-slate-900 pb-6 px-2">
-            <div class="relative">
+        <form class="space-y-4 w-full dark:bg-slate-900 pb-6 px-2" onsubmit="event.preventDefault(); guardarNuevaPassword()">
+            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300" for="nuevaPassword">Nueva contraseña</label>
+            <div class="relative -mt-2">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></span>
-                <input type="password" id="nuevaPassword" class="block w-full h-14 pl-12 pr-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm" placeholder="Nueva contraseña (mín. 6 caracteres)">
+                <input type="password" id="nuevaPassword" minlength="6" autocomplete="new-password" required class="block w-full h-14 pl-12 pr-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm" placeholder="Mínimo 6 caracteres">
             </div>
-            <button type="button" onclick="guardarNuevaPassword()" class="w-full h-14 mt-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 dark:shadow-none transition-transform active:scale-95 cursor-pointer">Guardar Contraseña</button>
-        </div>
+            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300" for="confirmarNuevaPassword">Repite la contraseña</label>
+            <div class="relative -mt-2">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></span>
+                <input type="password" id="confirmarNuevaPassword" minlength="6" autocomplete="new-password" required class="block w-full h-14 pl-12 pr-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm" placeholder="Repite la nueva contraseña">
+            </div>
+            <button type="submit" id="guardarNuevaPasswordBtn" class="w-full h-14 mt-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/30 dark:shadow-none transition-transform active:scale-95 cursor-pointer">Guardar Contraseña</button>
+        </form>
     `;
     const m = document.getElementById('authModal');
     if (m) {
@@ -348,11 +354,23 @@ export function abrirModalRecuperacionFinal() {
 }
 
 export async function guardarNuevaPassword() {
-    const pass = document.getElementById('nuevaPassword').value;
-    if (!pass || pass.length < 6) return alert("La contraseña debe tener al menos 6 caracteres.");
+    const passwordInput = document.getElementById('nuevaPassword');
+    const confirmInput = document.getElementById('confirmarNuevaPassword');
+    const btn = document.getElementById('guardarNuevaPasswordBtn');
+    if (!passwordInput || !confirmInput || !btn) return;
+
+    const pass = passwordInput.value;
+    if (pass.length < 6) return alert("La contraseña debe tener al menos 6 caracteres.");
+    if (pass !== confirmInput.value) return alert("Las contraseñas no coinciden.");
+
+    btn.disabled = true;
+    btn.textContent = "Guardando...";
     const { error } = await supabaseClient.auth.updateUser({ password: pass });
-    if (error) { alert("Error: " + error.message); } 
-    else {
+    if (error) {
+        alert("Error: " + error.message);
+        btn.disabled = false;
+        btn.textContent = "Guardar Contraseña";
+    } else {
         alert("✅ Contraseña actualizada correctamente.");
         cerrarModalAuth();
         window.history.replaceState(null, null, window.location.pathname);
