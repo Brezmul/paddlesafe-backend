@@ -1,8 +1,28 @@
 import { supabaseClient, appState } from '../config.js';
-import { esc, safeUrl, IMG_FALLBACK } from '../utils.js';
+import {
+    esc,
+    safeUrl,
+    IMG_FALLBACK,
+    kmhANudos,
+    calcularMotorExpertoPaddleSafe
+} from '../utils.js';
 
 // Cache ligero en memoria para no saturar APIs meteorológicas en la misma sesión
 const weatherCache = new Map();
+const ICONOS_SEGURIDAD = {
+    'SEGURO': '🟢',
+    'PRECAUCIÓN': '🟡',
+    'RIESGO ELEVADO': '🟠',
+    'PELIGROSO': '🔴',
+    'RIESGO EXTREMO': '⛔'
+};
+const ICONOS_DERIVA = {
+    'BAJO': '🟢',
+    'MODERADO': '🟡',
+    'ALTO': '🟠',
+    'MUY ALTO': '🔴',
+    'EXTREMO': '⛔'
+};
 
 export const ClubEvents = {
     async render(container, clubId, isMember = true, isAdmin = false) {
@@ -290,7 +310,14 @@ export const ClubEvents = {
                 return;
             }
 
-            const verdictClass = data.veredictoNivel === 'seguro' ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800' : (data.veredictoNivel === 'alerta' ? 'text-rose-500 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800' : 'text-amber-500 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800');
+            const verdictClass = {
+                'SEGURO': 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800',
+                'PRECAUCIÓN': 'text-amber-500 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800',
+                'RIESGO ELEVADO': 'text-orange-500 bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800',
+                'PELIGROSO': 'text-rose-500 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800',
+                'RIESGO EXTREMO': 'text-red-700 bg-red-100 dark:bg-red-950/40 border-red-300 dark:border-red-800'
+            }[data.veredictoNivel];
+            const vientoNudos = kmhANudos(data.viento);
 
             weatherEl.innerHTML = `
                 <div class="flex items-center justify-between gap-2 flex-wrap">
@@ -298,13 +325,17 @@ export const ClubEvents = {
                         <span class="text-base">${data.iconoClima}</span>
                         <span class="font-black text-slate-700 dark:text-slate-200">${data.temp}°C</span>
                         <span class="text-slate-300 dark:text-slate-600">•</span>
-                        <span class="font-bold text-slate-600 dark:text-slate-300">🌬️ ${data.viento} km/h (${data.dirViento})</span>
+                        <span class="font-bold text-slate-600 dark:text-slate-300">🌬️ ${vientoNudos === null ? 'N/D' : `${vientoNudos.toFixed(1)} kt`} (${data.dirViento})</span>
+                        ${data.rachasNudos !== null ? `<span class="font-bold text-rose-500">Rachas ${data.rachasNudos.toFixed(1)} kt</span>` : ''}
                         ${data.oleaje ? `<span class="text-slate-300 dark:text-slate-600">•</span><span class="font-bold text-sky-500">🌊 ${data.oleaje} m</span>` : ''}
                     </div>
                     <span class="px-2 py-0.5 rounded text-[10px] font-black border uppercase tracking-wider ${verdictClass}">
                         ${data.veredictoTexto}
                     </span>
-                </div>`;
+                </div>
+                <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                    ${ICONOS_DERIVA[data.riesgoDeriva.nivel]} Deriva ${esc(data.riesgoDeriva.nivel)} (${data.riesgoDeriva.score}/100): ${esc(data.riesgoDeriva.descripcion)}
+                </p>`;
         } catch (err) {
             console.warn('[club.events] fallo previsão:', err);
             weatherEl.innerHTML = `<span class="text-[10px] text-slate-400 font-bold">Previsión marina temporalmente fuera de cobertura.</span>`;
@@ -347,6 +378,8 @@ export const ClubEvents = {
         });
 
         const wind = Number(wxData.hourly.windspeed_10m[idx] || 0);
+        const gustRaw = wxData.hourly.windgusts_10m[idx];
+        const gusts = gustRaw === null || gustRaw === undefined ? null : Number(gustRaw);
         const windDirDeg = Number(wxData.hourly.winddirection_10m[idx] || 0);
         const temp = Math.round(Number(wxData.hourly.temperature_2m[idx] || 20));
         const code = Number(wxData.hourly.weathercode[idx] || 0);
@@ -370,27 +403,25 @@ export const ClubEvents = {
         else if ([80, 81, 82].includes(code)) iconoClima = '🌦️';
         else if ([95, 96, 99].includes(code)) iconoClima = '⛈️';
 
-        // Veredicto
-        let veredictoNivel = 'seguro';
-        let veredictoTexto = '🟢 Mar Apto';
-        const waveNum = wave ? parseFloat(wave) : 0;
-
-        if (wind > 18 || waveNum > 0.9) {
-            veredictoNivel = 'alerta';
-            veredictoTexto = '🔴 Desaconsejado';
-        } else if (wind > 12 || waveNum > 0.5) {
-            veredictoNivel = 'precaucion';
-            veredictoTexto = '🟡 Precaución';
-        }
+        const motor = calcularMotorExpertoPaddleSafe({
+            vientoKmh: wind,
+            rachasKmh: gusts,
+            olaM: wave === null ? null : Number(wave),
+            direccionViento: windDirDeg,
+            tormenta: [95, 96, 99].includes(code) ? 'posible' : null
+        });
 
         const res = {
             viento: wind.toFixed(0),
+            rachasNudos: kmhANudos(gusts),
             dirViento,
             temp,
             oleaje: wave,
             iconoClima,
-            veredictoNivel,
-            veredictoTexto
+            veredictoNivel: motor.seguridad.nivel,
+            veredictoTexto: `${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${motor.seguridad.nivel} · ${motor.seguridad.score}/100`,
+            seguridad: motor.seguridad,
+            riesgoDeriva: motor.riesgoDeriva
         };
 
         weatherCache.set(cacheKey, res);
@@ -460,4 +491,3 @@ export const ClubEvents = {
         }
     }
 };
-

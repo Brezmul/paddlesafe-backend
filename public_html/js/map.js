@@ -2,8 +2,29 @@
 // js/map.js - MAPA, TRAZADOS, CLIMA Y TRACKING GPS
 // ====================================================
 import { supabaseClient, appState, BACKEND_API_URL } from './config.js';
-import { fetchConTimeout, esc, formatearTiempo, calcularVeredicto } from './utils.js';
+import {
+    fetchConTimeout,
+    esc,
+    formatearTiempo,
+    calcularVeredicto,
+    kmhANudos
+} from './utils.js';
 import { ClubState } from './club/state.js';
+
+const ICONOS_SEGURIDAD = {
+    'SEGURO': '🟢',
+    'PRECAUCIÓN': '🟡',
+    'RIESGO ELEVADO': '🟠',
+    'PELIGROSO': '🔴',
+    'RIESGO EXTREMO': '⛔'
+};
+const ICONOS_DERIVA = {
+    'BAJO': '🟢',
+    'MODERADO': '🟡',
+    'ALTO': '🟠',
+    'MUY ALTO': '🔴',
+    'EXTREMO': '⛔'
+};
 
 
 function crearFranjaForecast(horaSalida, duracionMinutos = 120) {
@@ -380,29 +401,71 @@ export function evaluarVientoRelativoInfo(rumboNavegacion, direccionVientoOrigen
 }
 
 export function evaluarAlertasGlobales(d, v, o, p, pL) {
-    let act = false; let desc = "Aviso AEMET"; let nvl = "ALERTA OFICIAL";
+    let desc = "Aviso AEMET"; let nvl = "ALERTA OFICIAL";
     if(d) {
         const ab = d.aemet || d.alerta_aemet || d.alertas || d.alerts;
         if(ab && (typeof ab === 'string' ? ab.length > 0 : (Array.isArray(ab) && ab.length > 0))) {
-            act = true;
             if(typeof ab === 'string') desc = ab;
             else desc = ab[0].descripcion || ab[0].event || ab[0].headline || "Alerta Meteorológica Activa";
             const descLower = desc.toLowerCase();
             if(descLower.includes("rojo") || descLower.includes("extremo")) nvl = "ROJA";
             else if(descLower.includes("naranja") || descLower.includes("importante") || descLower.includes("tormenta")) nvl = "NARANJA";
             else if(descLower.includes("amarillo") || descLower.includes("precaución")) nvl = "AMARILLA";
+            return { activa: true, origen: 'AEMET', nivel: nvl, tipo: desc };
         }
     }
-    if(act) {
-        let badgeColor = nvl === "ROJA" ? "bg-red-700" : (nvl === "NARANJA" ? "bg-red-600" : "bg-amber-500");
-        return { activa: true, origen: 'AEMET', nivel: nvl, tipo: desc, c: "from-red-600 to-orange-800 shadow-[0_0_20px_rgba(220,38,38,0.4)]", textStyle: "text-white", badgeColor: badgeColor, ico: "🚨" };
-    }
-    if(v >= 35 || o >= 2.0) return { activa: true, origen: 'EXTREMO', nivel: "ROJA", tipo: "Riesgo Extremo. No salir.", c: "from-blue-600 to-indigo-800 shadow-[0_0_20px_rgba(59,130,246,0.4)]", textStyle: "text-orange-300", badgeColor: "bg-red-600", ico: "🌊" };
-    if(v >= 28 || o >= 1.2) return { activa: true, origen: 'EXTREMO', nivel: "NARANJA", tipo: "Riesgo Costero Activo.", c: "from-blue-600 to-indigo-800 shadow-[0_0_20px_rgba(59,130,246,0.4)]", textStyle: "text-yellow-300", badgeColor: "bg-amber-600", ico: "⚠️" };
-    const cl = d && d.clima ? d.clima.toLowerCase() : "";
-    if(p > 0 || pL > 60 || cl.includes("lluvia") || cl.includes("tormenta")) return { activa: true, origen: 'LLUVIA', nivel: "PELIGROSO", tipo: "Tormenta o Lluvia Activa", c: "from-blue-600 to-indigo-800 shadow-[0_0_20px_rgba(59,130,246,0.4)]", textStyle: "text-blue-300", badgeColor: "bg-blue-500", ico: "⛈️" };
-    if(pL > 40) return { activa: true, origen: 'LLUVIA', nivel: "PRECAUCIÓN", tipo: "Alta Prob. Lluvia (>40%)", c: "from-blue-600 to-indigo-800 shadow-[0_0_20px_rgba(59,130,246,0.4)]", textStyle: "text-sky-300", badgeColor: "bg-sky-500", ico: "🌧️" };
     return { activa: false };
+}
+
+function obtenerMotorExperto(dx) {
+    const vientoMs = Number(dx.windSpeed ?? dx.wind_speed);
+    const rachasMs = Number(dx.windGusts ?? dx.wind_gusts);
+    const vientoKmh = Number.isFinite(vientoMs) ? vientoMs * 3.6 : NaN;
+    const rachasKmh = Number.isFinite(rachasMs) ? rachasMs * 3.6 : NaN;
+    const oleajeRaw = dx.waveHeight ?? dx.wave_height;
+    const oleajeM = oleajeRaw === null || oleajeRaw === undefined || oleajeRaw === ''
+        ? null
+        : Number(oleajeRaw);
+    const alerta = evaluarAlertasGlobales(dx, vientoKmh, oleajeM, dx.precipitation, dx.precipProbability);
+    const textoClima = `${dx.clima || ''} ${alerta.tipo || ''}`.toLowerCase();
+    const weatherCode = Number(dx.weatherCode ?? dx.weather_code);
+    const tormenta = /tormentas? inminent[ea]|actividad eléctrica activa|rayos detectados/.test(textoClima)
+        ? 'inminente'
+        : /tormenta|thunderstorm|lightning/.test(textoClima) || [95, 96, 99].includes(weatherCode)
+            ? 'posible' : null;
+    const componenteViento = dx.componenteViento ?? dx.windComponent ?? null;
+    const direccionRaw = dx.windDirection;
+    const direccionViento = direccionRaw === null || direccionRaw === undefined || direccionRaw === ''
+        ? null
+        : Number.isFinite(Number(direccionRaw)) ? Number(direccionRaw) : null;
+
+    return calcularVeredicto({
+        alerta,
+        vientoKmh,
+        rachasKmh,
+        olaM: oleajeM,
+        direccionViento,
+        componenteViento,
+        tormenta
+    });
+}
+
+function renderizarAvisoSuperior(motor) {
+    const contenedor = document.getElementById('global-alert-container');
+    if (!contenedor) return;
+    const estilos = {
+        'SEGURO': 'border-emerald-500/40 bg-emerald-50 text-emerald-800',
+        'PRECAUCIÓN': 'border-yellow-500/40 bg-yellow-50 text-yellow-800',
+        'RIESGO ELEVADO': 'border-orange-500/40 bg-orange-50 text-orange-800',
+        'PELIGROSO': 'border-red-500/40 bg-red-50 text-red-800',
+        'RIESGO EXTREMO': 'border-red-700 bg-red-100 text-red-900'
+    };
+    contenedor.innerHTML = `
+        <div class="rounded-xl border p-3 text-sm ${estilos[motor.seguridad.nivel]}">
+            <strong>${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${esc(motor.seguridad.nivel)} · Seguridad ${motor.seguridad.score}/100</strong>
+            <p class="mt-1">${esc(motor.mensaje)}</p>
+            <p class="mt-1 text-xs"><strong>${ICONOS_DERIVA[motor.riesgoDeriva.nivel]} Deriva ${esc(motor.riesgoDeriva.nivel)} (${motor.riesgoDeriva.score}/100):</strong> ${esc(motor.riesgoDeriva.descripcion)}</p>
+        </div>`;
 }
 
 export async function consultarBasico() {
@@ -451,30 +514,33 @@ export async function consultarBasico() {
         
         if(p.datos) {
             const dx = p.datos;
-            const wk = (dx.windSpeed * 3.6).toFixed(1);
+            const vientoMs = Number(dx.windSpeed ?? dx.wind_speed);
+            const vientoKmh = Number.isFinite(vientoMs) ? vientoMs * 3.6 : NaN;
+            const vientoNudos = kmhANudos(vientoKmh);
             const wv = (dx.waveHeight != null && Number.isFinite(parseFloat(dx.waveHeight))) ? parseFloat(dx.waveHeight).toFixed(1) : null;
             const pm = dx.precipitation || 0;
             const pl = dx.precipProbability || 0;
             
-            document.getElementById("basicWindSpeed").textContent = `${wk} km/h`;
+            document.getElementById("basicWindSpeed").textContent = vientoNudos === null ? 'N/D' : `${vientoNudos.toFixed(1)} kt`;
             document.getElementById("basicWave").textContent = wv !== null ? `${wv} m` : 'N/D';
             document.getElementById("basicPrecip").textContent = `${pm} mm`;
             document.getElementById("basicPrecipProb").textContent = `Prob: ${pl}%`;
             
-            const cardD = ["N","NE","E","SE","S","SO","O","NO"]; const idir = Math.round(dx.windDirection / 45) % 8;
-            document.getElementById("basicWindDir").innerHTML = `<div class="wind-arrow text-emerald-500 drop-shadow-sm w-4 h-4" style="transform: rotate(${dx.windDirection || 0}deg);"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.25a.75.75 0 0 1 .75.75v16.19l4.72-4.72a.75.75 0 1 1 1.06 1.06l-6 6a.75.75 0 0 1-1.06 0l-6-6a.75.75 0 1 1 1.06-1.06l4.72 4.72V3a.75.75 0 0 1 .75-.75Z" /></svg></div> ${cardD[idir]} (${Math.round(dx.windDirection)}°)`;
+            const cardD = ["N","NE","E","SE","S","SO","O","NO"];
+            const direccion = Number(dx.windDirection);
+            const hayDireccion = dx.windDirection !== null && dx.windDirection !== undefined
+                && dx.windDirection !== '' && Number.isFinite(direccion);
+            const idir = hayDireccion ? Math.round((((direccion % 360) + 360) % 360) / 45) % 8 : null;
+            document.getElementById("basicWindDir").innerHTML = `<div class="wind-arrow text-emerald-500 drop-shadow-sm w-4 h-4" style="transform: rotate(${hayDireccion ? direccion : 0}deg);"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.25a.75.75 0 0 1 .75.75v16.19l4.72-4.72a.75.75 0 1 1 1.06 1.06l-6 6a.75.75 0 0 1-1.06 0l-6-6a.75.75 0 1 1 1.06-1.06l4.72 4.72V3a.75.75 0 0 1 .75-.75Z" /></svg></div> ${hayDireccion ? `${cardD[idir]} (${Math.round(direccion)}°)` : 'Dirección N/D'}`;
             
-            const a = evaluarAlertasGlobales(dx, wk, wv, pm, pl);
+            const motor = obtenerMotorExperto(dx);
             const lElBasic = document.getElementById("basicLevel");
-            const veredicto = calcularVeredicto({
-                alerta: a, vientoKmh: parseFloat(wk), olaM: wv !== null ? parseFloat(wv) : NaN,
-                rachasKmh: dx.windGusts != null ? Number(dx.windGusts) * 3.6 : NaN, nivelUsuario: u
-            });
             
-            lElBasic.className = `text-sm font-black text-center w-full px-2 py-1 ${veredicto.cls}`; 
-            lElBasic.textContent = veredicto.estado;
-            res.innerHTML = `<strong>📍 ${esc((p.received?.location || loc).split(',')[0])}</strong><br>📅 ${esc(p.received?.date || d)} | 🕒 ${esc(p.received?.timeRange || r)}<br><br>💡 <strong>Veredicto:</strong> ${esc(veredicto.mensaje)}`;
-            solicitarCoachIABasico(dx, u, loc);
+            lElBasic.className = `text-sm font-black text-center w-full px-2 py-1 ${motor.cls}`;
+            lElBasic.textContent = `${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${motor.seguridad.nivel}`;
+            renderizarAvisoSuperior(motor);
+            res.innerHTML = `<strong>📍 ${esc((p.received?.location || loc).split(',')[0])}</strong><br>📅 ${esc(p.received?.date || d)} | 🕒 ${esc(p.received?.timeRange || r)}<br><br>💡 <strong>Veredicto:</strong> ${esc(motor.mensaje)}`;
+            solicitarCoachIABasico(dx, u, loc, motor);
         }
     } catch(e) { 
         res.innerHTML = `<strong>No se pudo cargar el pronóstico.</strong> ${esc(e?.message || 'Revisa tu conexión e inténtalo de nuevo.')}`;
@@ -567,19 +633,24 @@ export async function consultarRutaPro() {
 
 export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, lat, lon, fechaD) {
     datosMeteoActuales = dx;
-    const wkVal = dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0);
-    const wk = (wkVal * 3.6).toFixed(1);
-    const wv = (dx.waveHeight !== undefined && dx.waveHeight !== null) ? parseFloat(dx.waveHeight).toFixed(1) : (dx.wave_height ? parseFloat(dx.wave_height).toFixed(1) : null);
+    const wkVal = Number(dx.windSpeed ?? dx.wind_speed);
+    const windKmh = Number.isFinite(wkVal) ? wkVal * 3.6 : NaN;
+    const windKnots = kmhANudos(windKmh);
+    const wvRaw = dx.waveHeight ?? dx.wave_height;
+    const wv = wvRaw !== null && wvRaw !== undefined && wvRaw !== '' && Number.isFinite(Number(wvRaw))
+        ? Number(wvRaw).toFixed(1) : null;
     const wPeriod = dx.wavePeriod !== undefined ? dx.wavePeriod : (dx.wave_period !== undefined ? dx.wave_period : "--");
     const pm = (dx.precipitation !== undefined && dx.precipitation !== null && dx.precipitation !== "") ? dx.precipitation : 0;
     const pl = (dx.precipProbability !== undefined && dx.precipProbability !== null && dx.precipProbability !== "") ? dx.precipProbability : (dx.precipitation_probability || 0);
-    let gustsVal = dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.4));
-    let gusts = (gustsVal * 3.6).toFixed(1);
+    const gustsVal = Number(dx.windGusts ?? dx.wind_gusts);
+    const gustsKmh = Number.isFinite(gustsVal) ? gustsVal * 3.6
+        : Number.isFinite(wkVal) ? wkVal * 1.4 * 3.6 : NaN;
+    const gustsKnots = kmhANudos(gustsKmh);
     const uv = (dx.uvIndex !== undefined && dx.uvIndex !== null) ? dx.uvIndex : (dx.uv_index !== undefined ? dx.uv_index : "--");
     
     let uvText = uv >= 8 ? "MUY ALTO" : (uv >= 5 ? "ALTO" : (uv > 0 ? "MODERADO" : "--"));
-    document.getElementById('proDashWind').innerHTML = `${wk} <span class="text-[10px] text-slate-500">km/h</span>`;
-    document.getElementById('proDashGusts').innerHTML = `Rachas: ${gusts}`;
+    document.getElementById('proDashWind').innerHTML = `${windKnots === null ? 'N/D' : windKnots.toFixed(1)} <span class="text-[10px] text-slate-500">kt</span>`;
+    document.getElementById('proDashGusts').innerHTML = `Rachas: ${gustsKnots === null ? 'N/D' : `${gustsKnots.toFixed(1)} kt`}`;
     document.getElementById('proDashDirIcon').style.transform = `rotate(${dx.windDirection || 0}deg)`;
     document.getElementById('proDashDirText').innerHTML = `${Math.round(dx.windDirection || 0)}°`;
     document.getElementById('proDashWave').innerHTML = `${wv !== null ? wv : 'N/D'} <span class="text-[10px] text-sky-900">m</span>`;
@@ -684,34 +755,23 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
             </div>`;
     }
     
-    const a = evaluarAlertasGlobales(dx, wk, wv, pm, pl);
+    const motor = obtenerMotorExperto(dx);
     const lElPro = document.getElementById("proStatusVerdict");
-    let est = "✅ RUTA SEGURA PARA TU NIVEL", clsPro = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50";
-    if (a.activa) {
-        if(a.origen === 'AEMET') {
-            est = `⛔ PROHIBIDO SALIR (${a.nivel})`; clsPro = "bg-red-600 text-white animate-pulse shadow-glow border-red-700";
-        } else if(a.nivel === "ROJA" || a.nivel === "NARANJA" || a.nivel === "PELIGROSO") {
-            est = "⛔ PELIGROSO (RIESGO EXTREMO)"; clsPro = "bg-red-500/20 text-red-400 border border-red-500/50";
-        } else if(a.nivel === "PRECAUCIÓN") {
-            est = "⚠️ PRECAUCIÓN (LLUVIA/VIENTO)"; clsPro = "bg-yellow-500/20 text-yellow-400 border border-yellow-500/50";
-        }
-    } else {
-        const vl = parseFloat(wk), ol = wv || 0;
-        if(userLvl === "Principiante" && (vl > 12 || ol > 0.3)) {
-            est = "⛔ PELIGROSO PARA PRINCIPIANTES"; clsPro = "bg-red-500/20 text-red-400 border border-red-500/50";
-        } else if(userLvl === "Intermedio" && (vl > 14 || ol > 0.8)) {
-            est = "⛔ PELIGROSO PARA INTERMEDIOS"; clsPro = "bg-red-500/20 text-red-400 border border-red-500/50";
-        } else if(vl > 20 || ol > 0.9) {
-            est = "⛔ CONDICIONES EXTREMAS"; clsPro = "bg-red-500/20 text-red-400 border border-red-500/50";
-        }
-    }
-    lElPro.className = `px-6 py-3 rounded-xl sm:rounded-full text-sm font-black w-full text-center uppercase tracking-widest transition-all duration-300 ${clsPro}`;
-    lElPro.textContent = est;
+    const clasesPro = {
+        'SEGURO': 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50',
+        'PRECAUCIÓN': 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50',
+        'RIESGO ELEVADO': 'bg-orange-500/20 text-orange-400 border border-orange-500/50',
+        'PELIGROSO': 'bg-red-500/20 text-red-400 border border-red-500/50',
+        'RIESGO EXTREMO': 'bg-red-600 text-white animate-pulse shadow-glow border-red-700'
+    };
+    renderizarAvisoSuperior(motor);
+    lElPro.className = `px-6 py-3 rounded-xl sm:rounded-full text-sm font-black w-full text-center uppercase tracking-widest transition-all duration-300 ${clasesPro[motor.seguridad.nivel]}`;
+    lElPro.textContent = `${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${motor.seguridad.nivel} · ${motor.seguridad.score}/100 · ${ICONOS_DERIVA[motor.riesgoDeriva.nivel]} DERIVA ${motor.riesgoDeriva.nivel} ${motor.riesgoDeriva.score}/100`;
     document.getElementById('proPlanificador').classList.replace('flex','hidden');
     document.getElementById('proDashboardResumen').classList.remove('hidden'); document.getElementById('proDashboardResumen').classList.add('flex');
     const isoLlamada = `${fechaD}T${horaSalida}:00`;
     cargarPrevisionHorariaExacta(lat, lon, isoLlamada, tt > 0 ? tt : 120);
-    solicitarCoachIAPro(dx, userLvl, dt, tt, lat, lon, fechaD, horaSalida, tramosParaCoach);
+    solicitarCoachIAPro(dx, userLvl, dt, tt, lat, lon, fechaD, horaSalida, tramosParaCoach, motor);
 }
 
 export async function cargarPrevisionHorariaExacta(lat, lon, startISO, durationMinutes) {
@@ -737,11 +797,13 @@ export async function cargarPrevisionHorariaExacta(lat, lon, startISO, durationM
             const horaLabel = new Date(t + 'Z').toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
             const wind = Number(wx.hourly.windspeed_10m[i]);
             const gust = Number(wx.hourly.windgusts_10m[i]);
+            const windKt = kmhANudos(wind);
+            const gustKt = kmhANudos(gust);
             const wave = num(olas.get(t), 1);
             const rain = num(wx.hourly.precipitation_probability[i]);
             const uv = num(wx.hourly.uv_index[i], 1);
-            const colorViento = wind > 20 ? 'text-red-400' : (wind > 12 ? 'text-yellow-400' : 'text-emerald-400');
-            const colorRachas = gust > 25 ? 'text-red-500' : 'text-slate-300';
+            const colorViento = windKt > 20 ? 'text-red-400' : (windKt >= 12 ? 'text-yellow-400' : 'text-emerald-400');
+            const colorRachas = gustKt > 20 ? 'text-red-500' : 'text-slate-300';
             const fila = (label, valor, color, unidad = '') => `
                     <div class="flex justify-between items-center text-[10px] mb-1">
                         <span class="text-slate-400 font-bold uppercase tracking-wider">${label}</span>
@@ -750,8 +812,8 @@ export async function cargarPrevisionHorariaExacta(lat, lon, startISO, durationM
             return `
                 <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 min-w-[120px] flex-shrink-0 shadow-sm">
                     <span class="block ${colorViento} font-black text-center border-b border-slate-700 pb-1 mb-2 text-sm">${esc(horaLabel)}</span>
-                    ${fila('Viento', num(wind), 'text-white', 'km/h')}
-                    ${fila('Rachas', num(gust), colorRachas, 'km/h')}
+                    ${fila('Viento', num(windKt, 1), 'text-white', 'kt')}
+                    ${fila('Rachas', num(gustKt, 1), colorRachas, 'kt')}
                     ${fila('Oleaje', wave, 'text-sky-400', 'm')}
                     ${fila('Lluvia', rain, 'text-indigo-300', '%')}
                     ${fila('UV', uv, 'text-amber-400')}
@@ -1472,16 +1534,22 @@ export function restaurarTracker() {
 // COACH (MOTOR INTELIGENTE SUP)
 // ==========================================
 
-export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos, lat, lon, fechaD, horaSalida, tramosData = []) {
+export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos, lat, lon, fechaD, horaSalida, tramosData = [], motor = obtenerMotorExperto(dx)) {
     const bodyCont = document.getElementById('proCoachBody');
     const badgeLvl = document.getElementById('proCoachLevelBadge');
     if (!bodyCont) return;
 
     if (badgeLvl) badgeLvl.textContent = `Nivel: ${userLvl || 'Intermedio'}`;
 
-    const wkVal = dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0);
-    const gustsVal = dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35));
-    const wv = (dx.waveHeight !== undefined && dx.waveHeight !== null) ? parseFloat(dx.waveHeight) : (dx.wave_height ? parseFloat(dx.wave_height) : 0);
+    const wkVal = Number(dx.windSpeed ?? dx.wind_speed);
+    const gustsVal = Number(dx.windGusts ?? dx.wind_gusts);
+    const direccionViento = dx.windDirection === null || dx.windDirection === undefined || dx.windDirection === ''
+        ? null
+        : Number.isFinite(Number(dx.windDirection)) ? Number(dx.windDirection) : null;
+    const wvRaw = dx.waveHeight ?? dx.wave_height;
+    const wv = wvRaw === null || wvRaw === undefined || wvRaw === '' ? null : Number(wvRaw);
+    const windKmh = Number.isFinite(wkVal) ? wkVal * 3.6 : null;
+    const gustsKmh = Number.isFinite(gustsVal) ? gustsVal * 3.6 : null;
     const wPeriod = (dx.wavePeriod !== undefined && dx.wavePeriod !== null && dx.wavePeriod !== "--") ? parseFloat(dx.wavePeriod) : 0;
     const tempAireValue = dx.tempAire || dx.temperature || dx.temp || "N/D";
     const tempAguaValue = dx.tempAgua || dx.waterTemperature || dx.water_temp || "N/D";
@@ -1491,10 +1559,13 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
 
     const payload = {
         condiciones: {
-            viento: Number((wkVal * 3.6).toFixed(1)),
-            rachas: Number((gustsVal * 3.6).toFixed(1)),
-            direccion: Number(dx.windDirection) || 0,
-            oleaje: Number(wv.toFixed(1)),
+            viento: windKmh === null ? null : Number(windKmh.toFixed(1)),
+            rachas: gustsKmh === null ? null : Number(gustsKmh.toFixed(1)),
+            vientoNudos: motor.vientoNudos,
+            rachasNudos: kmhANudos(gustsKmh),
+            direccion: direccionViento,
+            componenteViento: dx.componenteViento ?? dx.windComponent ?? null,
+            oleaje: wv === null ? null : Number(wv.toFixed(1)),
             periodo: Number(wPeriod),
             tempAire: tempAireValue,
             tempAgua: tempAguaValue,
@@ -1508,11 +1579,14 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
             lat,
             lon
         },
-        userLevel: userLvl || "Intermedio"
+        userLevel: userLvl || "Intermedio",
+        seguridad: motor.seguridad,
+        riesgoDeriva: motor.riesgoDeriva,
+        factoresCriticos: motor.factoresCriticos
     };
 
     // 1. RENDERIZADO INMEDIATO (0ms): Sin tiempos de espera ni bloqueos ("pensando")
-    renderizarCoachProFallbackLocal(payload.condiciones, userLvl, tramosData);
+    renderizarCoachProFallbackLocal({ ...payload.condiciones, motorExperto: motor }, userLvl, tramosData);
 
     // 2. Consulta en segundo plano opcional y no bloqueante
     try {
@@ -1523,21 +1597,62 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
         }, 2500);
 
         const data = await resp.json();
-        if (data.ok && data.coach && (data.coach.resumen || data.coach.veredicto)) {
-            renderizarCoachProCard(data.coach, data.fuente, userLvl);
+        const coach = data.coach ? normalizarUnidadesCoach(data.coach) : null;
+        if (data.ok && coach && (coach.resumen || coach.veredicto)
+            && !coachContradiceMotor(coach, motor)) {
+            renderizarCoachProCard(coach, data.fuente, userLvl, motor);
         }
     } catch (e) {
         // Silencioso: el análisis experto completo ya está visible al usuario desde el milisegundo 0
     }
 }
 
-export function renderizarCoachProCard(coach, fuente, userLvl) {
+function coachContradiceMotor(coach, motor) {
+    const texto = JSON.stringify(coach).toLowerCase();
+    const rango = ['SEGURO', 'PRECAUCIÓN', 'RIESGO ELEVADO', 'PELIGROSO', 'RIESGO EXTREMO']
+        .indexOf(motor.seguridad.nivel);
+    const afirmaSeguro = /\b(seguro|seguros|aceptable|aceptables|navegable|navegables|apropiado|apropiada|recomendable|condiciones favorables|puedes salir)\b/i.test(texto);
+    const afirmaPeligro = /\b(riesgo extremo|peligroso|peligrosa|no salir|salida desaconsejada|no recomendable)\b/i.test(texto);
+    return (rango >= 2 && afirmaSeguro) || (rango < 2 && afirmaPeligro);
+}
+
+function normalizarUnidadesCoach(valor) {
+    if (typeof valor === 'string') {
+        return valor
+            .replace(/(\d+(?:[.,]\d+)?)\s*(?:-|–|a)\s*(\d+(?:[.,]\d+)?)\s*km\/h/gi, (_match, desde, hasta) => {
+                const inicioKt = kmhANudos(Number(desde.replace(',', '.')));
+                const finKt = kmhANudos(Number(hasta.replace(',', '.')));
+                return `${inicioKt.toFixed(1)}-${finKt.toFixed(1)} kt`;
+            })
+            .replace(/(\d+(?:[.,]\d+)?)\s*(?:km\/h|kmh)\b/gi, (_match, velocidad) => {
+                const nudos = kmhANudos(Number(velocidad.replace(',', '.')));
+                return nudos === null ? _match : `${nudos.toFixed(1)} kt`;
+            });
+    }
+    if (Array.isArray(valor)) return valor.map(normalizarUnidadesCoach);
+    if (valor && typeof valor === 'object') {
+        return Object.fromEntries(Object.entries(valor).map(([clave, dato]) => [clave, normalizarUnidadesCoach(dato)]));
+    }
+    return valor;
+}
+
+export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
     const bodyCont = document.getElementById('proCoachBody');
     const badgeLvl = document.getElementById('proCoachLevelBadge');
     const badgeScore = document.getElementById('proCoachScoreBadge');
     if (!bodyCont || !coach) return;
 
-    const score = Math.max(0, Math.min(100, Math.round(Number(coach.score) || 70)));
+    const score = motor?.seguridad.score
+        ?? Math.max(0, Math.min(100, Math.round(Number(coach.score) || 70)));
+    if (motor) {
+        coach = {
+            ...coach,
+            score,
+            veredicto: `${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${motor.seguridad.nivel}`,
+            resumen: coach.resumen || motor.mensaje,
+            seguridad_estrategia: [...motor.factoresCriticos,             `${ICONOS_DERIVA[motor.riesgoDeriva.nivel]} Deriva ${motor.riesgoDeriva.nivel} (${motor.riesgoDeriva.score}/100): ${motor.riesgoDeriva.descripcion}`]
+        };
+    }
     let scoreBadgeCls = "bg-emerald-950/80 text-emerald-300 border-emerald-500/40";
     let scoreBarBg = "bg-emerald-500";
     let scoreIcon = "🟢";
@@ -1555,7 +1670,7 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
     if (badgeLvl) badgeLvl.textContent = `Nivel: ${userLvl || 'Intermedio'}`;
     if (badgeScore) {
         badgeScore.className = `text-xs font-black font-mono px-2.5 py-1 rounded-lg border flex items-center gap-1 ${scoreBadgeCls}`;
-        badgeScore.innerHTML = `<span>${scoreIcon}</span> Score SUP: ${score}/100`;
+        badgeScore.innerHTML = `<span>${scoreIcon}</span> Seguridad: ${score}/100`;
     }
 
     // Normalización defensiva de dureza
@@ -1788,36 +1903,41 @@ export function renderizarCoachProCard(coach, fuente, userLvl) {
 }
 
 export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) {
-    let score = 85;
+    const motor = cond.motorExperto || calcularVeredicto({
+        vientoKmh: cond.viento,
+        rachasKmh: cond.rachas,
+        olaM: cond.oleaje,
+        direccionViento: cond.direccion,
+        componenteViento: cond.componenteViento
+    });
     const seg = [];
     const tec = [];
     const mat = [];
 
     const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
-    const cardIdx = Math.round((((cond.direccion || 0) % 360) + 360) % 360 / 45) % 8;
-    const cardinal = dirs[cardIdx];
+    const hayDireccion = cond.direccion !== null && cond.direccion !== undefined
+        && Number.isFinite(Number(cond.direccion));
+    const cardIdx = hayDireccion ? Math.round((((Number(cond.direccion) % 360) + 360) % 360) / 45) % 8 : null;
+    const cardinal = hayDireccion ? dirs[cardIdx] : 'dirección no disponible';
 
-    const isOffshore = ((cond.direccion || 0) >= 150 && (cond.direccion || 0) <= 240);
+    const isOffshore = cond.componenteViento === 'offshore';
+    const vientoNudos = cond.vientoNudos ?? kmhANudos(cond.viento);
 
-    if (cond.viento >= 18) {
-        score -= 40;
-        seg.push(`⛔ Viento fuerte (${cond.viento} km/h). Remar contra el viento en la ida con máxima precaución.`);
+    if (vientoNudos !== null && vientoNudos >= 16) {
+        seg.push(`Viento fuerte (${vientoNudos} kt). Mantén una ruta de retorno segura y reduce la exposición.`);
         tec.push("Flexiona rodillas y baja el centro de gravedad. Remada más corta y frecuente en la zona de proa.");
-    } else if (cond.viento >= 12) {
-        score -= 20;
-        seg.push(`Viento moderado (${cond.viento} km/h de componente ${cardinal}). Planifica la ida contra el viento.`);
+    } else if (vientoNudos !== null && vientoNudos >= 12) {
+        seg.push(`Viento de ${vientoNudos} kt (${cardinal}). Planifica la ida contra el viento.`);
         tec.push("Adelanta la fase de agarre de la pala e inclina el torso levemente hacia el viento.");
     } else {
         tec.push("Excelente para trabajar rotación de tronco (core) y cadencia regular (45-50 SPM).");
     }
 
-    if (isOffshore && cond.viento >= 10) {
-        score -= 20;
+    if (isOffshore && vientoNudos !== null && vientoNudos >= 5) {
         seg.push(`🚨 Alerta Viento Offshore (${cardinal}): Sopla hacia mar adentro. No te alejes de la orilla.`);
     }
 
     if (cond.oleaje > 0.8) {
-        score -= 25;
         seg.push(`Oleaje de ${cond.oleaje}m: Cuidado al embarcar y desembarcar en orilla.`);
         tec.push("Postura escalonada con pies no alineados horizontalmente para ganar estabilidad en mar movido.");
     } else {
@@ -1825,7 +1945,6 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
     }
 
     if (userLvl === "Principiante" && (cond.viento > 11 || cond.oleaje > 0.4)) {
-        score -= 25;
         seg.push("Como principiante, manténte a menos de 100m de costa y cerca de zonas resguardadas.");
         tec.push("Si sientes inestabilidad o ráfagas repentinas, pasa a posición de rodillas de inmediato.");
     }
@@ -1846,7 +1965,7 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
 
     let durezaTexto = scoreDureza >= 7 ? "Alta / Exigente" : (scoreDureza >= 4.5 ? "Moderada / Intermedia" : "Baja / Plácida");
     let durezaDesc = scoreDureza >= 6
-        ? `Ruta con demanda física notable (${scoreDureza}/10). La combinación de ${dist > 0 ? dist + ' km' : 'distancia'} con viento de ${cond.viento} km/h generará fatiga muscular en hombros y piernas tras los primeros 30 minutos.`
+        ? `Ruta con demanda física notable (${scoreDureza}/10). La combinación de ${dist > 0 ? dist + ' km' : 'distancia'} con viento de ${vientoNudos} kt exige dosificar el esfuerzo.`
         : `Sesión de demanda física asequible (${scoreDureza}/10). Buenas condiciones para completar la distancia con ritmo estable y sin sobrecargas musculares.`;
 
     // Estrategia de viento local
@@ -1860,16 +1979,20 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
         }
     }
 
-    const rumboDownwind = Math.round(((cond.direccion || 0) + 180) % 360);
-    const cardDownwind = dirs[Math.round(((rumboDownwind % 360) + 360) % 360 / 45) % 8];
+    const rumboDownwind = hayDireccion ? Math.round((Number(cond.direccion) + 180) % 360) : null;
+    const cardDownwind = hayDireccion ? dirs[Math.round(((rumboDownwind % 360) + 360) % 360 / 45) % 8] : null;
 
     const tramoFacilTxt = tramoFavor
         ? `El tramo más fácil será "${tramoFavor.nombre}" (rumbo ${tramoFavor.rumbo}°): contarás con viento a favor (downwind) de componente ${cardinal} que impulsará tu avance con mínimo esfuerzo.`
-        : `Navegar con rumbo ~${rumboDownwind}° (${cardDownwind}) será el momento más fácil y fluido gracias al viento a favor empujando la popa.`;
+        : hayDireccion
+            ? `Navegar con rumbo ~${rumboDownwind}° (${cardDownwind}) será el momento más fácil y fluido gracias al viento a favor empujando la popa.`
+            : 'La dirección del viento no está disponible para identificar el tramo más favorable.';
 
     const tramoDuroTxt = tramoContra
-        ? `Atención al tramo "${tramoContra.nombre}": remarás contra viento (${cond.viento} km/h). Rema inclinado hacia proa y baja el centro de gravedad.`
-        : `Evita regresar con rumbo directo hacia el viento (${cardinal}) cuando estés cansado; planifica bordadas suaves pegadas a la orilla.`;
+        ? `Atención al tramo "${tramoContra.nombre}": remarás contra viento (${vientoNudos} kt). Rema inclinado hacia proa y baja el centro de gravedad.`
+        : hayDireccion
+            ? `Evita regresar con rumbo directo hacia el viento (${cardinal}) cuando estés cansado; planifica bordadas suaves pegadas a la orilla.`
+            : 'La dirección del viento no está disponible; consulta el parte actualizado antes de elegir el rumbo.';
 
     const peligrosZona = [];
     if (isOffshore && cond.viento >= 10) {
@@ -1895,12 +2018,10 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
         consejosNivelLoc.push("Mantén monitoreo constante de la evolución de las rachas de viento y salidas de emergencia en la costa.");
     }
 
-    score = Math.max(15, Math.min(100, score));
-
     const coachLocal = {
-        score,
-        veredicto: score >= 75 ? "CONDICIONES APROPIADAS PARA SUP" : (score >= 50 ? "PRECAUCIÓN Y ATENCIÓN ACTIVA" : "CONDICIONES EXIGENTES - EVALÚA SALIR"),
-        resumen: `Análisis para nivel ${userLvl}: Viento de ${cond.viento} km/h (${cardinal}) y oleaje de ${cond.oleaje}m. Planifica tu navegación adaptando tu ritmo a la dirección del viento.`,
+        score: motor.seguridad.score,
+        veredicto: `${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${motor.seguridad.nivel}`,
+        resumen: motor.mensaje,
         dureza_ruta: {
             nivel: `${durezaTexto} (${scoreDureza}/10)`,
             descripcion: durezaDesc
@@ -1916,7 +2037,11 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
             recomendacion_seguridad: "Navega respetando distancia con bañistas y mantén línea de costa a la vista."
         },
         consejos_nivel: consejosNivelLoc,
-        seguridad_estrategia: seg,
+        seguridad_estrategia: [
+            ...motor.factoresCriticos,
+            `${ICONOS_DERIVA[motor.riesgoDeriva.nivel]} Deriva ${motor.riesgoDeriva.nivel} (${motor.riesgoDeriva.score}/100): ${motor.riesgoDeriva.descripcion}`,
+            ...seg
+        ],
         tecnica_postura: tec,
         material_recomendado: mat,
         regla_oro: userLvl === "Principiante"
@@ -1924,18 +2049,24 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
             : "Reserva siempre un 30% de tus fuerzas y agua para el tramo final del regreso."
     };
 
-    renderizarCoachProCard(coachLocal, "coach-experto-sup (instantáneo)", userLvl);
+    renderizarCoachProCard(coachLocal, "coach-experto-sup (instantáneo)", userLvl, motor);
 }
 
-export async function solicitarCoachIABasico(dx, userLvl, loc) {
+export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMotorExperto(dx)) {
     const cont = document.getElementById('basicCoachContainer');
     if (!cont) return;
 
     cont.classList.remove('hidden');
 
-    const wkVal = dx.windSpeed !== undefined ? dx.windSpeed : (dx.wind_speed || 0);
-    const gustsVal = dx.windGusts !== undefined && dx.windGusts !== null ? dx.windGusts : (dx.wind_gusts || (wkVal * 1.35));
-    const wv = (dx.waveHeight !== undefined && dx.waveHeight !== null) ? parseFloat(dx.waveHeight) : (dx.wave_height ? parseFloat(dx.wave_height) : 0);
+    const wkVal = Number(dx.windSpeed ?? dx.wind_speed);
+    const gustsVal = Number(dx.windGusts ?? dx.wind_gusts);
+    const direccionViento = dx.windDirection === null || dx.windDirection === undefined || dx.windDirection === ''
+        ? null
+        : Number.isFinite(Number(dx.windDirection)) ? Number(dx.windDirection) : null;
+    const wvRaw = dx.waveHeight ?? dx.wave_height;
+    const wv = wvRaw === null || wvRaw === undefined || wvRaw === '' ? null : Number(wvRaw);
+    const vientoKmh = Number.isFinite(wkVal) ? wkVal * 3.6 : null;
+    const rachasKmh = Number.isFinite(gustsVal) ? gustsVal * 3.6 : null;
     const wPeriod = (dx.wavePeriod !== undefined && dx.wavePeriod !== null && dx.wavePeriod !== "--") ? parseFloat(dx.wavePeriod) : 0;
     const tempAireValue = dx.tempAire || dx.temperature || dx.temp || "N/D";
     const tempAguaValue = dx.tempAgua || dx.waterTemperature || dx.water_temp || "N/D";
@@ -1945,10 +2076,13 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
 
     const payload = {
         condiciones: {
-            viento: Number((wkVal * 3.6).toFixed(1)),
-            rachas: Number((gustsVal * 3.6).toFixed(1)),
-            direccion: Number(dx.windDirection) || 0,
-            oleaje: Number(wv.toFixed(1)),
+            viento: vientoKmh === null ? null : Number(vientoKmh.toFixed(1)),
+            rachas: rachasKmh === null ? null : Number(rachasKmh.toFixed(1)),
+            vientoNudos: motor.vientoNudos,
+            rachasNudos: kmhANudos(rachasKmh),
+            direccion: direccionViento,
+            componenteViento: dx.componenteViento ?? dx.windComponent ?? null,
+            oleaje: wv === null ? null : Number(wv.toFixed(1)),
             periodo: Number(wPeriod),
             tempAire: tempAireValue,
             tempAgua: tempAguaValue,
@@ -1957,37 +2091,25 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
             uv: Number(uv),
             ubicacion: loc || "Spot de Costa"
         },
-        userLevel: userLvl || "Intermedio"
+        userLevel: userLvl || "Intermedio",
+        seguridad: motor.seguridad,
+        riesgoDeriva: motor.riesgoDeriva,
+        factoresCriticos: motor.factoresCriticos
     };
-
-    // Renderizado local instantáneo a 0ms (sin bloqueo ni espera)
-    const v = payload.condiciones.viento;
-    const o = payload.condiciones.oleaje;
-    const dir = payload.condiciones.direccion;
-    const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
-    const cardinal = dirs[Math.round(((dir % 360) + 360) % 360 / 45) % 8];
-    const downwindDir = Math.round((dir + 180) % 360);
-    const cardDownwind = dirs[Math.round(((downwindDir % 360) + 360) % 360 / 45) % 8];
 
     cont.innerHTML = `
         <div class="flex flex-col gap-2">
             <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
                 <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">✨ Coach (${esc(userLvl || 'Intermedio')})</span>
-                <span class="text-[10px] text-slate-400 font-mono">Consejo Inmediato</span>
+                <span class="text-[10px] text-slate-400 font-mono">Motor Experto PaddleSafe</span>
             </div>
-            <p class="text-xs text-slate-200 leading-relaxed">
-                ${v > 14 
-                    ? `Viento notable de ${v} km/h (${cardinal}): Comienza navegando en contra del viento para que la vuelta sea con viento a favor (downwind) y menos exigente.` 
-                    : `Viento plácido (${v} km/h) y mar accesible (${o}m): Condiciones idóneas para trabajar cadencia fluida y rotación del core.`}
-            </p>
-            <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
-                <span class="shrink-0">💨</span>
-                <span><strong>Momento más fácil:</strong> Con rumbo ~${downwindDir}° (${cardDownwind}) tendrás viento en popa que empujará la tabla.</span>
+            <p class="text-sm font-black text-white">${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${esc(motor.seguridad.nivel)} · ${motor.seguridad.score}/100</p>
+            <p class="text-xs text-slate-200 leading-relaxed">${esc(motor.mensaje)}</p>
+            <div class="text-[11px] text-sky-300 flex items-start gap-1.5 bg-sky-950/40 p-2 rounded-lg border border-sky-500/20">
+                <span class="shrink-0">🛡️</span>
+                <span><strong>${ICONOS_DERIVA[motor.riesgoDeriva.nivel]} Deriva ${esc(motor.riesgoDeriva.nivel)} (${motor.riesgoDeriva.score}/100):</strong> ${esc(motor.riesgoDeriva.descripcion)}</span>
             </div>
-            <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20">
-                <span class="shrink-0">💡</span>
-                <span class="italic font-semibold">Regla del 30%: Reserva siempre un tercio de tu energía y agua para el regreso a la orilla.</span>
-            </div>
+            <p class="text-[11px] text-slate-300">${esc(motor.factoresCriticos.join(' '))}</p>
         </div>
     `;
 
@@ -2000,9 +2122,10 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
         }, 2000);
 
         const data = await resp.json();
-        if (data.ok && data.coach && (data.coach.resumen || data.coach.veredicto)) {
-            const coach = data.coach;
-            const score = Math.max(0, Math.min(100, Math.round(Number(coach.score) || 70)));
+        const coach = data.coach ? normalizarUnidadesCoach(data.coach) : null;
+        if (data.ok && coach && (coach.resumen || coach.veredicto)
+            && !coachContradiceMotor(coach, motor)) {
+            const score = motor.seguridad.score;
             let scoreCls = score >= 75 ? "text-emerald-400" : (score >= 45 ? "text-amber-400" : "text-rose-400");
 
             cont.innerHTML = `
@@ -2012,18 +2135,15 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
                             <span class="text-base">✨</span>
                             <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">Coach (${esc(userLvl || 'Intermedio')})</span>
                         </div>
-                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 ${scoreCls} border border-slate-700 font-bold">Score: ${score}/100</span>
+                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 ${scoreCls} border border-slate-700 font-bold">${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${esc(motor.seguridad.nivel)} · ${score}/100</span>
                     </div>
                     <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(coach.resumen || '')}</p>
+                    <p class="text-[11px] text-slate-300">${esc(motor.mensaje)}</p>
+                    <p class="text-[11px] text-sky-300">${ICONOS_DERIVA[motor.riesgoDeriva.nivel]} Deriva ${esc(motor.riesgoDeriva.nivel)} (${motor.riesgoDeriva.score}/100): ${esc(motor.riesgoDeriva.descripcion)}</p>
                     ${coach.estrategia_viento && coach.estrategia_viento.tramo_facil ? `
                     <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
                         <span class="shrink-0">💨</span>
                         <span><strong>Viento a favor:</strong> ${esc(coach.estrategia_viento.tramo_facil)}</span>
-                    </div>` : ''}
-                    ${coach.seguridad_estrategia && coach.seguridad_estrategia[0] ? `
-                    <div class="text-[11px] text-sky-300 flex items-start gap-1.5 bg-sky-950/40 p-2 rounded-lg border border-sky-500/20">
-                        <span class="shrink-0">🛡️</span>
-                        <span>${esc(coach.seguridad_estrategia[0])}</span>
                     </div>` : ''}
                     ${coach.regla_oro ? `
                     <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20">
@@ -2034,7 +2154,7 @@ export async function solicitarCoachIABasico(dx, userLvl, loc) {
             `;
         }
     } catch (e) {
-        // Silencioso: el usuario ya tiene la tarjeta del Coach cargada
+        console.warn('[solicitarCoachIABasico] No se pudo obtener la explicación del Coach:', e);
     }
 }
 
