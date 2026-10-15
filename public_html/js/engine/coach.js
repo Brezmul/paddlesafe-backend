@@ -64,7 +64,60 @@ export function generarConsejoCoach({
         };
     }
 
-    // 2. Extracción de variables físicas normalizadas (sin exponerlas como números brutos)
+    // 2. PRIORIDAD ABSOLUTA: Alertas oficiales de emergencias (Veto Infranqueable - Prohibido salir a remar)
+    const esEmergencia = Boolean(
+        motor?.alertaEmergenciaActiva
+        || motor?.nextGen?.alertaEmergenciaActiva
+        || motor?.nextGen?.estado === 'Prohibido salir por emergencia'
+        || motor?.recomendacion === 'PROHIBIDO POR EMERGENCIA'
+        || motor?.aemet?.alertas?.some(a =>
+            a.esEspecial ||
+            /^1-?1-?2/i.test(a.origen || '') ||
+            /protecci[oó]n\s*civil/i.test(a.origen || a.tipo || '') ||
+            ['NARANJA', 'ROJA'].includes(String(a.nivel || '').toUpperCase()) ||
+            Boolean(a.urlDoc)
+        )
+        || (condiciones.alertaOficial?.activa && (
+            condiciones.alertaOficial.esEspecial ||
+            /^1-?1-?2/i.test(condiciones.alertaOficial.origen || '') ||
+            ['NARANJA', 'ROJA'].includes(String(condiciones.alertaOficial.nivel || '').toUpperCase())
+        ))
+    );
+
+    if (esEmergencia) {
+        const aut = motor?.aemet?.autoridad?.nombre
+            || motor?.aemet?.alertas?.find(a => /^1-?1-?2/i.test(a?.origen || ''))?.origen
+            || 'Protección Civil / 112';
+        return {
+            score: 0,
+            veredicto: "⛔ PROHIBIDO SALIR A REMAR",
+            resumen: `Existe una ALERTA OFICIAL DE EMERGENCIAS ACTIVA emitida por ${aut}. Queda terminantemente prohibido y desaconsejado entrar al agua. Bajo situación de emergencia meteorológica o costera, las condiciones marinas se vuelven impredecibles y el riesgo de ser arrastrado mar adentro por avenidas súbitas o corrientes violentas es extremo. La regla de oro es cancelar la salida y permanecer en tierra firme.`,
+            dureza_ruta: {
+                nivel: "Salida Prohibida",
+                descripcion: "Riesgo vital por emergencia costera oficial. Ninguna condición ni técnica compensa el peligro de navegar bajo alerta de Protección Civil."
+            },
+            estrategia_viento: {
+                tramo_facil: "No aplica.",
+                tramo_exigente: "Condiciones de emergencia costera incompatibles con la navegación deportiva.",
+                consejo_pacing: "Permanece en tierra y respeta las indicaciones de las autoridades de emergencia."
+            },
+            analisis_deriva: "Riesgo crítico de corrientes de arrastre mar adentro, avenidas de agua en desembocaduras y oleaje súbito.",
+            consejos_nivel: [
+                "Bajo alerta oficial de emergencias, ningún nivel de experiencia garantiza tu seguridad en el agua.",
+                "Cancela de inmediato la salida y no te acerques a espigones, rompeolas ni zonas de desembocadura."
+            ],
+            consejo_instructor: `🚨 ALERTA OFICIAL DE EMERGENCIAS (${aut}): Prohibido salir al agua. La primera regla de seguridad de un deportista náutico responsable es no entrar al mar cuando Protección Civil decreta alerta.`,
+            seguridad_estrategia: [
+                "Salida cancelada por protocolo de Protección Civil y Emergencias.",
+                "Permanece en tierra firme y sigue las indicaciones oficiales del 112."
+            ],
+            tecnica_postura: ["No aplica."],
+            material_recomendado: ["Ropa seca y estancia protegida fuera de la línea de costa."],
+            regla_oro: "Cuando el 112 decreta alerta de emergencias, el mar no se negocia: nos quedamos en tierra."
+        };
+    }
+
+    // 3. Extracción de variables físicas normalizadas (sin exponerlas como números brutos)
     const vKt = condiciones.vientoNudos ?? (condiciones.viento ? kmhANudos(condiciones.viento) : (motor?.vientoNudos ?? 0));
     const rKt = condiciones.rachasNudos ?? (condiciones.rachas ? kmhANudos(condiciones.rachas) : vKt);
     const oleajeM = Number(condiciones.oleaje ?? condiciones.waveHeight ?? motor?.nextGen?.detallesTecnicos?.oleajeM ?? 0);

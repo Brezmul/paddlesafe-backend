@@ -39,6 +39,12 @@ export const ESTADOS_VEREDICTO = {
         icono: '⛔',
         badgeCls: 'bg-red-950 text-white border-red-600 animate-pulse',
         cardBorder: 'border-red-600 bg-red-950/40'
+    },
+    ALERTA_EMERGENCIA: {
+        titulo: 'Prohibido salir por emergencia',
+        icono: '⛔',
+        badgeCls: 'bg-red-950 text-red-200 border-red-600 animate-pulse shadow-lg',
+        cardBorder: 'border-red-600 bg-red-950/60'
     }
 };
 
@@ -48,12 +54,14 @@ export const CLASES_RIESGO = {
     'Condiciones exigentes': 'text-orange-600 bg-orange-50 border border-orange-200 rounded-lg',
     'No recomendado': 'text-red-700 bg-red-100 border border-red-400 rounded-lg',
     'Tormenta eléctrica': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg',
+    'Prohibido salir por emergencia': 'text-red-500 font-black animate-pulse bg-red-950/80 border border-red-600 rounded-lg',
     // Compatibilidad legacy
     'SEGURO': 'text-emerald-500 bg-emerald-50 border border-emerald-200 rounded-lg',
     'PRECAUCIÓN': 'text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-lg',
     'RIESGO ELEVADO': 'text-orange-600 bg-orange-50 border border-orange-200 rounded-lg',
     'PELIGROSO': 'text-red-500 bg-red-50 border border-red-200 rounded-lg',
-    'RIESGO EXTREMO': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg'
+    'RIESGO EXTREMO': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg',
+    'PROHIBIDO': 'text-red-600 animate-pulse bg-red-950/80 border border-red-600 rounded-lg'
 };
 
 export const ICONOS_SEGURIDAD = {
@@ -62,12 +70,14 @@ export const ICONOS_SEGURIDAD = {
     'Condiciones exigentes': '🟠',
     'No recomendado': '🔴',
     'Tormenta eléctrica': '⛔',
+    'Prohibido salir por emergencia': '⛔',
     'SEGURO': '🟢',
     'PRECAUCIÓN': '🟡',
     'RIESGO ELEVADO': '🟠',
     'PELIGROSO': '🔴',
     'RIESGO EXTREMO': '⛔',
-    'NO RECOMENDADO': '⛔'
+    'NO RECOMENDADO': '⛔',
+    'PROHIBIDO': '⛔'
 };
 
 /**
@@ -177,6 +187,7 @@ export function generarVeredictoNextGen(params = {}) {
             analysisConfidence: 95,
             confianzaAnalisis: 95,
             tormentaElectrica: true,
+            alertaEmergenciaActiva: false,
             aemet: alertaOficial || { activa: false, disponible: false },
             vientoNudos: vientoKt ?? 0,
             detallesTecnicos: {
@@ -198,6 +209,93 @@ export function generarVeredictoNextGen(params = {}) {
         };
         resultadoTormenta.nextGen = resultadoTormenta;
         return resultadoTormenta;
+    }
+
+    // 2. REGLA ABSOLUTA: Alerta Oficial de Emergencias (112 / Protección Civil / AEMET Naranja o Roja) - PROHIBIDO SALIR A REMAR
+    const esAlertaEmergencia = Boolean(
+        params.alertaEmergencia
+        || params.alertaEmergencias
+        || (alertaOficial?.activa && (
+            alertaOficial.esEspecial ||
+            /^1-?1-?2/i.test(alertaOficial.origen || '') ||
+            /protecci[oó]n\s*civil/i.test(alertaOficial.origen || alertaOficial.tipo || '') ||
+            ['NARANJA', 'ROJA'].includes(String(alertaOficial.nivel || '').toUpperCase()) ||
+            Boolean(alertaOficial.urlDoc) ||
+            /emergencia|inundaci|avenida|temporal\s*costero|galerna|ciclon|borrasca/i.test(`${alertaOficial.tipo || ''} ${alertaOficial.descripcion || ''}`)
+        ))
+        || alertasArray.some(a => 
+            a?.esEspecial || 
+            /^1-?1-?2/i.test(a?.origen || '') || 
+            /protecci[oó]n\s*civil/i.test(a?.origen || a?.tipo || '') ||
+            ['NARANJA', 'ROJA'].includes(String(a?.nivel || '').toUpperCase()) ||
+            Boolean(a?.urlDoc) ||
+            /emergencia|inundaci|avenida|temporal\s*costero|galerna|ciclon|borrasca/i.test(`${a?.tipo || ''} ${a?.descripcion || ''}`)
+        )
+    );
+
+    if (esAlertaEmergencia) {
+        const confEstado = ESTADOS_VEREDICTO.ALERTA_EMERGENCIA || ESTADOS_VEREDICTO.NO_RECOMENDADO;
+        const alertaPrioritaria = alertasArray.find(a => /^1-?1-?2/i.test(a?.origen || '')) || alertaOficial || alertasArray[0] || {};
+        const nombreAutoridad = alertaPrioritaria.origen || 'Protección Civil / 112';
+        const planEmergencias = alertaPrioritaria.plan || 'Plan Especial de Emergencias y Protección Civil';
+
+        const factoresCriticos = [
+            `🚨 ALERTA OFICIAL DE EMERGENCIAS (${nombreAutoridad}): Salida a remar estrictamente desaconsejada y prohibida.`,
+            `Activado protocolo bajo el ${planEmergencias}: riesgo severo en el litoral marítimo.`,
+            'Prohibido entrar al agua por corrientes súbitas de arrastre, oleaje peligroso y riesgo extremo de rescate.'
+        ];
+
+        const resultadoEmergencia = {
+            estado: confEstado.titulo,
+            icono: confEstado.icono,
+            claseUI: confEstado,
+            cls: CLASES_RIESGO[confEstado.titulo] || 'text-red-500 font-black animate-pulse bg-red-950/80 border border-red-600 rounded-lg',
+            scoreSeguridad: 0,
+            score: 0,
+            seguridad: { nivel: confEstado.titulo, score: 0 },
+            respuestaDirecta: '⛔ PROHIBIDO SALIR A REMAR',
+            recomendacion: 'PROHIBIDO POR EMERGENCIA',
+            justificacion: `Existe una ALERTA OFICIAL DE EMERGENCIAS ACTIVA emitida por ${nombreAutoridad}. Queda terminantemente prohibido salir a remar debido al riesgo vital extremo, corrientes de arrastre y condiciones marítimas adversas. Por seguridad, permanece en tierra firme.`,
+            mensaje: `Existe una ALERTA OFICIAL DE EMERGENCIAS ACTIVA emitida por ${nombreAutoridad}. Queda terminantemente prohibido salir a remar debido al riesgo vital extremo, corrientes de arrastre y condiciones marítimas adversas. Por seguridad, permanece en tierra firme.`,
+            explicacionNautica: `Alerta oficial de emergencias decretada por ${nombreAutoridad}. Queda prohibida la actividad náutica. Respeta las indicaciones de las autoridades y no te acerques a espigones ni desembocaduras.`,
+            factoresCriticos,
+            analysisConfidence: 99,
+            confianzaAnalisis: 99,
+            tormentaElectrica: false,
+            alertaEmergenciaActiva: true,
+            aemet: alertaOficial || { activa: true, disponible: true },
+            vientoNudos: vientoKt ?? 0,
+            detallesTecnicos: {
+                vientoKt,
+                rachasKt,
+                oleajeM,
+                alerta: `Alerta oficial de emergencias activa (${nombreAutoridad})`
+            },
+            beginnerIndex: {
+                nivel: 'Prohibido por Emergencia',
+                score: 0,
+                color: 'text-red-600 bg-red-100 border-red-500 font-bold',
+                motivo: 'Alerta oficial de emergencias activa (112 / Protección Civil). Queda prohibida la actividad.',
+                consejo: 'Bajo alerta oficial de emergencias está terminantemente prohibido salir al agua.'
+            },
+            deporte: {
+                deporte: deporteKey,
+                recomendable: false,
+                estado: 'Prohibido por Emergencia',
+                motivo: `Alerta oficial de emergencias activa (${nombreAutoridad}). Navegación desaconsejada y prohibida por riesgo extremo.`,
+                consejo: 'Cancela de inmediato la salida y permanece en tierra firme.'
+            },
+            ventanas: null,
+            ventanaRecomendada: null,
+            consenso: null,
+            deriva: null,
+            riesgoDeriva: { nivel: 'EXTREMO', score: 100, descripcion: 'Riesgo crítico de corrientes de arrastre mar adentro y rompiente por situación de emergencia.' },
+            derivaCostera: null,
+            componenteCostera: { componente: 'desconocida', anguloIncidencia: 0 },
+            entorno: 'costa'
+        };
+        resultadoEmergencia.nextGen = resultadoEmergencia;
+        return resultadoEmergencia;
     }
 
     // 2. Resolver orientación costera y vector de viento

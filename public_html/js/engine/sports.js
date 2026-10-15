@@ -65,8 +65,19 @@ export function calcularBeginnerIndex({
     rachasKt = 0,
     oleajeM = 0,
     componente = 'side-shore',
-    esCosta = true
+    esCosta = true,
+    alertaEmergencia = false
 }) {
+    if (alertaEmergencia) {
+        return {
+            nivel: 'Prohibido por Emergencia',
+            color: 'text-red-500 font-bold bg-red-950/80 border border-red-600',
+            score: 0,
+            motivo: 'Alerta oficial de emergencias activa (112 / Protección Civil). Queda prohibida la actividad.',
+            consejo: 'Bajo alerta oficial de emergencias está terminantemente prohibido salir al agua.'
+        };
+    }
+
     const isOffshore = esCosta && componente === 'offshore';
 
     if (vientoKt > 13 || rachasKt > 17 || oleajeM > 0.8 || (isOffshore && vientoKt > 7)) {
@@ -131,12 +142,22 @@ export function evaluarCondicionesDeporte({
     oleajeM = 0,
     periodoOlaS = 0,
     swellM = 0,
-    componente = 'side-shore'
+    componente = 'side-shore',
+    alertaEmergencia = false
 }) {
     const deporte = DEPORTES[deporteKey] || DEPORTES.paddle_surf;
     const nivelNorm = ['Principiante', 'Intermedio', 'Avanzado', 'Competicion'].includes(nivelUsuario)
         ? nivelUsuario
         : 'Intermedio';
+
+    if (alertaEmergencia) {
+        return {
+            recomendable: false,
+            estado: 'Prohibido por Emergencia',
+            motivo: 'Alerta oficial de emergencias activa (112 / Protección Civil). Navegación desaconsejada y prohibida por riesgo extremo.',
+            consejo: 'Cancela de inmediato la salida y permanece en tierra firme siguiendo las indicaciones de las autoridades.'
+        };
+    }
 
     const maxV = deporte.vientoMax[nivelNorm] || 12;
     const maxO = deporte.olaMax ? (deporte.olaMax[nivelNorm] || 0.6) : 99;

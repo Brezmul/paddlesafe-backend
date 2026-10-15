@@ -9,7 +9,16 @@
  * @param {Array<Object>} horasPronostico Array de objetos { hora: '08:00', vientoKt, rachasKt, oleajeM, lluviaMm, weatherCode }
  * @param {string} userLevel 'Principiante' | 'Intermedio' | 'Avanzado'
  */
-export function detectarVentanasOptimas(horasPronostico = [], userLevel = 'Intermedio') {
+export function detectarVentanasOptimas(horasPronostico = [], userLevel = 'Intermedio', alertaEmergencia = false) {
+    if (alertaEmergencia) {
+        return {
+            hayVentana: false,
+            textoResumen: 'Alerta oficial de emergencias activa. Prohibido salir a remar durante toda la jornada.',
+            mejorVentana: null,
+            evolucionAviso: 'Protección Civil / 112 ha activado alerta de emergencia en la costa. Queda suspendida cualquier ventana de navegación.'
+        };
+    }
+
     if (!Array.isArray(horasPronostico) || horasPronostico.length === 0) {
         return {
             hayVentana: false,

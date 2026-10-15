@@ -1023,8 +1023,18 @@ export function evaluarAlertasGlobales(d) {
     alertas.sort((a, b) => niveles[b.nivel] - niveles[a.nivel]);
     const tiene112 = alertas.some(item => /^1-?1-?2/i.test(item.origen || ''));
     const primer112 = alertas.find(item => /^1-?1-?2/i.test(item.origen || ''));
+    const esEmergencia = alertas.some(item =>
+        item.esEspecial ||
+        /^1-?1-?2/i.test(item.origen || '') ||
+        /protecci[oó]n\s*civil/i.test(item.origen || '') ||
+        /protecci[oó]n\s*civil/i.test(item.tipo || '') ||
+        /emergencia|inundaci|avenida|temporal\s*costero|galerna/i.test(item.tipo || '') ||
+        ['NARANJA', 'ROJA'].includes(String(item.nivel || '').toUpperCase()) ||
+        Boolean(item.urlDoc)
+    );
     const alerta = {
         activa: alertas.length > 0,
+        esEmergencia,
         disponible: disponibles,
         origen: tiene112 ? primer112.origen : (alertas.length > 0 && alertas.every(item => item.origen === 'AEMET') ? 'AEMET' : 'METEOROLÓGICA'),
         alertas,
@@ -1087,6 +1097,7 @@ function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
         modelosPronostico: dx.consenso || null,
         horasDiurnas: dx.horasDiurnas || null,
         alerta,
+        alertaEmergencia: alerta.esEmergencia,
         tormenta
     });
 }
@@ -1150,6 +1161,9 @@ function renderizarAvisoSuperior(motor) {
                         </strong>
                         <span class="text-[10px] font-black uppercase font-mono px-2 py-0.5 rounded bg-${colorNivel}-200 text-${colorNivel}-900 border border-${colorNivel}-300">Nivel ${esc(nivelAlerta)}</span>
                     </div>
+                    <div class="bg-red-600 text-white font-black text-xs px-3 py-1.5 rounded-lg flex items-center justify-center gap-1.5 shadow-md animate-pulse">
+                        ⛔ PROHIBIDO SALIR A REMAR POR SITUACIÓN DE EMERGENCIA
+                    </div>
                     <strong class="text-xs font-bold text-slate-900 leading-snug">${esc(titulo)}</strong>
                     <p class="text-xs text-slate-700 leading-relaxed">${esc(a.descripcion)}</p>
                     <div class="bg-amber-100/80 border border-amber-300 rounded-lg p-2.5 text-[11px] text-amber-900 font-medium">
@@ -1166,6 +1180,10 @@ function renderizarAvisoSuperior(motor) {
                             <span class="animate-pulse text-base">🚨</span> AVISO DE EMERGENCIAS Y PROTECCIÓN CIVIL (${esc(nombreOrg.toUpperCase())})
                         </span>
                         <span class="text-[10px] font-black uppercase font-mono px-2.5 py-0.5 rounded-full bg-${colorNivel}-600 text-white shadow-sm">Nivel ${esc(nivelAlerta)}</span>
+                    </div>
+                    <div class="bg-red-600/90 border border-red-500 text-white font-black text-xs px-3 py-2 rounded-xl flex items-center justify-center gap-2 shadow-lg animate-pulse">
+                        <span class="text-base">⛔</span>
+                        <span>PROHIBIDO SALIR A REMAR POR SITUACIÓN DE EMERGENCIA OFICIAL</span>
                     </div>
                     <div class="flex flex-col gap-1">
                         <strong class="text-sm font-bold text-white">${esc(titulo)}</strong>
@@ -1272,8 +1290,13 @@ function renderizarResumenExperto(motor, prefijo = 'basic') {
     const icono = ICONOS_SEGURIDAD[motor.seguridad.nivel] || '⚠️';
 
     if (nivel) {
-        nivel.className = `text-sm font-black text-center w-full px-2 py-1 ${motor.cls || ''}`;
-        nivel.textContent = `${icono} ${motor.seguridad.nivel} · ${motor.seguridad.score}/100 · ${motor.recomendacion}`;
+        if (motor.alertaEmergenciaActiva) {
+            nivel.className = `text-sm font-black text-center w-full px-2 py-1.5 bg-red-600 text-white rounded-lg shadow-md animate-pulse`;
+            nivel.textContent = `🚨 PROHIBIDO SALIR A REMAR · 0/100 · ALERTA 112 ACTIVA`;
+        } else {
+            nivel.className = `text-sm font-black text-center w-full px-2 py-1 ${motor.cls || ''}`;
+            nivel.textContent = `${icono} ${motor.seguridad.nivel} · ${motor.seguridad.score}/100 · ${motor.recomendacion}`;
+        }
     }
 
     if (confianza) {
@@ -1309,35 +1332,41 @@ function renderizarResumenExperto(motor, prefijo = 'basic') {
         const badges = [];
         const isDark = prefijo === 'pro';
 
-        // 1. Píldora de Mejor Ventana Horaria
-        const ventana = motor.ventanaRecomendada || motor.ventanas?.mejorVentana;
-        if (ventana && ventana.inicio && ventana.fin) {
-            const vCls = isDark
-                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700/60'
-                : 'bg-emerald-50 text-emerald-800 border-emerald-300';
-            badges.push(`<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${vCls}">
-                ⏰ Mejor ventana: ${esc(ventana.inicio)} - ${esc(ventana.fin)}
+        if (motor.alertaEmergenciaActiva) {
+            badges.push(`<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-red-600 text-white shadow-sm animate-pulse">
+                ⛔ SALIDA PROHIBIDA POR EMERGENCIA OFICIAL
             </span>`);
-        }
+        } else {
+            // 1. Píldora de Mejor Ventana Horaria
+            const ventana = motor.ventanaRecomendada || motor.ventanas?.mejorVentana;
+            if (ventana && ventana.inicio && ventana.fin) {
+                const vCls = isDark
+                    ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700/60'
+                    : 'bg-emerald-50 text-emerald-800 border-emerald-300';
+                badges.push(`<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${vCls}">
+                    ⏰ Mejor ventana: ${esc(ventana.inicio)} - ${esc(ventana.fin)}
+                </span>`);
+            }
 
-        // 2. Píldora del Índice de Iniciación
-        if (motor.beginnerIndex?.nivel) {
-            const bCls = isDark
-                ? 'bg-sky-950/80 text-sky-300 border-sky-700/60'
-                : 'bg-sky-50 text-sky-800 border-sky-300';
-            badges.push(`<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${bCls}">
-                🔰 Iniciación: ${esc(motor.beginnerIndex.nivel)}
-            </span>`);
-        }
+            // 2. Píldora del Índice de Iniciación
+            if (motor.beginnerIndex?.nivel) {
+                const bCls = isDark
+                    ? 'bg-sky-950/80 text-sky-300 border-sky-700/60'
+                    : 'bg-sky-50 text-sky-800 border-sky-300';
+                badges.push(`<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${bCls}">
+                    🔰 Iniciación: ${esc(motor.beginnerIndex.nivel)}
+                </span>`);
+            }
 
-        // 3. Píldora del Consenso Multi-modelo
-        if (motor.consenso?.nivelConsenso && motor.consenso.nivelConsenso !== 'UNICO') {
-            const cCls = isDark
-                ? 'bg-slate-800 text-slate-300 border-slate-700'
-                : 'bg-slate-100 text-slate-700 border-slate-300';
-            badges.push(`<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cCls}">
-                🎯 Consenso: ${esc(motor.consenso.nivelConsenso)} (${motor.consenso.modelosDisponibles?.join(', ') || 'Multi-modelo'})
-            </span>`);
+            // 3. Píldora del Consenso Multi-modelo
+            if (motor.consenso?.nivelConsenso && motor.consenso.nivelConsenso !== 'UNICO') {
+                const cCls = isDark
+                    ? 'bg-slate-800 text-slate-300 border-slate-700'
+                    : 'bg-slate-100 text-slate-700 border-slate-300';
+                badges.push(`<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cCls}">
+                    🎯 Consenso: ${esc(motor.consenso.nivelConsenso)} (${motor.consenso.modelosDisponibles?.join(', ') || 'Multi-modelo'})
+                </span>`);
+            }
         }
 
         badgesCont.innerHTML = badges.join('');
@@ -2476,7 +2505,7 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
 
     // 1. RENDERIZADO INMEDIATO (0ms): Sin tiempos de espera ni bloqueos ("pensando")
     renderizarCoachProFallbackLocal({ ...payload.condiciones, motorExperto: motor }, userLvl, tramosData);
-    if (motor.recomendacion === 'NO RECOMENDADO' || motor.tormentaElectrica || motor.analysisConfidence < 40) return;
+    if (motor.alertaEmergenciaActiva || motor.recomendacion === 'NO RECOMENDADO' || motor.tormentaElectrica || motor.analysisConfidence < 40) return;
 
     // 2. Consulta en segundo plano opcional y no bloqueante
     try {
@@ -2501,7 +2530,8 @@ function coachContradiceMotor(coach, motor) {
     const texto = JSON.stringify(coach).toLowerCase();
     const afirmaSeguro = /\b(seguro|seguros|navegable|navegables|condiciones ideales|puedes salir)\b/i.test(texto);
     const afirmaPeligro = /\b(riesgo extremo|peligroso|peligrosa|no salir|salida desaconsejada|no recomendable)\b/i.test(texto);
-    return (motor.recomendacion === 'NO RECOMENDADO' && afirmaSeguro)
+    return (motor.alertaEmergenciaActiva && afirmaSeguro)
+        || (motor.recomendacion === 'NO RECOMENDADO' && afirmaSeguro)
         || (motor.seguridad.nivel === 'SEGURO' && afirmaPeligro);
 }
 
@@ -2530,7 +2560,7 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
     const badgeLvl = document.getElementById('proCoachLevelBadge');
     const badgeScore = document.getElementById('proCoachScoreBadge');
     if (!bodyCont || !coach) return;
-    if (motor && (motor.recomendacion === 'NO RECOMENDADO' || motor.tormentaElectrica || motor.analysisConfidence < 40)) {
+    if (motor && (motor.alertaEmergenciaActiva || motor.recomendacion === 'NO RECOMENDADO' || motor.tormentaElectrica || motor.analysisConfidence < 40)) {
         renderizarCoachProFallbackLocal({ motorExperto: motor }, userLvl);
         return;
     }
@@ -2844,6 +2874,31 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
 export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) {
     const motor = cond.motorExperto || obtenerMotorExperto(cond, userLvl);
 
+    // 0. PRIORIDAD ABSOLUTA: Veto por alerta oficial de emergencias (112 / Protección Civil / Aviso Especial)
+    if (motor.alertaEmergenciaActiva) {
+        const body = document.getElementById('proCoachBody');
+        const badgeScore = document.getElementById('proCoachScoreBadge');
+        if (badgeScore) {
+            badgeScore.className = 'text-xs font-black font-mono px-2.5 py-1 rounded-lg border flex items-center gap-1 bg-red-950/80 text-rose-300 border-red-500/40';
+            badgeScore.innerHTML = `<span>🚨</span> Seguridad: 0/100`;
+        }
+        if (body) {
+            body.innerHTML = `
+                <div class="rounded-2xl border-2 border-red-600 bg-red-950/90 p-4 text-xs text-white shadow-xl">
+                    <p class="font-black text-sm flex items-center gap-2 text-rose-300">
+                        <span>🚨</span> ⛔ PROHIBIDO SALIR A REMAR POR SITUACIÓN DE EMERGENCIA
+                    </p>
+                    <p class="mt-2 text-slate-100 leading-relaxed font-medium">
+                        Existe una alerta oficial activa emitida por Protección Civil / 112. Las condiciones marítimas presentan un riesgo inaceptable para la vida humana (corrientes de arrastre, oleaje y dificultades extremas para rescates marítimos).
+                    </p>
+                    <div class="mt-3 p-3 rounded-xl bg-red-900/60 border border-red-500/60 text-xs text-amber-200">
+                        <strong>Directiva del Instructor ISA:</strong> Salida totalmente prohibida. Permanece en tierra firme bajo resguardo y atiende a las comunicaciones de las autoridades locales.
+                    </div>
+                </div>`;
+        }
+        return;
+    }
+
     // 1. PRIORIDAD MÁXIMA: Veto por tormenta eléctrica
     if (motor.tormentaElectrica) {
         const body = document.getElementById('proCoachBody');
@@ -2881,6 +2936,23 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
     if (!cont) return;
 
     cont.classList.remove('hidden');
+
+    // 0. PRIORIDAD ABSOLUTA: Veto por alerta oficial de emergencias (112 / Protección Civil)
+    if (motor.alertaEmergenciaActiva) {
+        cont.innerHTML = `
+            <div class="rounded-xl border-2 border-red-600 bg-red-950/90 p-3.5 text-xs text-white shadow-lg">
+                <span class="font-black text-rose-300 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <span>🚨</span> ⛔ PROHIBIDO SALIR A REMAR POR EMERGENCIA
+                </span>
+                <p class="mt-1.5 text-slate-100 leading-relaxed font-medium">
+                    Existe una alerta oficial activa de Protección Civil / 112. Queda terminantemente prohibida cualquier salida al agua por riesgo vital extremo.
+                </p>
+                <div class="mt-2 text-[11px] text-amber-200">
+                    <strong>Directiva del Instructor:</strong> Salida prohibida por seguridad oficial. Permanece en tierra firme y sigue las indicaciones de las autoridades.
+                </div>
+            </div>`;
+        return;
+    }
 
     // 1. PRIORIDAD MÁXIMA: Veto por tormenta eléctrica
     if (motor.tormentaElectrica) {
@@ -2981,6 +3053,7 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
     };
 
     renderizarContenidoBasico(coachLocal);
+    if (motor.alertaEmergenciaActiva || motor.recomendacion === 'NO RECOMENDADO' || motor.tormentaElectrica || motor.analysisConfidence < 40) return;
 
     // 3. Enriquecimiento opcional en segundo plano
     try {
