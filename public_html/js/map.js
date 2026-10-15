@@ -63,72 +63,13 @@ function crearFranjaForecast(horaSalida, duracionMinutos = 120) {
     return `Salida (${String(horaInicio).padStart(2, '0')}:00 - ${String(horaFin).padStart(2, '0')}:00)`;
 }
 
+// Caché geográfica inteligente por geohash/cuadrante (~2 km) con TTL de 15 min
+const cacheGeohashMeteo = new Map();
+const CACHE_TTL_METEO_MS = 15 * 60 * 1000;
+
 async function solicitarPronostico(payload) {
-    let datosOpenMeteo = null;
-    let errorOpenMeteo = null;
-
-    // 1. Open-Meteo Forecast + Marine como fuente principal
-    try {
-        datosOpenMeteo = await solicitarPronosticoOpenMeteo(payload);
-    } catch (errOM) {
-        errorOpenMeteo = errOM;
-        console.warn('[pronóstico] Error en consulta directa a Open-Meteo:', errOM);
-    }
-
-    // 2. Consulta al backend exclusivamente para la capa de alertas oficiales AEMET y fallback
-    let datosBackend = null;
-    try {
-        const response = await fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        }, 5000);
-
-        if (response.ok) {
-            const resJson = await response.json();
-            if (resJson?.datos && typeof resJson.datos === 'object') {
-                datosBackend = resJson.datos;
-            }
-        }
-    } catch (errBack) {
-        // Fallo de backend no bloquea el análisis si Open-Meteo respondió
-        console.info('[pronóstico] Capa AEMET/Backend no disponible en este momento. Se continúa con Open-Meteo.');
-    }
-
-    if (!datosOpenMeteo && !datosBackend) {
-        throw errorOpenMeteo || new Error("No se pudo obtener el pronóstico meteorológico. Revisa tu conexión a internet.");
-    }
-
-    // Integración de fuentes: Open-Meteo es la base meteorológica y marina; Backend aporta alertas AEMET si existen
-    const datos = {
-        ...(datosBackend || {}),
-        ...(datosOpenMeteo || {}),
-        source: 'open-meteo'
-    };
-
-    // Si backend trajo alertas explícitas de AEMET, preservarlas sin sobreescribir
-    if (datosBackend?.aemet || datosBackend?.alerta_aemet || datosBackend?.alertas || datosBackend?.warnings) {
-        datos.aemet = datosBackend.aemet || datosBackend.alerta_aemet || datos.aemet;
-        datos.alertas = datosBackend.alertas || datosBackend.warnings || datos.alertas;
-    }
-
-    registrarDiagnosticoClima('[AEMET] Integrated Response', {
-        aemet: datos.aemet,
-        alertas: datos.alertas,
-        consenso: datos.consenso?.nivelConsenso,
-        vientoSpeed: datos.windSpeed
-    });
-
-    return { ok: true, datos, received: payload };
-}
-
-async function solicitarPronosticoOpenMeteo(payload) {
-    const rango = /\((\d{2}):00\s*-\s*(\d{2}):00\)/.exec(payload.timeRange || '');
-    const horaInicio = rango ? Number(rango[1]) : 10;
-    const horaFin = rango ? Number(rango[2]) : 12;
-
-    let lat;
-    let lon;
+    let lat = null;
+    let lon = null;
     const coordenadas = String(payload.location || '').split(',').map(valor => Number(valor.trim()));
     if (coordenadas.length === 2 && coordenadas.every(Number.isFinite)
         && Math.abs(coordenadas[0]) <= 90 && Math.abs(coordenadas[1]) <= 180) {
@@ -151,10 +92,131 @@ async function solicitarPronosticoOpenMeteo(payload) {
         lon = result.longitude;
     }
 
+    // 1. Open-Meteo Forecast + Marine como fuente principal (con caché geodésica)
+    let datosOpenMeteo = null;
+    let errorOpenMeteo = null;
+    try {
+        datosOpenMeteo = await solicitarPronosticoOpenMeteo(payload, lat, lon);
+    } catch (errOM) {
+        errorOpenMeteo = errOM;
+        console.warn('[pronóstico] Error en consulta directa a Open-Meteo:', errOM);
+    }
+
+    // 2. Consulta no bloqueante de alertas oficiales AEMET y fallback de backend
+    let datosBackend = null;
+    let datosAemet = null;
+    try {
+        const [respBackend, respAemet] = await Promise.allSettled([
+            fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...payload, lat, lon })
+            }, 3500),
+            fetchConTimeout(`${BACKEND_API_URL}?action=aemet&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, {
+                method: "GET"
+            }, 3000)
+        ]);
+
+        if (respBackend.status === 'fulfilled' && respBackend.value.ok) {
+            const resJson = await respBackend.value.json();
+            if (resJson?.datos && typeof resJson.datos === 'object') {
+                datosBackend = resJson.datos;
+            }
+        }
+
+        if (respAemet.status === 'fulfilled' && respAemet.value.ok) {
+            const aemetJson = await respAemet.value.json();
+            if (aemetJson?.ok && Array.isArray(aemetJson.alertas)) {
+                datosAemet = aemetJson;
+            }
+        }
+    } catch (errBack) {
+        console.info('[pronóstico] Capa AEMET/Backend no disponible en este momento. Se continúa con Open-Meteo.');
+    }
+
+    if (!datosOpenMeteo && !datosBackend) {
+        throw errorOpenMeteo || new Error("No se pudo obtener el pronóstico meteorológico. Revisa tu conexión a internet.");
+    }
+
+    // Integración canónica de fuentes
+    const datos = {
+        ...(datosBackend || {}),
+        ...(datosOpenMeteo || {}),
+        source: 'open-meteo'
+    };
+
+    // Si AEMET devolvió respuesta oficial, integrarla directamente
+    if (datosAemet) {
+        datos.aemet = {
+            disponible: datosAemet.disponible !== false,
+            alertas: datosAemet.alertas || [],
+            activa: Array.isArray(datosAemet.alertas) && datosAemet.alertas.length > 0,
+            zona: datosAemet.zonaDetectada || null
+        };
+        datos.alertas = datosAemet.alertas || [];
+    } else if (datosBackend?.aemet || datosBackend?.alerta_aemet || datosBackend?.alertas || datosBackend?.warnings) {
+        datos.aemet = datosBackend.aemet || datosBackend.alerta_aemet || datos.aemet;
+        datos.alertas = datosBackend.alertas || datosBackend.warnings || datos.alertas;
+    }
+
+    registrarDiagnosticoClima('[AEMET] Integrated Response', {
+        aemet: datos.aemet,
+        alertas: datos.alertas,
+        consenso: datos.consenso?.nivelConsenso,
+        vientoSpeed: datos.windSpeed
+    });
+
+    return { ok: true, datos, received: payload };
+}
+
+async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, resolvedLon = null) {
+    const rango = /\((\d{2}):00\s*-\s*(\d{2}):00\)/.exec(payload.timeRange || '');
+    const horaInicio = rango ? Number(rango[1]) : 10;
+    const horaFin = rango ? Number(rango[2]) : 12;
+
+    let lat = resolvedLat;
+    let lon = resolvedLon;
+
+    if (lat === null || lon === null) {
+        const coordenadas = String(payload.location || '').split(',').map(valor => Number(valor.trim()));
+        if (coordenadas.length === 2 && coordenadas.every(Number.isFinite)
+            && Math.abs(coordenadas[0]) <= 90 && Math.abs(coordenadas[1]) <= 180) {
+            [lat, lon] = coordenadas;
+        } else {
+            const geocodingUrl = new URL('https://geocoding-api.open-meteo.com/v1/search');
+            geocodingUrl.search = new URLSearchParams({
+                name: String(payload.location || ''),
+                count: '1',
+                language: 'es',
+                format: 'json'
+            });
+            const geocodingResponse = await fetchConTimeout(geocodingUrl, { cache: 'no-store' }, 8000);
+            if (!geocodingResponse.ok) throw new Error(`Geocodificación respondió con HTTP ${geocodingResponse.status}.`);
+            const result = (await geocodingResponse.json()).results?.[0];
+            if (!Number.isFinite(result?.latitude) || !Number.isFinite(result?.longitude)) {
+                throw new Error('No se pudieron determinar coordenadas para la ubicación seleccionada.');
+            }
+            lat = result.latitude;
+            lon = result.longitude;
+        }
+    }
+
     const fechaStr = payload.date || new Date().toISOString().slice(0, 10);
+
+    // Comprobar caché geográfica inteligente (~2 km)
+    const cacheKey = `${lat.toFixed(2)}_${lon.toFixed(2)}_${fechaStr}_${horaInicio}_${horaFin}`;
+    const cached = cacheGeohashMeteo.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL_METEO_MS)) {
+        return cached.data;
+    }
+
     const zona = `latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&timezone=auto`;
 
-    // 1. Open-Meteo Forecast con modelos ECMWF, GFS e ICON + variables completas
+    // 1. Detección previa de orientación de costa / embalse
+    const infoCosta = resolverOrientacionCostera(lat, lon, payload.location);
+    const esEmbalse = infoCosta.esEmbalse || !infoCosta.esCosta;
+
+    // 2. Open-Meteo Forecast con modelos ECMWF, GFS e ICON + variables completas
     const forecastUrl = `https://api.open-meteo.com/v1/forecast?${zona}&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m,weather_code,precipitation,precipitation_probability,cloud_cover,relative_humidity_2m,surface_pressure,visibility&models=best_match,ecmwf_ifs025,gfs_seamless,icon_seamless&wind_speed_unit=ms&start_date=${fechaStr}&end_date=${fechaStr}`;
     const forecastResponse = await fetchConTimeout(forecastUrl, { cache: 'no-store' }, 10000);
     if (!forecastResponse.ok) throw new Error(`Open-Meteo respondió con HTTP ${forecastResponse.status}.`);
@@ -164,14 +226,16 @@ async function solicitarPronosticoOpenMeteo(payload) {
         throw new Error('Open-Meteo no devolvió datos horarios para el periodo seleccionado.');
     }
 
-    // 2. Open-Meteo Marine: oleaje, swell, periodo, corrientes y temperatura de agua
+    // 3. Open-Meteo Marine: solo si es costa real para evitar errores 400 y latencia innecesaria en embalses
     let marine = null;
-    try {
-        const marineUrl = `https://marine-api.open-meteo.com/v1/marine?${zona}&hourly=wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction,sea_surface_temperature,ocean_current_velocity&start_date=${fechaStr}&end_date=${fechaStr}`;
-        const marineResponse = await fetchConTimeout(marineUrl, { cache: 'no-store' }, 8000);
-        if (marineResponse.ok) marine = await marineResponse.json();
-    } catch (error) {
-        console.warn('[pronóstico] Marine API no disponible para estas coordenadas (interior/embalse).', error);
+    if (!esEmbalse) {
+        try {
+            const marineUrl = `https://marine-api.open-meteo.com/v1/marine?${zona}&hourly=wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction,sea_surface_temperature,ocean_current_velocity&start_date=${fechaStr}&end_date=${fechaStr}`;
+            const marineResponse = await fetchConTimeout(marineUrl, { cache: 'no-store' }, 8000);
+            if (marineResponse.ok) marine = await marineResponse.json();
+        } catch (error) {
+            console.warn('[pronóstico] Marine API no disponible para estas coordenadas.', error);
+        }
     }
 
     const getSeries = (name) => horas[name] || horas[`${name}_best_match`] || [];
@@ -196,8 +260,8 @@ async function solicitarPronosticoOpenMeteo(payload) {
         if (hourNum >= 7 && hourNum <= 21) {
             const speedMs = getSeries('wind_speed_10m')[index];
             const gustsMs = getSeries('wind_gusts_10m')[index];
-            const waveM = getMarineVal('wave_height', t);
-            const swellM = getMarineVal('swell_wave_height', t);
+            const waveM = esEmbalse ? 0 : getMarineVal('wave_height', t);
+            const swellM = esEmbalse ? 0 : getMarineVal('swell_wave_height', t);
             horasDiurnas.push({
                 hora: t.slice(11, 16),
                 vientoKt: speedMs != null ? kmhANudos(speedMs * 3.6) : null,
@@ -229,7 +293,7 @@ async function solicitarPronosticoOpenMeteo(payload) {
     const press = valoresSlot(getSeries('surface_pressure'));
     const visib = valoresSlot(getSeries('visibility'));
 
-    const marineValoresSlot = (name) => franjaIndices
+    const marineValoresSlot = (name) => esEmbalse ? [] : franjaIndices
         .map(i => getMarineVal(name, times[i]))
         .filter(v => v !== null && Number.isFinite(Number(v)));
 
@@ -276,27 +340,26 @@ async function solicitarPronosticoOpenMeteo(payload) {
         fallbackDirDeg: windDirection
     });
 
-    const infoCosta = resolverOrientacionCostera(lat, lon, payload.location);
     const compViento = calcularComponenteVientoAuto(lat, lon, windDirection, payload.location);
     const ventanasOptimas = detectarVentanasOptimas(horasDiurnas, payload.userLevel || 'Intermedio');
 
-    return {
+    const resultData = {
         windSpeed: vSpeed.length ? Math.max(...vSpeed) : null,
         windGusts: vGusts.length ? Math.max(...vGusts) : null,
         windDirection,
-        waveHeight: waves.length ? Math.max(...waves) : (infoCosta.esEmbalse ? 0 : null),
-        wavePeriod: periods.length ? Math.max(...periods) : null,
-        waveDirection: waveDirs.length ? waveDirs[0] : null,
-        swellHeight: swells.length ? Math.max(...swells) : null,
-        swellPeriod: swellPeriods.length ? Math.max(...swellPeriods) : null,
-        swellDirection: swellDirs.length ? swellDirs[0] : null,
-        oceanCurrent: currents.length ? Math.max(...currents) : null,
+        waveHeight: esEmbalse ? 0 : (waves.length ? Math.max(...waves) : null),
+        wavePeriod: esEmbalse ? null : (periods.length ? Math.max(...periods) : null),
+        waveDirection: esEmbalse ? null : (waveDirs.length ? waveDirs[0] : null),
+        swellHeight: esEmbalse ? null : (swells.length ? Math.max(...swells) : null),
+        swellPeriod: esEmbalse ? null : (swellPeriods.length ? Math.max(...swellPeriods) : null),
+        swellDirection: esEmbalse ? null : (swellDirs.length ? swellDirs[0] : null),
+        oceanCurrent: esEmbalse ? null : (currents.length ? Math.max(...currents) : null),
         precipitation: precip.length ? Number(precip.reduce((s, v) => s + v, 0).toFixed(2)) : 0,
         precipProbability: precipProb.length ? Math.max(...precipProb) : 0,
         weatherCode,
         clima,
         tempAire: temps.length ? Math.round(temps.reduce((s, v) => s + v, 0) / temps.length) : null,
-        tempAgua: seaTemps.length ? Math.round(seaTemps.reduce((s, v) => s + v, 0) / seaTemps.length) : null,
+        tempAgua: esEmbalse ? null : (seaTemps.length ? Math.round(seaTemps.reduce((s, v) => s + v, 0) / seaTemps.length) : null),
         cloudCover: clouds.length ? Math.round(clouds.reduce((s, v) => s + v, 0) / clouds.length) : null,
         humidity: humid.length ? Math.round(humid.reduce((s, v) => s + v, 0) / humid.length) : null,
         pressure: press.length ? Math.round(press.reduce((s, v) => s + v, 0) / press.length) : null,
@@ -311,6 +374,11 @@ async function solicitarPronosticoOpenMeteo(payload) {
         coordinates: { latitude: lat, longitude: lon },
         location: payload.location
     };
+
+    // Almacenar en caché geográfica inteligente
+    cacheGeohashMeteo.set(cacheKey, { timestamp: Date.now(), data: resultData });
+
+    return resultData;
 }
 
 function mostrarCoachPronosticoNoDisponible(container) {
@@ -756,48 +824,24 @@ function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
     const direccionViento = valorNumericoMeteo(dx.windDirection, dx.wind_direction);
     const coords = dx.coordinates || (Number.isFinite(dx.latitude) && Number.isFinite(dx.longitude) ? { latitude: dx.latitude, longitude: dx.longitude } : null);
 
-    // Detección automática de componente costera si no vino preestablecida
-    let componenteViento = dx.componenteViento ?? dx.windComponent ?? null;
-    if (!componenteViento && (coords || dx.location) && direccionViento !== null) {
-        const compAuto = calcularComponenteVientoAuto(coords?.latitude, coords?.longitude, direccionViento, dx.location);
-        componenteViento = compAuto.componente;
-    }
-
-    const entradaMotor = {
-        vientoKmh,
-        rachasKmh,
-        olaM: oleajeM,
-        periodoOla: valorNumericoMeteo(dx.wavePeriod, dx.wave_period),
-        precipitacion: valorNumericoMeteo(dx.precipitation, dx.precipitation_mm),
-        probabilidadPrecipitacion: valorNumericoMeteo(dx.precipProbability, dx.precipitation_probability),
-        direccionViento,
-        componenteViento,
-        tormenta,
-        alerta,
-        nivelUsuario
-    };
-
-    registrarDiagnosticoClima('[AEMET] Expert Engine Input', {
+    registrarDiagnosticoClima('[PaddleSafe Engine] Unified Evaluation Input', {
         alertas: alerta,
         tormenta,
         nivelUsuario,
-        factores: { vientoKmh, rachasKmh, olaM: oleajeM, periodoOla: entradaMotor.periodoOla, direccionViento }
+        factores: { vientoKmh, rachasKmh, olaM: oleajeM, direccionViento }
     });
 
-    const veredictoBase = calcularVeredicto({ ...entradaMotor, datos: dx });
-
-    // Veredicto Next Generation (PaddleSafe Next-Gen Engine)
-    const nextGen = generarVeredictoNextGen({
+    return generarVeredictoNextGen({
         vientoKmh,
         rachasKmh,
         direccionViento,
         olaM: oleajeM,
-        periodoOla: entradaMotor.periodoOla,
+        periodoOla: valorNumericoMeteo(dx.wavePeriod, dx.wave_period),
         swellM: dx.swellHeight ?? dx.swell_height,
         periodoSwell: dx.swellPeriod ?? dx.swell_period,
         direccionSwell: dx.swellDirection ?? dx.swell_direction,
-        precipitacion: entradaMotor.precipitacion,
-        probabilidadPrecipitacion: entradaMotor.probabilidadPrecipitacion,
+        precipitacion: valorNumericoMeteo(dx.precipitation, dx.precipitation_mm),
+        probabilidadPrecipitacion: valorNumericoMeteo(dx.precipProbability, dx.precipitation_probability),
         coordenadas: coords,
         nombreSpot: dx.location || dx.nombreSpot || '',
         deporte: dx.deporte || 'paddle_surf',
@@ -807,18 +851,6 @@ function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
         alerta,
         tormenta
     });
-
-    return {
-        ...veredictoBase,
-        nextGen,
-        beginnerIndex: nextGen.beginnerIndex,
-        consenso: dx.consenso || nextGen.consenso,
-        ventanaRecomendada: nextGen.ventanaRecomendada || dx.ventanasOptimas?.mejorVentana || null,
-        ventanas: dx.ventanasOptimas || null,
-        derivaCostera: nextGen.deriva,
-        explicacionNautica: nextGen.explicacion,
-        fuenteAlternativa: false
-    };
 }
 
 function renderizarAvisoSuperior(motor) {

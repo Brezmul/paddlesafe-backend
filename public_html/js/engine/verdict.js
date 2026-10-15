@@ -1,7 +1,7 @@
 // ==============================================================================
 // PADDLESAFE NEXT-GEN - ORQUESTADOR DE VEREDICTO EXPERTO (verdict.js)
 // Genera la respuesta definitiva de seguridad en 5 estados categóricos y
-// una justificación náutica profesional inspirada en PredictWind y Windy.
+// una justificación náutica profesional unificada e inspirada en PredictWind y Windy.
 // ==============================================================================
 
 import { calcularConsensoModelos } from './consensus.js';
@@ -42,8 +42,38 @@ export const ESTADOS_VEREDICTO = {
     }
 };
 
+export const CLASES_RIESGO = {
+    'Favorable': 'text-emerald-500 bg-emerald-50 border border-emerald-200 rounded-lg',
+    'Precaución': 'text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-lg',
+    'Condiciones exigentes': 'text-orange-600 bg-orange-50 border border-orange-200 rounded-lg',
+    'No recomendado': 'text-red-700 bg-red-100 border border-red-400 rounded-lg',
+    'Tormenta eléctrica': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg',
+    // Compatibilidad legacy
+    'SEGURO': 'text-emerald-500 bg-emerald-50 border border-emerald-200 rounded-lg',
+    'PRECAUCIÓN': 'text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-lg',
+    'RIESGO ELEVADO': 'text-orange-600 bg-orange-50 border border-orange-200 rounded-lg',
+    'PELIGROSO': 'text-red-500 bg-red-50 border border-red-200 rounded-lg',
+    'RIESGO EXTREMO': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg',
+    'ANÁLISIS INCOMPLETO': 'text-amber-700 bg-amber-50 border border-amber-300 rounded-lg'
+};
+
+export const ICONOS_SEGURIDAD = {
+    'Favorable': '🟢',
+    'Precaución': '🟡',
+    'Condiciones exigentes': '🟠',
+    'No recomendado': '🔴',
+    'Tormenta eléctrica': '⛔',
+    'SEGURO': '🟢',
+    'PRECAUCIÓN': '🟡',
+    'RIESGO ELEVADO': '🟠',
+    'PELIGROSO': '🔴',
+    'RIESGO EXTREMO': '⛔',
+    'ANÁLISIS INCOMPLETO': '⚠️',
+    'NO RECOMENDADO': '⛔'
+};
+
 /**
- * Orquesta la evaluación experta completa de PaddleSafe Next-Gen
+ * Orquesta la evaluación experta canónica y definitiva de PaddleSafe Next-Gen
  */
 export function generarVeredictoNextGen(params = {}) {
     const spotNombre = params.spotNombre || params.nombreSpot || params.location || '';
@@ -52,7 +82,7 @@ export function generarVeredictoNextGen(params = {}) {
     const userLevel = params.userLevel || params.nivelUsuario || 'Intermedio';
     const deporteKey = params.deporteKey || params.deporte || 'paddle_surf';
 
-    // Conversión km/h a nudos si no vienen directamente en nudos
+    // Conversión segura km/h a nudos si no vienen directamente en nudos
     let vientoKt = params.vientoKt ?? null;
     if (vientoKt === null && params.vientoKmh !== null && params.vientoKmh !== undefined) {
         vientoKt = Number((params.vientoKmh / 1.852).toFixed(1));
@@ -90,36 +120,62 @@ export function generarVeredictoNextGen(params = {}) {
     const gfsDirDeg = params.gfsDirDeg ?? null;
     const iconDirDeg = params.iconDirDeg ?? null;
 
-    // 1. REGLA ABSOLUTA: Tormenta eléctrica (Caso E)
+    // 1. REGLA ABSOLUTA: Tormenta eléctrica (Veto Infranqueable)
     const code = Number(weatherCode ?? 0);
     const textoAlerta = `${alertaOficial?.tipo || ''} ${alertaOficial?.descripcion || ''}`.toLowerCase();
     const esTormentaElectrica = Boolean(tormentaElectricaDetectada)
         || [95, 96, 99].includes(code)
-        || /tormenta\s*electrica|actividad\s*electrica|descarga\s*electrica|rayos?|lightning/.test(textoAlerta);
+        || /tormenta\s*electrica|actividad\s*electrica|descarga\s*electrica|rayos?|lightning|relampagos?/.test(textoAlerta);
 
     if (esTormentaElectrica) {
-        return {
-            estado: 'Tormenta eléctrica',
-            icono: '⛔',
-            claseUI: ESTADOS_VEREDICTO.TORMENTA_ELECTRICA,
+        const confEstado = ESTADOS_VEREDICTO.TORMENTA_ELECTRICA;
+        const factoresCriticos = [
+            'Riesgo crítico de tormenta eléctrica: actividad desaconsejada por peligro vital.',
+            'Peligro de descargas eléctricas en superficie plana y ráfagas súbitas de viento.'
+        ];
+        const resultadoTormenta = {
+            estado: confEstado.titulo,
+            icono: confEstado.icono,
+            claseUI: confEstado,
+            cls: CLASES_RIESGO[confEstado.titulo],
             scoreSeguridad: 0,
+            score: 0,
+            seguridad: { nivel: confEstado.titulo, score: 0 },
             respuestaDirecta: '⛔ NO SALIR AL AGUA',
+            recomendacion: 'NO RECOMENDADO',
             justificacion: 'Riesgo confirmado de tormenta eléctrica en la zona. La práctica de cualquier deporte acuático queda estrictamente desaconsejada por peligro vital de descargas eléctricas y cambios súbitos de viento.',
+            mensaje: 'Riesgo confirmado de tormenta eléctrica en la zona. La práctica de cualquier deporte acuático queda estrictamente desaconsejada por peligro vital de descargas eléctricas y cambios súbitos de viento.',
+            explicacionNautica: 'Riesgo confirmado de tormenta eléctrica en la zona. Suspende o pospón la actividad y mantente bajo techo en tierra firme.',
+            factoresCriticos,
+            analysisConfidence: 95,
+            confianzaAnalisis: 95,
+            tormentaElectrica: true,
+            aemet: alertaOficial || { activa: false, disponible: false },
+            vientoNudos: vientoKt ?? 0,
             detallesTecnicos: {
                 vientoKt,
+                rachasKt,
                 oleajeM,
                 alerta: 'Tormenta eléctrica activa'
             },
             beginnerIndex: { nivel: 'No Recomendado', motivo: 'Peligro por tormenta eléctrica' },
+            deporte: { deporte: deporteKey, estado: 'No Recomendado', motivo: 'Tormenta eléctrica activa' },
             ventanas: null,
+            ventanaRecomendada: null,
             consenso: null,
-            deriva: null
+            deriva: null,
+            riesgoDeriva: { nivel: 'EXTREMO', score: 100, descripcion: 'Riesgo extremo por turbonadas y tormenta.' },
+            derivaCostera: null,
+            componenteCostera: { componente: 'desconocida', anguloIncidencia: 0 },
+            entorno: 'costa'
         };
+        resultadoTormenta.nextGen = resultadoTormenta;
+        return resultadoTormenta;
     }
 
     // 2. Resolver orientación costera y vector de viento
     const infoCosta = resolverOrientacionCostera(spotNombre, lat, lon);
-    const compViento = calcularComponenteVientoAuto(dirVientoDeg, infoCosta.seawardDeg);
+    const compViento = calcularComponenteVientoAuto(lat, lon, dirVientoDeg, spotNombre);
     const deriva = calcularIndiceDerivaPaddleSafe({
         vientoKt: vientoKt || 0,
         rachasKt: rachasKt || vientoKt || 0,
@@ -128,7 +184,7 @@ export function generarVeredictoNextGen(params = {}) {
         esCosta: infoCosta.esCosta
     });
 
-    // 3. Consenso de modelos
+    // 3. Consenso de modelos meteorológicos
     const consenso = params.modelosPronostico?.nivelConsenso ? params.modelosPronostico : calcularConsensoModelos({
         ecmwfVientoKt,
         gfsVientoKt,
@@ -164,29 +220,65 @@ export function generarVeredictoNextGen(params = {}) {
     // 6. Ventana óptima horaria
     const ventanas = detectarVentanasOptimas(horasDiurnas, userLevel);
 
-    // 7. Cálculo del PaddleSafe Score (0 a 100)
+    // 7. Cálculo del Safety Score Canónico (0 a 100)
     let score = 95;
-    const vReal = vientoKt || 0;
-    const oReal = oleajeM || 0;
+    const vReal = vientoKt ?? 0;
+    const oReal = oleajeM ?? 0;
+    const rReal = rachasKt ?? vReal;
 
     if (vReal >= 20) score -= 60;
     else if (vReal >= 15) score -= 40;
     else if (vReal >= 11) score -= 20;
-    else if (vReal <= 6 && oReal <= 0.3) score = 98;
+    else if (vReal <= 6 && (oleajeM === null || oReal <= 0.3)) score = 98;
+
+    if (rReal - vReal >= 8) score -= 15;
+    else if (rReal - vReal >= 5) score -= 8;
 
     if (oReal >= 1.5) score -= 35;
     else if (oReal >= 0.8) score -= 20;
     else if (oReal >= 0.5) score -= 10;
 
     if (compViento.componente === 'offshore') score -= 15;
+
+    // Alertas oficiales AEMET
     if (alertaOficial?.activa) {
-        if (alertaOficial.nivel === 'AMARILLA') score = Math.min(score, 70);
-        else if (alertaOficial.nivel === 'NARANJA') score = Math.min(score, 45);
-        else if (alertaOficial.nivel === 'ROJA') score = Math.min(score, 20);
+        const nAlert = String(alertaOficial.nivel || '').toUpperCase();
+        if (nAlert === 'AMARILLA') score = Math.min(score, 70);
+        else if (nAlert === 'NARANJA') score = Math.min(score, 45);
+        else if (nAlert === 'ROJA') score = Math.min(score, 20);
     }
+
     score = Math.max(0, Math.min(100, Math.round(score)));
 
-    // 8. Determinación del Estado Categórico Final
+    // 8. Confianza del Análisis (0 a 100)
+    let confianza = 20;
+    if (vientoKt !== null) confianza += 35;
+    if (oleajeM !== null || infoCosta.tipoEntorno === 'embalse_interior') confianza += 25;
+    if (rachasKt !== null) confianza += 10;
+    if (dirVientoDeg !== null) confianza += 5;
+    if (periodoOlaS !== null || infoCosta.tipoEntorno === 'embalse_interior') confianza += 5;
+    confianza = Math.min(100, confianza);
+
+    // 9. Factores Críticos y Observaciones
+    const factoresCriticos = [];
+    if (vReal >= 12) factoresCriticos.push(`Viento sostenido de ${vReal} kt.`);
+    if (rReal - vReal >= 5) factoresCriticos.push(`Rachas de ${rReal} kt frente a ${vReal} kt de viento medio.`);
+    if (oReal >= 0.8 && infoCosta.esCosta) factoresCriticos.push(`Oleaje significativo de ${oReal.toFixed(1)} m.`);
+    if (periodoOlaS >= 10 && oReal >= 0.5) factoresCriticos.push(`Periodo de ola largo (${Math.round(periodoOlaS)}s): mayor fuerza de las series.`);
+
+    if (compViento.componente === 'offshore') {
+        factoresCriticos.push('Componente offshore (terral): el viento aleja de la costa y dificulta el retorno.');
+    } else if (compViento.componente === 'side-shore') {
+        factoresCriticos.push('Componente side-shore: desplazamiento lateral a lo largo de la costa.');
+    } else if (compViento.componente === 'onshore') {
+        factoresCriticos.push('Componente onshore: favorece el retorno a tierra pero crea oleaje frontal.');
+    }
+
+    if (alertaOficial?.activa) {
+        factoresCriticos.push(`Aviso oficial ${alertaOficial.origen || 'AEMET'} activo (${alertaOficial.nivel || ''}): ${alertaOficial.tipo || alertaOficial.descripcion || 'atención al parte'}.`);
+    }
+
+    // 10. Determinación del Estado Categórico Final
     let estadoKey = 'FAVORABLE';
     let respuestaDirecta = '🟢 Salida Recomendada';
 
@@ -203,37 +295,53 @@ export function generarVeredictoNextGen(params = {}) {
 
     const confEstado = ESTADOS_VEREDICTO[estadoKey];
 
-    // 9. Justificación náutica profesional
+    // 11. Justificación Náutica Profesional
     let justificacion = '';
     if (estadoKey === 'FAVORABLE') {
-        justificacion = `Viento débil (${vReal} kt) y mar en calma (${oReal.toFixed(1)} m). Condiciones excelentes para navegar con estabilidad y mínimo esfuerzo físico.`;
+        justificacion = `Viento suave (${vReal} kt) y mar calmo (${oReal.toFixed(1)} m). Condiciones óptimas para navegar con fluidez y mínimo esfuerzo.`;
     } else if (estadoKey === 'PRECAUCION') {
         justificacion = compViento.componente === 'offshore'
-            ? `Viento de ${vReal} kt de componente offshore (hacia mar abierto). Conviene remar paralelo a la orilla y no alejarse.`
-            : `Viento de ${vReal} kt y mar con leve ondulación (${oReal.toFixed(1)} m). Condiciones navegables dosificando el esfuerzo.`;
+            ? `Viento de ${vReal} kt con componente hacia mar abierto (offshore). Conviene remar en paralelo a la orilla y vigilar referencias fijas en tierra.`
+            : `Viento de ${vReal} kt y ligera ondulación (${oReal.toFixed(1)} m). Navegación viable gestionando el ritmo.`;
     } else if (estadoKey === 'EXIGENTE') {
-        justificacion = `Viento notable de ${vReal} kt y oleaje de ${oReal.toFixed(1)} m. Requiere técnica consolidada, lectura del mar y buena forma física.`;
+        justificacion = `Viento activo de ${vReal} kt y oleaje de ${oReal.toFixed(1)} m. Requiere experiencia previa, equilibrio reactivo y buena condición física.`;
     } else {
         justificacion = `Condiciones adversas (viento de ${vReal} kt y olas de ${oReal.toFixed(1)} m). Alto riesgo de caída, deriva mar adentro y agotamiento muscular.`;
     }
 
-    return {
+    const resultado = {
         estado: confEstado.titulo,
         icono: confEstado.icono,
         claseUI: confEstado,
+        cls: CLASES_RIESGO[confEstado.titulo] || 'text-slate-200 bg-slate-800 border-slate-700',
         scoreSeguridad: score,
+        score: score,
+        seguridad: { nivel: confEstado.titulo, score },
         respuestaDirecta,
+        recomendacion: respuestaDirecta.replace(/^[🟢🟡🟠🔴⛔]\s*/, '').toUpperCase(),
         justificacion,
+        mensaje: justificacion,
+        explicacionNautica: justificacion,
         deporte: evalDeporte,
         beginnerIndex: beginner,
         deriva,
+        riesgoDeriva: deriva,
+        derivaCostera: deriva,
         consenso,
         ventanas,
+        ventanaRecomendada: ventanas?.mejorVentana || null,
         componenteCostera: compViento,
         entorno: infoCosta.tipoEntorno,
+        vientoNudos: vReal,
+        tormentaElectrica: false,
+        aemet: alertaOficial || { activa: false, disponible: false },
+        analysisConfidence: confianza,
+        confianzaAnalisis: confianza,
+        factoresCriticos,
+        fuenteAlternativa: false,
         detallesTecnicos: {
             vientoKt: vReal,
-            rachasKt: rachasKt || vReal,
+            rachasKt: rReal,
             direccionDeg: dirVientoDeg,
             oleajeM: oReal,
             periodoOlaS,
@@ -246,4 +354,7 @@ export function generarVeredictoNextGen(params = {}) {
             probLluviaPct
         }
     };
+
+    resultado.nextGen = resultado;
+    return resultado;
 }

@@ -73,30 +73,87 @@ function estimarRumboCosteroGeodesico(lat, lon) {
         return 90; // Default Este
     }
 
-    // Aguas interiores identificadas por coordenadas interiores distantes de la costa (>60 km)
-    const enMesetaInterior = (lat >= 38.8 && lat <= 41.8 && lon >= -5.5 && lon <= -1.8);
-    if (enMesetaInterior) {
-        return null; // Aguas interiores
+    // Aguas interiores identificadas por coordenadas interiores distantes de la costa (>40 km)
+    // Meseta Norte y Sur:
+    if (lat >= 39.0 && lat <= 42.4 && lon >= -5.6 && lon <= -1.8) {
+        return null;
+    }
+    // Valle del Ebro interior:
+    if (lat >= 41.2 && lat <= 42.4 && lon >= -2.0 && lon <= 0.1) {
+        return null;
+    }
+    // Extremadura interior:
+    if (lat >= 38.5 && lat <= 40.2 && lon >= -7.2 && lon <= -5.5) {
+        return null;
+    }
+    // Andalucía interior:
+    if (lat >= 37.4 && lat <= 38.3 && lon >= -5.0 && lon <= -2.8) {
+        return null;
     }
 
-    // Costa Norte (Cantábrico): mira al Norte (0°)
-    if (lat >= 43.1 && lon >= -8.5 && lon <= -1.7) return 0;
-    // Costa Oeste Gallega: mira al Oeste (270°)
-    if (lat >= 41.8 && lat <= 43.8 && lon <= -8.3) return 270;
-    // Costa Sur Atlántica (Huelva, Cádiz): mira al Suroeste (220°)
-    if (lat <= 37.3 && lon <= -5.5) return 220;
-    // Costa Sur Mediterránea (Málaga, Granada): mira al Sur (175°)
-    if (lat <= 37.0 && lon >= -5.2 && lon <= -2.5) return 175;
-    // Costa Sureste (Almería, Murcia, Alicante Sur): mira al Sureste (135°)
-    if (lat >= 36.6 && lat <= 38.5 && lon >= -2.5 && lon <= -0.2) return 130;
-    // Costa Levante (Alicante Norte, Valencia, Castellón): mira al Este (90°)
-    if (lat >= 38.5 && lat <= 40.8 && lon >= -0.5 && lon <= 0.6) return 90;
-    // Costa Cataluña (Tarragona, Barcelona, Girona): mira al Este-Sureste (125°)
-    if (lat >= 40.8 && lat <= 42.5 && lon >= 0.5) return 125;
-    // Baleares: Mallorca/Ibiza promedio Sureste (140°)
-    if (lat >= 38.5 && lat <= 40.2 && lon >= 1.2 && lon <= 4.5) return 140;
-    // Canarias: depende de isla pero promedio general costa
-    if (lat >= 27.5 && lat <= 29.5 && lon <= -13.0) return 180;
+    // Costa Norte (Cantábrico y Galicia Norte): mira al Norte (0°)
+    if (lat >= 43.3 && lon >= -8.0 && lon <= -1.7) return 0;
+    
+    // Costa Ártabra y Costa da Morte (Noroeste): mira al Noroeste (315°)
+    if (lat >= 42.9 && lat <= 43.8 && lon <= -8.8) return 315;
+
+    // Rías Baixas (Pontevedra, Vigo, Ría de Arousa): mira al Oeste-Suroeste (260°)
+    if (lat >= 41.9 && lat <= 42.9 && lon <= -8.6) return 260;
+
+    // Portugal Norte y Centro: mira al Oeste (270°)
+    if (lat >= 37.0 && lat <= 41.9 && lon <= -8.5) return 270;
+
+    // Portugal Algarve: mira al Sur (180°)
+    if (lat >= 36.9 && lat <= 37.3 && lon >= -9.0 && lon <= -7.4) return 180;
+
+    // Costa de la Luz / Golfo de Cádiz (Huelva, Cádiz): mira al Suroeste (220°)
+    if (lat <= 37.3 && lon >= -7.4 && lon <= -5.8) return 220;
+
+    // Estrecho de Gibraltar (Tarifa, Algeciras): mira al Suroeste-Sur (200°)
+    if (lat >= 35.9 && lat <= 36.3 && lon >= -5.8 && lon <= -5.3) return 200;
+
+    // Costa del Sol (Málaga, Marbella) y Costa Tropical (Granada): mira al Sur (175°)
+    if (lat >= 36.3 && lat <= 36.8 && lon >= -5.3 && lon <= -3.0) return 175;
+
+    // Costa de Almería (Cabo de Gata, Levante almeriense): mira al Sureste (135°)
+    if (lat >= 36.6 && lat <= 37.4 && lon >= -3.0 && lon <= -1.7) return 135;
+
+    // Costa Cálida (Murcia, Mazarrón, Águilas, Cartagena, Mar Menor): mira al Sureste-Este (115°)
+    if (lat >= 37.3 && lat <= 37.9 && lon >= -1.7 && lon <= -0.6) return 115;
+
+    // Costa Blanca Sur (Torrevieja, Guardamar, Santa Pola, Alicante): mira al Este-Sureste (120°)
+    if (lat >= 37.9 && lat <= 38.4 && lon >= -0.7 && lon <= -0.3) return 120;
+
+    // Costa Blanca Norte (Campello, Benidorm, Altea, Calpe, Jávea): mira al Este (90°)
+    if (lat >= 38.4 && lat <= 38.8 && lon >= -0.3 && lon <= 0.25) return 90;
+
+    // Cabo de la Nao / Denia / Gandía / Golfo de Valencia: mira al Este-Noreste (80°)
+    if (lat >= 38.8 && lat <= 39.7 && lon >= -0.4 && lon <= 0.3) return 80;
+
+    // Costa del Azahar (Castellón, Benicàssim, Peñíscola): mira al Este-Sureste (105°)
+    if (lat >= 39.7 && lat <= 40.6 && lon >= -0.1 && lon <= 0.6) return 105;
+
+    // Delta del Ebro: promedio Este (90°)
+    if (lat >= 40.6 && lat <= 40.9 && lon >= 0.5 && lon <= 0.9) return 90;
+
+    // Costa Daurada y Costa de Barcelona (Salou, Tarragona, Barcelona): mira al Sureste (135°)
+    if (lat >= 40.9 && lat <= 41.6 && lon >= 0.9 && lon <= 2.6) return 135;
+
+    // Costa Brava (Blanes, Tossa, Palamós, Begur, Roses, Cadaqués): mira al Este (100°)
+    if (lat >= 41.6 && lat <= 42.5 && lon >= 2.6 && lon <= 3.3) return 100;
+
+    // Baleares:
+    if (lat >= 38.5 && lat <= 40.3 && lon >= 1.1 && lon <= 4.5) {
+        if (lon >= 3.7) return lat >= 40.0 ? 0 : 180; // Menorca
+        if (lon >= 2.3 && lon < 3.7) return lat >= 39.7 ? 45 : 200; // Mallorca
+        return 140; // Ibiza / Formentera
+    }
+
+    // Canarias:
+    if (lat >= 27.5 && lat <= 29.5 && lon >= -18.2 && lon <= -13.3) {
+        if (lon >= -14.5) return 90; // Fuerteventura / Lanzarote
+        return lat >= 28.3 ? 0 : 180; // Tenerife / Gran Canaria
+    }
 
     return 90;
 }
@@ -122,10 +179,11 @@ export function resolverOrientacionCostera(arg1 = '', arg2 = null, arg3 = null) 
     const spotNormalizado = String(nombreSpot || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
     // 1. Si contiene palabras clave de embalse o lago, clasificar de inmediato como interior
-    if (/embalse|pantano|lago|laguna|rio|río|presa/i.test(spotNormalizado)) {
+    if (/embalse|pantano|lago|laguna|rio|río|presa|reservoir|lake/i.test(spotNormalizado)) {
         return {
             seawardDeg: null,
             esCosta: false,
+            esEmbalse: true,
             tipoEntorno: 'embalse_interior',
             fuente: 'deteccion_interior'
         };
@@ -134,28 +192,28 @@ export function resolverOrientacionCostera(arg1 = '', arg2 = null, arg3 = null) 
     // 2. Buscar en catálogo curado de costa
     const match = SPOTS_CONOCIDOS.find(s => s.match.test(spotNormalizado));
     if (match) {
+        const esEmb = match.type === 'embalse_interior';
         return {
             seawardDeg: match.seaward,
-            esCosta: match.type !== 'embalse_interior',
+            esCosta: !esEmb,
+            esEmbalse: esEmb,
             tipoEntorno: match.type,
             fuente: 'catalogo_spots'
         };
     }
 
-    // 3. Fallback a geodesia costera
+    // 3. Fallback a geodesia costera de alta precisión
     const seawardGeo = estimarRumboCosteroGeodesico(lat, lon);
+    const esInterior = seawardGeo === null;
     return {
         seawardDeg: seawardGeo,
-        esCosta: seawardGeo !== null,
-        tipoEntorno: seawardGeo !== null ? 'mar_abierto' : 'embalse_interior',
+        esCosta: !esInterior,
+        esEmbalse: esInterior,
+        tipoEntorno: esInterior ? 'embalse_interior' : 'mar_abierto',
         fuente: 'geodesia_coordenadas'
     };
 }
 
-/**
- * Calcula el vector de componente de viento respecto a la costa
- * Soporta firma (dirVientoDeg, seawardDeg) o firma (lat, lon, dirVientoDeg, nombreSpot)
- */
 export function calcularComponenteVientoAuto(...args) {
     let dirVientoDeg = null;
     let seawardDeg = null;
