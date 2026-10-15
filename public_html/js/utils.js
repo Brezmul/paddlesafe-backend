@@ -539,3 +539,12 @@ export function calcularVeredicto({
         datos
     });
 }
+
+// ==============================================================================
+// RE-EXPORTS DEL MOTOR PADDLESAFE NEXT GENERATION
+// ==============================================================================
+export { calcularConsensoModelos } from './engine/consensus.js';
+export { resolverOrientacionCostera, calcularComponenteVientoAuto, calcularIndiceDerivaPaddleSafe } from './engine/coastal.js';
+export { calcularBeginnerIndex, evaluarCondicionesDeporte, DEPORTES } from './engine/sports.js';
+export { detectarVentanasOptimas } from './engine/windows.js';
+export { generarVeredictoNextGen, ESTADOS_VEREDICTO } from './engine/verdict.js';

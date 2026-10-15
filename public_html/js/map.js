@@ -8,7 +8,14 @@ import {
     formatearTiempo,
     calcularVeredicto,
     kmhANudos,
-    deduplicateInsights
+    deduplicateInsights,
+    generarVeredictoNextGen,
+    resolverOrientacionCostera,
+    calcularComponenteVientoAuto,
+    calcularConsensoModelos,
+    detectarVentanasOptimas,
+    calcularBeginnerIndex,
+    evaluarCondicionesDeporte
 } from './utils.js';
 import { ClubState } from './club/state.js';
 
@@ -56,83 +63,68 @@ function crearFranjaForecast(horaSalida, duracionMinutos = 120) {
 }
 
 async function solicitarPronostico(payload) {
-    let ultimoError;
+    let datosOpenMeteo = null;
+    let errorOpenMeteo = null;
 
-    for (let intento = 0; intento < 2; intento += 1) {
-        let response;
-        try {
-            response = await fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-        } catch (error) {
-            const esTransitorio = error?.name === 'AbortError' || error instanceof TypeError;
-            ultimoError = error;
-            if (intento === 0 && esTransitorio) {
-                await new Promise(resolve => setTimeout(resolve, 350));
-                continue;
-            }
-            break;
-        }
-
-        let resultado;
-        try {
-            resultado = await response.json();
-        } catch {
-            const error = new Error("El servidor devolvió una respuesta no válida.");
-            error.status = response.status;
-            ultimoError = error;
-            if (response.status >= 500 && intento === 0) {
-                await new Promise(resolve => setTimeout(resolve, 350));
-                continue;
-            }
-            break;
-        }
-
-        if (!response.ok) {
-            const error = new Error(resultado?.details || resultado?.error || `Error del servidor (${response.status}).`);
-            error.status = response.status;
-            ultimoError = error;
-            if (response.status >= 500 && intento === 0) {
-                await new Promise(resolve => setTimeout(resolve, 350));
-                continue;
-            }
-            break;
-        }
-
-        if (!resultado?.datos || typeof resultado.datos !== 'object' || Array.isArray(resultado.datos)) {
-            throw new Error(resultado?.details || resultado?.error || "El servidor no devolvió datos del pronóstico.");
-        }
-
-        const datos = resultado.datos;
-        registrarDiagnosticoClima('[AEMET] Raw Response', {
-            aemet: datos.aemet,
-            alerta_aemet: datos.alerta_aemet,
-            aemet_alerts: datos.aemet_alerts,
-            aemetAvailable: datos.aemetAvailable,
-            aemet_available: datos.aemet_available,
-            alertas: datos.alertas,
-            alerts: datos.alerts,
-            warnings: datos.warnings
-        });
-        return resultado;
+    // 1. Open-Meteo Forecast + Marine como fuente principal
+    try {
+        datosOpenMeteo = await solicitarPronosticoOpenMeteo(payload);
+    } catch (errOM) {
+        errorOpenMeteo = errOM;
+        console.warn('[pronóstico] Error en consulta directa a Open-Meteo:', errOM);
     }
 
-    const puedeUsarFallback = ultimoError?.status >= 500
-        || ultimoError?.name === 'AbortError'
-        || ultimoError instanceof TypeError;
-    if (puedeUsarFallback) {
-        console.warn('[pronóstico] Backend no disponible; se consulta Open-Meteo directamente y AEMET quedará sin confirmar.', ultimoError);
-        const datos = await solicitarPronosticoOpenMeteo(payload);
-        return { ok: true, datos, received: payload, fallback: true };
+    // 2. Consulta al backend exclusivamente para la capa de alertas oficiales AEMET y fallback
+    let datosBackend = null;
+    try {
+        const response = await fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        }, 5000);
+
+        if (response.ok) {
+            const resJson = await response.json();
+            if (resJson?.datos && typeof resJson.datos === 'object') {
+                datosBackend = resJson.datos;
+            }
+        }
+    } catch (errBack) {
+        // Fallo de backend no bloquea el análisis si Open-Meteo respondió
+        console.info('[pronóstico] Capa AEMET/Backend no disponible en este momento. Se continúa con Open-Meteo.');
     }
-    throw ultimoError || new Error("No se pudo obtener el pronóstico.");
+
+    if (!datosOpenMeteo && !datosBackend) {
+        throw errorOpenMeteo || new Error("No se pudo obtener el pronóstico meteorológico. Revisa tu conexión a internet.");
+    }
+
+    // Integración de fuentes: Open-Meteo es la base meteorológica y marina; Backend aporta alertas AEMET si existen
+    const datos = {
+        ...(datosBackend || {}),
+        ...(datosOpenMeteo || {}),
+        source: 'open-meteo'
+    };
+
+    // Si backend trajo alertas explícitas de AEMET, preservarlas sin sobreescribir
+    if (datosBackend?.aemet || datosBackend?.alerta_aemet || datosBackend?.alertas || datosBackend?.warnings) {
+        datos.aemet = datosBackend.aemet || datosBackend.alerta_aemet || datos.aemet;
+        datos.alertas = datosBackend.alertas || datosBackend.warnings || datos.alertas;
+    }
+
+    registrarDiagnosticoClima('[AEMET] Integrated Response', {
+        aemet: datos.aemet,
+        alertas: datos.alertas,
+        consenso: datos.consenso?.nivelConsenso,
+        vientoSpeed: datos.windSpeed
+    });
+
+    return { ok: true, datos, received: payload };
 }
 
 async function solicitarPronosticoOpenMeteo(payload) {
     const rango = /\((\d{2}):00\s*-\s*(\d{2}):00\)/.exec(payload.timeRange || '');
-    if (!rango) throw new Error('No se puede activar el pronóstico alternativo: la franja horaria no es válida.');
+    const horaInicio = rango ? Number(rango[1]) : 10;
+    const horaFin = rango ? Number(rango[2]) : 12;
 
     let lat;
     let lon;
@@ -149,28 +141,20 @@ async function solicitarPronosticoOpenMeteo(payload) {
             format: 'json'
         });
         const geocodingResponse = await fetchConTimeout(geocodingUrl, { cache: 'no-store' }, 8000);
-        if (!geocodingResponse.ok) throw new Error(`Geocodificación alternativa respondió con HTTP ${geocodingResponse.status}.`);
+        if (!geocodingResponse.ok) throw new Error(`Geocodificación respondió con HTTP ${geocodingResponse.status}.`);
         const result = (await geocodingResponse.json()).results?.[0];
         if (!Number.isFinite(result?.latitude) || !Number.isFinite(result?.longitude)) {
-            throw new Error('No se pudieron determinar coordenadas para el pronóstico alternativo.');
+            throw new Error('No se pudieron determinar coordenadas para la ubicación seleccionada.');
         }
         lat = result.latitude;
         lon = result.longitude;
     }
 
-    const horaInicio = Number(rango[1]);
-    const horaFin = Number(rango[2]);
-    const inicio = new Date(`${payload.date}T00:00:00Z`);
-    if (Number.isNaN(inicio.getTime()) || inicio.toISOString().slice(0, 10) !== payload.date
-        || horaInicio < 0 || horaFin > 24 || horaInicio >= horaFin) {
-        throw new Error('No se puede activar el pronóstico alternativo: la fecha o franja no es válida.');
-    }
-    const fin = new Date(inicio.getTime());
-    fin.setUTCHours(horaFin);
-    inicio.setUTCHours(horaInicio);
-    const fechaHora = fecha => fecha.toISOString().slice(0, 16);
+    const fechaStr = payload.date || new Date().toISOString().slice(0, 10);
     const zona = `latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&timezone=auto`;
-    const forecastUrl = `https://api.open-meteo.com/v1/forecast?${zona}&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m,weather_code,precipitation,precipitation_probability&wind_speed_unit=ms&start_hour=${fechaHora(inicio)}&end_hour=${fechaHora(fin)}`;
+
+    // 1. Open-Meteo Forecast con modelos ECMWF, GFS e ICON + variables completas
+    const forecastUrl = `https://api.open-meteo.com/v1/forecast?${zona}&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m,weather_code,precipitation,precipitation_probability,cloud_cover,relative_humidity_2m,surface_pressure,visibility&models=best_match,ecmwf_ifs025,gfs_seamless,icon_seamless&wind_speed_unit=ms&start_date=${fechaStr}&end_date=${fechaStr}`;
     const forecastResponse = await fetchConTimeout(forecastUrl, { cache: 'no-store' }, 10000);
     if (!forecastResponse.ok) throw new Error(`Open-Meteo respondió con HTTP ${forecastResponse.status}.`);
     const forecast = await forecastResponse.json();
@@ -179,58 +163,152 @@ async function solicitarPronosticoOpenMeteo(payload) {
         throw new Error('Open-Meteo no devolvió datos horarios para el periodo seleccionado.');
     }
 
+    // 2. Open-Meteo Marine: oleaje, swell, periodo, corrientes y temperatura de agua
     let marine = null;
     try {
-        const marineUrl = `https://marine-api.open-meteo.com/v1/marine?${zona}&hourly=wave_height,wave_period,sea_surface_temperature&start_date=${payload.date}&end_date=${fin.toISOString().slice(0, 10)}`;
+        const marineUrl = `https://marine-api.open-meteo.com/v1/marine?${zona}&hourly=wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction,sea_surface_temperature,ocean_current_velocity&start_date=${fechaStr}&end_date=${fechaStr}`;
         const marineResponse = await fetchConTimeout(marineUrl, { cache: 'no-store' }, 8000);
         if (marineResponse.ok) marine = await marineResponse.json();
-        else console.warn(`[pronóstico] Open-Meteo Marine respondió con HTTP ${marineResponse.status}; oleaje y periodo quedarán como datos limitados.`);
     } catch (error) {
-        console.warn('[pronóstico] Open-Meteo Marine no está disponible; oleaje y periodo quedarán como datos limitados.', error);
+        console.warn('[pronóstico] Marine API no disponible para estas coordenadas (interior/embalse).', error);
     }
 
-    const indices = horas.time.map((_, index) => index);
-    const valores = (array, indicesValidos = indices) => indicesValidos
-        .map(index => array?.[index])
-        .filter(valor => valor !== null && valor !== undefined && Number.isFinite(Number(valor)))
+    const getSeries = (name) => horas[name] || horas[`${name}_best_match`] || [];
+    const times = horas.time || [];
+
+    const marineTimeMap = new Map((marine?.hourly?.time || []).map((t, idx) => [t, idx]));
+    const getMarineVal = (name, timeStr) => {
+        const idx = marineTimeMap.get(timeStr);
+        if (idx === undefined || !marine?.hourly?.[name]) return null;
+        const v = marine.hourly[name][idx];
+        return Number.isFinite(Number(v)) ? Number(v) : null;
+    };
+
+    const horasDiurnas = [];
+    const indicesFranja = [];
+
+    times.forEach((t, index) => {
+        const hourNum = parseInt(t.slice(11, 13), 10);
+        if (hourNum >= horaInicio && hourNum <= horaFin) {
+            indicesFranja.push(index);
+        }
+        if (hourNum >= 7 && hourNum <= 21) {
+            const speedMs = getSeries('wind_speed_10m')[index];
+            const gustsMs = getSeries('wind_gusts_10m')[index];
+            const waveM = getMarineVal('wave_height', t);
+            const swellM = getMarineVal('swell_wave_height', t);
+            horasDiurnas.push({
+                hora: t.slice(11, 16),
+                vientoKt: speedMs != null ? kmhANudos(speedMs * 3.6) : null,
+                rachasKt: gustsMs != null ? kmhANudos(gustsMs * 3.6) : null,
+                oleajeM: waveM ?? 0,
+                swellM: swellM ?? 0,
+                lluviaMm: getSeries('precipitation')[index] ?? 0,
+                weatherCode: getSeries('weather_code')[index] ?? 0
+            });
+        }
+    });
+
+    const franjaIndices = indicesFranja.length ? indicesFranja : times.map((_, i) => i);
+
+    const valoresSlot = (arr) => franjaIndices
+        .map(i => arr?.[i])
+        .filter(v => v !== null && v !== undefined && Number.isFinite(Number(v)))
         .map(Number);
-    const vientoValores = valores(horas.wind_speed_10m);
-    const rachasValores = valores(horas.wind_gusts_10m);
-    const codigos = valores(horas.weather_code);
-    const precipitacion = valores(horas.precipitation);
-    const probabilidad = valores(horas.precipitation_probability);
-    const indiceVientoMaximo = horas.wind_speed_10m?.reduce((maximo, valor, index, array) =>
-        valor !== null && valor !== undefined && Number.isFinite(Number(valor))
-            && (maximo < 0 || Number(valor) > Number(array[maximo]) ? index : maximo), -1) ?? -1;
-    const indiceMarinePorHora = new Map((marine?.hourly?.time || []).map((hora, index) => [hora, index]));
-    const indicesMarine = horas.time.map(hora => indiceMarinePorHora.get(hora)).filter(Number.isInteger);
-    const olaValores = valores(marine?.hourly?.wave_height, indicesMarine);
-    const periodoValores = valores(marine?.hourly?.wave_period, indicesMarine);
-    const temperaturaAgua = valores(marine?.hourly?.sea_surface_temperature, indicesMarine);
+
+    const vSpeed = valoresSlot(getSeries('wind_speed_10m'));
+    const vGusts = valoresSlot(getSeries('wind_gusts_10m'));
+    const vDirs = valoresSlot(getSeries('wind_direction_10m'));
+    const codigos = valoresSlot(getSeries('weather_code'));
+    const precip = valoresSlot(getSeries('precipitation'));
+    const precipProb = valoresSlot(getSeries('precipitation_probability'));
+    const temps = valoresSlot(getSeries('temperature_2m'));
+    const clouds = valoresSlot(getSeries('cloud_cover'));
+    const humid = valoresSlot(getSeries('relative_humidity_2m'));
+    const press = valoresSlot(getSeries('surface_pressure'));
+    const visib = valoresSlot(getSeries('visibility'));
+
+    const marineValoresSlot = (name) => franjaIndices
+        .map(i => getMarineVal(name, times[i]))
+        .filter(v => v !== null && Number.isFinite(Number(v)));
+
+    const waves = marineValoresSlot('wave_height');
+    const periods = marineValoresSlot('wave_period');
+    const waveDirs = marineValoresSlot('wave_direction');
+    const swells = marineValoresSlot('swell_wave_height');
+    const swellPeriods = marineValoresSlot('swell_wave_period');
+    const swellDirs = marineValoresSlot('swell_wave_direction');
+    const seaTemps = marineValoresSlot('sea_surface_temperature');
+    const currents = marineValoresSlot('ocean_current_velocity');
+
+    const maxSpeedIdx = franjaIndices.reduce((maxI, idx) => {
+        const val = getSeries('wind_speed_10m')[idx];
+        if (val == null) return maxI;
+        return (maxI < 0 || val > (getSeries('wind_speed_10m')[maxI] ?? -1)) ? idx : maxI;
+    }, -1);
+    const windDirection = maxSpeedIdx >= 0 ? getSeries('wind_direction_10m')[maxSpeedIdx] : (vDirs[0] ?? null);
+
     const weatherCode = codigos.includes(95) || codigos.includes(96) || codigos.includes(99)
-        ? codigos.find(codigo => [95, 96, 99].includes(codigo))
-        : codigos.length ? Math.max(...codigos) : null;
+        ? codigos.find(c => [95, 96, 99].includes(c))
+        : (codigos.length ? Math.max(...codigos) : null);
     const clima = [95, 96, 99].includes(weatherCode) ? 'Tormenta eléctrica'
         : weatherCode !== null && weatherCode >= 51 ? 'Lluvia'
             : weatherCode !== null && weatherCode >= 45 ? 'Niebla'
                 : weatherCode !== null && weatherCode >= 1 ? 'Nublado' : 'Soleado';
 
+    // Modelos para Consenso (ECMWF, GFS, ICON)
+    const ecmwfSpeed = maxSpeedIdx >= 0 ? horas['wind_speed_10m_ecmwf_ifs025']?.[maxSpeedIdx] : null;
+    const gfsSpeed = maxSpeedIdx >= 0 ? horas['wind_speed_10m_gfs_seamless']?.[maxSpeedIdx] : null;
+    const iconSpeed = maxSpeedIdx >= 0 ? horas['wind_speed_10m_icon_seamless']?.[maxSpeedIdx] : null;
+    const ecmwfDir = maxSpeedIdx >= 0 ? horas['wind_direction_10m_ecmwf_ifs025']?.[maxSpeedIdx] : null;
+    const gfsDir = maxSpeedIdx >= 0 ? horas['wind_direction_10m_gfs_seamless']?.[maxSpeedIdx] : null;
+    const iconDir = maxSpeedIdx >= 0 ? horas['wind_direction_10m_icon_seamless']?.[maxSpeedIdx] : null;
+
+    const consenso = calcularConsensoModelos({
+        ecmwfVientoKt: ecmwfSpeed != null ? kmhANudos(ecmwfSpeed * 3.6) : null,
+        gfsVientoKt: gfsSpeed != null ? kmhANudos(gfsSpeed * 3.6) : null,
+        iconVientoKt: iconSpeed != null ? kmhANudos(iconSpeed * 3.6) : null,
+        ecmwfDirDeg: ecmwfDir,
+        gfsDirDeg: gfsDir,
+        iconDirDeg: iconDir,
+        fallbackVientoKt: vSpeed.length ? kmhANudos(Math.max(...vSpeed) * 3.6) : null,
+        fallbackDirDeg: windDirection
+    });
+
+    const infoCosta = resolverOrientacionCostera(lat, lon, payload.location);
+    const compViento = calcularComponenteVientoAuto(lat, lon, windDirection, payload.location);
+    const ventanasOptimas = detectarVentanasOptimas(horasDiurnas, payload.userLevel || 'Intermedio');
+
     return {
-        windSpeed: vientoValores.length ? Math.max(...vientoValores) : null,
-        windGusts: rachasValores.length ? Math.max(...rachasValores) : null,
-        windDirection: indiceVientoMaximo >= 0
-            ? valorNumericoMeteo(horas.wind_direction_10m?.[indiceVientoMaximo]) : null,
-        waveHeight: olaValores.length ? Math.max(...olaValores) : null,
-        wavePeriod: periodoValores.length ? Math.max(...periodoValores) : null,
-        precipitation: precipitacion.length ? Number(precipitacion.reduce((sum, valor) => sum + valor, 0).toFixed(2)) : null,
-        precipProbability: probabilidad.length ? Math.max(...probabilidad) : null,
+        windSpeed: vSpeed.length ? Math.max(...vSpeed) : null,
+        windGusts: vGusts.length ? Math.max(...vGusts) : null,
+        windDirection,
+        waveHeight: waves.length ? Math.max(...waves) : (infoCosta.esEmbalse ? 0 : null),
+        wavePeriod: periods.length ? Math.max(...periods) : null,
+        waveDirection: waveDirs.length ? waveDirs[0] : null,
+        swellHeight: swells.length ? Math.max(...swells) : null,
+        swellPeriod: swellPeriods.length ? Math.max(...swellPeriods) : null,
+        swellDirection: swellDirs.length ? swellDirs[0] : null,
+        oceanCurrent: currents.length ? Math.max(...currents) : null,
+        precipitation: precip.length ? Number(precip.reduce((s, v) => s + v, 0).toFixed(2)) : 0,
+        precipProbability: precipProb.length ? Math.max(...precipProb) : 0,
         weatherCode,
         clima,
-        tempAire: valores(horas.temperature_2m).length ? Math.round(valores(horas.temperature_2m).reduce((sum, valor) => sum + valor, 0) / valores(horas.temperature_2m).length) : null,
-        tempAgua: temperaturaAgua.length ? Math.round(temperaturaAgua.reduce((sum, valor) => sum + valor, 0) / temperaturaAgua.length) : null,
-        aemetAvailable: false,
-        source: 'open-meteo-fallback',
-        coordinates: { latitude: lat, longitude: lon }
+        tempAire: temps.length ? Math.round(temps.reduce((s, v) => s + v, 0) / temps.length) : null,
+        tempAgua: seaTemps.length ? Math.round(seaTemps.reduce((s, v) => s + v, 0) / seaTemps.length) : null,
+        cloudCover: clouds.length ? Math.round(clouds.reduce((s, v) => s + v, 0) / clouds.length) : null,
+        humidity: humid.length ? Math.round(humid.reduce((s, v) => s + v, 0) / humid.length) : null,
+        pressure: press.length ? Math.round(press.reduce((s, v) => s + v, 0) / press.length) : null,
+        visibility: visib.length ? Math.round(visib.reduce((s, v) => s + v, 0) / visib.length) : null,
+        componenteViento: compViento.componente,
+        infoCosta,
+        consenso,
+        horasDiurnas,
+        ventanasOptimas,
+        aemetAvailable: true,
+        source: 'open-meteo',
+        coordinates: { latitude: lat, longitude: lon },
+        location: payload.location
     };
 }
 
@@ -673,8 +751,17 @@ function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
     const tormenta = alerta.tormenta || /tormenta|thunderstorm|lightning|descarga electrica|actividad electrica|rayos detectados/.test(
         textoClima.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     ) || [95, 96, 99].includes(weatherCode);
-    const componenteViento = dx.componenteViento ?? dx.windComponent ?? null;
+
     const direccionViento = valorNumericoMeteo(dx.windDirection, dx.wind_direction);
+    const coords = dx.coordinates || (Number.isFinite(dx.latitude) && Number.isFinite(dx.longitude) ? { latitude: dx.latitude, longitude: dx.longitude } : null);
+
+    // Detección automática de componente costera si no vino preestablecida
+    let componenteViento = dx.componenteViento ?? dx.windComponent ?? null;
+    if (!componenteViento && (coords || dx.location) && direccionViento !== null) {
+        const compAuto = calcularComponenteVientoAuto(coords?.latitude, coords?.longitude, direccionViento, dx.location);
+        componenteViento = compAuto.componente;
+    }
+
     const entradaMotor = {
         vientoKmh,
         rachasKmh,
@@ -688,6 +775,7 @@ function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
         alerta,
         nivelUsuario
     };
+
     registrarDiagnosticoClima('[AEMET] Expert Engine Input', {
         alertas: alerta,
         tormenta,
@@ -695,19 +783,50 @@ function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
         factores: { vientoKmh, rachasKmh, olaM: oleajeM, periodoOla: entradaMotor.periodoOla, direccionViento }
     });
 
+    const veredictoBase = calcularVeredicto({ ...entradaMotor, datos: dx });
+
+    // Veredicto Next Generation (PaddleSafe Next-Gen Engine)
+    const nextGen = generarVeredictoNextGen({
+        vientoKmh,
+        rachasKmh,
+        direccionViento,
+        olaM: oleajeM,
+        periodoOla: entradaMotor.periodoOla,
+        swellM: dx.swellHeight ?? dx.swell_height,
+        periodoSwell: dx.swellPeriod ?? dx.swell_period,
+        direccionSwell: dx.swellDirection ?? dx.swell_direction,
+        precipitacion: entradaMotor.precipitacion,
+        probabilidadPrecipitacion: entradaMotor.probabilidadPrecipitacion,
+        coordenadas: coords,
+        nombreSpot: dx.location || dx.nombreSpot || '',
+        deporte: dx.deporte || 'paddle_surf',
+        nivelUsuario,
+        modelosPronostico: dx.consenso || null,
+        horasDiurnas: dx.horasDiurnas || null,
+        alerta,
+        tormenta
+    });
+
     return {
-        ...calcularVeredicto({ ...entradaMotor, datos: dx }),
-        fuenteAlternativa: /^open[-_ ]?meteo(?:[-_ ]fallback)?$/i.test(String(dx.source || ''))
+        ...veredictoBase,
+        nextGen,
+        beginnerIndex: nextGen.beginnerIndex,
+        consenso: dx.consenso || nextGen.consenso,
+        ventanaRecomendada: nextGen.ventanaRecomendada || dx.ventanasOptimas?.mejorVentana || null,
+        ventanas: dx.ventanasOptimas || null,
+        derivaCostera: nextGen.deriva,
+        explicacionNautica: nextGen.explicacion,
+        fuenteAlternativa: false
     };
 }
 
 function renderizarAvisoSuperior(motor) {
     const contenedor = document.getElementById('global-alert-container');
     if (!contenedor) return;
+    const partes = [];
     const alertas = motor?.aemet?.alertas || [];
     const alertasAemet = alertas.filter(alerta => alerta.origen === 'AEMET');
     const alertasGenerales = alertas.filter(alerta => alerta.origen !== 'AEMET');
-    const aemetDisponible = motor?.aemet?.disponible;
     const colorAlerta = { AMARILLA: 'yellow', NARANJA: 'orange', ROJA: 'red' };
     const clasesAlerta = {
         yellow: 'border-yellow-500 bg-yellow-50 text-yellow-950',
@@ -727,32 +846,26 @@ function renderizarAvisoSuperior(motor) {
             <ul class="mt-1 list-inside list-disc">${lista.map(alerta => `<li>${esc(alerta.tipo)}</li>`).join('')}</ul>
         </div>`;
     };
-    if (aemetDisponible === false) {
-        partes.push(`<div role="status" class="rounded-xl border-l-4 border-amber-500 bg-amber-50 p-3 text-sm text-amber-950">
-            <strong>⚠️ Avisos oficiales AEMET no disponibles</strong>
-            <p class="mt-1">No ha sido posible consultar las alertas oficiales de AEMET en este momento. El análisis continúa con los datos meteorológicos y marinos disponibles.</p>
-        </div>`);
-    }
-    if (motor?.fuenteAlternativa) {
-        partes.push(`<div role="status" class="rounded-xl border-l-4 border-sky-500 bg-sky-50 p-3 text-sm text-sky-950">
-            <strong>ℹ️ Pronóstico alternativo de Open-Meteo</strong>
-            <p class="mt-1">El pronóstico utiliza Open-Meteo como fuente alternativa. Los avisos oficiales AEMET se muestran por separado; consulta su estado antes de salir.</p>
-        </div>`);
-    }
+
+    // AEMET se utiliza estrictamente como capa de alertas oficiales.
+    // Si no existen alertas activas, no se muestran avisos defensivos ni bloqueos.
     partes.push(renderizarBannerAlerta(alertasAemet, 'Aviso AEMET'));
     partes.push(renderizarBannerAlerta(alertasGenerales, 'Aviso meteorológico'));
+
     if (motor?.alertaTormenta && !motor?.tormentaElectrica) {
         partes.push(`<div role="alert" class="rounded-xl border-2 border-orange-500 bg-orange-950 p-3 text-sm font-bold text-white">
             <strong>⚠️ AVISO PRIORITARIO POR TORMENTA / TEMPORAL</strong>
             <p class="mt-1 text-slate-100">Se prevén condiciones adversas de tormenta o temporal. Se recomienda extremar la precaución y valorar suspender la salida.</p>
         </div>`);
     }
+
     if (motor?.tormentaElectrica) {
         partes.push(`<div role="alert" class="rounded-xl border-2 border-red-700 bg-red-950 p-4 text-sm font-black text-white">
             <strong>⛈️ PELIGRO POR TORMENTA ELÉCTRICA</strong>
             <p class="mt-1">⛔ NO RECOMENDADO SALIR A REMAR</p>
         </div>`);
     }
+
     contenedor.innerHTML = partes.join('');
     registrarDiagnosticoClima('[AEMET] UI Output', {
         banners: alertas.length,
@@ -772,18 +885,90 @@ function renderizarResumenExperto(motor, prefijo = 'basic') {
     const mensaje = document.getElementById(`${prefijo}ExpertMessage`);
     const deriva = document.getElementById(`${prefijo}ExpertDrift`);
     const insights = document.getElementById(`${prefijo}ExpertInsights`);
+    const ng = motor?.nextGen;
     const icono = ICONOS_SEGURIDAD[motor.seguridad.nivel] || '⚠️';
+
     if (nivel) {
-        nivel.className = `text-sm font-black text-center w-full px-2 py-1 ${motor.cls}`;
+        nivel.className = `text-sm font-black text-center w-full px-2 py-1 ${motor.cls || ''}`;
         nivel.textContent = `${icono} ${motor.seguridad.nivel} · ${motor.seguridad.score}/100 · ${motor.recomendacion}`;
     }
-    if (confianza) confianza.textContent = `Confianza del análisis: ${motor.analysisConfidence}%`;
-    if (mensaje) mensaje.textContent = motor.mensaje;
-    if (deriva) deriva.textContent = `${ICONOS_DERIVA[motor.riesgoDeriva.nivel]} Deriva ${motor.riesgoDeriva.nivel} (${motor.riesgoDeriva.score}/100): ${motor.riesgoDeriva.descripcion}`;
-    if (insights) {
-        insights.innerHTML = deduplicateInsights(motor.factoresCriticos)
-            .map(insight => `<li>${esc(insight)}</li>`).join('');
+
+    if (confianza) {
+        confianza.textContent = `Confianza del análisis: ${motor.analysisConfidence}%`;
     }
+
+    if (mensaje) {
+        mensaje.textContent = motor.explicacionNautica || motor.mensaje;
+    }
+
+    if (deriva) {
+        const dInfo = motor.derivaCostera || motor.riesgoDeriva;
+        const dNivel = dInfo.nivel || 'BAJO';
+        const dScore = dInfo.score ?? 10;
+        const dDesc = dInfo.descripcion || '';
+        deriva.textContent = `${ICONOS_DERIVA[dNivel] || '🟢'} Deriva ${dNivel} (${dScore}/100): ${dDesc}`;
+    }
+
+    // Píldoras Next-Gen dinámicas (Mejor ventana, Iniciación, Consenso multi-modelo)
+    let badgesCont = document.getElementById(`${prefijo}NextGenBadges`);
+    if (!badgesCont && contenedor) {
+        badgesCont = document.createElement('div');
+        badgesCont.id = `${prefijo}NextGenBadges`;
+        badgesCont.className = 'flex flex-wrap gap-2 pt-1 pb-1';
+        if (deriva && deriva.parentNode) {
+            deriva.parentNode.insertBefore(badgesCont, deriva);
+        } else {
+            contenedor.appendChild(badgesCont);
+        }
+    }
+
+    if (badgesCont) {
+        const badges = [];
+        const isDark = prefijo === 'pro';
+
+        // 1. Píldora de Mejor Ventana Horaria
+        const ventana = motor.ventanaRecomendada || motor.ventanas?.mejorVentana;
+        if (ventana && ventana.inicio && ventana.fin) {
+            const vCls = isDark
+                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700/60'
+                : 'bg-emerald-50 text-emerald-800 border-emerald-300';
+            badges.push(`<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${vCls}">
+                ⏰ Mejor ventana: ${esc(ventana.inicio)} - ${esc(ventana.fin)}
+            </span>`);
+        }
+
+        // 2. Píldora del Índice de Iniciación
+        if (motor.beginnerIndex?.nivel) {
+            const bCls = isDark
+                ? 'bg-sky-950/80 text-sky-300 border-sky-700/60'
+                : 'bg-sky-50 text-sky-800 border-sky-300';
+            badges.push(`<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${bCls}">
+                🔰 Iniciación: ${esc(motor.beginnerIndex.nivel)}
+            </span>`);
+        }
+
+        // 3. Píldora del Consenso Multi-modelo
+        if (motor.consenso?.nivelConsenso && motor.consenso.nivelConsenso !== 'UNICO') {
+            const cCls = isDark
+                ? 'bg-slate-800 text-slate-300 border-slate-700'
+                : 'bg-slate-100 text-slate-700 border-slate-300';
+            badges.push(`<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cCls}">
+                🎯 Consenso: ${esc(motor.consenso.nivelConsenso)} (${motor.consenso.modelosDisponibles?.join(', ') || 'Multi-modelo'})
+            </span>`);
+        }
+
+        badgesCont.innerHTML = badges.join('');
+        badgesCont.style.display = badges.length ? 'flex' : 'none';
+    }
+
+    if (insights) {
+        const puntos = deduplicateInsights([
+            ...(ng?.factoresRiesgo || []),
+            ...(motor.factoresCriticos || [])
+        ]);
+        insights.innerHTML = puntos.map(insight => `<li>${esc(insight)}</li>`).join('');
+    }
+
     contenedor.classList.remove('hidden');
 }
 
