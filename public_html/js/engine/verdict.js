@@ -53,8 +53,7 @@ export const CLASES_RIESGO = {
     'PRECAUCIÓN': 'text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-lg',
     'RIESGO ELEVADO': 'text-orange-600 bg-orange-50 border border-orange-200 rounded-lg',
     'PELIGROSO': 'text-red-500 bg-red-50 border border-red-200 rounded-lg',
-    'RIESGO EXTREMO': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg',
-    'ANÁLISIS INCOMPLETO': 'text-amber-700 bg-amber-50 border border-amber-300 rounded-lg'
+    'RIESGO EXTREMO': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg'
 };
 
 export const ICONOS_SEGURIDAD = {
@@ -68,7 +67,6 @@ export const ICONOS_SEGURIDAD = {
     'RIESGO ELEVADO': '🟠',
     'PELIGROSO': '🔴',
     'RIESGO EXTREMO': '⛔',
-    'ANÁLISIS INCOMPLETO': '⚠️',
     'NO RECOMENDADO': '⛔'
 };
 

@@ -79,7 +79,6 @@ export const RIESGO = {
     'RIESGO ELEVADO': 2,
     'PELIGROSO': 3,
     'RIESGO EXTREMO': 4,
-    'ANÁLISIS INCOMPLETO': 4,
     'NO RECOMENDADO': 4,
     'PROHIBIDO': 4
 };
@@ -94,7 +93,6 @@ export const CLASES_RIESGO = {
     'RIESGO ELEVADO': 'text-orange-600 bg-orange-50 border border-orange-200 rounded-lg',
     'PELIGROSO':  'text-red-500 bg-red-50 border border-red-200 rounded-lg',
     'RIESGO EXTREMO': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg',
-    'ANÁLISIS INCOMPLETO': 'text-amber-700 bg-amber-50 border border-amber-300 rounded-lg',
     'NO RECOMENDADO': 'text-red-700 bg-red-100 border border-red-400 rounded-lg',
     'PROHIBIDO': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg'
 };
@@ -132,7 +130,6 @@ function nivelDeriva(score) {
 }
 
 const MENSAJE_TORMENTA_ELECTRICA = 'Se ha detectado riesgo de tormenta eléctrica en la zona analizada.\n\nLa práctica del paddle surf no se considera segura bajo estas condiciones debido al riesgo de descargas eléctricas, cambios bruscos del viento y deterioro rápido del estado del mar.\n\nSe recomienda cancelar o posponer la salida y volver a consultar el pronóstico más adelante.';
-const MENSAJE_DATOS_INSUFICIENTES = 'Las fuentes consultadas no disponen actualmente de información suficiente o suficientemente detallada para realizar una evaluación fiable de la seguridad.\n\nSe recomienda repetir el análisis más adelante cuando los proveedores meteorológicos dispongan de datos más completos y actualizados.';
 
 function datoNumericoDisponible(valor) {
     return valor !== null && valor !== undefined && valor !== ''

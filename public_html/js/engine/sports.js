@@ -145,9 +145,9 @@ export function evaluarCondicionesDeporte({
     if (deporte.requiereViento && vientoKt < (deporte.vientoMin || 11)) {
         return {
             recomendable: false,
-            estado: 'Condiciones insuficientes',
+            estado: 'Viento en calma para Foil',
             motivo: `El Wing Foil requiere al menos ${deporte.vientoMin} kt para sustentación en foil (viento actual: ${vientoKt} kt).`,
-            consejo: 'Espera a la brisa térmica de la tarde o una franja con mayor intensidad.'
+            consejo: 'Viento suave ideal para Paddle Surf recreativo. Espera a la brisa térmica si deseas practicar Wing Foil.'
         };
     }
 

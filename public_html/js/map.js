@@ -26,7 +26,6 @@ const ICONOS_SEGURIDAD = {
     'RIESGO ELEVADO': '🟠',
     'PELIGROSO': '🔴',
     'RIESGO EXTREMO': '⛔',
-    'ANÁLISIS INCOMPLETO': '⚠️',
     'NO RECOMENDADO': '⛔'
 };
 const ICONOS_DERIVA = {
@@ -157,6 +156,14 @@ async function solicitarPronostico(payload) {
     } else if (datosBackend?.aemet || datosBackend?.alerta_aemet || datosBackend?.alertas || datosBackend?.warnings) {
         datos.aemet = datosBackend.aemet || datosBackend.alerta_aemet || datos.aemet;
         datos.alertas = datosBackend.alertas || datosBackend.warnings || datos.alertas;
+    } else {
+        datos.aemet = {
+            disponible: false,
+            activa: false,
+            alertas: [],
+            mensaje: 'Alertas oficiales de AEMET no disponibles en este momento.'
+        };
+        datos.alertas = [];
     }
 
     registrarDiagnosticoClima('[AEMET] Integrated Response', {
@@ -386,9 +393,8 @@ function mostrarCoachPronosticoNoDisponible(container) {
     container.classList.remove('hidden');
     container.innerHTML = `
         <div class="flex flex-col gap-2">
-            <span class="font-black text-amber-300 text-xs uppercase tracking-wider">✨ Coach</span>
-            <p class="text-xs text-slate-200 leading-relaxed">No se pueden generar consejos personalizados sin datos meteorológicos fiables.</p>
-            <p class="text-[11px] text-amber-200">Consulta el parte marítimo oficial antes de salir y vuelve a intentarlo cuando se recupere el pronóstico.</p>
+            <span class="font-black text-amber-300 text-xs uppercase tracking-wider">✨ Coach ISA</span>
+            <p class="text-xs text-slate-200 leading-relaxed">Sin conexión con los servicios meteorológicos. Comprueba tu conexión a internet para cargar el análisis del spot.</p>
         </div>`;
 }
 
@@ -742,7 +748,7 @@ function nivelAlertaMeteorologica(registro) {
     if (/alerta roj[oa]|aviso roj[oa]|red warning/.test(texto)) return 'ROJA';
     if (/alerta naranja|aviso naranja|orange warning/.test(texto)) return 'NARANJA';
     if (/alerta amarill[oa]|aviso amarill[oa]|yellow warning/.test(texto)) return 'AMARILLA';
-    return 'NARANJA';
+    return 'AMARILLA';
 }
 
 export function evaluarAlertasGlobales(d) {
@@ -1165,7 +1171,7 @@ export async function consultarRutaPro() {
         const p = await solicitarPronostico(payload);
         renderizarDashboardPro(p.datos, t, u, marcadoresRuta.length >= 2, lat, lon, d);
     } catch(e) {
-        alertCont.innerHTML = `❌ <strong>No se pudo cargar el pronóstico.</strong> ${esc(e?.message || 'Revisa tu conexión e inténtalo de nuevo.')}<br><span class="font-normal">El coach no puede generar consejos personalizados sin datos fiables. Consulta el parte marítimo oficial antes de salir.</span>`;
+        alertCont.innerHTML = `❌ <strong>No se pudo cargar el pronóstico meteorológico.</strong> ${esc(e?.message || 'Comprueba tu conexión a internet e inténtalo de nuevo.')}`;
         alertCont.className = "text-sm font-bold text-red-400 bg-red-900/30 p-4 rounded-xl text-center w-full block mt-2";
         alertCont.classList.remove('hidden');
         console.warn('Aviso crítico (Fetch Pro):', e);
@@ -2511,18 +2517,6 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
         return;
     }
 
-    if (motor.recomendacion === 'NO RECOMENDADO' && motor.analysisConfidence < 40) {
-        const body = document.getElementById('proCoachBody');
-        if (body) {
-            body.innerHTML = `
-                <div class="rounded-xl border border-amber-500/40 bg-amber-950/40 p-3 text-xs text-white">
-                    <p class="font-black">⚠️ Información meteorológica insuficiente.</p>
-                    <p class="mt-1 text-slate-200">Repite el análisis cuando haya mediciones completas de viento y mar.</p>
-                </div>`;
-        }
-        return;
-    }
-
     // 2. GENERACIÓN DEL COACH INSTRUCTOR PROFESIONAL ISA (0ms)
     const coachLocal = generarConsejoCoach({
         condiciones: cond,
@@ -2554,15 +2548,6 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
                 <div class="mt-2 text-[11px] text-amber-200">
                     <strong>Consejo del Instructor:</strong> Cancela la salida de inmediato y permanece bajo techo en tierra firme.
                 </div>
-            </div>`;
-        return;
-    }
-
-    if (motor.recomendacion === 'NO RECOMENDADO' && motor.analysisConfidence < 40) {
-        cont.innerHTML = `
-            <div class="flex flex-col gap-2">
-                <span class="font-black text-amber-300 text-xs uppercase tracking-wider">✨ Consejo del Coach (${esc(userLvl || 'Intermedio')})</span>
-                <p class="text-xs text-slate-100 leading-relaxed">⚠️ Información meteorológica insuficiente para evaluar la seguridad.</p>
             </div>`;
         return;
     }
