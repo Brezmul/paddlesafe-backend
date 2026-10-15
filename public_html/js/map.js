@@ -1068,7 +1068,6 @@ export function evaluarAlertasGlobales(d) {
             }
         }
 
-    alertas.forEach(item => {
         let esVigente = true;
         let estadoTemporal = 'ACTIVA_AHORA';
 
@@ -1125,6 +1124,8 @@ export function evaluarAlertasGlobales(d) {
         esEmergencia,
         esAvisoPreventivo,
         avisoPreventivo: primerPreventivo,
+        esVigente: esEmergencia,
+        estadoTemporal: esEmergencia ? 'ACTIVA_AHORA' : (esAvisoPreventivo ? 'FUTURA_PREVENTIVA' : (alertas.some(a => a.estadoTemporal === 'EXPIRADA') ? 'EXPIRADA' : null)),
         fechaConsulta,
         disponible: disponibles,
         origen: tiene112 ? primer112.origen : (alertas.length > 0 && alertas.every(item => item.origen === 'AEMET') ? 'AEMET' : 'METEOROLÓGICA'),

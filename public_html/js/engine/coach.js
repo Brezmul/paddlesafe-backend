@@ -70,9 +70,11 @@ export function generarConsejoCoach({
         || motor?.nextGen?.alertaEmergenciaActiva
         || motor?.nextGen?.estado === 'Prohibido salir por emergencia'
         || motor?.recomendacion === 'PROHIBIDO POR EMERGENCIA'
+        || (condiciones.alertaOficial?.esEmergencia === true)
+        || (motor?.aemet?.esEmergencia === true)
         || (motor?.aemet?.alertas?.some(a =>
-            a.esVigente !== false &&
-            a.estadoTemporal !== 'FUTURA_PREVENTIVA' && (
+            a.esVigente === true &&
+            a.estadoTemporal === 'ACTIVA_AHORA' && (
                 a.esEspecial ||
                 /^1-?1-?2/i.test(a.origen || '') ||
                 /protecci[oó]n\s*civil/i.test(a.origen || a.tipo || '') ||
@@ -80,7 +82,7 @@ export function generarConsejoCoach({
                 Boolean(a.urlDoc)
             )
         ))
-        || (condiciones.alertaOficial?.activa && condiciones.alertaOficial?.esVigente !== false && condiciones.alertaOficial?.estadoTemporal !== 'FUTURA_PREVENTIVA' && (
+        || (condiciones.alertaOficial?.activa && condiciones.alertaOficial?.esVigente === true && condiciones.alertaOficial?.estadoTemporal === 'ACTIVA_AHORA' && (
             condiciones.alertaOficial.esEspecial ||
             /^1-?1-?2/i.test(condiciones.alertaOficial.origen || '') ||
             ['NARANJA', 'ROJA'].includes(String(condiciones.alertaOficial.nivel || '').toUpperCase())
