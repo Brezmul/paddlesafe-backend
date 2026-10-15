@@ -127,7 +127,8 @@ export function generarVeredictoNextGen(params = {}) {
     if (!alertaOficial && alertasArray.length > 0) {
         const top = alertasArray[0];
         alertaOficial = {
-            activa: true,
+            ...top,
+            activa: top.activa !== undefined ? top.activa : (top.esVigente !== false && top.estadoTemporal !== 'EXPIRADA' && top.estadoTemporal !== 'FUTURA_PREVENTIVA'),
             origen: top.origen || 'AEMET',
             nivel: String(top.nivel || 'AMARILLA').toUpperCase(),
             tipo: top.tipo || top.fenomeno || 'Aviso costero',
@@ -135,7 +136,8 @@ export function generarVeredictoNextGen(params = {}) {
         };
     } else if (alertaOficial && alertaOficial.activa === undefined) {
         alertaOficial = {
-            activa: true,
+            ...alertaOficial,
+            activa: alertaOficial.esVigente !== false && alertaOficial.estadoTemporal !== 'EXPIRADA' && alertaOficial.estadoTemporal !== 'FUTURA_PREVENTIVA',
             origen: alertaOficial.origen || 'AEMET',
             nivel: String(alertaOficial.nivel || 'AMARILLA').toUpperCase(),
             tipo: alertaOficial.tipo || 'Aviso meteorológico',
@@ -221,7 +223,7 @@ export function generarVeredictoNextGen(params = {}) {
     } else {
         esAlertaEmergencia = Boolean(
             params.alertaEmergencias
-            || (alertaOficial?.activa && alertaOficial?.esVigente !== false && alertaOficial?.estadoTemporal !== 'FUTURA_PREVENTIVA' && (
+            || (alertaOficial?.activa && alertaOficial?.esVigente !== false && alertaOficial?.estadoTemporal !== 'FUTURA_PREVENTIVA' && alertaOficial?.estadoTemporal !== 'EXPIRADA' && (
                 alertaOficial.esEspecial ||
                 /^1-?1-?2/i.test(alertaOficial.origen || '') ||
                 /protecci[oó]n\s*civil/i.test(alertaOficial.origen || alertaOficial.tipo || '') ||
@@ -230,7 +232,7 @@ export function generarVeredictoNextGen(params = {}) {
                 /emergencia|inundaci|avenida|temporal\s*costero|galerna|ciclon|borrasca/i.test(`${alertaOficial.tipo || ''} ${alertaOficial.descripcion || ''}`)
             ))
             || alertasArray.some(a => 
-                a?.esVigente !== false && a?.estadoTemporal !== 'FUTURA_PREVENTIVA' && (
+                a?.esVigente !== false && a?.estadoTemporal !== 'FUTURA_PREVENTIVA' && a?.estadoTemporal !== 'EXPIRADA' && (
                     a?.esEspecial || 
                     /^1-?1-?2/i.test(a?.origen || '') || 
                     /protecci[oó]n\s*civil/i.test(a?.origen || a?.tipo || '') ||
@@ -388,11 +390,13 @@ export function generarVeredictoNextGen(params = {}) {
 
     if (compViento.componente === 'offshore') score -= 15;
 
-    // Alertas oficiales AEMET (solo penalizan si aplican a la jornada consultada, no si son preventivas a futuro)
+    // Alertas oficiales AEMET (solo penalizan si aplican a la jornada consultada, no si son preventivas a futuro ni expiradas)
     const alertaActivaJornada = Boolean(
         alertaOficial?.activa 
         && !avisoPreventivo 
+        && alertaOficial?.esVigente !== false
         && alertaOficial?.estadoTemporal !== 'FUTURA_PREVENTIVA' 
+        && alertaOficial?.estadoTemporal !== 'EXPIRADA'
         && alertaOficial?.esEmergencia !== false
     );
 

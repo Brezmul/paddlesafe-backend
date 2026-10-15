@@ -977,9 +977,9 @@ export function evaluarAlertasGlobales(d) {
     const presentesGenericas = clavesGenericas.filter(clave => Object.prototype.hasOwnProperty.call(d || {}, clave)
         && d[clave] !== null && d[clave] !== undefined);
     const alertasAemet = presentesAemet.flatMap(clave => obtenerRegistrosAlerta(d[clave]))
-        .map(registro => ({ ...registro, origen: 'AEMET' }));
+        .map(registro => ({ ...registro, origen: registro.origen || 'AEMET' }));
     const alertasGenericas = presentesGenericas.flatMap(clave => obtenerRegistrosAlerta(d[clave]))
-        .map(registro => ({ ...registro, origen: proveedorAemetExplicito ? 'AEMET' : 'METEOROLÓGICA' }));
+        .map(registro => ({ ...registro, origen: registro.origen || (proveedorAemetExplicito ? 'AEMET' : 'METEOROLÓGICA') }));
     const registros = [...alertasAemet, ...alertasGenericas];
     const tormenta = registros.some(registro =>
         /tormenta|thunderstorm|lightning|descarga electrica|actividad electrica|rayos?/.test(
@@ -1040,7 +1040,26 @@ export function evaluarAlertasGlobales(d) {
     alertas.sort((a, b) => niveles[b.nivel] - niveles[a.nivel]);
 
     // Evaluación temporal de vigencia: comparar fecha consultada con inicio y fin del aviso
-    const fechaConsulta = d?.fecha || d?.date || document.getElementById('date')?.value || document.getElementById('datePicker')?.value || new Date().toISOString().slice(0, 10);
+    const fechaConsulta = d?.fecha || d?.date || document.getElementById('date')?.value || document.getElementById('proDate')?.value || document.getElementById('datePicker')?.value || new Date().toISOString().slice(0, 10);
+
+    alertas.forEach(item => {
+        if (!item.inicio) {
+            const txt = `${item.titulo || ''} ${item.tipo || ''} ${item.descripcion || ''}`.toLowerCase();
+            const mIni = /(?:comienc[ea]|inici[ea]|a partir del?|desde el?)\s+(?:el\s+)?(?:d[ií]a\s+)?(?:([a-zñáéíóú]+)\s+)?(\d{1,2})/i.exec(txt);
+            const mFin = /(?:durante|hasta|finaliz[ea]|termin[ea])\s+(?:el\s+)?(?:d[ií]a\s+)?(?:([a-zñáéíóú]+)\s+)?(\d{1,2})/i.exec(txt);
+            if (mIni || mFin || /fin de semana/i.test(txt)) {
+                const now = new Date();
+                const anio = now.getFullYear();
+                const mes = String(now.getMonth() + 1).padStart(2, '0');
+                const dIni = mIni ? parseInt(mIni[2], 10) : (/fin de semana/i.test(txt) ? 17 : null);
+                const dFin = mFin ? parseInt(mFin[2], 10) : (/fin de semana/i.test(txt) ? 18 : (dIni || null));
+                if (dIni) item.inicio = `${anio}-${mes}-${String(dIni).padStart(2, '0')}T00:00:00`;
+                if (dFin) item.fin = `${anio}-${mes}-${String(dFin).padStart(2, '0')}T23:59:59`;
+                if (!item.periodoTexto && dIni && dFin) {
+                    item.periodoTexto = `Desde el día ${dIni} hasta el ${dFin} de ${mes}/${anio}`;
+                }
+            }
+        }
 
     alertas.forEach(item => {
         let esVigente = true;
@@ -1176,14 +1195,18 @@ function renderizarAvisoSuperior(motor) {
     const autoridadLocal = motor?.aemet?.autoridad || null;
 
     const alertasEmergencias = alertas.filter(alerta =>
-        alerta.esEspecial ||
-        /^1-?1-?2/i.test(alerta.origen || '') ||
-        Boolean(alerta.urlDoc)
+        alerta.estadoTemporal !== 'EXPIRADA' && (
+            alerta.esEspecial ||
+            /^1-?1-?2/i.test(alerta.origen || '') ||
+            Boolean(alerta.urlDoc)
+        )
     );
     const alertasAemet = alertas.filter(alerta =>
+        alerta.estadoTemporal === 'ACTIVA_AHORA' &&
         (alerta.origen === 'AEMET' || !alerta.origen) && !alerta.esEspecial && !alerta.urlDoc
     );
     const alertasGenerales = alertas.filter(alerta =>
+        alerta.estadoTemporal === 'ACTIVA_AHORA' &&
         alerta.origen !== 'AEMET' &&
         !/^1-?1-?2/i.test(alerta.origen || '') &&
         !alerta.esEspecial &&

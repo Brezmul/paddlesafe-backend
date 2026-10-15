@@ -223,10 +223,27 @@ function normalizarNivel(nivel) {
 }
 
 function generarResumenNautico(vKt, rKt, oleajeM, compCostera, nivel, esEmbalse, motor = null) {
-    if (motor?.aemet?.activa) {
-        const topAlerta = motor.aemet.alertas?.[0] || {};
+    if (motor?.alertaEmergenciaActiva) {
+        const topAlerta = motor.aemet?.alertas?.find(a => /^1-?1-?2/i.test(a?.origen || '')) || motor.aemet?.alertas?.[0] || {};
         const origen = topAlerta.origen || 'Protección Civil / AEMET';
-        return `⚠️ Aviso oficial de emergencias activo (${origen} - ${topAlerta.nivel || 'Naranja'}). Aunque la superficie del agua parezca tranquila momentáneamente, existe riesgo de cambios bruscos, avenidas repentinas en ramblas hacia el mar o fenómenos adversos. Se aconseja aplazar la actividad y permanecer en tierra firme.`;
+        return `⛔ Aviso oficial de emergencias activo (${origen} - ${topAlerta.nivel || 'Naranja'}). Salida prohibida por riesgo vital extremo. Aunque la superficie del agua parezca tranquila momentáneamente, existe peligro inminente de corrientes violentas y avenidas repentinas. Queda terminantemente desaconsejado entrar al agua.`;
+    }
+
+    if (motor?.avisoPreventivoActivo || motor?.avisoPreventivo) {
+        const p = motor.avisoPreventivo;
+        const perTxt = p?.periodoTexto || 'el próximo fin de semana';
+        const diaTxt = p?.nombreDiaInicio ? `el ${p.nombreDiaInicio} ${p.diaInicio || ''}`.trim() : (p?.diaInicio ? `el día ${p.diaInicio}` : 'la entrada del temporal');
+        let estadoHoy = '';
+        if (vKt <= 7 && oleajeM <= 0.35) {
+            estadoHoy = 'Hoy el mar se encuentra en calma y las condiciones locales son plenamente favorables para remar con seguridad y fluidez.';
+        } else if (vKt >= 15 || oleajeM >= 0.9) {
+            estadoHoy = 'Las condiciones de hoy son exigentes por viento y oleaje activo.';
+        } else if (compCostera === 'offshore') {
+            estadoHoy = 'Las condiciones de hoy son navegables manteniendo precaución por el viento hacia mar abierto (offshore).';
+        } else {
+            estadoHoy = 'Hoy las condiciones marítimas locales permiten una salida provechosa y controlada.';
+        }
+        return `${estadoHoy} Atención a los partes: Protección Civil ha emitido un Aviso Especial por temporal para ${perTxt}. Navegación permitida hoy; estrictamente prohibida a partir de ${diaTxt}.`;
     }
 
     if (vKt <= 7 && oleajeM <= 0.35) {
@@ -454,7 +471,9 @@ function generarVeredictoEjecutivo(score, vKt, rKt, oleajeM, compCostera, nivel,
         return "⛔ SALIDA PROHIBIDA: AVISO OFICIAL DE EMERGENCIAS ACTIVO";
     }
     if (motor?.avisoPreventivoActivo || motor?.avisoPreventivo) {
-        return "AVISO PREVENTIVO 112 PROGRAMADO (SALIDA HOY CON SEGUIMIENTO)";
+        const p = motor.avisoPreventivo;
+        const diaTxt = p?.nombreDiaInicio ? p.nombreDiaInicio : (p?.diaInicio ? `el día ${p.diaInicio}` : 'el fin de semana');
+        return `SALIDA PERMITIDA HOY · PROHIBIDA DESDE ${diaTxt.toUpperCase()}`;
     }
     if (score >= 80 && compCostera !== 'offshore') {
         if (nivel === 'Principiante') return "DÍA EXCELENTE PARA APRENDIZAJE Y SEGURIDAD";
