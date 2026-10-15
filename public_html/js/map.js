@@ -9,6 +9,8 @@ import {
     calcularVeredicto,
     kmhANudos,
     deduplicateInsights,
+    sonMensajesEquivalentes,
+    filtrarConsejosRedundantes,
     generarVeredictoNextGen,
     resolverOrientacionCostera,
     calcularComponenteVientoAuto,
@@ -2357,6 +2359,10 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
         badgeScore.innerHTML = `<span>${scoreIcon}</span> Seguridad: ${score}/100`;
     }
 
+    // 1. RECOMENDACIÓN PRINCIPAL ÚNICA DEL INSTRUCTOR
+    // El Consejo del Instructor es el bloque prioritario y canónico de decisiones prácticas
+    const consejoPrincipal = coach.consejo_instructor || coach.regla_oro || null;
+
     // Normalización defensiva de dureza
     const dureza = (coach.dureza_ruta && typeof coach.dureza_ruta === 'object')
         ? {
@@ -2369,16 +2375,18 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
         };
 
     // Normalización defensiva de estrategia_viento
+    const rawPacing = coach.estrategia_viento?.consejo_pacing || "Sal contra el viento y guarda un 30% de energía para el regreso.";
+    const pacingEsDuplicado = consejoPrincipal && sonMensajesEquivalentes(rawPacing, consejoPrincipal);
     const estViento = (coach.estrategia_viento && typeof coach.estrategia_viento === 'object')
         ? {
             tramo_facil: coach.estrategia_viento.tramo_facil || "Aprovecha los tramos con viento a favor para deslizar la tabla.",
             tramo_exigente: coach.estrategia_viento.tramo_exigente || "Rema con postura baja en los tramos contra el viento.",
-            consejo_pacing: coach.estrategia_viento.consejo_pacing || "Sal contra el viento y guarda un 30% de energía para el regreso."
+            consejo_pacing: pacingEsDuplicado ? "" : rawPacing
         }
         : {
             tramo_facil: typeof coach.estrategia_viento === 'string' ? coach.estrategia_viento : "Aprovecha los tramos con viento a favor para deslizar la tabla.",
             tramo_exigente: "Rema con postura baja en los tramos contra el viento.",
-            consejo_pacing: "Sal contra el viento y guarda un 30% de energía para el regreso."
+            consejo_pacing: pacingEsDuplicado ? "" : "Sal contra el viento y guarda un 30% de energía para el regreso."
         };
 
     // Normalización defensiva de análisis de zona y peligros
@@ -2386,32 +2394,38 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
     if (typeof rawPeligros === 'string') rawPeligros = [rawPeligros];
     if (!Array.isArray(rawPeligros)) rawPeligros = [];
 
+    const rawRecSeguridad = coach.analisis_zona?.recomendacion_seguridad || "";
+    const recSeguridadDuplicada = consejoPrincipal && sonMensajesEquivalentes(rawRecSeguridad, consejoPrincipal);
+
     const zona = (coach.analisis_zona && typeof coach.analisis_zona === 'object')
         ? {
             orografia: coach.analisis_zona.orografia || "Costa abierta con exposición normal al viento.",
             peligros_detectados: rawPeligros,
-            recomendacion_seguridad: coach.analisis_zona.recomendacion_seguridad || ""
+            recomendacion_seguridad: recSeguridadDuplicada ? "" : rawRecSeguridad
         }
         : {
             orografia: typeof coach.analisis_zona === 'string' ? coach.analisis_zona : "Costa abierta con exposición normal al viento.",
             peligros_detectados: rawPeligros.length > 0 ? rawPeligros : ["Atención a posibles ráfagas en salientes y cabos."],
-            recomendacion_seguridad: "Mantén navegación paralela a la costa."
+            recomendacion_seguridad: recSeguridadDuplicada ? "" : "Mantén navegación paralela a la costa."
         };
 
-    let consejosNivel = [];
+    let rawConsejosNivel = [];
     if (Array.isArray(coach.consejos_nivel) && coach.consejos_nivel.length > 0) {
-        consejosNivel = coach.consejos_nivel;
+        rawConsejosNivel = coach.consejos_nivel;
     } else if (typeof coach.consejos_nivel === 'string' && coach.consejos_nivel) {
-        consejosNivel = [coach.consejos_nivel];
+        rawConsejosNivel = [coach.consejos_nivel];
     } else if (Array.isArray(coach.tecnica_postura) && coach.tecnica_postura.length > 0) {
-        consejosNivel = coach.tecnica_postura;
+        rawConsejosNivel = coach.tecnica_postura;
     } else if (typeof coach.tecnica_postura === 'string' && coach.tecnica_postura) {
-        consejosNivel = [coach.tecnica_postura];
+        rawConsejosNivel = [coach.tecnica_postura];
     } else {
-        consejosNivel = ["Mantén flexión de rodillas y mirada al horizonte."];
+        rawConsejosNivel = ["Mantén flexión de rodillas y mirada al horizonte."];
     }
 
-    const peligrosArr = Array.isArray(zona.peligros_detectados) ? zona.peligros_detectados : [];
+    const consejosNivelFiltrados = filtrarConsejosRedundantes(rawConsejosNivel, [consejoPrincipal, estViento.consejo_pacing]);
+    const consejosNivel = consejosNivelFiltrados.length > 0 ? consejosNivelFiltrados : ["Mantén flexión de rodillas y mirada al horizonte."];
+
+    const peligrosArr = filtrarConsejosRedundantes(Array.isArray(zona.peligros_detectados) ? zona.peligros_detectados : [], [consejoPrincipal]);
     const peligrosHtml = peligrosArr.length > 0
         ? peligrosArr.map(p => `
             <li class="flex items-start gap-2 text-xs text-amber-200/90">
@@ -2432,11 +2446,9 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
     if (typeof segArr === 'string') segArr = [segArr];
     if (!Array.isArray(segArr)) segArr = [];
     const referenciasMotor = motor
-        ? [motor.mensaje, ...motor.factoresCriticos, motor.riesgoDeriva?.descripcion].filter(Boolean)
-        : [];
-    const seguridadUnica = deduplicateInsights(segArr).filter(item =>
-        !referenciasMotor.some(referencia => deduplicateInsights([item, referencia]).length === 1)
-    );
+        ? [motor.mensaje, ...motor.factoresCriticos, motor.riesgoDeriva?.descripcion, consejoPrincipal].filter(Boolean)
+        : [consejoPrincipal].filter(Boolean);
+    const seguridadUnica = filtrarConsejosRedundantes(segArr, referenciasMotor);
     const seguridadItems = seguridadUnica.length > 0
         ? seguridadUnica.map(item => `
             <li class="flex items-start gap-2 text-xs text-slate-200">
@@ -2481,13 +2493,13 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
             </div>
         </div>
 
-        <!-- CONSEJO DEL INSTRUCTOR (DECISIÓN PRÁCTICA) -->
-        ${coach.consejo_instructor ? `
+        <!-- CONSEJO DEL INSTRUCTOR (DECISIÓN PRÁCTICA PRINCIPAL) -->
+        ${consejoPrincipal ? `
         <div class="bg-gradient-to-r from-amber-500/15 via-emerald-500/15 to-teal-500/15 border border-amber-500/40 rounded-2xl p-4 shadow-sm flex items-start gap-3">
             <span class="text-amber-400 shrink-0 text-xl mt-0.5">💡</span>
             <div class="flex-1">
                 <span class="text-amber-300 font-black text-[11px] uppercase tracking-wider block mb-1">Consejo del Instructor (${esc(userLvl || 'Intermedio')})</span>
-                <p class="text-white text-xs font-semibold leading-relaxed">${esc(coach.consejo_instructor)}</p>
+                <p class="text-white text-xs font-semibold leading-relaxed">${esc(consejoPrincipal)}</p>
             </div>
         </div>
         ` : ''}
@@ -2543,11 +2555,12 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
                 </div>
             </div>
 
-            <!-- Consejo Pacing -->
+            <!-- Consejo Pacing (si no repite el consejo principal) -->
+            ${estViento.consejo_pacing ? `
             <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-700/60 text-[11px] text-slate-300 flex items-start gap-2">
                 <span class="text-amber-400 shrink-0 text-sm">💡</span>
-                <span class="leading-relaxed"><strong>Pacing y Energía:</strong> ${esc(estViento.consejo_pacing || '')}</span>
-            </div>
+                <span class="leading-relaxed"><strong>Pacing y Energía:</strong> ${esc(estViento.consejo_pacing)}</span>
+            </div>` : ''}
         </div>
 
         <!-- 3. ANÁLISIS DE LA ZONA MARCADA EN EL MAPA -->
@@ -2612,14 +2625,6 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
                 </ul>
             </div>
         </div>
-
-        <!-- Regla de Oro -->
-        ${coach.regla_oro ? `
-        <div class="bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-teal-500/20 border border-amber-500/50 rounded-2xl p-3.5 text-center shadow-md">
-            <span class="text-amber-300 font-black text-[10px] uppercase tracking-widest block mb-0.5">💡 Regla de Oro del Coach</span>
-            <p class="text-white text-xs font-bold italic leading-relaxed">"${esc(coach.regla_oro)}"</p>
-        </div>
-        ` : ''}
 
         <!-- Pie de Información y Transparencia -->
         <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/80">
@@ -2733,6 +2738,11 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
         const score = motor.seguridad?.score ?? 85;
         let scoreCls = score >= 75 ? "text-emerald-400" : (score >= 45 ? "text-amber-400" : "text-rose-400");
 
+        // 1. RECOMENDACIÓN PRINCIPAL ÚNICA DEL INSTRUCTOR
+        // El bloque 💡 Consejo del Instructor es el único bloque oficial de recomendaciones.
+        // Se descarta cualquier bloque 📜 inferior duplicado o semánticamente equivalente.
+        const consejoPrincipal = coach.consejo_instructor || coach.regla_oro || null;
+
         cont.innerHTML = `
             <div class="flex flex-col gap-2.5">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -2746,11 +2756,11 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
                 <!-- Resumen pedagógico que convierte datos en decisiones -->
                 <p class="text-xs text-slate-100 leading-relaxed font-medium">${esc(coach.resumen)}</p>
 
-                <!-- Consejo personalizado del instructor -->
-                ${coach.consejo_instructor ? `
+                <!-- Consejo personalizado del instructor (Único bloque principal) -->
+                ${consejoPrincipal ? `
                 <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2.5 rounded-xl border border-amber-500/30">
                     <span class="shrink-0 text-sm">💡</span>
-                    <span><strong>Consejo del Instructor:</strong> ${esc(coach.consejo_instructor)}</span>
+                    <span><strong>Consejo del Instructor:</strong> ${esc(consejoPrincipal)}</span>
                 </div>` : ''}
 
                 <!-- Ventana Óptima si existe -->
@@ -2758,13 +2768,6 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
                 <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
                     <span class="shrink-0">⏰</span>
                     <span><strong>Ventana Óptima:</strong> ${esc(coach.ventana_recomendada)}</span>
-                </div>` : ''}
-
-                <!-- Regla de oro -->
-                ${coach.regla_oro ? `
-                <div class="text-[11px] text-sky-200 flex items-start gap-1.5 bg-sky-950/40 p-2 rounded-lg border border-sky-500/20">
-                    <span class="shrink-0">📜</span>
-                    <span class="italic">"${esc(coach.regla_oro)}"</span>
                 </div>` : ''}
             </div>
         `;
@@ -2784,10 +2787,12 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
         const coachRemoto = data.coach ? normalizarUnidadesCoach(data.coach) : null;
         if (data.ok && coachRemoto && (coachRemoto.resumen || coachRemoto.veredicto)
             && !coachContradiceMotor(coachRemoto, motor)) {
+            const consejoRemoto = coachRemoto.consejo_instructor || coachRemoto.regla_oro || coachLocal.consejo_instructor;
             renderizarContenidoBasico({
                 ...coachLocal,
                 resumen: coachRemoto.resumen || coachLocal.resumen,
-                consejo_instructor: coachRemoto.regla_oro || coachLocal.consejo_instructor
+                consejo_instructor: consejoRemoto,
+                regla_oro: null
             }, data.fuente);
         }
     } catch (e) {

@@ -5,7 +5,7 @@
 // NUNCA repite datos visibles en pantalla. Adapta los consejos al nivel real.
 // ==============================================================================
 
-import { esc, deduplicateInsights, kmhANudos } from '../utils.js';
+import { esc, deduplicateInsights, kmhANudos, sonMensajesEquivalentes, filtrarConsejosRedundantes } from '../utils.js';
 
 /**
  * Genera el análisis experto completo del Coach Instructor Profesional
@@ -113,11 +113,18 @@ export function generarConsejoCoach({
     // 10. Material y Equipamiento de Seguridad ISA
     const materialRecomendado = generarMaterialRecomendado(oleajeM, compCostera, esEmbalse);
 
-    // 11. Consejo Personalizado del Instructor
+    // 11. Consejo Personalizado del Instructor (Recomendación Principal Única)
     const consejoInstructor = generarConsejoInstructor(nivel, compCostera, vKt, oleajeM, distKm, motor);
 
-    // 12. Regla de Oro
+    // 12. Regla de Oro (se alinea con el consejo para evitar discrepancias)
     const reglaOro = generarReglaOro(nivel, compCostera, vKt, motor);
+
+    // Deduplicación semántica para evitar que sub-bloques repitan el consejo principal
+    const consejosNivelFiltrados = filtrarConsejosRedundantes(consejosNivel, [consejoInstructor, estrategiaViento?.consejo_pacing]);
+    const seguridadFiltrada = filtrarConsejosRedundantes([
+        textoDeriva,
+        ...generarSeguridadEstrategia(nivel, compCostera, vKt, oleajeM)
+    ], [consejoInstructor, reglaOro]);
 
     // 13. Veredicto Ejecutivo del Instructor
     const veredicto = generarVeredictoEjecutivo(motor?.seguridad?.score ?? 80, vKt, rKt, oleajeM, compCostera, nivel, motor);
@@ -138,12 +145,9 @@ export function generarConsejoCoach({
             recomendacion_seguridad: esEmbalse ? "Navega con chaleco y mantén distancia de presas y aliviaderos." : "Navega paralelo a la costa y mantén línea de visión despejada hacia la orilla."
         },
         ventana_recomendada: textoVentana,
-        consejos_nivel: consejosNivel,
+        consejos_nivel: consejosNivelFiltrados.length > 0 ? consejosNivelFiltrados : consejosNivel,
         consejo_instructor: consejoInstructor,
-        seguridad_estrategia: [
-            textoDeriva,
-            ...generarSeguridadEstrategia(nivel, compCostera, vKt, oleajeM)
-        ],
+        seguridad_estrategia: seguridadFiltrada.length > 0 ? seguridadFiltrada : [textoDeriva],
         tecnica_postura: tecnicaPostura,
         material_recomendado: materialRecomendado,
         regla_oro: reglaOro
@@ -288,7 +292,7 @@ function generarConsejosNivel(nivel, vKt, oleajeM, compCostera) {
     if (nivel === 'Principiante') {
         return [
             "Mantén la mirada al frente en el horizonte; mirar a la tabla o a los pies desequilibra el centro de gravedad.",
-            "Si sientes desequilibrio repentino o una racha molesta, ponte de rodillas inmediatamente (kneeling paddle) y rema con paladas bajas y seguras hacia la arena.",
+            "Técnica de palada: mantén la mano superior sobre el pomo en línea vertical con la mano inferior para que la tabla avance recta.",
             "Navega en todo momento a menos de 100 metros de la orilla y ten una referencia visual fija en tierra para controlar tu deriva."
         ];
     }
@@ -359,7 +363,7 @@ function generarConsejoInstructor(nivel, compCostera, vKt, oleajeM, distKm, moto
         return "Hoy es un día magnífico para practicar técnica pura, postura erguida y respiración acompasada en un entorno amable.";
     }
     if (nivel === 'Principiante') {
-        return "No te preocupes por la distancia recorrida: prioriza la seguridad, el disfrute y familiarizarte con las sensaciones de la tabla.";
+        return "Ante cualquier duda, racha repentina o desequilibrio: a rodillas, centro de gravedad bajo y regreso en calma a la orilla.";
     }
     if (distKm > 4) {
         return "Lleva hidratación suficiente y avisa en tierra de tu hora estimada de desembarque antes de entrar al agua.";

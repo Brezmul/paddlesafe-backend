@@ -136,32 +136,148 @@ function datoNumericoDisponible(valor) {
         && valor !== '--' && valor !== 'N/D' && Number.isFinite(Number(valor));
 }
 
-export function deduplicateInsights(insights = []) {
-    const equivalencias = [
-        [/\b(?:riesgo (?:significativo )?(?:de )?)?tormentas? electricas?\b|\bactividad electrica\b|\bthunderstorms?\b|\blightning\b|\bdescargas electricas?\b|\brayos?\b/g, 'tormenta electrica'],
-        [/\bwind gusts?\b|\brachas? de viento\b|\bracha\b/g, 'rachas'],
-        [/\bwave height\b|\bhigh waves?\b|\boleajes?\b|\bolas?\b|\bmar de fondo\b/g, 'oleaje'],
-        [/\bstrong winds?\b|\bvientos? fuertes?\b/g, 'viento fuerte'],
-        [/\boffshore\b|\bviento de tierra\b/g, 'viento que aleja de la costa']
+/**
+ * Evalúa si dos textos o consejos transmiten esencialmente la misma recomendación o significado (equivalencia semántica).
+ * Detecta tanto textos idénticos como variaciones del tipo:
+ * "Ante cualquier duda, vuelve a la orilla." vs "Si las condiciones empeoran, regresa a la costa."
+ */
+export function sonMensajesEquivalentes(textoA, textoB, umbral = 0.5) {
+    if (!textoA || !textoB) return false;
+    if (typeof textoA !== 'string' || typeof textoB !== 'string') return false;
+
+    const a = textoA.trim();
+    const b = textoB.trim();
+    if (!a || !b) return false;
+    if (a.toLowerCase() === b.toLowerCase()) return true;
+
+    // Normalización de texto base (sin acentos, minúsculas, sin puntuación)
+    const limpiar = t => t.normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const normA = limpiar(a);
+    const normB = limpiar(b);
+    if (normA === normB) return true;
+    if (normA.length > 20 && normB.length > 20 && (normA.includes(normB) || normB.includes(normA))) return true;
+
+    // Diccionario de conceptos semánticos náuticos / Paddle Surf
+    const CONCEPTOS = [
+        { id: 'RETORNO', regex: /\b(regres[a-z]*|retorn[a-z]*|volv[a-z]*|vuelta|regreso|escap[a-z]*)\b/g },
+        { id: 'ORILLA', regex: /\b(orilla|costa|playa|tierra|tierra firme|arena)\b/g },
+        { id: 'RODILLAS', regex: /\b(rodill[a-z]*|arrodill[a-z]*|agach[a-z]*|centro de gravedad|gravedad bajo)\b/g },
+        { id: 'ALERTA', regex: /\b(duda|dudas|empeor[a-z]*|desequilibri[a-z]*|inestab[a-z]*|cansanci[a-z]*|fatiga|racha|rachas|dificultad[a-z]*|problema[a-z]*|miedo|vacil[a-z]*)\b/g },
+        { id: 'PARALELO', regex: /\b(paralel[a-z]*|linea de costa|bordeando|costeand[a-z]*)\b/g },
+        { id: 'PACING', regex: /\b(pacing|dosific[a-z]*|reserv[a-z]*|guard[a-z]*|tercio|30%|35%|fuerza[a-z]*|energia|cansad[a-z]*)\b/g },
+        { id: 'CHALECO', regex: /\b(chaleco|flotabilid[a-z]*|50n|salvavidas)\b/g },
+        { id: 'LEASH', regex: /\b(leash|invento|amarr[a-z]*|tobillo)\b/g },
+        { id: 'POSPONER', regex: /\b(aplaz[a-z]*|suspend[a-z]*|cancel[a-z]*|quedarse en tierra|quedate en tierra|no salir|techo)\b/g },
+        { id: 'EMERGENCIA', regex: /\b(emergenci[a-z]*|aviso|avisos|112|aemet|proteccion civil)\b/g },
+        { id: 'OFFSHORE', regex: /\b(offshore|terral|tierra mar|mar abierto|mar adentro|alejarse|aleja)\b/g },
+        { id: 'CALIDAD_TECNICA', regex: /\b(tecnica pura|postura erguida|respiracion|perfeccionamiento|palada limpia)\b/g },
+        { id: 'HIDRATACION', regex: /\b(hidrat[a-z]*|agua|beber|liquido)\b/g }
     ];
-    const normalizar = texto => {
-        let normalizado = String(texto).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-        equivalencias.forEach(([expresion, reemplazo]) => {
-            normalizado = normalizado.replace(expresion, reemplazo);
+
+    const extraerConceptos = t => {
+        const encontrados = new Set();
+        CONCEPTOS.forEach(({ id, regex }) => {
+            regex.lastIndex = 0;
+            if (regex.test(t)) encontrados.add(id);
         });
-        normalizado = normalizado.replace(/\balt[oa]s?\b/g, 'alto').replace(/\bprevist[oa]s?\b/g, 'previsto');
-        normalizado = normalizado.replace(/\b(?:riesgo|risk|of|de|la|el|un|una|se|ha|hay|posible|previsto|detectado|detectada)\b/g, ' ');
-        return normalizado.replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
+        return encontrados;
     };
-    const vistos = new Set();
-    return (Array.isArray(insights) ? insights : [insights])
-        .filter(insight => typeof insight === 'string' && insight.trim())
-        .filter(insight => {
-            const clave = normalizar(insight);
-            if (!clave || vistos.has(clave)) return false;
-            vistos.add(clave);
+
+    const conceptosA = extraerConceptos(normA);
+    const conceptosB = extraerConceptos(normB);
+
+    // 1. Núcleo: Volver a la orilla / costa ante duda o racha
+    const retornoOrillaA = conceptosA.has('RETORNO') && conceptosA.has('ORILLA');
+    const retornoOrillaB = conceptosB.has('RETORNO') && conceptosB.has('ORILLA');
+    if (retornoOrillaA && retornoOrillaB) return true;
+
+    // 2. Núcleo: Ponerse de rodillas por estabilidad o ante racha
+    if (conceptosA.has('RODILLAS') && conceptosB.has('RODILLAS')) return true;
+
+    // 3. Núcleo: Quedarse en tierra / suspender por emergencias
+    if (conceptosA.has('POSPONER') && conceptosB.has('POSPONER')) {
+        if (conceptosA.has('EMERGENCIA') || conceptosB.has('EMERGENCIA') || conceptosA.has('ORILLA') || conceptosB.has('ORILLA')) {
             return true;
-        });
+        }
+    }
+
+    // 4. Núcleo: Navegación paralela a la costa
+    if (conceptosA.has('PARALELO') && conceptosB.has('PARALELO') && (conceptosA.has('ORILLA') || conceptosB.has('ORILLA'))) {
+        return true;
+    }
+
+    // 5. Núcleo: Dosificación y reserva de energía para regreso
+    if (conceptosA.has('PACING') && conceptosB.has('PACING') && (conceptosA.has('RETORNO') || conceptosB.has('RETORNO'))) {
+        return true;
+    }
+
+    // 6. Solapamiento de conceptos múltiples
+    const interseccion = [...conceptosA].filter(c => conceptosB.has(c));
+    const union = new Set([...conceptosA, ...conceptosB]);
+    if (union.size > 0 && (interseccion.length / union.size) >= 0.5) return true;
+
+    // 7. Similitud léxica Jaccard sin stop words
+    const STOP_WORDS = new Set([
+        'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'del', 'al', 'a',
+        'en', 'con', 'por', 'para', 'sin', 'sobre', 'ante', 'bajo', 'entre', 'hacia',
+        'hasta', 'durante', 'mediante', 'si', 'se', 'que', 'como', 'cuando', 'donde',
+        'es', 'son', 'fue', 'era', 'sea', 'ha', 'han', 'hay', 'muy', 'mas', 'pero',
+        'tu', 'tus', 'su', 'sus', 'mi', 'mis', 'este', 'esta', 'estos', 'estas', 'y',
+        'o', 'u', 'e', 'ni', 'cada', 'todo', 'toda', 'todos', 'todas', 'cualquier'
+    ]);
+
+    const palabrasA = new Set(normA.split(' ').filter(w => w.length > 2 && !STOP_WORDS.has(w)));
+    const palabrasB = new Set(normB.split(' ').filter(w => w.length > 2 && !STOP_WORDS.has(w)));
+
+    if (palabrasA.size > 0 && palabrasB.size > 0) {
+        const comunes = [...palabrasA].filter(p => palabrasB.has(p));
+        const jaccard = comunes.length / (palabrasA.size + palabrasB.size - comunes.length);
+        const minContainment = comunes.length / Math.min(palabrasA.size, palabrasB.size);
+        if (jaccard >= umbral || minContainment >= 0.65) return true;
+    }
+
+    return false;
+}
+
+/**
+ * Filtra una lista de mensajes descartando los que sean semánticamente redundantes
+ * con respecto a las referencias prioritarias dadas o entre sí.
+ */
+export function filtrarConsejosRedundantes(lista = [], referenciasPrioritarias = []) {
+    const refs = (Array.isArray(referenciasPrioritarias) ? referenciasPrioritarias : [referenciasPrioritarias])
+        .filter(r => typeof r === 'string' && r.trim());
+    const aceptados = [];
+
+    (Array.isArray(lista) ? lista : [lista]).forEach(item => {
+        if (!item || typeof item !== 'string' || !item.trim()) return;
+        const texto = item.trim();
+        const duplicadoConRef = refs.some(ref => sonMensajesEquivalentes(texto, ref));
+        if (duplicadoConRef) return;
+        const duplicadoInterno = aceptados.some(prev => sonMensajesEquivalentes(texto, prev));
+        if (duplicadoInterno) return;
+        aceptados.push(texto);
+    });
+
+    return aceptados;
+}
+
+export function deduplicateInsights(insights = []) {
+    const list = (Array.isArray(insights) ? insights : [insights])
+        .filter(insight => typeof insight === 'string' && insight.trim());
+    const vistos = [];
+    return list.filter(item => {
+        if (vistos.some(existente => sonMensajesEquivalentes(item, existente))) {
+            return false;
+        }
+        vistos.push(item);
+        return true;
+    });
 }
 
 export function calcularConfianzaAnalisis({
