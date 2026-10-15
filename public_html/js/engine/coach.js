@@ -99,7 +99,7 @@ export function generarConsejoCoach({
     }
 
     // 6. Resumen Pedagógico Adaptado por Nivel (Convierte datos en decisiones)
-    const resumen = generarResumenNautico(vKt, rKt, oleajeM, compCostera, nivel, esEmbalse);
+    const resumen = generarResumenNautico(vKt, rKt, oleajeM, compCostera, nivel, esEmbalse, motor);
 
     // 7. Estrategia de Viento, Tramos y Dosificación (Pacing)
     const estrategiaViento = generarEstrategiaViento(condiciones, compCostera, vKt, tramosData, nivel);
@@ -114,13 +114,13 @@ export function generarConsejoCoach({
     const materialRecomendado = generarMaterialRecomendado(oleajeM, compCostera, esEmbalse);
 
     // 11. Consejo Personalizado del Instructor
-    const consejoInstructor = generarConsejoInstructor(nivel, compCostera, vKt, oleajeM, distKm);
+    const consejoInstructor = generarConsejoInstructor(nivel, compCostera, vKt, oleajeM, distKm, motor);
 
     // 12. Regla de Oro
-    const reglaOro = generarReglaOro(nivel, compCostera, vKt);
+    const reglaOro = generarReglaOro(nivel, compCostera, vKt, motor);
 
     // 13. Veredicto Ejecutivo del Instructor
-    const veredicto = generarVeredictoEjecutivo(motor?.seguridad?.score ?? 80, vKt, rKt, oleajeM, compCostera, nivel);
+    const veredicto = generarVeredictoEjecutivo(motor?.seguridad?.score ?? 80, vKt, rKt, oleajeM, compCostera, nivel, motor);
 
     return {
         score: motor?.seguridad?.score ?? 85,
@@ -162,7 +162,13 @@ function normalizarNivel(nivel) {
     return 'Principiante';
 }
 
-function generarResumenNautico(vKt, rKt, oleajeM, compCostera, nivel, esEmbalse) {
+function generarResumenNautico(vKt, rKt, oleajeM, compCostera, nivel, esEmbalse, motor = null) {
+    if (motor?.aemet?.activa) {
+        const topAlerta = motor.aemet.alertas?.[0] || {};
+        const origen = topAlerta.origen || 'Protección Civil / AEMET';
+        return `⚠️ Aviso oficial de emergencias activo (${origen} - ${topAlerta.nivel || 'Naranja'}). Aunque la superficie del agua parezca tranquila momentáneamente, existe riesgo de cambios bruscos, avenidas repentinas en ramblas hacia el mar o fenómenos adversos. Se aconseja aplazar la actividad y permanecer en tierra firme.`;
+    }
+
     if (vKt <= 7 && oleajeM <= 0.35) {
         if (nivel === 'Principiante') {
             return "Las condiciones son ideales para ganar confianza sobre la tabla sin enfrentarte a un entorno exigente. La superficie suave facilita mantener el equilibrio y concentrarse en la postura erguida.";
@@ -342,7 +348,10 @@ function generarMaterialRecomendado(oleajeM, compCostera, esEmbalse) {
     return list;
 }
 
-function generarConsejoInstructor(nivel, compCostera, vKt, oleajeM, distKm) {
+function generarConsejoInstructor(nivel, compCostera, vKt, oleajeM, distKm, motor = null) {
+    if (motor?.aemet?.activa) {
+        return "Con aviso oficial de emergencias activo, la prudencia manda: no te confíes de la calma momentánea, respeta las directrices de Protección Civil y aplaza la sesión.";
+    }
     if (compCostera === 'offshore') {
         return "Hoy la clave es la disciplina: rema paralelo a la costa y comprueba cada cinco minutos tu distancia respecto a un punto de referencia en la arena.";
     }
@@ -358,7 +367,10 @@ function generarConsejoInstructor(nivel, compCostera, vKt, oleajeM, distKm) {
     return "Las condiciones actuales son favorables para una sesión provechosa, pero recuerda revisar periódicamente si el viento cambia de intensidad.";
 }
 
-function generarReglaOro(nivel, compCostera, vKt) {
+function generarReglaOro(nivel, compCostera, vKt, motor = null) {
+    if (motor?.aemet?.activa) {
+        return "Ante un aviso oficial de emergencias, el mejor marinero es el que sabe quedarse en tierra.";
+    }
     if (compCostera === 'offshore') {
         return "Con viento hacia mar abierto: si la orilla parece alejarse, ponte de rodillas y rema directo a tierra sin vacilar.";
     }
@@ -368,7 +380,10 @@ function generarReglaOro(nivel, compCostera, vKt) {
     return "En el agua manda la prudencia: guarda siempre un tercio de energía para el regreso y nunca subestimes el mar.";
 }
 
-function generarVeredictoEjecutivo(score, vKt, rKt, oleajeM, compCostera, nivel) {
+function generarVeredictoEjecutivo(score, vKt, rKt, oleajeM, compCostera, nivel, motor = null) {
+    if (motor?.aemet?.activa) {
+        return "⚠️ SALIDA DESACONSEJADA: AVISO OFICIAL DE EMERGENCIAS ACTIVO";
+    }
     if (score >= 80 && compCostera !== 'offshore') {
         if (nivel === 'Principiante') return "DÍA EXCELENTE PARA APRENDIZAJE Y SEGURIDAD";
         if (nivel === 'Competición') return "VENTANA ÓPTIMA PARA RITMO DE COMPETICIÓN";

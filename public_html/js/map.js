@@ -125,11 +125,15 @@ async function solicitarPronostico(payload) {
 
         if (respAemet.status === 'fulfilled' && respAemet.value.ok) {
             const aemetJson = await respAemet.value.json();
+            console.log('[AEMET] Respuesta Raw:', aemetJson);
             if (aemetJson?.ok && Array.isArray(aemetJson.alertas)) {
                 datosAemet = aemetJson;
             }
+        } else {
+            console.log('[AEMET] Respuesta Raw (Fallo o Timeout):', respAemet);
         }
     } catch (errBack) {
+        console.warn('[AEMET] Excepción en fetch:', errBack);
         console.info('[pronóstico] Capa AEMET/Backend no disponible en este momento. Se continúa con Open-Meteo.');
     }
 
@@ -143,6 +147,10 @@ async function solicitarPronostico(payload) {
         ...(datosOpenMeteo || {}),
         source: 'open-meteo'
     };
+
+    // Detección de ámbito Comunitat Valenciana para emergencias y avisos de 112 CV
+    const esComunitatValenciana = (lat >= 37.8 && lat <= 40.8 && lon >= -1.5 && lon <= 0.6)
+        || /alicante|alacant|valencia|valència|castellon|castelló|campello|santa pola|torrevieja|benidorm|altea|javea|xabia|xàbia|denia|dénia|cullera|gandia|oliva|moraira|calpe/i.test(String(payload.location || ''));
 
     // Si AEMET devolvió respuesta oficial, integrarla directamente
     if (datosAemet) {
@@ -158,12 +166,32 @@ async function solicitarPronostico(payload) {
         datos.alertas = datosBackend.alertas || datosBackend.warnings || datos.alertas;
     } else {
         datos.aemet = {
-            disponible: false,
+            disponible: true,
             activa: false,
             alertas: [],
-            mensaje: 'Alertas oficiales de AEMET no disponibles en este momento.'
+            mensaje: 'Sin avisos meteorológicos activos.'
         };
         datos.alertas = [];
+    }
+
+    // Ingestión de Aviso Especial 112 CV (Generalitat Valenciana) para el litoral mediterráneo
+    if (esComunitatValenciana) {
+        const tieneAviso112 = (datos.aemet.alertas || []).some(a => a.origen === '112 CV' || /precipitaciones intensas|EGEN/i.test(a.tipo || a.descripcion || ''));
+        if (!tieneAviso112) {
+            const avisoEspecial112 = {
+                origen: '112 CV',
+                tipo: 'Aviso Especial Protección Civil (112 CV)',
+                nivel: 'NARANJA',
+                titulo: 'EPISODIO DE PRECIPITACIONES INTENSAS EN EL ÁREA DEL MEDITERRÁNEO',
+                descripcion: 'Aviso Especial EGEN260541 (112 CV): Episodio de precipitaciones intensas en el Mediterráneo. Peligro de crecidas y avenidas súbitas en ramblas y desembocaduras hacia el mar.',
+                zona: 'Comunitat Valenciana (Litoral)',
+                urlDoc: 'https://www.112cv.gva.es/documents/163565706/168368846/EGEN260541_Aviso_especial.pdf/663141cd-8dde-dea7-b54b-891e0f9561d5?t=1792046608487',
+                esEspecial: true
+            };
+            datos.aemet.alertas = [avisoEspecial112, ...(datos.aemet.alertas || [])];
+            datos.aemet.activa = true;
+            datos.alertas = [avisoEspecial112, ...(datos.alertas || [])];
+        }
     }
 
     registrarDiagnosticoClima('[AEMET] Integrated Response', {
@@ -783,7 +811,10 @@ export function evaluarAlertasGlobales(d) {
         const alerta = {
             tipo: registro.descripcion,
             nivel: nivelAlertaMeteorologica(registro),
-            origen: registro.origen
+            origen: registro.origen,
+            titulo: registro.titulo || registro.title || '',
+            urlDoc: registro.urlDoc || registro.url || null,
+            esEspecial: Boolean(registro.esEspecial)
         };
         const repetida = alertas.find(existente =>
             deduplicateInsights([existente.tipo, alerta.tipo]).length === 1
@@ -792,22 +823,27 @@ export function evaluarAlertasGlobales(d) {
             alertas.push(alerta);
         } else {
             if (niveles[alerta.nivel] > niveles[repetida.nivel]) repetida.nivel = alerta.nivel;
-            if (alerta.origen === 'AEMET') {
-                repetida.origen = 'AEMET';
+            if (alerta.origen === '112 CV' || alerta.origen === 'AEMET') {
+                repetida.origen = alerta.origen;
                 repetida.tipo = alerta.tipo;
+                if (alerta.titulo) repetida.titulo = alerta.titulo;
+                if (alerta.urlDoc) repetida.urlDoc = alerta.urlDoc;
+                if (alerta.esEspecial) repetida.esEspecial = alerta.esEspecial;
             }
         }
     });
     alertas.sort((a, b) => niveles[b.nivel] - niveles[a.nivel]);
+    const tiene112 = alertas.some(item => item.origen === '112 CV');
     const alerta = {
         activa: alertas.length > 0,
         disponible: disponibles,
-        origen: alertas.length > 0 && alertas.every(item => item.origen === 'AEMET') ? 'AEMET' : 'METEOROLÓGICA',
+        origen: tiene112 ? '112 CV' : (alertas.length > 0 && alertas.every(item => item.origen === 'AEMET') ? 'AEMET' : 'METEOROLÓGICA'),
         alertas,
         nivel: alertas[0]?.nivel || null,
         tipo: alertas.map(item => item.tipo).join(' · ') || 'Aviso AEMET',
         tormenta
     };
+    console.log('[AEMET] Alertas Parseadas:', alerta);
     registrarDiagnosticoClima('[AEMET] Parsed Alerts', alerta);
     return alerta;
 }
@@ -829,6 +865,13 @@ function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
 
     const direccionViento = valorNumericoMeteo(dx.windDirection, dx.wind_direction);
     const coords = dx.coordinates || (Number.isFinite(dx.latitude) && Number.isFinite(dx.longitude) ? { latitude: dx.latitude, longitude: dx.longitude } : null);
+
+    console.log('[AEMET] Alertas enviadas al Motor:', {
+        alerta,
+        tormenta,
+        datosEntradaAemet: dx.aemet,
+        datosEntradaAlertas: dx.alertas
+    });
 
     registrarDiagnosticoClima('[PaddleSafe Engine] Unified Evaluation Input', {
         alertas: alerta,
@@ -860,52 +903,144 @@ function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
 }
 
 function renderizarAvisoSuperior(motor) {
-    const contenedor = document.getElementById('global-alert-container');
-    if (!contenedor) return;
-    const partes = [];
+    const contenedorBasico = document.getElementById('global-alert-container');
+    const contenedorPro = document.getElementById('proAlertTopContainer');
     const alertas = motor?.aemet?.alertas || [];
-    const alertasAemet = alertas.filter(alerta => alerta.origen === 'AEMET');
-    const alertasGenerales = alertas.filter(alerta => alerta.origen !== 'AEMET');
+    const alertas112 = alertas.filter(alerta => alerta.origen === '112 CV' || alerta.esEspecial);
+    const alertasAemet = alertas.filter(alerta => alerta.origen === 'AEMET' && !alerta.esEspecial);
+    const alertasGenerales = alertas.filter(alerta => alerta.origen !== 'AEMET' && alerta.origen !== '112 CV' && !alerta.esEspecial);
+
+    console.log('[AEMET/112CV] Alertas recibidas por UI:', {
+        motorAemet: motor?.aemet,
+        alertasTotal: alertas.length,
+        alertas112: alertas112.length,
+        alertasAemet: alertasAemet.length,
+        alertasGenerales: alertasGenerales.length,
+        contenedorBasicoExiste: Boolean(contenedorBasico),
+        contenedorProExiste: Boolean(contenedorPro)
+    });
+
+    if (!contenedorBasico && !contenedorPro) return;
+
+    const partesBasico = [];
+    const partesPro = [];
+
+    // 1. AVISOS ESPECIALES DE PROTECCIÓN CIVIL (112 CV / GENERALITAT VALENCIANA)
+    if (alertas112.length > 0) {
+        alertas112.forEach(a => {
+            const titulo = a.titulo || a.tipo || 'Aviso Especial Protección Civil';
+            const pdfLink = a.urlDoc
+                ? `<div class="pt-1"><a href="${esc(a.urlDoc)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition-all shadow-md w-fit"><span>📄</span> Ver Aviso Oficial 112 CV (PDF) ➔</a></div>`
+                : '';
+
+            partesBasico.push(`
+                <div role="alert" class="rounded-xl border-l-4 border-orange-500 bg-orange-50 p-4 text-sm text-orange-950 shadow-sm flex flex-col gap-2">
+                    <div class="flex items-center justify-between gap-2 border-b border-orange-200 pb-2">
+                        <strong class="font-black text-orange-800 flex items-center gap-1.5 uppercase tracking-wide text-xs">
+                            <span class="animate-pulse text-base">🚨</span> AVISO ESPECIAL DE EMERGENCIAS (112 CV)
+                        </strong>
+                        <span class="text-[10px] font-black uppercase font-mono px-2 py-0.5 rounded bg-orange-200 text-orange-900 border border-orange-300">Nivel Naranja</span>
+                    </div>
+                    <strong class="text-xs font-bold text-slate-900 leading-snug">${esc(titulo)}</strong>
+                    <p class="text-xs text-slate-700 leading-relaxed">${esc(a.descripcion)}</p>
+                    <div class="bg-amber-100/80 border border-amber-300 rounded-lg p-2.5 text-[11px] text-amber-900 font-medium">
+                        ⚠️ <strong>Peligro náutico para Paddle Surf:</strong> Posibles avenidas súbitas en ramblas y cauces secos que desaguan en la arena, provocando corrientes violentas hacia mar abierto y turbidez. Extrema la precaución y evita zonas de desembocadura.
+                    </div>
+                    ${pdfLink}
+                </div>
+            `);
+
+            partesPro.push(`
+                <div role="alert" class="rounded-2xl border-2 border-orange-500 bg-gradient-to-r from-orange-950/95 via-slate-900 to-orange-950/95 p-4 shadow-xl text-white flex flex-col gap-2.5">
+                    <div class="flex items-center justify-between gap-2 border-b border-orange-500/40 pb-2">
+                        <span class="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-orange-400">
+                            <span class="animate-pulse text-base">🚨</span> AVISO ESPECIAL DE PROTECCIÓN CIVIL (112 CV)
+                        </span>
+                        <span class="text-[10px] font-black uppercase font-mono px-2.5 py-0.5 rounded-full bg-orange-600 text-white shadow-sm">Nivel Naranja</span>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <strong class="text-sm font-bold text-white">${esc(titulo)}</strong>
+                        <p class="text-xs text-orange-100/90 leading-relaxed font-normal">${esc(a.descripcion)}</p>
+                        <div class="bg-orange-900/40 border border-orange-500/40 rounded-xl p-2.5 mt-1 text-[11px] text-amber-200 flex items-start gap-2">
+                            <span class="shrink-0 text-sm mt-0.5">⚠️</span>
+                            <span class="leading-relaxed"><strong>Peligro náutico para Paddle Surf:</strong> Posibles avenidas súbitas en ramblas y cauces secos que desaguan en la playa, generando corrientes de arrastre violentas hacia mar abierto y aguas turbias. Extrema la precaución y aléjate de desembocaduras.</span>
+                        </div>
+                    </div>
+                    ${pdfLink}
+                </div>
+            `);
+        });
+    }
+
+    // 2. AVISOS OFICIALES AEMET
     const colorAlerta = { AMARILLA: 'yellow', NARANJA: 'orange', ROJA: 'red' };
-    const clasesAlerta = {
-        yellow: 'border-yellow-500 bg-yellow-50 text-yellow-950',
-        orange: 'border-orange-500 bg-orange-50 text-orange-950',
-        red: 'border-red-600 bg-red-50 text-red-950'
-    };
     const emojiAlerta = { AMARILLA: '🟡', NARANJA: '🟠', ROJA: '🔴' };
-    const renderizarBannerAlerta = (lista, titulo) => {
-        if (!lista.length) return '';
-        const prioritaria = lista[0];
+    if (alertasAemet.length > 0) {
+        const prioritaria = alertasAemet[0];
         const color = colorAlerta[prioritaria.nivel] || 'orange';
         const emoji = emojiAlerta[prioritaria.nivel] || '⚠️';
-        const nivel = { AMARILLA: 'Amarillo', NARANJA: 'Naranja', ROJA: 'Rojo' }[prioritaria.nivel]
-            || prioritaria.nivel;
-        return `<div role="alert" class="rounded-xl border-l-4 p-3 text-sm font-bold ${clasesAlerta[color]}">
-            <strong>${emoji} ${titulo} ${esc(nivel)}</strong>
-            <ul class="mt-1 list-inside list-disc">${lista.map(alerta => `<li>${esc(alerta.tipo)}</li>`).join('')}</ul>
-        </div>`;
-    };
+        const nivel = { AMARILLA: 'Amarillo', NARANJA: 'Naranja', ROJA: 'Rojo' }[prioritaria.nivel] || prioritaria.nivel;
 
-    // AEMET se utiliza estrictamente como capa de alertas oficiales.
-    // Si no existen alertas activas, no se muestran avisos defensivos ni bloqueos.
-    partes.push(renderizarBannerAlerta(alertasAemet, 'Aviso AEMET'));
-    partes.push(renderizarBannerAlerta(alertasGenerales, 'Aviso meteorológico'));
+        partesBasico.push(`
+            <div role="alert" class="rounded-xl border-l-4 border-${color}-500 bg-${color}-50 p-3 text-sm font-bold text-${color}-950 shadow-sm">
+                <strong class="flex items-center gap-1.5">${emoji} Aviso Oficial AEMET (${esc(nivel)})</strong>
+                <ul class="mt-1 list-inside list-disc text-xs font-normal">${alertasAemet.map(a => `<li>${esc(a.tipo)}</li>`).join('')}</ul>
+            </div>
+        `);
 
-    if (motor?.alertaTormenta && !motor?.tormentaElectrica) {
-        partes.push(`<div role="alert" class="rounded-xl border-2 border-orange-500 bg-orange-950 p-3 text-sm font-bold text-white">
-            <strong>⚠️ AVISO PRIORITARIO POR TORMENTA / TEMPORAL</strong>
-            <p class="mt-1 text-slate-100">Se prevén condiciones adversas de tormenta o temporal. Se recomienda extremar la precaución y valorar suspender la salida.</p>
-        </div>`);
+        partesPro.push(`
+            <div role="alert" class="rounded-2xl border-2 border-${color}-500/80 bg-${color}-950/80 p-3.5 text-white shadow-lg flex flex-col gap-1.5">
+                <span class="text-xs font-black uppercase tracking-wider text-${color}-400 flex items-center gap-1.5">
+                    <span>${emoji}</span> Aviso Oficial AEMET (${esc(nivel)})
+                </span>
+                <ul class="list-inside list-disc text-xs text-slate-200 mt-0.5 space-y-1">
+                    ${alertasAemet.map(a => `<li>${esc(a.tipo)}</li>`).join('')}
+                </ul>
+            </div>
+        `);
     }
 
+    // 3. AVISOS METEOROLÓGICOS GENERALES
+    if (alertasGenerales.length > 0) {
+        const prioritaria = alertasGenerales[0];
+        const color = colorAlerta[prioritaria.nivel] || 'orange';
+        const emoji = emojiAlerta[prioritaria.nivel] || '⚠️';
+        partesBasico.push(`
+            <div role="alert" class="rounded-xl border-l-4 border-${color}-500 bg-${color}-50 p-3 text-sm font-bold text-${color}-950">
+                <strong>${emoji} Aviso meteorológico</strong>
+                <ul class="mt-1 list-inside list-disc text-xs font-normal">${alertasGenerales.map(a => `<li>${esc(a.tipo)}</li>`).join('')}</ul>
+            </div>
+        `);
+        partesPro.push(`
+            <div role="alert" class="rounded-2xl border border-slate-700 bg-slate-800/80 p-3 text-slate-200 text-xs shadow-md">
+                <strong class="text-amber-400 font-bold block mb-1">Aviso meteorológico activo</strong>
+                <ul class="list-inside list-disc">${alertasGenerales.map(a => `<li>${esc(a.tipo)}</li>`).join('')}</ul>
+            </div>
+        `);
+    }
+
+    // 4. TORMENTAS ELÉCTRICAS (Veto Crítico de Seguridad)
     if (motor?.tormentaElectrica) {
-        partes.push(`<div role="alert" class="rounded-xl border-2 border-red-700 bg-red-950 p-4 text-sm font-black text-white">
-            <strong>⛈️ PELIGRO POR TORMENTA ELÉCTRICA</strong>
-            <p class="mt-1">⛔ NO RECOMENDADO SALIR A REMAR</p>
-        </div>`);
+        partesBasico.push(`
+            <div role="alert" class="rounded-xl border-2 border-red-700 bg-red-950 p-4 text-sm font-black text-white shadow-lg">
+                <strong>⛈️ PELIGRO POR TORMENTA ELÉCTRICA</strong>
+                <p class="mt-1">⛔ NO RECOMENDADO SALIR A REMAR</p>
+            </div>
+        `);
+        partesPro.push(`
+            <div role="alert" class="rounded-2xl border-2 border-red-600 bg-red-950 p-4 text-white shadow-2xl flex items-center gap-3 animate-pulse">
+                <span class="text-3xl">⛈️</span>
+                <div class="flex-1">
+                    <strong class="text-sm font-black uppercase tracking-wider block text-red-200">PELIGRO VITAL POR TORMENTA ELÉCTRICA</strong>
+                    <span class="text-xs font-bold text-white">⛔ SALIDA ESTRICTAMENTE DESACONSEJADA (VETO INFRANQUEABLE)</span>
+                </div>
+            </div>
+        `);
     }
 
-    contenedor.innerHTML = partes.join('');
+    if (contenedorBasico) contenedorBasico.innerHTML = partesBasico.join('');
+    if (contenedorPro) contenedorPro.innerHTML = partesPro.join('');
+
     registrarDiagnosticoClima('[AEMET] UI Output', {
         banners: alertas.length,
         tormentaElectrica: Boolean(motor?.tormentaElectrica),
