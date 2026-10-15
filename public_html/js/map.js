@@ -15,7 +15,8 @@ import {
     calcularConsensoModelos,
     detectarVentanasOptimas,
     calcularBeginnerIndex,
-    evaluarCondicionesDeporte
+    evaluarCondicionesDeporte,
+    generarConsejoCoach
 } from './utils.js';
 import { ClubState } from './club/state.js';
 
@@ -2307,6 +2308,28 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
             </div>
         </div>
 
+        <!-- CONSEJO DEL INSTRUCTOR (DECISIÓN PRÁCTICA) -->
+        ${coach.consejo_instructor ? `
+        <div class="bg-gradient-to-r from-amber-500/15 via-emerald-500/15 to-teal-500/15 border border-amber-500/40 rounded-2xl p-4 shadow-sm flex items-start gap-3">
+            <span class="text-amber-400 shrink-0 text-xl mt-0.5">💡</span>
+            <div class="flex-1">
+                <span class="text-amber-300 font-black text-[11px] uppercase tracking-wider block mb-1">Consejo del Instructor (${esc(userLvl || 'Intermedio')})</span>
+                <p class="text-white text-xs font-semibold leading-relaxed">${esc(coach.consejo_instructor)}</p>
+            </div>
+        </div>
+        ` : ''}
+
+        <!-- VENTANA ÓPTIMA HORARIA -->
+        ${coach.ventana_recomendada ? `
+        <div class="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-3.5 shadow-sm flex items-start gap-3">
+            <span class="text-emerald-400 shrink-0 text-lg mt-0.5">⏰</span>
+            <div class="flex-1">
+                <span class="text-emerald-300 font-black text-[10px] uppercase tracking-wider block mb-0.5">Ventana Óptima de Navegación</span>
+                <p class="text-xs text-emerald-100 leading-relaxed font-medium">${esc(coach.ventana_recomendada)}</p>
+            </div>
+        </div>
+        ` : ''}
+
         <!-- 1. DUREZA DE LA RUTA -->
         <div class="bg-gradient-to-br from-slate-900 via-slate-800/80 to-slate-900 rounded-2xl p-4 border border-rose-500/30 flex flex-col gap-2 shadow-sm">
             <div class="flex items-center justify-between border-b border-slate-700/60 pb-2">
@@ -2358,10 +2381,21 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
         <div class="bg-gradient-to-br from-slate-900 via-slate-800/80 to-slate-900 rounded-2xl p-4 border border-sky-500/30 flex flex-col gap-2.5 shadow-sm">
             <div class="flex items-center justify-between border-b border-slate-700/60 pb-2">
                 <span class="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
-                    <span>🗺️</span> Análisis de la Zona & Orografía
+                    <span>🗺️</span> Análisis de la Zona & Deriva Costera
                 </span>
                 <span class="text-[10px] font-mono text-sky-300 font-bold bg-sky-950/60 px-2 py-0.5 rounded border border-sky-500/30">Relieve y Costa</span>
             </div>
+
+            <!-- Interpretación de la Deriva (Sin jerga técnica) -->
+            ${coach.analisis_deriva ? `
+            <div class="bg-slate-900/90 rounded-xl p-3 border border-sky-500/30 flex items-start gap-2.5">
+                <span class="text-sky-400 shrink-0 text-base mt-0.5">🧭</span>
+                <div class="flex-1">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-sky-300 block mb-0.5">Comportamiento del Viento & Deriva:</span>
+                    <p class="text-xs text-slate-200 leading-relaxed">${esc(coach.analisis_deriva)}</p>
+                </div>
+            </div>
+            ` : ''}
 
             <p class="text-xs text-slate-300 font-medium">${esc(zona.orografia || '')}</p>
 
@@ -2423,173 +2457,50 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
 }
 
 export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) {
-    const motor = cond.motorExperto || calcularVeredicto({
-        vientoKmh: cond.viento,
-        rachasKmh: cond.rachas,
-        olaM: cond.oleaje,
-        direccionViento: cond.direccion,
-        componenteViento: cond.componenteViento,
-        nivelUsuario: userLvl
-    });
-    if (motor.recomendacion === 'NO RECOMENDADO' || motor.tormentaElectrica || motor.analysisConfidence < 40) {
+    const motor = cond.motorExperto || obtenerMotorExperto(cond, userLvl);
+
+    // 1. PRIORIDAD MÁXIMA: Veto por tormenta eléctrica
+    if (motor.tormentaElectrica) {
         const body = document.getElementById('proCoachBody');
         if (body) {
             body.innerHTML = `
-                <div class="rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs text-white">
-                    <p class="font-black">${motor.tormentaElectrica
-                        ? '⛈️ No salgas a remar: hay riesgo de tormenta eléctrica.'
-                        : motor.recomendacion === 'NO RECOMENDADO'
-                            ? '⛔ No se recomienda salir a remar con las condiciones evaluadas.'
-                            : `⚠️ Datos insuficientes (${motor.analysisConfidence}% de confianza).`}</p>
-                    <p class="mt-1 text-slate-200">${esc(motor.tormentaElectrica
-                        ? 'Cancela o pospón la salida y vuelve a consultar el pronóstico más adelante.'
-                        : motor.recomendacion === 'NO RECOMENDADO'
-                            ? 'Cancela o pospón la salida y vuelve a consultar cuando mejoren las condiciones.'
-                            : 'Repite el análisis cuando haya información meteorológica más completa.')}</p>
+                <div class="rounded-2xl border-2 border-red-600 bg-red-950/70 p-4 text-xs text-white shadow-lg">
+                    <p class="font-black text-sm flex items-center gap-2 text-rose-300">
+                        <span>⛈️</span> ⛔ NO RECOMENDADO SALIR A REMAR
+                    </p>
+                    <p class="mt-2 text-slate-100 leading-relaxed font-medium">
+                        Existe riesgo confirmado de tormenta eléctrica en la zona. Aunque otros parámetros puedan parecer favorables, las descargas eléctricas y los cambios bruscos del viento convierten la actividad en una situación de riesgo vital inaceptable.
+                    </p>
+                    <div class="mt-3 p-2.5 rounded-xl bg-red-900/40 border border-red-500/40 text-[11px] text-amber-200">
+                        <strong>Consejo del Instructor:</strong> Cancela la salida de inmediato y permanece bajo techo en tierra firme.
+                    </div>
                 </div>`;
         }
         return;
     }
-    const seg = [];
-    const tec = [];
-    const mat = [];
 
-    const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
-    const hayDireccion = cond.direccion !== null && cond.direccion !== undefined
-        && Number.isFinite(Number(cond.direccion));
-    const cardIdx = hayDireccion ? Math.round((((Number(cond.direccion) % 360) + 360) % 360) / 45) % 8 : null;
-    const cardinal = hayDireccion ? dirs[cardIdx] : 'dirección no disponible';
-
-    const isOffshore = cond.componenteViento === 'offshore';
-    const vientoNudos = cond.vientoNudos ?? kmhANudos(cond.viento);
-
-    if (vientoNudos !== null && vientoNudos >= 16) {
-        seg.push(`Viento fuerte (${vientoNudos} kt). Mantén una ruta de retorno segura y reduce la exposición.`);
-        tec.push("Flexiona rodillas y baja el centro de gravedad. Remada más corta y frecuente en la zona de proa.");
-    } else if (vientoNudos !== null && vientoNudos >= 12) {
-        seg.push(`Viento de ${vientoNudos} kt (${cardinal}). Planifica la ida contra el viento.`);
-        tec.push("Adelanta la fase de agarre de la pala e inclina el torso levemente hacia el viento.");
-    } else {
-        tec.push("Excelente para trabajar rotación de tronco (core) y cadencia regular (45-50 SPM).");
-    }
-
-    if (isOffshore && vientoNudos !== null && vientoNudos >= 5) {
-        seg.push(`🚨 Alerta Viento Offshore (${cardinal}): Sopla hacia mar adentro. No te alejes de la orilla.`);
-    }
-
-    if (cond.oleaje > 0.8) {
-        seg.push(`Oleaje de ${cond.oleaje}m: Cuidado al embarcar y desembarcar en orilla.`);
-        tec.push("Postura escalonada con pies no alineados horizontalmente para ganar estabilidad en mar movido.");
-    } else {
-        tec.push("Pies paralelos centrados en el asa de transporte, peso repartido en las bolas de los pies.");
-    }
-
-    if (userLvl === "Principiante" && (cond.viento > 11 || cond.oleaje > 0.4)) {
-        seg.push("Como principiante, manténte a menos de 100m de costa y cerca de zonas resguardadas.");
-        tec.push("Si sientes inestabilidad o ráfagas repentinas, pasa a posición de rodillas de inmediato.");
-    }
-
-    mat.push(cond.oleaje > 0.7 ? "Leash recto fijado al tobillo para olas." : "Leash tipo coiled de rodilla para no arrastrar.");
-    mat.push("Chaleco de flotabilidad 50N y funda de móvil estanca obligatorios.");
-
-    // Dureza de la ruta local
-    const dist = cond.distanciaKm || 0;
-    let baseDureza = 3.0;
-    if (dist > 6) baseDureza += 3.0;
-    else if (dist > 3) baseDureza += 2.0;
-    else if (dist > 1) baseDureza += 1.0;
-    if (cond.viento > 14) baseDureza += 2.0;
-    if (cond.oleaje > 0.6) baseDureza += 1.5;
-    if (userLvl === "Principiante") baseDureza += 1.5;
-    const scoreDureza = Math.max(1, Math.min(10, Math.round(baseDureza * 10) / 10));
-
-    let durezaTexto = scoreDureza >= 7 ? "Alta / Exigente" : (scoreDureza >= 4.5 ? "Moderada / Intermedia" : "Baja / Plácida");
-    let durezaDesc = scoreDureza >= 6
-        ? `Ruta con demanda física notable (${scoreDureza}/10). La combinación de ${dist > 0 ? dist + ' km' : 'distancia'} con viento de ${vientoNudos} kt exige dosificar el esfuerzo.`
-        : `Sesión de demanda física asequible (${scoreDureza}/10). Buenas condiciones para completar la distancia con ritmo estable y sin sobrecargas musculares.`;
-
-    // Estrategia de viento local
-    let tramoFavor = null;
-    let tramoContra = null;
-    if (Array.isArray(tramosData) && tramosData.length > 0) {
-        for (const t of tramosData) {
-            const vRel = (t.viento_relativo || "").toUpperCase();
-            if (vRel.includes("FAVOR") && !tramoFavor) tramoFavor = t;
-            if (vRel.includes("CONTRA") && !tramoContra) tramoContra = t;
+    if (motor.recomendacion === 'NO RECOMENDADO' && motor.analysisConfidence < 40) {
+        const body = document.getElementById('proCoachBody');
+        if (body) {
+            body.innerHTML = `
+                <div class="rounded-xl border border-amber-500/40 bg-amber-950/40 p-3 text-xs text-white">
+                    <p class="font-black">⚠️ Información meteorológica insuficiente.</p>
+                    <p class="mt-1 text-slate-200">Repite el análisis cuando haya mediciones completas de viento y mar.</p>
+                </div>`;
         }
+        return;
     }
 
-    const rumboDownwind = hayDireccion ? Math.round((Number(cond.direccion) + 180) % 360) : null;
-    const cardDownwind = hayDireccion ? dirs[Math.round(((rumboDownwind % 360) + 360) % 360 / 45) % 8] : null;
+    // 2. GENERACIÓN DEL COACH INSTRUCTOR PROFESIONAL ISA (0ms)
+    const coachLocal = generarConsejoCoach({
+        condiciones: cond,
+        userLevel: userLvl,
+        motor,
+        tramosData,
+        ubicacion: cond.ubicacion || 'Spot de Costa'
+    });
 
-    const tramoFacilTxt = tramoFavor
-        ? `El tramo más fácil será "${tramoFavor.nombre}" (rumbo ${tramoFavor.rumbo}°): contarás con viento a favor (downwind) de componente ${cardinal} que impulsará tu avance con mínimo esfuerzo.`
-        : hayDireccion
-            ? `Navegar con rumbo ~${rumboDownwind}° (${cardDownwind}) será el momento más fácil y fluido gracias al viento a favor empujando la popa.`
-            : 'La dirección del viento no está disponible para identificar el tramo más favorable.';
-
-    const tramoDuroTxt = tramoContra
-        ? `Atención al tramo "${tramoContra.nombre}": remarás contra viento (${vientoNudos} kt). Rema inclinado hacia proa y baja el centro de gravedad.`
-        : hayDireccion
-            ? `Evita regresar con rumbo directo hacia el viento (${cardinal}) cuando estés cansado; planifica bordadas suaves pegadas a la orilla.`
-            : 'La dirección del viento no está disponible; consulta el parte actualizado antes de elegir el rumbo.';
-
-    const peligrosZona = [];
-    if (isOffshore && cond.viento >= 10) {
-        peligrosZona.push(`Viento terral (offshore): Sopla hacia el mar abierto. El agua parece engañosamente plana cerca de la orilla pero empuja hacia fuera.`);
-    }
-    if (cond.viento >= 14) {
-        peligrosZona.push("Aceleración de viento en salientes y cabos rocosos (Efecto Venturi).");
-    }
-    if (cond.oleaje >= 0.6) {
-        peligrosZona.push("Efecto clapotis (mar cruzado) cerca de paredes de roca o espigones.");
-    }
-    peligrosZona.push("Presta atención al calado de la quilla en la entrada y salida de la playa o cala.");
-
-    const consejosNivelLoc = [];
-    if (userLvl === "Principiante") {
-        consejosNivelLoc.push("Si sientes rachas de viento o desequilibrio, siéntate o ponte de rodillas (kneeling paddle) inmediatamente para no derivar.");
-        consejosNivelLoc.push("Mantén siempre una referencia visual fija en tierra para controlar la deriva lateral.");
-    } else if (userLvl === "Intermedio") {
-        consejosNivelLoc.push("Inicia la salida remando contra el viento para que el tramo de regreso sea con viento a favor (downwind).");
-        consejosNivelLoc.push("Usa la rotación del tronco (core) para traccionar con la pala y no cargues los bíceps.");
-    } else {
-        consejosNivelLoc.push("En tramos a favor con ondulación, bombea con 2 paladas enérgicas para coger la pendiente y planea atrasando el pie dominante.");
-        consejosNivelLoc.push("Mantén monitoreo constante de la evolución de las rachas de viento y salidas de emergencia en la costa.");
-    }
-
-    const coachLocal = {
-        score: motor.seguridad.score,
-        veredicto: `${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${motor.seguridad.nivel}`,
-        resumen: motor.mensaje,
-        dureza_ruta: {
-            nivel: `${durezaTexto} (${scoreDureza}/10)`,
-            descripcion: durezaDesc
-        },
-        estrategia_viento: {
-            tramo_facil: tramoFacilTxt,
-            tramo_exigente: tramoDuroTxt,
-            consejo_pacing: "Regla del 30%: Sal siempre contra el viento mientras estés fresco y guarda un tercio de energía para la vuelta."
-        },
-        analisis_zona: {
-            orografia: "Costa con influencia del viento y relieve marítimo local.",
-            peligros_detectados: peligrosZona,
-            recomendacion_seguridad: "Navega respetando distancia con bañistas y mantén línea de costa a la vista."
-        },
-        consejos_nivel: consejosNivelLoc,
-        seguridad_estrategia: [
-            ...motor.factoresCriticos,
-            `${ICONOS_DERIVA[motor.riesgoDeriva.nivel]} Deriva ${motor.riesgoDeriva.nivel} (${motor.riesgoDeriva.score}/100): ${motor.riesgoDeriva.descripcion}`,
-            ...seg
-        ],
-        tecnica_postura: tec,
-        material_recomendado: mat,
-        regla_oro: userLvl === "Principiante"
-            ? "¡Ante cualquier racha imprevista: a rodillas, manos bajas y rema con calma hacia la orilla!"
-            : "Reserva siempre un 30% de tus fuerzas y agua para el tramo final del regreso."
-    };
-
-    renderizarCoachProCard(coachLocal, "coach-experto-sup (instantáneo)", userLvl, motor);
+    renderizarCoachProCard(coachLocal, "PaddleSafe Coach ISA", userLvl, motor);
 }
 
 export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMotorExperto(dx)) {
@@ -2597,15 +2508,29 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
     if (!cont) return;
 
     cont.classList.remove('hidden');
-    if (motor.recomendacion === 'NO RECOMENDADO' || motor.tormentaElectrica || motor.analysisConfidence < 40) {
+
+    // 1. PRIORIDAD MÁXIMA: Veto por tormenta eléctrica
+    if (motor.tormentaElectrica) {
+        cont.innerHTML = `
+            <div class="rounded-xl border-2 border-red-600 bg-red-950/70 p-3.5 text-xs text-white">
+                <span class="font-black text-rose-300 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <span>⛈️</span> ⛔ NO RECOMENDADO SALIR A REMAR
+                </span>
+                <p class="mt-1.5 text-slate-100 leading-relaxed font-medium">
+                    Existe riesgo confirmado de tormenta eléctrica en la zona. Aunque otros parámetros puedan parecer favorables, las descargas eléctricas y los cambios bruscos del viento convierten la actividad en una situación de riesgo vital inaceptable.
+                </p>
+                <div class="mt-2 text-[11px] text-amber-200">
+                    <strong>Consejo del Instructor:</strong> Cancela la salida de inmediato y permanece bajo techo en tierra firme.
+                </div>
+            </div>`;
+        return;
+    }
+
+    if (motor.recomendacion === 'NO RECOMENDADO' && motor.analysisConfidence < 40) {
         cont.innerHTML = `
             <div class="flex flex-col gap-2">
                 <span class="font-black text-amber-300 text-xs uppercase tracking-wider">✨ Consejo del Coach (${esc(userLvl || 'Intermedio')})</span>
-                <p class="text-xs text-slate-100 leading-relaxed">${motor.tormentaElectrica
-                    ? '⛔ Cancela o pospón la salida: hay riesgo de tormenta eléctrica.'
-                    : motor.recomendacion === 'NO RECOMENDADO'
-                        ? '⛔ No se recomienda salir a remar con las condiciones evaluadas.'
-                        : '⚠️ Información meteorológica insuficiente para evaluar la seguridad.'}</p>
+                <p class="text-xs text-slate-100 leading-relaxed">⚠️ Información meteorológica insuficiente para evaluar la seguridad.</p>
             </div>`;
         return;
     }
@@ -2619,12 +2544,6 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
     const wv = wvRaw === null || wvRaw === undefined || wvRaw === '' ? null : Number(wvRaw);
     const vientoKmh = Number.isFinite(wkVal) ? wkVal * 3.6 : null;
     const rachasKmh = Number.isFinite(gustsVal) ? gustsVal * 3.6 : null;
-    const wPeriod = (dx.wavePeriod !== undefined && dx.wavePeriod !== null && dx.wavePeriod !== "--") ? parseFloat(dx.wavePeriod) : 0;
-    const tempAireValue = dx.tempAire || dx.temperature || dx.temp || "N/D";
-    const tempAguaValue = dx.tempAgua || dx.waterTemperature || dx.water_temp || "N/D";
-    const pm = (dx.precipitation !== undefined && dx.precipitation !== null && dx.precipitation !== "") ? dx.precipitation : 0;
-    const pl = (dx.precipProbability !== undefined && dx.precipProbability !== null && dx.precipProbability !== "") ? dx.precipProbability : (dx.precipitation_probability || 0);
-    const uv = (dx.uvIndex !== undefined && dx.uvIndex !== null && dx.uvIndex !== "--") ? dx.uvIndex : 0;
 
     const payload = {
         condiciones: {
@@ -2633,14 +2552,13 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
             vientoNudos: motor.vientoNudos,
             rachasNudos: kmhANudos(rachasKmh),
             direccion: direccionViento,
-            componenteViento: dx.componenteViento ?? dx.windComponent ?? null,
+            componenteViento: dx.componenteViento ?? dx.windComponent ?? motor.derivaCostera?.componente ?? null,
             oleaje: wv === null ? null : Number(wv.toFixed(1)),
-            periodo: Number(wPeriod),
-            tempAire: tempAireValue,
-            tempAgua: tempAguaValue,
-            lluvia: Number(pm),
-            precipProb: Number(pl),
-            uv: Number(uv),
+            periodo: Number(dx.wavePeriod || 0),
+            tempAire: dx.tempAire || "N/D",
+            tempAgua: dx.tempAgua || "N/D",
+            lluvia: Number(dx.precipitation || 0),
+            precipProb: Number(dx.precipProbability || 0),
             ubicacion: loc || "Spot de Costa"
         },
         userLevel: userLvl || "Intermedio",
@@ -2651,20 +2569,58 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
         factoresCriticos: motor.factoresCriticos
     };
 
-    cont.innerHTML = `
-        <div class="flex flex-col gap-2">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">✨ Coach (${esc(userLvl || 'Intermedio')})</span>
-                <span class="text-[10px] text-slate-400 font-mono">Motor Experto PaddleSafe</span>
-            </div>
-            <div class="text-[11px] text-sky-300 flex items-start gap-1.5 bg-sky-950/40 p-2 rounded-lg border border-sky-500/20">
-                <span class="shrink-0">🛡️</span>
-                <span>Planifica la salida con el equipo de seguridad obligatorio y confirma el parte local antes de entrar al agua.</span>
-            </div>
-        </div>
-    `;
+    // 2. RENDERIZADO INMEDIATO DEL COACH PROFESIONAL ISA (0ms)
+    const coachLocal = generarConsejoCoach({
+        condiciones: payload.condiciones,
+        userLevel: userLvl,
+        motor,
+        ubicacion: loc
+    });
 
-    // Enriquecimiento opcional en segundo plano
+    const renderizarContenidoBasico = (coach, fuente = "PaddleSafe Coach ISA") => {
+        const score = motor.seguridad?.score ?? 85;
+        let scoreCls = score >= 75 ? "text-emerald-400" : (score >= 45 ? "text-amber-400" : "text-rose-400");
+
+        cont.innerHTML = `
+            <div class="flex flex-col gap-2.5">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-base">🏄‍♂️</span>
+                        <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">Coach Instructor (${esc(userLvl || 'Intermedio')})</span>
+                    </div>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 ${scoreCls} border border-slate-700 font-bold">${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${esc(motor.seguridad.nivel)} · ${score}/100</span>
+                </div>
+
+                <!-- Resumen pedagógico que convierte datos en decisiones -->
+                <p class="text-xs text-slate-100 leading-relaxed font-medium">${esc(coach.resumen)}</p>
+
+                <!-- Consejo personalizado del instructor -->
+                ${coach.consejo_instructor ? `
+                <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2.5 rounded-xl border border-amber-500/30">
+                    <span class="shrink-0 text-sm">💡</span>
+                    <span><strong>Consejo del Instructor:</strong> ${esc(coach.consejo_instructor)}</span>
+                </div>` : ''}
+
+                <!-- Ventana Óptima si existe -->
+                ${coach.ventana_recomendada ? `
+                <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
+                    <span class="shrink-0">⏰</span>
+                    <span><strong>Ventana Óptima:</strong> ${esc(coach.ventana_recomendada)}</span>
+                </div>` : ''}
+
+                <!-- Regla de oro -->
+                ${coach.regla_oro ? `
+                <div class="text-[11px] text-sky-200 flex items-start gap-1.5 bg-sky-950/40 p-2 rounded-lg border border-sky-500/20">
+                    <span class="shrink-0">📜</span>
+                    <span class="italic">"${esc(coach.regla_oro)}"</span>
+                </div>` : ''}
+            </div>
+        `;
+    };
+
+    renderizarContenidoBasico(coachLocal);
+
+    // 3. Enriquecimiento opcional en segundo plano
     try {
         const resp = await fetchConTimeout(`${BACKEND_API_URL}?action=coach`, {
             method: "POST",
@@ -2673,39 +2629,17 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
         }, 2000);
 
         const data = await resp.json();
-        const coach = data.coach ? normalizarUnidadesCoach(data.coach) : null;
-        if (data.ok && coach && (coach.resumen || coach.veredicto)
-            && !coachContradiceMotor(coach, motor)) {
-            const score = motor.seguridad.score;
-            let scoreCls = score >= 75 ? "text-emerald-400" : (score >= 45 ? "text-amber-400" : "text-rose-400");
-
-            cont.innerHTML = `
-                <div class="flex flex-col gap-2.5">
-                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-base">✨</span>
-                            <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">Coach (${esc(userLvl || 'Intermedio')})</span>
-                        </div>
-                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 ${scoreCls} border border-slate-700 font-bold">${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${esc(motor.seguridad.nivel)} · ${score}/100</span>
-                    </div>
-                    ${deduplicateInsights([coach.resumen]).filter(insight =>
-                        deduplicateInsights([insight, motor.mensaje]).length > 1
-                    ).map(insight => `<p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(insight)}</p>`).join('')}
-                    ${coach.estrategia_viento && coach.estrategia_viento.tramo_facil ? `
-                    <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
-                        <span class="shrink-0">💨</span>
-                        <span><strong>Viento a favor:</strong> ${esc(coach.estrategia_viento.tramo_facil)}</span>
-                    </div>` : ''}
-                    ${coach.regla_oro ? `
-                    <div class="text-[11px] text-amber-200 flex items-start gap-1.5 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20">
-                        <span class="shrink-0">💡</span>
-                        <span class="italic font-semibold">${esc(coach.regla_oro)}</span>
-                    </div>` : ''}
-                </div>
-            `;
+        const coachRemoto = data.coach ? normalizarUnidadesCoach(data.coach) : null;
+        if (data.ok && coachRemoto && (coachRemoto.resumen || coachRemoto.veredicto)
+            && !coachContradiceMotor(coachRemoto, motor)) {
+            renderizarContenidoBasico({
+                ...coachLocal,
+                resumen: coachRemoto.resumen || coachLocal.resumen,
+                consejo_instructor: coachRemoto.regla_oro || coachLocal.consejo_instructor
+            }, data.fuente);
         }
     } catch (e) {
-        console.warn('[solicitarCoachIABasico] No se pudo obtener la explicación del Coach:', e);
+        // Silencioso: el análisis experto ya está activo
     }
 }
 

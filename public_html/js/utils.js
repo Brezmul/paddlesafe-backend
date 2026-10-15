@@ -548,3 +548,4 @@ export { resolverOrientacionCostera, calcularComponenteVientoAuto, calcularIndic
 export { calcularBeginnerIndex, evaluarCondicionesDeporte, DEPORTES } from './engine/sports.js';
 export { detectarVentanasOptimas } from './engine/windows.js';
 export { generarVeredictoNextGen, ESTADOS_VEREDICTO } from './engine/verdict.js';
+export { generarConsejoCoach } from './engine/coach.js';

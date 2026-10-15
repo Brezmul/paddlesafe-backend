@@ -190,3 +190,4 @@ export function evaluarCondicionesDeporte({
         consejo: 'Disfruta de la sesión manteniendo siempre el leash y el chaleco puestos.'
     };
 }
+

@@ -140,3 +140,4 @@ export function detectarVentanasOptimas(horasPronostico = [], userLevel = 'Inter
         evolucionAviso
     };
 }
+
