@@ -1,3 +1,4 @@
+import aemetHandler from "../lib/handlers/aemet.js";
 import aiHandler from "../lib/handlers/ai.js";
 import alertsHandler from "../lib/handlers/alerts.js";
 import coachHandler from "../lib/handlers/coach.js";
@@ -44,6 +45,7 @@ export default async function handler(req, res) {
 
   try {
     switch (action) {
+      case "aemet": return await aemetHandler(req, res);
       case "ai": return await aiHandler(req, res);
       case "analyze_route":
       case "route_coach": return await routeCoachHandler(req, res);
