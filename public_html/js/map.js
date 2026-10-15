@@ -1002,7 +1002,16 @@ export function evaluarAlertasGlobales(d) {
             origen: registro.origen,
             titulo: registro.titulo || registro.title || '',
             urlDoc: registro.urlDoc || registro.url || null,
-            esEspecial: Boolean(registro.esEspecial)
+            esEspecial: Boolean(registro.esEspecial),
+            inicio: registro.inicio || null,
+            fin: registro.fin || null,
+            diaInicio: registro.diaInicio || null,
+            diaFin: registro.diaFin || null,
+            nombreDiaInicio: registro.nombreDiaInicio || null,
+            nombreDiaFin: registro.nombreDiaFin || null,
+            periodoTexto: registro.periodoTexto || null,
+            extractoOficial: registro.extractoOficial || null,
+            descripcion: registro.descripcion || ''
         };
         const repetida = alertas.find(existente =>
             deduplicateInsights([existente.tipo, alerta.tipo]).length === 1
@@ -1017,24 +1026,80 @@ export function evaluarAlertasGlobales(d) {
                 if (alerta.titulo) repetida.titulo = alerta.titulo;
                 if (alerta.urlDoc) repetida.urlDoc = alerta.urlDoc;
                 if (alerta.esEspecial) repetida.esEspecial = alerta.esEspecial;
+                if (alerta.inicio) repetida.inicio = alerta.inicio;
+                if (alerta.fin) repetida.fin = alerta.fin;
+                if (alerta.diaInicio) repetida.diaInicio = alerta.diaInicio;
+                if (alerta.diaFin) repetida.diaFin = alerta.diaFin;
+                if (alerta.nombreDiaInicio) repetida.nombreDiaInicio = alerta.nombreDiaInicio;
+                if (alerta.nombreDiaFin) repetida.nombreDiaFin = alerta.nombreDiaFin;
+                if (alerta.periodoTexto) repetida.periodoTexto = alerta.periodoTexto;
+                if (alerta.extractoOficial) repetida.extractoOficial = alerta.extractoOficial;
             }
         }
     });
     alertas.sort((a, b) => niveles[b.nivel] - niveles[a.nivel]);
+
+    // Evaluación temporal de vigencia: comparar fecha consultada con inicio y fin del aviso
+    const fechaConsulta = d?.fecha || d?.date || document.getElementById('date')?.value || document.getElementById('datePicker')?.value || new Date().toISOString().slice(0, 10);
+
+    alertas.forEach(item => {
+        let esVigente = true;
+        let estadoTemporal = 'ACTIVA_AHORA';
+
+        if (item.inicio) {
+            const fechaIni = String(item.inicio).slice(0, 10);
+            const fechaFin = item.fin ? String(item.fin).slice(0, 10) : fechaIni;
+
+            if (fechaConsulta < fechaIni) {
+                esVigente = false;
+                estadoTemporal = 'FUTURA_PREVENTIVA';
+            } else if (fechaConsulta > fechaFin) {
+                esVigente = false;
+                estadoTemporal = 'EXPIRADA';
+            } else {
+                esVigente = true;
+                estadoTemporal = 'ACTIVA_AHORA';
+            }
+        }
+        item.esVigente = esVigente;
+        item.estadoTemporal = estadoTemporal;
+    });
+
     const tiene112 = alertas.some(item => /^1-?1-?2/i.test(item.origen || ''));
     const primer112 = alertas.find(item => /^1-?1-?2/i.test(item.origen || ''));
+
+    // Solo declara veto absoluto de emergencia si la alerta está temporalmente activa para la fecha consultada
     const esEmergencia = alertas.some(item =>
-        item.esEspecial ||
-        /^1-?1-?2/i.test(item.origen || '') ||
-        /protecci[oó]n\s*civil/i.test(item.origen || '') ||
-        /protecci[oó]n\s*civil/i.test(item.tipo || '') ||
-        /emergencia|inundaci|avenida|temporal\s*costero|galerna/i.test(item.tipo || '') ||
-        ['NARANJA', 'ROJA'].includes(String(item.nivel || '').toUpperCase()) ||
-        Boolean(item.urlDoc)
+        item.esVigente && (
+            item.esEspecial ||
+            /^1-?1-?2/i.test(item.origen || '') ||
+            /protecci[oó]n\s*civil/i.test(item.origen || '') ||
+            /protecci[oó]n\s*civil/i.test(item.tipo || '') ||
+            /emergencia|inundaci|avenida|temporal\s*costero|galerna/i.test(item.tipo || '') ||
+            ['NARANJA', 'ROJA'].includes(String(item.nivel || '').toUpperCase()) ||
+            Boolean(item.urlDoc)
+        )
     );
+
+    // Detectar avisos especiales futuros/preventivos (por ejemplo, publicados hoy para sábado-domingo)
+    const alertasPreventivas = alertas.filter(item =>
+        item.estadoTemporal === 'FUTURA_PREVENTIVA' && (
+            item.esEspecial ||
+            /^1-?1-?2/i.test(item.origen || '') ||
+            /protecci[oó]n\s*civil/i.test(item.origen || '') ||
+            ['NARANJA', 'ROJA'].includes(String(item.nivel || '').toUpperCase()) ||
+            Boolean(item.urlDoc)
+        )
+    );
+    const esAvisoPreventivo = !esEmergencia && alertasPreventivas.length > 0;
+    const primerPreventivo = alertasPreventivas[0] || null;
+
     const alerta = {
         activa: alertas.length > 0,
         esEmergencia,
+        esAvisoPreventivo,
+        avisoPreventivo: primerPreventivo,
+        fechaConsulta,
         disponible: disponibles,
         origen: tiene112 ? primer112.origen : (alertas.length > 0 && alertas.every(item => item.origen === 'AEMET') ? 'AEMET' : 'METEOROLÓGICA'),
         alertas,
@@ -1098,6 +1163,8 @@ function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
         horasDiurnas: dx.horasDiurnas || null,
         alerta,
         alertaEmergencia: alerta.esEmergencia,
+        avisoPreventivo: alerta.esAvisoPreventivo,
+        datosAlertaPreventiva: alerta.avisoPreventivo,
         tormenta
     });
 }
@@ -1138,7 +1205,7 @@ function renderizarAvisoSuperior(motor) {
     const partesBasico = [];
     const partesPro = [];
 
-    // 1. AVISOS ESPECIALES DE PROTECCIÓN CIVIL (112 AUTONÓMICO / NACIONAL)
+    // 1. AVISOS DE PROTECCIÓN CIVIL Y EMERGENCIAS (112 AUTONÓMICO / NACIONAL)
     if (alertasEmergencias.length > 0) {
         alertasEmergencias.forEach(a => {
             const titulo = a.titulo || a.tipo || 'Aviso Especial de Protección Civil';
@@ -1153,49 +1220,109 @@ function renderizarAvisoSuperior(motor) {
                 ? `<div class="pt-1"><a href="${esc(a.urlDoc)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition-all shadow-md w-fit"><span>📄</span> ${docLabel}</a></div>`
                 : '';
 
-            partesBasico.push(`
-                <div role="alert" class="rounded-xl border-l-4 border-${colorNivel}-500 bg-${colorNivel}-50 p-4 text-sm text-${colorNivel}-950 shadow-sm flex flex-col gap-2">
-                    <div class="flex items-center justify-between gap-2 border-b border-${colorNivel}-200 pb-2">
-                        <strong class="font-black text-${colorNivel}-800 flex items-center gap-1.5 uppercase tracking-wide text-xs">
-                            <span class="animate-pulse text-base">🚨</span> AVISO DE EMERGENCIAS (${esc(nombreOrg.toUpperCase())})
-                        </strong>
-                        <span class="text-[10px] font-black uppercase font-mono px-2 py-0.5 rounded bg-${colorNivel}-200 text-${colorNivel}-900 border border-${colorNivel}-300">Nivel ${esc(nivelAlerta)}</span>
-                    </div>
-                    <div class="bg-red-600 text-white font-black text-xs px-3 py-1.5 rounded-lg flex items-center justify-center gap-1.5 shadow-md animate-pulse">
-                        ⛔ PROHIBIDO SALIR A REMAR POR SITUACIÓN DE EMERGENCIA
-                    </div>
-                    <strong class="text-xs font-bold text-slate-900 leading-snug">${esc(titulo)}</strong>
-                    <p class="text-xs text-slate-700 leading-relaxed">${esc(a.descripcion)}</p>
-                    <div class="bg-amber-100/80 border border-amber-300 rounded-lg p-2.5 text-[11px] text-amber-900 font-medium">
-                        ⚠️ <strong>Peligro náutico para Paddle Surf:</strong> ${esc(peligro)}
-                    </div>
-                    ${pdfLink}
-                </div>
-            `);
+            const esActivaAhora = a.esVigente !== false && a.estadoTemporal !== 'FUTURA_PREVENTIVA';
+            const periodoBadge = a.periodoTexto ? `<span class="text-[10px] font-bold text-slate-700 bg-white/80 px-2 py-0.5 rounded border border-slate-300">📅 ${esc(a.periodoTexto)}</span>` : '';
+            const periodoBadgePro = a.periodoTexto ? `<span class="text-[10px] font-bold text-amber-200 bg-black/40 px-2.5 py-0.5 rounded-full border border-amber-500/30 font-mono">📅 ${esc(a.periodoTexto)}</span>` : '';
 
-            partesPro.push(`
-                <div role="alert" class="rounded-2xl border-2 border-${colorNivel}-500 bg-gradient-to-r from-orange-950/95 via-slate-900 to-orange-950/95 p-4 shadow-xl text-white flex flex-col gap-2.5">
-                    <div class="flex items-center justify-between gap-2 border-b border-${colorNivel}-500/40 pb-2">
-                        <span class="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-${colorNivel}-400">
-                            <span class="animate-pulse text-base">🚨</span> AVISO DE EMERGENCIAS Y PROTECCIÓN CIVIL (${esc(nombreOrg.toUpperCase())})
-                        </span>
-                        <span class="text-[10px] font-black uppercase font-mono px-2.5 py-0.5 rounded-full bg-${colorNivel}-600 text-white shadow-sm">Nivel ${esc(nivelAlerta)}</span>
-                    </div>
-                    <div class="bg-red-600/90 border border-red-500 text-white font-black text-xs px-3 py-2 rounded-xl flex items-center justify-center gap-2 shadow-lg animate-pulse">
-                        <span class="text-base">⛔</span>
-                        <span>PROHIBIDO SALIR A REMAR POR SITUACIÓN DE EMERGENCIA OFICIAL</span>
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <strong class="text-sm font-bold text-white">${esc(titulo)}</strong>
-                        <p class="text-xs text-orange-100/90 leading-relaxed font-normal">${esc(a.descripcion)}</p>
-                        <div class="bg-orange-900/40 border border-orange-500/40 rounded-xl p-2.5 mt-1 text-[11px] text-amber-200 flex items-start gap-2">
-                            <span class="shrink-0 text-sm mt-0.5">⚠️</span>
-                            <span class="leading-relaxed"><strong>Peligro náutico para Paddle Surf:</strong> ${esc(peligro)}</span>
+            if (esActivaAhora) {
+                // Alerta activa ahora para la fecha consultada: PROHIBIDO SALIR
+                partesBasico.push(`
+                    <div role="alert" class="rounded-xl border-l-4 border-red-600 bg-red-50 p-4 text-sm text-red-950 shadow-sm flex flex-col gap-2">
+                        <div class="flex items-center justify-between gap-2 border-b border-red-200 pb-2">
+                            <strong class="font-black text-red-800 flex items-center gap-1.5 uppercase tracking-wide text-xs">
+                                <span class="animate-pulse text-base">🚨</span> AVISO DE EMERGENCIAS (${esc(nombreOrg.toUpperCase())})
+                            </strong>
+                            <span class="text-[10px] font-black uppercase font-mono px-2 py-0.5 rounded bg-red-200 text-red-900 border border-red-300">Nivel ${esc(nivelAlerta)}</span>
                         </div>
+                        <div class="bg-red-600 text-white font-black text-xs px-3 py-1.5 rounded-lg flex items-center justify-center gap-1.5 shadow-md animate-pulse">
+                            ⛔ PROHIBIDO SALIR A REMAR POR SITUACIÓN DE EMERGENCIA
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <strong class="text-xs font-bold text-slate-900 leading-snug">${esc(titulo)}</strong>
+                            ${periodoBadge}
+                        </div>
+                        <p class="text-xs text-slate-700 leading-relaxed">${esc(a.descripcion)}</p>
+                        <div class="bg-amber-100/80 border border-amber-300 rounded-lg p-2.5 text-[11px] text-amber-900 font-medium">
+                            ⚠️ <strong>Peligro náutico para Paddle Surf:</strong> ${esc(peligro)}
+                        </div>
+                        ${pdfLink}
                     </div>
-                    ${pdfLink}
-                </div>
-            `);
+                `);
+
+                partesPro.push(`
+                    <div role="alert" class="rounded-2xl border-2 border-red-500 bg-gradient-to-r from-red-950/95 via-slate-900 to-red-950/95 p-4 shadow-xl text-white flex flex-col gap-2.5">
+                        <div class="flex items-center justify-between gap-2 border-b border-red-500/40 pb-2">
+                            <span class="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-rose-400">
+                                <span class="animate-pulse text-base">🚨</span> AVISO DE EMERGENCIAS Y PROTECCIÓN CIVIL (${esc(nombreOrg.toUpperCase())})
+                            </span>
+                            <span class="text-[10px] font-black uppercase font-mono px-2.5 py-0.5 rounded-full bg-red-600 text-white shadow-sm">Nivel ${esc(nivelAlerta)}</span>
+                        </div>
+                        <div class="bg-red-600/90 border border-red-500 text-white font-black text-xs px-3 py-2 rounded-xl flex items-center justify-center gap-2 shadow-lg animate-pulse">
+                            <span class="text-base">⛔</span>
+                            <span>PROHIBIDO SALIR A REMAR POR SITUACIÓN DE EMERGENCIA OFICIAL</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <div class="flex items-center justify-between">
+                                <strong class="text-sm font-bold text-white">${esc(titulo)}</strong>
+                                ${periodoBadgePro}
+                            </div>
+                            <p class="text-xs text-orange-100/90 leading-relaxed font-normal">${esc(a.descripcion)}</p>
+                            <div class="bg-orange-900/40 border border-orange-500/40 rounded-xl p-2.5 mt-1 text-[11px] text-amber-200 flex items-start gap-2">
+                                <span class="shrink-0 text-sm mt-0.5">⚠️</span>
+                                <span class="leading-relaxed"><strong>Peligro náutico para Paddle Surf:</strong> ${esc(peligro)}</span>
+                            </div>
+                        </div>
+                        ${pdfLink}
+                    </div>
+                `);
+            } else {
+                // Alerta futura / preventiva programada (publicada para los próximos días)
+                const diaInicioTxt = a.nombreDiaInicio ? `el ${a.nombreDiaInicio}` : 'la entrada del episodio';
+                partesBasico.push(`
+                    <div role="alert" class="rounded-xl border-l-4 border-amber-500 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm flex flex-col gap-2">
+                        <div class="flex items-center justify-between gap-2 border-b border-amber-200 pb-2">
+                            <strong class="font-black text-amber-800 flex items-center gap-1.5 uppercase tracking-wide text-xs">
+                                <span>⚠️</span> AVISO ESPECIAL PREVENTIVO (${esc(nombreOrg.toUpperCase())})
+                            </strong>
+                            <span class="text-[10px] font-black uppercase font-mono px-2 py-0.5 rounded bg-amber-200 text-amber-900 border border-amber-300">Nivel ${esc(nivelAlerta)}</span>
+                        </div>
+                        <div class="bg-amber-600 text-white font-bold text-xs px-3 py-2 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-1 shadow-sm">
+                            <span class="flex items-center gap-1.5 font-black">📅 VIGENCIA: ${esc(a.periodoTexto || 'Próximos días')}</span>
+                            <span class="text-[10px] uppercase font-mono bg-amber-800/80 px-2 py-0.5 rounded text-amber-100">Navegación permitida hoy · Prohibida desde ${esc(diaInicioTxt)}</span>
+                        </div>
+                        <strong class="text-xs font-bold text-slate-900 leading-snug">${esc(titulo)}</strong>
+                        <p class="text-xs text-slate-700 leading-relaxed">${esc(a.descripcion)}</p>
+                        <div class="bg-amber-100/90 border border-amber-300 rounded-lg p-2.5 text-[11px] text-amber-900 font-medium">
+                            ⚠️ <strong>Impacto previsto:</strong> ${esc(peligro)}
+                        </div>
+                        ${pdfLink}
+                    </div>
+                `);
+
+                partesPro.push(`
+                    <div role="alert" class="rounded-2xl border-2 border-amber-500/80 bg-gradient-to-r from-amber-950/95 via-slate-900 to-amber-950/95 p-4 shadow-xl text-white flex flex-col gap-2.5">
+                        <div class="flex items-center justify-between gap-2 border-b border-amber-500/40 pb-2">
+                            <span class="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-400">
+                                <span>⚠️</span> AVISO ESPECIAL PREVENTIVO (${esc(nombreOrg.toUpperCase())})
+                            </span>
+                            <span class="text-[10px] font-black uppercase font-mono px-2.5 py-0.5 rounded-full bg-amber-600 text-white shadow-sm">Nivel ${esc(nivelAlerta)}</span>
+                        </div>
+                        <div class="bg-amber-500/20 border border-amber-500/40 text-amber-200 font-bold text-xs px-3 py-2 rounded-xl flex items-center justify-between gap-2 shadow-inner">
+                            <span class="font-black text-amber-300">📅 Periodo de Afección: ${esc(a.periodoTexto || 'Fin de semana')}</span>
+                            <span class="text-[10px] font-mono bg-amber-900/80 text-amber-100 px-2 py-0.5 rounded border border-amber-500/30">Navegación hoy con seguimiento · Prohibida desde ${esc(diaInicioTxt)}</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <strong class="text-sm font-bold text-white">${esc(titulo)}</strong>
+                            <p class="text-xs text-amber-100/90 leading-relaxed font-normal">${esc(a.descripcion)}</p>
+                            <div class="bg-amber-900/40 border border-amber-500/40 rounded-xl p-2.5 mt-1 text-[11px] text-amber-200 flex items-start gap-2">
+                                <span class="shrink-0 text-sm mt-0.5">⚠️</span>
+                                <span class="leading-relaxed"><strong>Peligro náutico para Paddle Surf:</strong> ${esc(peligro)}</span>
+                            </div>
+                        </div>
+                        ${pdfLink}
+                    </div>
+                `);
+            }
         });
     }
 
@@ -1337,6 +1464,17 @@ function renderizarResumenExperto(motor, prefijo = 'basic') {
                 ⛔ SALIDA PROHIBIDA POR EMERGENCIA OFICIAL
             </span>`);
         } else {
+            // 0. Píldora de Aviso Preventivo 112 en seguimiento (si existe aviso futuro)
+            if (motor.avisoPreventivoActivo || motor.avisoPreventivo) {
+                const prev = motor.avisoPreventivo;
+                const pCls = isDark
+                    ? 'bg-amber-950/80 text-amber-300 border-amber-600/60'
+                    : 'bg-amber-50 text-amber-800 border-amber-300';
+                badges.push(`<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${pCls}">
+                    ⚠️ Aviso 112 Preventivo (${esc(prev?.periodoTexto || 'Fin de semana')})
+                </span>`);
+            }
+
             // 1. Píldora de Mejor Ventana Horaria
             const ventana = motor.ventanaRecomendada || motor.ventanas?.mejorVentana;
             if (ventana && ventana.inicio && ventana.fin) {
@@ -1431,6 +1569,9 @@ export async function consultarBasico() {
         
         if(p.datos) {
             const dx = p.datos;
+            dx.date = p.received?.date || d;
+            dx.fecha = p.received?.date || d;
+            dx.timeRange = r;
             const vientoMs = valorNumericoMeteo(dx.windSpeed, dx.wind_speed);
             const vientoKmh = vientoMs === null ? null : vientoMs * 3.6;
             const vientoNudos = kmhANudos(vientoKmh);
@@ -1680,6 +1821,9 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
             </div>`;
     }
     
+    dx.date = fechaD;
+    dx.fecha = fechaD;
+    dx.horaSalida = horaSalida;
     const motor = obtenerMotorExperto(dx, userLvl);
     renderizarAvisoSuperior(motor);
     renderizarResumenExperto(motor, 'pro');

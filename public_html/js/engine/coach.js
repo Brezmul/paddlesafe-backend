@@ -70,14 +70,17 @@ export function generarConsejoCoach({
         || motor?.nextGen?.alertaEmergenciaActiva
         || motor?.nextGen?.estado === 'Prohibido salir por emergencia'
         || motor?.recomendacion === 'PROHIBIDO POR EMERGENCIA'
-        || motor?.aemet?.alertas?.some(a =>
-            a.esEspecial ||
-            /^1-?1-?2/i.test(a.origen || '') ||
-            /protecci[oó]n\s*civil/i.test(a.origen || a.tipo || '') ||
-            ['NARANJA', 'ROJA'].includes(String(a.nivel || '').toUpperCase()) ||
-            Boolean(a.urlDoc)
-        )
-        || (condiciones.alertaOficial?.activa && (
+        || (motor?.aemet?.alertas?.some(a =>
+            a.esVigente !== false &&
+            a.estadoTemporal !== 'FUTURA_PREVENTIVA' && (
+                a.esEspecial ||
+                /^1-?1-?2/i.test(a.origen || '') ||
+                /protecci[oó]n\s*civil/i.test(a.origen || a.tipo || '') ||
+                ['NARANJA', 'ROJA'].includes(String(a.nivel || '').toUpperCase()) ||
+                Boolean(a.urlDoc)
+            )
+        ))
+        || (condiciones.alertaOficial?.activa && condiciones.alertaOficial?.esVigente !== false && condiciones.alertaOficial?.estadoTemporal !== 'FUTURA_PREVENTIVA' && (
             condiciones.alertaOficial.esEspecial ||
             /^1-?1-?2/i.test(condiciones.alertaOficial.origen || '') ||
             ['NARANJA', 'ROJA'].includes(String(condiciones.alertaOficial.nivel || '').toUpperCase())
@@ -406,7 +409,13 @@ function generarMaterialRecomendado(oleajeM, compCostera, esEmbalse) {
 }
 
 function generarConsejoInstructor(nivel, compCostera, vKt, oleajeM, distKm, motor = null) {
-    if (motor?.aemet?.activa) {
+    if (motor?.avisoPreventivoActivo || motor?.avisoPreventivo) {
+        const p = motor.avisoPreventivo;
+        const diaTxt = p?.diaInicio ? `el día ${p.diaInicio}` : 'la entrada del temporal';
+        const perTxt = p?.periodoTexto || 'el fin de semana';
+        return `Hoy las condiciones son navegables con normalidad, pero Protección Civil ha emitido un Aviso Especial para ${perTxt}. Planifica tus entrenamientos y ten en cuenta que a partir de ${diaTxt} quedará prohibida la navegación.`;
+    }
+    if (motor?.aemet?.activa && motor?.alertaEmergenciaActiva) {
         return "Con aviso oficial de emergencias activo, la prudencia manda: no te confíes de la calma momentánea, respeta las directrices de Protección Civil y aplaza la sesión.";
     }
     if (compCostera === 'offshore') {
@@ -425,7 +434,10 @@ function generarConsejoInstructor(nivel, compCostera, vKt, oleajeM, distKm, moto
 }
 
 function generarReglaOro(nivel, compCostera, vKt, motor = null) {
-    if (motor?.aemet?.activa) {
+    if (motor?.avisoPreventivoActivo || motor?.avisoPreventivo) {
+        return "Disfruta de la ventana favorable de hoy, pero no salgas al agua cuando el Aviso Especial de Protección Civil entre en vigor.";
+    }
+    if (motor?.aemet?.activa && motor?.alertaEmergenciaActiva) {
         return "Ante un aviso oficial de emergencias, el mejor marinero es el que sabe quedarse en tierra.";
     }
     if (compCostera === 'offshore') {
@@ -438,8 +450,11 @@ function generarReglaOro(nivel, compCostera, vKt, motor = null) {
 }
 
 function generarVeredictoEjecutivo(score, vKt, rKt, oleajeM, compCostera, nivel, motor = null) {
-    if (motor?.aemet?.activa) {
-        return "⚠️ SALIDA DESACONSEJADA: AVISO OFICIAL DE EMERGENCIAS ACTIVO";
+    if (motor?.alertaEmergenciaActiva) {
+        return "⛔ SALIDA PROHIBIDA: AVISO OFICIAL DE EMERGENCIAS ACTIVO";
+    }
+    if (motor?.avisoPreventivoActivo || motor?.avisoPreventivo) {
+        return "AVISO PREVENTIVO 112 PROGRAMADO (SALIDA HOY CON SEGUIMIENTO)";
     }
     if (score >= 80 && compCostera !== 'offshore') {
         if (nivel === 'Principiante') return "DÍA EXCELENTE PARA APRENDIZAJE Y SEGURIDAD";

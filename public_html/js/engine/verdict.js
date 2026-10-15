@@ -123,7 +123,7 @@ export function generarVeredictoNextGen(params = {}) {
     let alertaOficial = params.alertaOficial ?? params.alerta ?? null;
     const alertasArray = Array.isArray(params.alertas_aemet) ? params.alertas_aemet 
         : Array.isArray(params.alertas) ? params.alertas 
-        : (alertaOficial ? [alertaOficial] : []);
+        : (Array.isArray(alertaOficial?.alertas) ? alertaOficial.alertas : (alertaOficial ? [alertaOficial] : []));
     if (!alertaOficial && alertasArray.length > 0) {
         const top = alertasArray[0];
         alertaOficial = {
@@ -212,26 +212,45 @@ export function generarVeredictoNextGen(params = {}) {
     }
 
     // 2. REGLA ABSOLUTA: Alerta Oficial de Emergencias (112 / Protección Civil / AEMET Naranja o Roja) - PROHIBIDO SALIR A REMAR
-    const esAlertaEmergencia = Boolean(
-        params.alertaEmergencia
-        || params.alertaEmergencias
-        || (alertaOficial?.activa && (
-            alertaOficial.esEspecial ||
-            /^1-?1-?2/i.test(alertaOficial.origen || '') ||
-            /protecci[oó]n\s*civil/i.test(alertaOficial.origen || alertaOficial.tipo || '') ||
-            ['NARANJA', 'ROJA'].includes(String(alertaOficial.nivel || '').toUpperCase()) ||
-            Boolean(alertaOficial.urlDoc) ||
-            /emergencia|inundaci|avenida|temporal\s*costero|galerna|ciclon|borrasca/i.test(`${alertaOficial.tipo || ''} ${alertaOficial.descripcion || ''}`)
-        ))
-        || alertasArray.some(a => 
-            a?.esEspecial || 
-            /^1-?1-?2/i.test(a?.origen || '') || 
-            /protecci[oó]n\s*civil/i.test(a?.origen || a?.tipo || '') ||
-            ['NARANJA', 'ROJA'].includes(String(a?.nivel || '').toUpperCase()) ||
-            Boolean(a?.urlDoc) ||
-            /emergencia|inundaci|avenida|temporal\s*costero|galerna|ciclon|borrasca/i.test(`${a?.tipo || ''} ${a?.descripcion || ''}`)
-        )
-    );
+    // Solo aplica veto vital inmediato si la alerta está temporalmente activa para la jornada consultada
+    let esAlertaEmergencia = false;
+    if (params.alertaEmergencia !== undefined) {
+        esAlertaEmergencia = Boolean(params.alertaEmergencia);
+    } else if (alertaOficial && alertaOficial.esEmergencia !== undefined) {
+        esAlertaEmergencia = Boolean(alertaOficial.esEmergencia);
+    } else {
+        esAlertaEmergencia = Boolean(
+            params.alertaEmergencias
+            || (alertaOficial?.activa && alertaOficial?.esVigente !== false && alertaOficial?.estadoTemporal !== 'FUTURA_PREVENTIVA' && (
+                alertaOficial.esEspecial ||
+                /^1-?1-?2/i.test(alertaOficial.origen || '') ||
+                /protecci[oó]n\s*civil/i.test(alertaOficial.origen || alertaOficial.tipo || '') ||
+                ['NARANJA', 'ROJA'].includes(String(alertaOficial.nivel || '').toUpperCase()) ||
+                Boolean(alertaOficial.urlDoc) ||
+                /emergencia|inundaci|avenida|temporal\s*costero|galerna|ciclon|borrasca/i.test(`${alertaOficial.tipo || ''} ${alertaOficial.descripcion || ''}`)
+            ))
+            || alertasArray.some(a => 
+                a?.esVigente !== false && a?.estadoTemporal !== 'FUTURA_PREVENTIVA' && (
+                    a?.esEspecial || 
+                    /^1-?1-?2/i.test(a?.origen || '') || 
+                    /protecci[oó]n\s*civil/i.test(a?.origen || a?.tipo || '') ||
+                    ['NARANJA', 'ROJA'].includes(String(a?.nivel || '').toUpperCase()) ||
+                    Boolean(a?.urlDoc) ||
+                    /emergencia|inundaci|avenida|temporal\s*costero|galerna|ciclon|borrasca/i.test(`${a?.tipo || ''} ${a?.descripcion || ''}`)
+                )
+            )
+        );
+    }
+
+    const avisoPreventivo = Boolean(params.avisoPreventivo)
+        || (!esAlertaEmergencia && (
+            alertaOficial?.estadoTemporal === 'FUTURA_PREVENTIVA'
+            || alertasArray.some(a => a?.estadoTemporal === 'FUTURA_PREVENTIVA')
+        ));
+    const datosPreventivo = params.datosAlertaPreventiva
+        || (alertaOficial?.estadoTemporal === 'FUTURA_PREVENTIVA' ? alertaOficial : null)
+        || alertasArray.find(a => a?.estadoTemporal === 'FUTURA_PREVENTIVA')
+        || null;
 
     if (esAlertaEmergencia) {
         const confEstado = ESTADOS_VEREDICTO.ALERTA_EMERGENCIA || ESTADOS_VEREDICTO.NO_RECOMENDADO;
@@ -369,8 +388,15 @@ export function generarVeredictoNextGen(params = {}) {
 
     if (compViento.componente === 'offshore') score -= 15;
 
-    // Alertas oficiales AEMET
-    if (alertaOficial?.activa) {
+    // Alertas oficiales AEMET (solo penalizan si aplican a la jornada consultada, no si son preventivas a futuro)
+    const alertaActivaJornada = Boolean(
+        alertaOficial?.activa 
+        && !avisoPreventivo 
+        && alertaOficial?.estadoTemporal !== 'FUTURA_PREVENTIVA' 
+        && alertaOficial?.esEmergencia !== false
+    );
+
+    if (alertaActivaJornada) {
         const nAlert = String(alertaOficial.nivel || '').toUpperCase();
         if (nAlert === 'AMARILLA') score = Math.min(score, 70);
         else if (nAlert === 'NARANJA') score = Math.min(score, 45);
@@ -403,7 +429,7 @@ export function generarVeredictoNextGen(params = {}) {
         factoresCriticos.push('Componente onshore: favorece el retorno a tierra pero crea oleaje frontal.');
     }
 
-    if (alertaOficial?.activa) {
+    if (alertaActivaJornada) {
         factoresCriticos.push(`Aviso oficial ${alertaOficial.origen || 'AEMET'} activo (${alertaOficial.nivel || ''}): ${alertaOficial.tipo || alertaOficial.descripcion || 'atención al parte'}.`);
     }
 
@@ -411,13 +437,13 @@ export function generarVeredictoNextGen(params = {}) {
     let estadoKey = 'FAVORABLE';
     let respuestaDirecta = '🟢 Salida Recomendada';
 
-    if (score < 30 || vReal >= 20 || oReal >= 1.8 || (alertaOficial?.activa && ['NARANJA', 'ROJA'].includes(alertaOficial.nivel))) {
+    if (score < 30 || vReal >= 20 || oReal >= 1.8 || (alertaActivaJornada && ['NARANJA', 'ROJA'].includes(alertaOficial.nivel))) {
         estadoKey = 'NO_RECOMENDADO';
         respuestaDirecta = '🔴 No recomendado';
     } else if (score < 55 || vReal >= 15 || oReal >= 1.0 || (userLevel === 'Principiante' && (vReal >= 10 || oReal >= 0.5))) {
         estadoKey = 'EXIGENTE';
         respuestaDirecta = '🟠 Condiciones exigentes';
-    } else if (score < 75 || vReal >= 10 || oReal >= 0.5 || compViento.componente === 'offshore' || alertaOficial?.activa) {
+    } else if (score < 75 || vReal >= 10 || oReal >= 0.5 || compViento.componente === 'offshore' || alertaActivaJornada) {
         estadoKey = 'PRECAUCION';
         respuestaDirecta = '🟡 Precaución';
     }
@@ -436,6 +462,12 @@ export function generarVeredictoNextGen(params = {}) {
         justificacion = `Viento activo de ${vReal} kt y oleaje de ${oReal.toFixed(1)} m. Requiere experiencia previa, equilibrio reactivo y buena condición física.`;
     } else {
         justificacion = `Condiciones adversas (viento de ${vReal} kt y olas de ${oReal.toFixed(1)} m). Alto riesgo de caída, deriva mar adentro y agotamiento muscular.`;
+    }
+
+    if (avisoPreventivo && datosPreventivo) {
+        const diaTxt = datosPreventivo.diaInicio ? `el día ${datosPreventivo.diaInicio}` : 'la entrada del temporal';
+        const perTxt = datosPreventivo.periodoTexto || 'el próximo fin de semana';
+        factoresCriticos.unshift(`⚠️ AVISO ESPECIAL PREVENTIVO (112): Episodio meteorológico adverso programado para ${perTxt}. Salida permitida hoy con seguimiento; PROHIBIDA a partir de ${diaTxt}.`);
     }
 
     const resultado = {
@@ -463,6 +495,9 @@ export function generarVeredictoNextGen(params = {}) {
         entorno: infoCosta.tipoEntorno,
         vientoNudos: vReal,
         tormentaElectrica: false,
+        alertaEmergenciaActiva: false,
+        avisoPreventivo: avisoPreventivo ? datosPreventivo : null,
+        avisoPreventivoActivo: Boolean(avisoPreventivo),
         aemet: alertaOficial || { activa: false, disponible: false },
         analysisConfidence: confianza,
         confianzaAnalisis: confianza,
