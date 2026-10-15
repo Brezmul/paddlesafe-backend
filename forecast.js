@@ -1,5 +1,8 @@
+import { filtrarAvisosAemet, obtenerAvisosAemet, resolverAreaAemet } from "./lib/aemet.js";
+
 // --- CACHÉ EN MEMORIA Y PRESUPUESTO DE TIEMPO (Hallazgo I-3) ---
 const cache = new Map();
+const FORECAST_CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_EXECUTION_BUDGET_MS = 8500;
 const MIN_STEP_TIMEOUT_MS = 350;
 const FETCH_GEOCODE_TIMEOUT_MS = 1500;
@@ -119,9 +122,16 @@ async function geocodificar(location, apiKey, presupuesto = crearPresupuesto()) 
       );
       if (geoRes.ok) {
         const geoData = await geoRes.json();
-        const geometry = geoData.results?.[0]?.geometry;
+        const result = geoData.results?.[0];
+        const geometry = result?.geometry;
         if (Number.isFinite(geometry?.lat) && Number.isFinite(geometry?.lng)) {
-          return { lat: geometry.lat, lng: geometry.lng };
+          return {
+            lat: geometry.lat,
+            lng: geometry.lng,
+            aemetArea: result.components?.country_code === "es"
+              ? resolverAreaAemet(result.components?.state_code, result.components?.state)
+              : null
+          };
         }
       }
     } catch {
@@ -153,7 +163,13 @@ async function geocodificar(location, apiKey, presupuesto = crearPresupuesto()) 
     return null;
   }
 
-  return { lat: result.latitude, lng: result.longitude };
+  return {
+    lat: result.latitude,
+    lng: result.longitude,
+    aemetArea: result.country_code === "ES"
+      ? resolverAreaAemet(null, result.admin1)
+      : null
+  };
 }
 
 function parsearCoordenadas(location) {
@@ -169,7 +185,37 @@ function parsearCoordenadas(location) {
     return null;
   }
 
-  return { lat, lng };
+  return { lat, lng, aemetArea: null };
+}
+
+async function resolverAreaAemetPorCoordenadas(lat, lng, apiKey, presupuesto) {
+  if (!apiKey) {
+    console.warn("[AEMET] No se puede asociar la ubicación a una comunidad autónoma sin geocodificación inversa.");
+    return null;
+  }
+
+  try {
+    const url = new URL("https://api.opencagedata.com/geocode/v1/json");
+    url.search = new URLSearchParams({
+      q: `${lat},${lng}`,
+      key: apiKey,
+      no_annotations: "1"
+    });
+    const response = await fetchWithTimeout(url, {}, FETCH_GEOCODE_TIMEOUT_MS, presupuesto, 1500);
+    if (!response.ok) {
+      throw new Error(`OpenCage reverse geocoding respondió con status ${response.status}`);
+    }
+
+    const result = (await response.json()).results?.[0];
+    if (result?.components?.country_code !== "es") return null;
+    return resolverAreaAemet(result.components?.state_code, result.components?.state);
+  } catch (error) {
+    console.warn(
+      "[AEMET] No se pudo determinar la comunidad autónoma desde las coordenadas.",
+      error instanceof Error ? error.name : "Error desconocido"
+    );
+    return null;
+  }
 }
 
 export async function llamarApiPrincipal(lat, lon, date, timeRange, timeZone = "UTC", presupuesto = null) {
@@ -221,7 +267,7 @@ async function llamarMarineOpenMeteo(lat, lon, date, timeRange, presupuesto = nu
     marineUrl.search = new URLSearchParams({
       latitude: (Number(lat) + dLat).toFixed(4),
       longitude: (Number(lon) + dLon).toFixed(4),
-      hourly: "wave_height,sea_surface_temperature",
+      hourly: "wave_height,wave_period,sea_surface_temperature",
       cell_selection: "sea",
       timezone: "auto",
       start_hour: window.startLocal,
@@ -254,6 +300,7 @@ async function llamarMarineOpenMeteo(lat, lon, date, timeRange, presupuesto = nu
 
   return {
     wave_height: marineData?.hourly?.wave_height,
+    wave_period: marineData?.hourly?.wave_period,
     ocean_temperature: marineData?.hourly?.sea_surface_temperature
   };
 }
@@ -264,7 +311,7 @@ export async function llamarOpenMeteo(lat, lon, date, timeRange, incluirMarine =
   weatherUrl.search = new URLSearchParams({
     latitude: lat,
     longitude: lon,
-    hourly: "wind_speed_10m,wind_direction_10m,temperature_2m,weather_code,precipitation,precipitation_probability",
+    hourly: "wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m,weather_code,precipitation,precipitation_probability",
     timezone: "auto",
     wind_speed_unit: "ms",
     start_hour: window.startLocal,
@@ -306,12 +353,14 @@ export async function llamarOpenMeteo(lat, lon, date, timeRange, incluirMarine =
     hourly: {
       time: weatherData.hourly?.time,
       wind_speed_10m: weatherData.hourly?.wind_speed_10m,
+      wind_gusts_10m: weatherData.hourly?.wind_gusts_10m,
       wind_direction_10m: weatherData.hourly?.wind_direction_10m,
       temperature_2m: weatherData.hourly?.temperature_2m,
       weather_code: weatherData.hourly?.weather_code,
       precipitation: weatherData.hourly?.precipitation,
       precipitation_probability: weatherData.hourly?.precipitation_probability,
       wave_height: marineData?.wave_height,
+      wave_period: marineData?.wave_period,
       ocean_temperature: marineData?.ocean_temperature
     }
   };
@@ -395,17 +444,19 @@ export function normalizarPrincipal(data) {
   const windDirection = getVal(windHour?.windDirection) ?? valuesFor("windDirection")[0] ?? null;
   const waveHeights = valuesFor("waveHeight");
   const waveHeight = waveHeights.length ? Math.max(...waveHeights) : null;
-  const average = (values, fallback) => values.length
+  const average = (values) => values.length
     ? values.reduce((sum, value) => sum + value, 0) / values.length
-    : fallback;
+    : null;
 
-  const tempAire = average(valuesFor("airTemperature"), 25);
-  const tempAgua = average(valuesFor("waterTemperature"), 22);
-  const cloudCover = Math.max(0, ...valuesFor("cloudCover"));
+  const tempAire = average(valuesFor("airTemperature"));
+  const tempAgua = average(valuesFor("waterTemperature"));
+  const cloudValues = valuesFor("cloudCover");
+  const cloudCover = cloudValues.length ? Math.max(...cloudValues) : null;
   const precipitationValues = valuesFor("precipitation");
-  const precipitation = Math.round(
-    precipitationValues.reduce((sum, value) => sum + value, 0) * 100
-  ) / 100;
+  const precipitation = precipitationValues.length
+    ? Math.round(precipitationValues.reduce((sum, value) => sum + value, 0) * 100) / 100
+    : null;
+  const wavePeriods = valuesFor("wavePeriod");
 
   if (windSpeed === null || windDirection === null) {
     throw new Error("Viento inválido en API principal");
@@ -413,19 +464,22 @@ export function normalizarPrincipal(data) {
   if (waveHeight === null) {
     throw new Error("Oleaje nulo en Stormglass, forzando radar costero de Open-Meteo");
   }
-  let clima = "Soleado";
-  if (precipitation > 0.2) clima = "Lluvia";
-  else if (cloudCover > 30) clima = "Nublado";
+  let clima = "Sin datos meteorológicos";
+  if (precipitation !== null && precipitation > 0.2) clima = "Lluvia";
+  else if (cloudCover !== null) clima = cloudCover > 30 ? "Nublado" : "Soleado";
 
   return {
     windSpeed,
     windDirection,
     waveHeight,
-    tempAire: Math.round(tempAire),
-    tempAgua: Math.round(tempAgua),
+    windGusts: null,
+    wavePeriod: wavePeriods.length ? Math.max(...wavePeriods) : null,
+    weatherCode: null,
+    tempAire: tempAire === null ? null : Math.round(tempAire),
+    tempAgua: tempAgua === null ? null : Math.round(tempAgua),
     clima,
     precipitation,
-    precipProbability: precipitation > 0 ? 100 : 0,
+    precipProbability: null,
     source: "stormglass"
   };
 }
@@ -437,44 +491,54 @@ export function normalizarFallback(data) {
     .map(Number);
   const windSpeeds = finiteValues(hourly.wind_speed_10m);
   const windSpeed = windSpeeds.length ? Math.max(...windSpeeds) : null;
+  const windGusts = finiteValues(hourly.wind_gusts_10m);
   const windIndex = hourly.wind_speed_10m?.findIndex((value) => Number(value) === windSpeed) ?? -1;
   const windDirection = hourly.wind_direction_10m?.[windIndex] ?? finiteValues(hourly.wind_direction_10m)[0] ?? null;
   const waveHeights = finiteValues(hourly.wave_height);
   const waveHeight = waveHeights.length ? Math.max(...waveHeights) : null;
-  const average = (values, fallback) => {
+  const wavePeriods = finiteValues(hourly.wave_period);
+  const average = (values) => {
     const available = finiteValues(values);
     return available.length
       ? available.reduce((sum, value) => sum + value, 0) / available.length
-      : fallback;
+      : null;
   };
 
-  const tempAire = average(hourly.temperature_2m, 25);
-  const tempAgua = average(hourly.ocean_temperature, 22);
+  const tempAire = average(hourly.temperature_2m);
+  const tempAgua = average(hourly.ocean_temperature);
   const weatherCodes = finiteValues(hourly.weather_code);
   const weatherCode = weatherCodes.find((code) => code >= 95) ??
     weatherCodes.find((code) => code >= 51) ??
     weatherCodes.find((code) => code >= 45) ??
-    weatherCodes.find((code) => code >= 1) ?? 0;
-  const precipitation = Math.round(
-    finiteValues(hourly.precipitation).reduce((sum, value) => sum + value, 0) * 100
-  ) / 100;
-  const precipProbability = Math.max(0, ...finiteValues(hourly.precipitation_probability));
+    weatherCodes.find((code) => code >= 1) ?? weatherCodes[0] ?? null;
+  const precipitationValues = finiteValues(hourly.precipitation);
+  const precipitation = precipitationValues.length
+    ? Math.round(precipitationValues.reduce((sum, value) => sum + value, 0) * 100) / 100
+    : null;
+  const precipitationProbabilities = finiteValues(hourly.precipitation_probability);
+  const precipProbability = precipitationProbabilities.length
+    ? Math.max(0, ...precipitationProbabilities)
+    : null;
 
   if (windSpeed === undefined || windSpeed === null || !Number.isFinite(windSpeed)) {
     throw new Error("Viento inválido en Open-Meteo");
   }
 
-  let clima = "Soleado";
+  let clima = "Sin datos meteorológicos";
+  if (weatherCode === 0) clima = "Soleado";
   if (weatherCode >= 1 && weatherCode <= 3) clima = "Nublado";
   if (weatherCode >= 45 && weatherCode <= 48) clima = "Niebla";
   if (weatherCode >= 51 && weatherCode <= 99) clima = "Lluvia";
 
   return {
     windSpeed,
+    windGusts: windGusts.length ? Math.max(...windGusts) : null,
     windDirection,
     waveHeight,
-    tempAire: Math.round(tempAire),
-    tempAgua: Math.round(tempAgua),
+    wavePeriod: wavePeriods.length ? Math.max(...wavePeriods) : null,
+    weatherCode,
+    tempAire: tempAire === null ? null : Math.round(tempAire),
+    tempAgua: tempAgua === null ? null : Math.round(tempAgua),
     clima,
     precipitation,
     precipProbability,
@@ -535,20 +599,27 @@ export async function obtenerForecast(lat, lon, date, timeRange, presupuesto = c
     const datosMeteo = normalizarFallback(meteo);
     return {
       ...datosPrincipales,
-      precipitation: datosMeteo.precipitation,
+      windGusts: datosMeteo.windGusts,
+      wavePeriod: datosPrincipales.wavePeriod ?? datosMeteo.wavePeriod,
+      weatherCode: datosMeteo.weatherCode,
+      precipitation: datosMeteo.precipitation ?? datosPrincipales.precipitation,
       precipProbability: datosMeteo.precipProbability,
-      clima: datosPrincipales.clima === "Lluvia" || datosMeteo.clima === "Lluvia"
-        ? "Lluvia"
-        : datosPrincipales.clima
+      clima: datosMeteo.clima !== "Sin datos meteorológicos"
+        ? datosMeteo.clima
+        : datosPrincipales.clima,
+      timezone: meteo.timezone
     };
   }
 
   const datosMeteo = meteo ?? await llamarOpenMeteo(lat, lon, date, timeRange, false, presupuesto);
   const datosMarinos = await llamarMarineOpenMeteo(lat, lon, date, timeRange, presupuesto);
-  return normalizarFallback({
-    ...datosMeteo,
-    hourly: { ...datosMeteo.hourly, ...datosMarinos }
-  });
+  return {
+    ...normalizarFallback({
+      ...datosMeteo,
+      hourly: { ...datosMeteo.hourly, ...datosMarinos }
+    }),
+    timezone: datosMeteo.timezone
+  };
 }
 
 export default async function handler(req, res) {
@@ -579,7 +650,7 @@ export default async function handler(req, res) {
     const cacheKey = `${location}-${date}-${timeRange}-${userLevel}`;
     const cached = cache.get(cacheKey);
 
-    if (cached && Date.now() - cached.timestamp < 3600 * 1000) {
+    if (cached && Date.now() - cached.timestamp < FORECAST_CACHE_TTL_MS) {
       return res.status(200).json({ ok: true, cached: true, ...cached.data });
     }
 
@@ -595,8 +666,45 @@ export default async function handler(req, res) {
 
     const { lat, lng } = coordinates;
 
-    // Ejecuta el motor meteorológico
-    const datos = await obtenerForecast(lat, lng, date, timeRange, presupuesto);
+    const areaAemetPromise = coordinates.aemetArea
+      ? Promise.resolve(coordinates.aemetArea)
+      : resolverAreaAemetPorCoordenadas(lat, lng, OPENCAGE_KEY, presupuesto);
+    const avisosAemetPromise = areaAemetPromise.then(async area => ({
+      area,
+      respuesta: await obtenerAvisosAemet({ area })
+    }));
+
+    const [datos, avisosAemet] = await Promise.all([
+      obtenerForecast(lat, lng, date, timeRange, presupuesto),
+      avisosAemetPromise
+    ]);
+
+    let alertasAemet = [];
+    let aemetAvailable = avisosAemet.respuesta.disponible;
+    if (aemetAvailable) {
+      try {
+        const ventana = obtenerVentanaHoraria(date, timeRange);
+        if (!datos.timezone) throw new Error("La zona horaria del pronóstico no está disponible");
+        const inicio = convertirHoraLocalAUtc(ventana.startLocal, datos.timezone);
+        const fin = convertirHoraLocalAUtc(ventana.endLocal, datos.timezone);
+        if (!Number.isFinite(inicio) || !Number.isFinite(fin) || inicio > fin) {
+          throw new Error("La franja horaria no se pudo convertir a UTC");
+        }
+        alertasAemet = filtrarAvisosAemet(avisosAemet.respuesta.alertas, {
+          inicio,
+          fin
+        });
+      } catch (error) {
+        aemetAvailable = false;
+        console.warn("[AEMET] No se pudieron verificar las vigencias de los avisos.", error);
+      }
+    }
+
+    datos.aemetAvailable = aemetAvailable;
+    datos.aemet_alerts = alertasAemet;
+    datos.aemetArea = avisosAemet.area?.nombre ?? null;
+    datos.aemetAreaScope = avisosAemet.area ? "regional" : null;
+    if (aemetAvailable) datos.alertSource = "AEMET";
 
     const responseData = {
       ok: true,

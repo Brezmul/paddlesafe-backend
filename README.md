@@ -6,8 +6,8 @@ Backend serverless para análisis de seguridad, condiciones marinas, spots y rut
 
 - **Runtime:** Node.js con ES Modules, desplegado en Vercel.
 - **Entrada:** `api/backend.js`, que despacha las acciones a sus handlers.
-- **Proveedores externos:** OpenCage, StormGlass y Open-Meteo.
-- **Variables de entorno:** `OPENCAGE_KEY` y `STORMGLASS_KEY` se configuran en Vercel.
+- **Proveedores externos:** OpenCage, StormGlass, Open-Meteo y avisos oficiales AEMET.
+- **Variables de entorno:** `OPENCAGE_KEY` y `STORMGLASS_KEY` se configuran en Vercel. Los avisos oficiales AEMET se leen de sus feeds RSS públicos y no requieren `AEMET_API_KEY`.
 - **Caché:** los handlers usan caché en memoria, que es local a cada instancia serverless y no persistente.
 
 ## API
@@ -79,3 +79,9 @@ Los endpoints de análisis no requieren autenticación propia; `upload_route` re
 Las cuotas de OpenCage y StormGlass dependen de sus planes y credenciales; usa el agregador `dashboard` cuando sea apropiado y evita solicitudes duplicadas.
 
 La caché en memoria no es un limitador de peticiones ni un almacenamiento compartido entre instancias.
+
+### Avisos oficiales AEMET
+
+`forecast` consulta el endpoint CAP de AEMET para la comunidad autónoma identificada. El resultado se etiqueta como **ámbito regional**: no se filtra por zona de aviso costera ni debe interpretarse como un aviso específico del punto de navegación. Si no puede determinarse la comunidad, AEMET no responde o el formato CAP no se reconoce, la respuesta marca `aemetAvailable: false`; nunca presenta ese caso como ausencia confirmada de avisos. La respuesta incluye `aemet_alerts`, limitada a la franja horaria solicitada.
+
+Los feeds RSS CAP públicos enlazados desde la [página oficial de avisos AEMET](https://www.aemet.es/es/eltiempo/prediccion/avisos) se consultan directamente desde el servidor, sin clave API. Se valida la fecha de actualización del feed y las horas de vigencia de cada aviso; si el feed no responde, está desactualizado o cambia de formato, el pronóstico indica que AEMET no está disponible. La consulta se realiza por comunidad autónoma y no equivale a un filtrado geográfico por la zona costera exacta. Para ubicaciones expresadas como coordenadas, también hace falta resolver su comunidad autónoma; si no se puede hacer esa geocodificación inversa, AEMET se marca no disponible.

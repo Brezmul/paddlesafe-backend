@@ -41,6 +41,10 @@ Hostinger: index.html
 
 `forecast` valida ubicación, fecha, franja y nivel, normaliza el contrato y mantiene una caché por instancia. Los nombres de entorno esperados son `OPENCAGE_KEY` y `STORMGLASS_KEY`; el fallback principal usa Open-Meteo. Los errores del backend retornan HTTP 500 con `details`.
 
+El flujo `forecast` integra avisos oficiales AEMET consultando, sin clave, los feeds RSS CAP públicos publicados para cada comunidad autónoma. Se validaron feeds reales para Andalucía, Aragón, Cataluña, Canarias, Comunitat Valenciana y Melilla; incluyen avisos individuales y el estado explícito de ausencia de avisos. La respuesta distingue `aemetAvailable` de una lista vacía, e incluye `aemet_alerts` regionales filtrados por vigencia y franja horaria. Si no se identifica el área, el proveedor falla, el feed está desactualizado o su formato cambia, se reporta como no disponible. La consulta es regional y no filtra por zona costera exacta.
+
+La caché de respuestas de `forecast` se limita a 10 minutos para evitar mantener avisos oficiales obsoletos durante una hora. Los avisos de comunidad son de ámbito regional y no se filtran por polígonos/zona costera; no deben interpretarse como avisos específicos del punto consultado.
+
 El resto de acciones Vercel se enruta desde `api/backend.js`; `vercel.json` configura `/api/backend`, el rewrite de `/api/:action` y CORS. La tabla de acciones y métodos está en el README backend: `ai`, `alerts`, `coach`, `compare`, `conditions`, `dashboard`, `forecast`, `geoanalyze`, `heatmap`, `history`, `levels`, `map`, `profile`, `radar`, `route`, `safety`, `spotinfo`, `spotlist`, `spotquality`, `spotrating`, `spotzones`, `status`, `summary`, `terrain`, `tides`, `upload_route` y `warnings`. En el frontend actual solo se encontró consumo de `forecast`; las demás acciones no forman parte del flujo local encontrado.
 
 ### Auth, perfiles y social
