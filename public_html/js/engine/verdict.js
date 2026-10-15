@@ -77,40 +77,69 @@ export const ICONOS_SEGURIDAD = {
  */
 export function generarVeredictoNextGen(params = {}) {
     const spotNombre = params.spotNombre || params.nombreSpot || params.location || '';
-    const lat = params.lat ?? params.coordenadas?.latitude ?? null;
-    const lon = params.lon ?? params.coordenadas?.longitude ?? null;
-    const userLevel = params.userLevel || params.nivelUsuario || 'Intermedio';
+    const lat = params.lat ?? params.coordenadas?.latitude ?? params.coordenadas?.lat ?? null;
+    const lon = params.lon ?? params.coordenadas?.longitude ?? params.coordenadas?.lng ?? null;
+    const userLevel = params.userLevel || params.nivelUsuario || params.nivel_usuario || 'Intermedio';
     const deporteKey = params.deporteKey || params.deporte || 'paddle_surf';
 
     // Conversión segura km/h a nudos si no vienen directamente en nudos
-    let vientoKt = params.vientoKt ?? null;
+    let vientoKt = params.vientoKt ?? params.viento_kt ?? null;
     if (vientoKt === null && params.vientoKmh !== null && params.vientoKmh !== undefined) {
         vientoKt = Number((params.vientoKmh / 1.852).toFixed(1));
+    } else if (vientoKt === null && params.viento_kmh !== null && params.viento_kmh !== undefined) {
+        vientoKt = Number((params.viento_kmh / 1.852).toFixed(1));
     }
-    let rachasKt = params.rachasKt ?? null;
+    let rachasKt = params.rachasKt ?? params.rachas_kt ?? null;
     if (rachasKt === null && params.rachasKmh !== null && params.rachasKmh !== undefined) {
         rachasKt = Number((params.rachasKmh / 1.852).toFixed(1));
+    } else if (rachasKt === null && params.rachas_kmh !== null && params.rachas_kmh !== undefined) {
+        rachasKt = Number((params.rachas_kmh / 1.852).toFixed(1));
     }
 
-    const dirVientoDeg = params.dirVientoDeg ?? params.direccionViento ?? null;
-    const oleajeM = params.oleajeM ?? params.olaM ?? null;
-    const periodoOlaS = params.periodoOlaS ?? params.periodoOla ?? null;
-    const swellM = params.swellM ?? null;
-    const swellPeriodoS = params.swellPeriodoS ?? params.periodoSwell ?? null;
-    const swellDirDeg = params.swellDirDeg ?? params.direccionSwell ?? null;
-    const tempAireC = params.tempAireC ?? params.tempAire ?? null;
-    const tempAguaC = params.tempAguaC ?? params.tempAgua ?? null;
-    const presionHpa = params.presionHpa ?? params.presion ?? null;
-    const humedadPct = params.humedadPct ?? params.humedad ?? null;
+    const dirVientoDeg = params.dirVientoDeg ?? params.dir_viento_deg ?? params.direccionViento ?? null;
+    const oleajeM = params.oleajeM ?? params.olaM ?? params.altura_ola_m ?? null;
+    const periodoOlaS = params.periodoOlaS ?? params.periodoOla ?? params.periodo_ola_s ?? null;
+    const swellM = params.swellM ?? params.swell_height ?? null;
+    const swellPeriodoS = params.swellPeriodoS ?? params.periodoSwell ?? params.swell_period ?? null;
+    const swellDirDeg = params.swellDirDeg ?? params.direccionSwell ?? params.swell_direction ?? null;
+    const tempAireC = params.tempAireC ?? params.tempAire ?? params.temp_c ?? params.temperature_2m ?? null;
+    const tempAguaC = params.tempAguaC ?? params.tempAgua ?? params.temp_agua_c ?? params.sea_surface_temperature ?? null;
+    const presionHpa = params.presionHpa ?? params.presion ?? params.presion_hpa ?? null;
+    const humedadPct = params.humedadPct ?? params.humedad ?? params.humedad_pct ?? null;
     const visibilidadKm = params.visibilidadKm ?? params.visibilidad ?? null;
-    const lluviaMm = params.lluviaMm ?? params.precipitacion ?? 0;
-    const probLluviaPct = params.probLluviaPct ?? params.probabilidadPrecipitacion ?? 0;
-    const weatherCode = params.weatherCode ?? null;
+    const lluviaMm = params.lluviaMm ?? params.precipitacion ?? params.precipitacion_mm ?? 0;
+    const probLluviaPct = params.probLluviaPct ?? params.probabilidadPrecipitacion ?? params.prob_precipitacion_pct ?? 0;
+    const weatherCode = params.weatherCode ?? params.weather_code ?? null;
 
     // Alertas y tormenta
-    const alertaOficial = params.alertaOficial ?? params.alerta ?? null;
+    let alertaOficial = params.alertaOficial ?? params.alerta ?? null;
+    const alertasArray = Array.isArray(params.alertas_aemet) ? params.alertas_aemet 
+        : Array.isArray(params.alertas) ? params.alertas 
+        : (alertaOficial ? [alertaOficial] : []);
+    if (!alertaOficial && alertasArray.length > 0) {
+        const top = alertasArray[0];
+        alertaOficial = {
+            activa: true,
+            origen: top.origen || 'AEMET',
+            nivel: String(top.nivel || 'AMARILLA').toUpperCase(),
+            tipo: top.tipo || top.fenomeno || 'Aviso costero',
+            descripcion: top.descripcion || top.tipo || ''
+        };
+    } else if (alertaOficial && alertaOficial.activa === undefined) {
+        alertaOficial = {
+            activa: true,
+            origen: alertaOficial.origen || 'AEMET',
+            nivel: String(alertaOficial.nivel || 'AMARILLA').toUpperCase(),
+            tipo: alertaOficial.tipo || 'Aviso meteorológico',
+            descripcion: alertaOficial.descripcion || ''
+        };
+    }
+
     const tormentaElectricaDetectada = Boolean(params.tormentaElectricaDetectada || params.tormenta);
     const horasDiurnas = params.horasDiurnas || [];
+
+    // Orientación costera directa si se suministra
+    const orientacionCostaDeg = params.seawardDeg ?? params.orientacionCostaDeg ?? params.orientacion_costa_deg ?? null;
 
     // Modelos para consenso
     const ecmwfVientoKt = params.ecmwfVientoKt ?? params.modelosPronostico?.valoresPorModelo?.ecmwf ?? null;
@@ -122,7 +151,7 @@ export function generarVeredictoNextGen(params = {}) {
 
     // 1. REGLA ABSOLUTA: Tormenta eléctrica (Veto Infranqueable)
     const code = Number(weatherCode ?? 0);
-    const textoAlerta = `${alertaOficial?.tipo || ''} ${alertaOficial?.descripcion || ''}`.toLowerCase();
+    const textoAlerta = `${alertasArray.map(a => `${a?.tipo || ''} ${a?.descripcion || ''}`).join(' ')} ${alertaOficial?.tipo || ''} ${alertaOficial?.descripcion || ''}`.toLowerCase();
     const esTormentaElectrica = Boolean(tormentaElectricaDetectada)
         || [95, 96, 99].includes(code)
         || /tormenta\s*electrica|actividad\s*electrica|descarga\s*electrica|rayos?|lightning|relampagos?/.test(textoAlerta);
@@ -174,8 +203,12 @@ export function generarVeredictoNextGen(params = {}) {
     }
 
     // 2. Resolver orientación costera y vector de viento
-    const infoCosta = resolverOrientacionCostera(spotNombre, lat, lon);
-    const compViento = calcularComponenteVientoAuto(lat, lon, dirVientoDeg, spotNombre);
+    const infoCosta = orientacionCostaDeg !== null
+        ? { seawardDeg: orientacionCostaDeg, esCosta: true, esEmbalse: false, tipoEntorno: 'mar_abierto' }
+        : resolverOrientacionCostera(spotNombre, lat, lon);
+    const compViento = orientacionCostaDeg !== null
+        ? calcularComponenteVientoAuto(dirVientoDeg, orientacionCostaDeg)
+        : calcularComponenteVientoAuto(lat, lon, dirVientoDeg, spotNombre);
     const deriva = calcularIndiceDerivaPaddleSafe({
         vientoKt: vientoKt || 0,
         rachasKt: rachasKt || vientoKt || 0,

@@ -68,7 +68,7 @@ const SPOTS_CONOCIDOS = [
 /**
  * Heurística geográfica geodésica para coordenadas en la Península Ibérica y archipiélagos
  */
-function estimarRumboCosteroGeodesico(lat, lon) {
+export function estimarRumboCosteroGeodesico(lat, lon) {
     if (lat === null || lon === null || !Number.isFinite(lat) || !Number.isFinite(lon)) {
         return 90; // Default Este
     }
