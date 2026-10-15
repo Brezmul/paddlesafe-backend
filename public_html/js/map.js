@@ -48,6 +48,176 @@ function registrarDiagnosticoClima(etiqueta, contenido) {
     }
 }
 
+// Catálogo Nacional de Autoridades de Protección Civil y Emergencias 112 por Comunidad Autónoma
+export const AUTORIDADES_112_ES = {
+    ANDALUCIA: {
+        id: "ANDALUCIA",
+        nombre: "112 Andalucía",
+        organismo: "Servicio de Emergencias 112 Andalucía / Protección Civil (Junta de Andalucía)",
+        plan: "Plan Territorial de Emergencias de Andalucía (PTEAnd)",
+        portal: "https://www.juntadeandalucia.es/temas/seguridad/emergencias-112.html",
+        urlDoc: "https://www.juntadeandalucia.es/organismos/presidenciainteriordialogosocialysimplificacionadministrativa/areas/emergencias-112.html",
+        telefono: "112",
+        canal: "@E112Andalucia",
+        peligroNautico: "Oleaje atlántico/mediterráneo, corrientes de resaca e intensificación de viento por efecto canal en el Estrecho y costa andaluza."
+    },
+    CATALUNYA: {
+        id: "CATALUNYA",
+        nombre: "112 Catalunya (Protecció Civil)",
+        organismo: "Direcció General de Protecció Civil (Generalitat de Catalunya)",
+        plan: "Plans Especials INUNCAT / VENTCAT / CAMCAT",
+        portal: "https://interior.gencat.cat/ca/arees_dactuacio/proteccio_civil/",
+        urlDoc: "https://interior.gencat.cat/ca/arees_dactuacio/proteccio_civil/estat_dels_plans/index.html",
+        telefono: "112",
+        canal: "@emergenciescat",
+        peligroNautico: "Viento de Tramuntana/Mestral terral violento en Costa Brava y desembocaduras torrenciales en el litoral central y delta del Ebro."
+    },
+    VALENCIA: {
+        id: "VALENCIA",
+        nombre: "112 Comunitat Valenciana",
+        organismo: "Agència Valenciana de Seguretat i Resposta a les Emergències (AVSRE / 112 CV)",
+        plan: "Plan Especial de Inundaciones y Temporal Costero (Generalitat Valenciana)",
+        portal: "https://www.112cv.gva.es/es/inicio",
+        urlDoc: "https://www.112cv.gva.es/documents/163565706/168368846/EGEN260541_Aviso_especial.pdf/663141cd-8dde-dea7-b54b-891e0f9561d5?t=1792046608487",
+        telefono: "112",
+        canal: "@GVA112",
+        peligroNautico: "Avenidas súbitas en ramblas y cauces secos que desaguan en la playa, generando corrientes de arrastre violentas hacia mar abierto y aguas turbias."
+    },
+    GALICIA: {
+        id: "GALICIA",
+        nombre: "112 Galicia (AXEGA)",
+        organismo: "Axencia Galega de Emerxencias (Xunta de Galicia)",
+        plan: "Plan Especial de Protección Civil ante o Risco de Inundacións e Temporais Costeiros",
+        portal: "https://axega112.gal",
+        urlDoc: "https://axega112.gal/es/avisos",
+        telefono: "112",
+        canal: "@112Galicia",
+        peligroNautico: "Mar de fondo atlántico violento, rompientes masivas en bajos costeros y fuertes corrientes de marea en bocanas de rías."
+    },
+    BALEARS: {
+        id: "BALEARS",
+        nombre: "112 Illes Balears (SEIB 112)",
+        organismo: "Direcció General d'Emergències i Interior (Govern de les Illes Balears)",
+        plan: "Pla Especial METEOBAL / INUNBAL",
+        portal: "https://112ib.caib.es",
+        urlDoc: "https://112ib.caib.es",
+        telefono: "112",
+        canal: "@112IllesBalears",
+        peligroNautico: "Rissagas (oscilaciones súbitas del nivel del mar), vientos cambiantes de tramuntana y oleaje cruzado en calas abiertas."
+    },
+    CANARIAS: {
+        id: "CANARIAS",
+        nombre: "1-1-2 Canarias (CECOES)",
+        organismo: "Dirección General de Emergencias (Gobierno de Canarias)",
+        plan: "Plan Específico de Emergencias de Canarias por Fenómenos Meteorológicos Adversos (PEFMA)",
+        portal: "https://www.gobiernodecanarias.org/administracionpublica/seguridadyemergencias/avisos/",
+        urlDoc: "https://www.gobiernodecanarias.org/administracionpublica/seguridadyemergencias/",
+        telefono: "1-1-2",
+        canal: "@112canarias",
+        peligroNautico: "Oleaje oceánico profundo, mar de fondo del norte, corrientes de retorno y aceleración de alisios entre canales de islas."
+    },
+    MURCIA: {
+        id: "MURCIA",
+        nombre: "112 Región de Murcia",
+        organismo: "Dirección General de Seguridad Ciudadana y Emergencias (CARM)",
+        plan: "Plan Territorial de Protección Civil (PLATERMUR / INUNMUR)",
+        portal: "https://112rmurcia.es",
+        urlDoc: "https://112rmurcia.es",
+        telefono: "112",
+        canal: "@112rmurcia",
+        peligroNautico: "Desagüe súbito de ramblas hacia el Mar Menor y costa abierta, rachas intensas de levante y rompiente en la orilla."
+    },
+    CANTABRIA: {
+        id: "CANTABRIA",
+        nombre: "112 Cantabria (SEMCA)",
+        organismo: "Servicio de Emergencias de Cantabria (Gobierno de Cantabria)",
+        plan: "Plan Territorial de Protección Civil de Cantabria (PLATERCANT)",
+        portal: "https://112cantabria.es",
+        urlDoc: "https://112cantabria.es",
+        telefono: "112",
+        canal: "@112Cantabria",
+        peligroNautico: "Galernas súbitas con giro de viento a noroeste, fuerte mar de fondo cantábrico y corrientes de resaca intensas."
+    },
+    ASTURIAS: {
+        id: "ASTURIAS",
+        nombre: "112 Asturias (SEPA)",
+        organismo: "Servicio de Emergencias del Principado de Asturias (SEPA)",
+        plan: "Plan Territorial de Protección Civil del Principado de Asturias (PLATERPA)",
+        portal: "https://www.112asturias.es",
+        urlDoc: "https://www.112asturias.es",
+        telefono: "112",
+        canal: "@SEPAcomunica",
+        peligroNautico: "Rompientes violentas en acantilados, mar tendida de gran periodo y riesgo de desbordamiento en estuarios y rías."
+    },
+    EUSKADI: {
+        id: "EUSKADI",
+        nombre: "112 SOS Deiak (Euskadi)",
+        organismo: "Dirección de Atención de Emergencias y Meteorología (Gobierno Vasco)",
+        plan: "Plan Especial de Emergencias por Fenómenos Meteorológicos Adversos (DAEM / Euskalmet)",
+        portal: "https://www.euskadi.eus/sos-deiak/",
+        urlDoc: "https://www.euskadi.eus/sos-deiak/",
+        telefono: "112",
+        canal: "@112_SOSDeiak",
+        peligroNautico: "Galernas cantábricas de impacto fulgurante, grandes trenes de olas en bocanas de puertos y corrientes de retorno."
+    },
+    NACIONAL: {
+        id: "NACIONAL",
+        nombre: "DGPCE / AEMET Nacional",
+        organismo: "Dirección General de Protección Civil y Emergencias y AEMET",
+        plan: "Plan Estatal General de Emergencias (PLEGEM)",
+        portal: "https://www.aemet.es/es/eltiempo/prediccion/avisos",
+        urlDoc: "https://www.aemet.es/es/eltiempo/prediccion/avisos",
+        telefono: "112",
+        canal: "@ProteccionCivil",
+        peligroNautico: "Condiciones marítimas y meteorológicas adversas. Evita navegar y atiende a las indicaciones oficiales de Protección Civil."
+    }
+};
+
+export const ZONAS_ESPANA_112 = [
+    { nombre: "Alicante", comunidadId: "VALENCIA", alias: /alicante|alacant|campello|santa pola|torrevieja|benidorm|altea|javea|xabia|xàbia|denia|dénia|moraira|calpe/i, latMin: 37.8, latMax: 38.9, lonMin: -1.0, lonMax: 0.3 },
+    { nombre: "Valencia", comunidadId: "VALENCIA", alias: /valencia|valència|cullera|gandia|oliva|sagunto|saler/i, latMin: 38.8, latMax: 40.1, lonMin: -1.5, lonMax: 0.1 },
+    { nombre: "Castellón", comunidadId: "VALENCIA", alias: /castellon|castelló|oropesa|benicassim|benicàssim|peñiscola|vinaros|vinaròs/i, latMin: 39.8, latMax: 40.8, lonMin: -0.8, lonMax: 0.6 },
+    { nombre: "Murcia", comunidadId: "MURCIA", alias: /murcia|cartagena|mazarron|mazarrón|aguilas|águilas|la manga|mar menor|guadalentin/i, latMin: 37.3, latMax: 38.8, lonMin: -2.3, lonMax: -0.6 },
+    { nombre: "Almería", comunidadId: "ANDALUCIA", alias: /almeria|almería|cabo de gata|roquetas|mojacar|mojájar|san jose|san josé|poniente.*almeria|levante.*almeriense|tabernas/i, latMin: 36.6, latMax: 37.7, lonMin: -3.1, lonMax: -1.6 },
+    { nombre: "Granada", comunidadId: "ANDALUCIA", alias: /granada|granadina|costa tropical|motril|almuñecar|almuñécar|salobreña|alpujarra/i, latMin: 36.6, latMax: 37.5, lonMin: -4.0, lonMax: -3.0 },
+    { nombre: "Málaga", comunidadId: "ANDALUCIA", alias: /malaga|málaga|costa del sol|marbella|fuengirola|torremolinos|estepona|nerja|axarquia|axarquía/i, latMin: 36.4, latMax: 37.1, lonMin: -5.4, lonMax: -3.7 },
+    { nombre: "Cádiz", comunidadId: "ANDALUCIA", alias: /cadiz|cádiz|tarifa|barbate|conil|el palmar|roto|chiclana|algeciras|estrecho|gaditano/i, latMin: 36.0, latMax: 37.0, lonMin: -6.5, lonMax: -5.1 },
+    { nombre: "Huelva", comunidadId: "ANDALUCIA", alias: /huelva|ayamonte|isla cristina|punta umbria|punta umbría|mazagon|mazagón|matalascañas|onubense/i, latMin: 36.9, latMax: 38.2, lonMin: -7.5, lonMax: -6.3 },
+    { nombre: "Baleares", comunidadId: "BALEARS", alias: /baleares|balears|mallorca|menorca|ibiza|eivissa|formentera|palma|alcudia|alcúdia|tramuntana/i, latMin: 38.5, latMax: 40.3, lonMin: 1.1, lonMax: 4.4 },
+    { nombre: "Barcelona", comunidadId: "CATALUNYA", alias: /barcelona|sitges|castelldefels|badalona|mataro|mataró|maresme|baix llobregat/i, latMin: 41.1, latMax: 42.0, lonMin: 1.5, lonMax: 2.8 },
+    { nombre: "Tarragona", comunidadId: "CATALUNYA", alias: /tarragona|cambrils|salou|delta de l'ebre|delta del ebro|amposta/i, latMin: 40.5, latMax: 41.6, lonMin: 0.1, lonMax: 1.6 },
+    { nombre: "Girona", comunidadId: "CATALUNYA", alias: /girona|gerona|costa brava|roses|cadaques|cadaqués|palamos|palamós|blanes|platja d'aro|emporda|empordà|ampurdan/i, latMin: 41.6, latMax: 42.5, lonMin: 2.4, lonMax: 3.3 },
+    { nombre: "Cantabria", comunidadId: "CANTABRIA", alias: /cantabria|santander|somo|suances|liencres|laredo|castro urdiales|noja|cantabrico|cantábrico/i, latMin: 42.8, latMax: 43.6, lonMin: -4.8, lonMax: -3.1 },
+    { nombre: "Asturias", comunidadId: "ASTURIAS", alias: /asturias|asturiano|gijon|gijón|oviedo|aviles|avilés|ribadesella|llanes|rodiles/i, latMin: 42.9, latMax: 43.7, lonMin: -7.2, lonMax: -4.5 },
+    { nombre: "Pontevedra", comunidadId: "GALICIA", alias: /pontevedra|rias baixas|rías baixas|vigo|sanxenxo|cangas|baiona|miño/i, latMin: 41.8, latMax: 42.8, lonMin: -9.0, lonMax: -7.9 },
+    { nombre: "A Coruña", comunidadId: "GALICIA", alias: /coruña|coruna|costa da morte|ferrol|rias altas|rías altas|oleiros|artabra|ártabra/i, latMin: 42.5, latMax: 43.8, lonMin: -9.3, lonMax: -7.8 },
+    { nombre: "Lugo", comunidadId: "GALICIA", alias: /lugo|mariña|marina lucense|ribadeo|viveiro|foc/i, latMin: 42.3, latMax: 43.8, lonMin: -7.9, lonMax: -6.9 },
+    { nombre: "Bizkaia", comunidadId: "EUSKADI", alias: /bizkaia|vizcaya|bilbao|sopelana|mundaka|plentzia|getxo/i, latMin: 43.0, latMax: 43.5, lonMin: -3.4, lonMax: -2.4 },
+    { nombre: "Gipuzkoa", comunidadId: "EUSKADI", alias: /gipuzkoa|guipuzcoa|guipúzcoa|donostia|san sebastian|san sebastián|zarautz|hondarribia/i, latMin: 42.9, latMax: 43.4, lonMin: -2.6, lonMax: -1.7 },
+    { nombre: "Canarias", comunidadId: "CANARIAS", alias: /canarias|tenerife|gran canaria|lanzarote|fuerteventura|corralejo|maspalomas|las palmas|la palma|la gomera|el hierro/i, latMin: 27.5, latMax: 29.5, lonMin: -18.2, lonMax: -13.3 }
+];
+
+export function obtenerAutoridadEmergencias112(lat, lon, locationText = "") {
+    let matchedZona = null;
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        matchedZona = ZONAS_ESPANA_112.find(z => lat >= z.latMin && lat <= z.latMax && lon >= z.lonMin && lon <= z.lonMax);
+    }
+    if (!matchedZona && locationText) {
+        matchedZona = ZONAS_ESPANA_112.find(z => z.alias && z.alias.test(locationText));
+    }
+    if (matchedZona && AUTORIDADES_112_ES[matchedZona.comunidadId]) {
+        return { ...AUTORIDADES_112_ES[matchedZona.comunidadId], zonaNombre: matchedZona.nombre };
+    }
+    if (locationText) {
+        for (const [key, aut] of Object.entries(AUTORIDADES_112_ES)) {
+            if (new RegExp(aut.nombre.replace(/[\(\)]/g, ""), "i").test(locationText)) {
+                return { ...aut, zonaNombre: aut.nombre };
+            }
+        }
+    }
+    return { ...AUTORIDADES_112_ES.NACIONAL, zonaNombre: "Litoral de España" };
+}
+
 function valorNumericoMeteo(...valores) {
     const valor = valores.find(item => item !== null && item !== undefined && item !== '' && item !== '--' && item !== 'N/D');
     if (valor === undefined || !Number.isFinite(Number(valor))) return null;
@@ -113,7 +283,7 @@ async function solicitarPronostico(payload) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...payload, lat, lon })
             }, 3500),
-            fetchConTimeout(`${BACKEND_API_URL}?action=aemet&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, {
+            fetchConTimeout(`${BACKEND_API_URL}?action=aemet&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&location=${encodeURIComponent(payload.location || '')}`, {
                 method: "GET"
             }, 3000)
         ]);
@@ -150,9 +320,8 @@ async function solicitarPronostico(payload) {
         source: 'open-meteo'
     };
 
-    // Detección de ámbito Comunitat Valenciana para emergencias y avisos de 112 CV
-    const esComunitatValenciana = (lat >= 37.8 && lat <= 40.8 && lon >= -1.5 && lon <= 0.6)
-        || /alicante|alacant|valencia|valència|castellon|castelló|campello|santa pola|torrevieja|benidorm|altea|javea|xabia|xàbia|denia|dénia|cullera|gandia|oliva|moraira|calpe/i.test(String(payload.location || ''));
+    // Ingestión y aseguramiento de la Autoridad de Protección Civil 112 (Nivel Nacional)
+    const autoridadLocal = datosAemet?.autoridad || obtenerAutoridadEmergencias112(lat, lon, String(payload.location || ''));
 
     // Si AEMET devolvió respuesta oficial, integrarla directamente
     if (datosAemet) {
@@ -160,40 +329,57 @@ async function solicitarPronostico(payload) {
             disponible: datosAemet.disponible !== false,
             alertas: datosAemet.alertas || [],
             activa: Array.isArray(datosAemet.alertas) && datosAemet.alertas.length > 0,
-            zona: datosAemet.zonaDetectada || null
+            zona: datosAemet.zonaDetectada || null,
+            autoridad: autoridadLocal
         };
         datos.alertas = datosAemet.alertas || [];
     } else if (datosBackend?.aemet || datosBackend?.alerta_aemet || datosBackend?.alertas || datosBackend?.warnings) {
         datos.aemet = datosBackend.aemet || datosBackend.alerta_aemet || datos.aemet;
         datos.alertas = datosBackend.alertas || datosBackend.warnings || datos.alertas;
+        if (datos.aemet && !datos.aemet.autoridad) {
+            datos.aemet.autoridad = autoridadLocal;
+        }
     } else {
         datos.aemet = {
             disponible: true,
             activa: false,
             alertas: [],
+            autoridad: autoridadLocal,
             mensaje: 'Sin avisos meteorológicos activos.'
         };
         datos.alertas = [];
     }
 
-    // Ingestión de Aviso Especial 112 CV (Generalitat Valenciana) para el litoral mediterráneo
-    if (esComunitatValenciana) {
-        const tieneAviso112 = (datos.aemet.alertas || []).some(a => a.origen === '112 CV' || /precipitaciones intensas|EGEN/i.test(a.tipo || a.descripcion || ''));
+    // Ingestión y aseguramiento de Avisos Especiales de Protección Civil 112
+    if (autoridadLocal.id === 'VALENCIA') {
+        const tieneAviso112 = (datos.aemet.alertas || []).some(a => a.origen?.includes('112') || /precipitaciones intensas|EGEN/i.test(a.tipo || a.descripcion || ''));
         if (!tieneAviso112) {
             const avisoEspecial112 = {
-                origen: '112 CV',
+                origen: '112 Comunitat Valenciana',
+                autoridad: autoridadLocal.organismo,
                 tipo: 'Aviso Especial Protección Civil (112 CV)',
-                nivel: 'NARANJA',
                 titulo: 'EPISODIO DE PRECIPITACIONES INTENSAS EN EL ÁREA DEL MEDITERRÁNEO',
                 descripcion: 'Aviso Especial EGEN260541 (112 CV): Episodio de precipitaciones intensas en el Mediterráneo. Peligro de crecidas y avenidas súbitas en ramblas y desembocaduras hacia el mar.',
                 zona: 'Comunitat Valenciana (Litoral)',
                 urlDoc: 'https://www.112cv.gva.es/documents/163565706/168368846/EGEN260541_Aviso_especial.pdf/663141cd-8dde-dea7-b54b-891e0f9561d5?t=1792046608487',
+                plan: autoridadLocal.plan,
+                peligroNautico: autoridadLocal.peligroNautico,
                 esEspecial: true
             };
             datos.aemet.alertas = [avisoEspecial112, ...(datos.aemet.alertas || [])];
             datos.aemet.activa = true;
             datos.alertas = [avisoEspecial112, ...(datos.alertas || [])];
         }
+    } else if (Array.isArray(datos.aemet.alertas) && datos.aemet.alertas.length > 0) {
+        // En cualquier otra región costera de España: asegurar que las alertas lleven la autoridad 112 y su documento/resolución oficial
+        datos.aemet.alertas.forEach(a => {
+            if (!a.urlDoc) a.urlDoc = autoridadLocal.urlDoc;
+            if (!a.plan) a.plan = autoridadLocal.plan;
+            if (!a.peligroNautico) a.peligroNautico = autoridadLocal.peligroNautico;
+            if (a.origen === 'AEMET' && (a.nivel === 'NARANJA' || a.nivel === 'ROJA' || /costero|coastal|viento|wind|tormenta|storm/i.test(a.tipo))) {
+                a.origen = autoridadLocal.nombre;
+            }
+        });
     }
 
     registrarDiagnosticoClima('[AEMET] Integrated Response', {
@@ -825,7 +1011,7 @@ export function evaluarAlertasGlobales(d) {
             alertas.push(alerta);
         } else {
             if (niveles[alerta.nivel] > niveles[repetida.nivel]) repetida.nivel = alerta.nivel;
-            if (alerta.origen === '112 CV' || alerta.origen === 'AEMET') {
+            if (/^1-?1-?2/i.test(alerta.origen || '') || alerta.origen === 'AEMET') {
                 repetida.origen = alerta.origen;
                 repetida.tipo = alerta.tipo;
                 if (alerta.titulo) repetida.titulo = alerta.titulo;
@@ -835,11 +1021,12 @@ export function evaluarAlertasGlobales(d) {
         }
     });
     alertas.sort((a, b) => niveles[b.nivel] - niveles[a.nivel]);
-    const tiene112 = alertas.some(item => item.origen === '112 CV');
+    const tiene112 = alertas.some(item => /^1-?1-?2/i.test(item.origen || ''));
+    const primer112 = alertas.find(item => /^1-?1-?2/i.test(item.origen || ''));
     const alerta = {
         activa: alertas.length > 0,
         disponible: disponibles,
-        origen: tiene112 ? '112 CV' : (alertas.length > 0 && alertas.every(item => item.origen === 'AEMET') ? 'AEMET' : 'METEOROLÓGICA'),
+        origen: tiene112 ? primer112.origen : (alertas.length > 0 && alertas.every(item => item.origen === 'AEMET') ? 'AEMET' : 'METEOROLÓGICA'),
         alertas,
         nivel: alertas[0]?.nivel || null,
         tipo: alertas.map(item => item.tipo).join(' · ') || 'Aviso AEMET',
@@ -908,14 +1095,27 @@ function renderizarAvisoSuperior(motor) {
     const contenedorBasico = document.getElementById('global-alert-container');
     const contenedorPro = document.getElementById('proAlertTopContainer');
     const alertas = motor?.aemet?.alertas || [];
-    const alertas112 = alertas.filter(alerta => alerta.origen === '112 CV' || alerta.esEspecial);
-    const alertasAemet = alertas.filter(alerta => alerta.origen === 'AEMET' && !alerta.esEspecial);
-    const alertasGenerales = alertas.filter(alerta => alerta.origen !== 'AEMET' && alerta.origen !== '112 CV' && !alerta.esEspecial);
+    const autoridadLocal = motor?.aemet?.autoridad || null;
 
-    console.log('[AEMET/112CV] Alertas recibidas por UI:', {
+    const alertasEmergencias = alertas.filter(alerta =>
+        alerta.esEspecial ||
+        /^1-?1-?2/i.test(alerta.origen || '') ||
+        Boolean(alerta.urlDoc)
+    );
+    const alertasAemet = alertas.filter(alerta =>
+        (alerta.origen === 'AEMET' || !alerta.origen) && !alerta.esEspecial && !alerta.urlDoc
+    );
+    const alertasGenerales = alertas.filter(alerta =>
+        alerta.origen !== 'AEMET' &&
+        !/^1-?1-?2/i.test(alerta.origen || '') &&
+        !alerta.esEspecial &&
+        !alerta.urlDoc
+    );
+
+    console.log('[AEMET/112] Alertas recibidas por UI:', {
         motorAemet: motor?.aemet,
         alertasTotal: alertas.length,
-        alertas112: alertas112.length,
+        alertasEmergencias: alertasEmergencias.length,
         alertasAemet: alertasAemet.length,
         alertasGenerales: alertasGenerales.length,
         contenedorBasicoExiste: Boolean(contenedorBasico),
@@ -927,45 +1127,52 @@ function renderizarAvisoSuperior(motor) {
     const partesBasico = [];
     const partesPro = [];
 
-    // 1. AVISOS ESPECIALES DE PROTECCIÓN CIVIL (112 CV / GENERALITAT VALENCIANA)
-    if (alertas112.length > 0) {
-        alertas112.forEach(a => {
-            const titulo = a.titulo || a.tipo || 'Aviso Especial Protección Civil';
+    // 1. AVISOS ESPECIALES DE PROTECCIÓN CIVIL (112 AUTONÓMICO / NACIONAL)
+    if (alertasEmergencias.length > 0) {
+        alertasEmergencias.forEach(a => {
+            const titulo = a.titulo || a.tipo || 'Aviso Especial de Protección Civil';
+            const nombreOrg = a.origen || autoridadLocal?.nombre || '112 Protección Civil';
+            const nivelAlerta = a.nivel || 'NARANJA';
+            const colorNivel = { AMARILLA: 'amber', NARANJA: 'orange', ROJA: 'red' }[nivelAlerta] || 'orange';
+            const peligro = a.peligroNautico || autoridadLocal?.peligroNautico || 'Posibles riesgos severos para la navegación costera. Extrema la precaución, aléjate de rompientes y desembocaduras, y mantente informado.';
+            const docLabel = a.urlDoc && a.urlDoc.toLowerCase().includes('.pdf')
+                ? `Ver Aviso Oficial ${esc(nombreOrg)} (PDF) ➔`
+                : `Ver Aviso / Resolución Oficial ${esc(nombreOrg)} (Doc) ➔`;
             const pdfLink = a.urlDoc
-                ? `<div class="pt-1"><a href="${esc(a.urlDoc)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition-all shadow-md w-fit"><span>📄</span> Ver Aviso Oficial 112 CV (PDF) ➔</a></div>`
+                ? `<div class="pt-1"><a href="${esc(a.urlDoc)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition-all shadow-md w-fit"><span>📄</span> ${docLabel}</a></div>`
                 : '';
 
             partesBasico.push(`
-                <div role="alert" class="rounded-xl border-l-4 border-orange-500 bg-orange-50 p-4 text-sm text-orange-950 shadow-sm flex flex-col gap-2">
-                    <div class="flex items-center justify-between gap-2 border-b border-orange-200 pb-2">
-                        <strong class="font-black text-orange-800 flex items-center gap-1.5 uppercase tracking-wide text-xs">
-                            <span class="animate-pulse text-base">🚨</span> AVISO ESPECIAL DE EMERGENCIAS (112 CV)
+                <div role="alert" class="rounded-xl border-l-4 border-${colorNivel}-500 bg-${colorNivel}-50 p-4 text-sm text-${colorNivel}-950 shadow-sm flex flex-col gap-2">
+                    <div class="flex items-center justify-between gap-2 border-b border-${colorNivel}-200 pb-2">
+                        <strong class="font-black text-${colorNivel}-800 flex items-center gap-1.5 uppercase tracking-wide text-xs">
+                            <span class="animate-pulse text-base">🚨</span> AVISO DE EMERGENCIAS (${esc(nombreOrg.toUpperCase())})
                         </strong>
-                        <span class="text-[10px] font-black uppercase font-mono px-2 py-0.5 rounded bg-orange-200 text-orange-900 border border-orange-300">Nivel Naranja</span>
+                        <span class="text-[10px] font-black uppercase font-mono px-2 py-0.5 rounded bg-${colorNivel}-200 text-${colorNivel}-900 border border-${colorNivel}-300">Nivel ${esc(nivelAlerta)}</span>
                     </div>
                     <strong class="text-xs font-bold text-slate-900 leading-snug">${esc(titulo)}</strong>
                     <p class="text-xs text-slate-700 leading-relaxed">${esc(a.descripcion)}</p>
                     <div class="bg-amber-100/80 border border-amber-300 rounded-lg p-2.5 text-[11px] text-amber-900 font-medium">
-                        ⚠️ <strong>Peligro náutico para Paddle Surf:</strong> Posibles avenidas súbitas en ramblas y cauces secos que desaguan en la arena, provocando corrientes violentas hacia mar abierto y turbidez. Extrema la precaución y evita zonas de desembocadura.
+                        ⚠️ <strong>Peligro náutico para Paddle Surf:</strong> ${esc(peligro)}
                     </div>
                     ${pdfLink}
                 </div>
             `);
 
             partesPro.push(`
-                <div role="alert" class="rounded-2xl border-2 border-orange-500 bg-gradient-to-r from-orange-950/95 via-slate-900 to-orange-950/95 p-4 shadow-xl text-white flex flex-col gap-2.5">
-                    <div class="flex items-center justify-between gap-2 border-b border-orange-500/40 pb-2">
-                        <span class="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-orange-400">
-                            <span class="animate-pulse text-base">🚨</span> AVISO ESPECIAL DE PROTECCIÓN CIVIL (112 CV)
+                <div role="alert" class="rounded-2xl border-2 border-${colorNivel}-500 bg-gradient-to-r from-orange-950/95 via-slate-900 to-orange-950/95 p-4 shadow-xl text-white flex flex-col gap-2.5">
+                    <div class="flex items-center justify-between gap-2 border-b border-${colorNivel}-500/40 pb-2">
+                        <span class="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-${colorNivel}-400">
+                            <span class="animate-pulse text-base">🚨</span> AVISO DE EMERGENCIAS Y PROTECCIÓN CIVIL (${esc(nombreOrg.toUpperCase())})
                         </span>
-                        <span class="text-[10px] font-black uppercase font-mono px-2.5 py-0.5 rounded-full bg-orange-600 text-white shadow-sm">Nivel Naranja</span>
+                        <span class="text-[10px] font-black uppercase font-mono px-2.5 py-0.5 rounded-full bg-${colorNivel}-600 text-white shadow-sm">Nivel ${esc(nivelAlerta)}</span>
                     </div>
                     <div class="flex flex-col gap-1">
                         <strong class="text-sm font-bold text-white">${esc(titulo)}</strong>
                         <p class="text-xs text-orange-100/90 leading-relaxed font-normal">${esc(a.descripcion)}</p>
                         <div class="bg-orange-900/40 border border-orange-500/40 rounded-xl p-2.5 mt-1 text-[11px] text-amber-200 flex items-start gap-2">
                             <span class="shrink-0 text-sm mt-0.5">⚠️</span>
-                            <span class="leading-relaxed"><strong>Peligro náutico para Paddle Surf:</strong> Posibles avenidas súbitas en ramblas y cauces secos que desaguan en la playa, generando corrientes de arrastre violentas hacia mar abierto y aguas turbias. Extrema la precaución y aléjate de desembocaduras.</span>
+                            <span class="leading-relaxed"><strong>Peligro náutico para Paddle Surf:</strong> ${esc(peligro)}</span>
                         </div>
                     </div>
                     ${pdfLink}
