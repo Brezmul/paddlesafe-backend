@@ -727,11 +727,10 @@ function renderizarAvisoSuperior(motor) {
             <ul class="mt-1 list-inside list-disc">${lista.map(alerta => `<li>${esc(alerta.tipo)}</li>`).join('')}</ul>
         </div>`;
     };
-    const partes = [];
     if (aemetDisponible === false) {
         partes.push(`<div role="status" class="rounded-xl border-l-4 border-amber-500 bg-amber-50 p-3 text-sm text-amber-950">
             <strong>⚠️ Avisos oficiales AEMET no disponibles</strong>
-            <p class="mt-1">No se puede confirmar la ausencia de avisos meteorológicos oficiales para esta consulta.</p>
+            <p class="mt-1">No ha sido posible consultar las alertas oficiales de AEMET en este momento. El análisis continúa con los datos meteorológicos y marinos disponibles.</p>
         </div>`);
     }
     if (motor?.fuenteAlternativa) {
@@ -742,6 +741,12 @@ function renderizarAvisoSuperior(motor) {
     }
     partes.push(renderizarBannerAlerta(alertasAemet, 'Aviso AEMET'));
     partes.push(renderizarBannerAlerta(alertasGenerales, 'Aviso meteorológico'));
+    if (motor?.alertaTormenta && !motor?.tormentaElectrica) {
+        partes.push(`<div role="alert" class="rounded-xl border-2 border-orange-500 bg-orange-950 p-3 text-sm font-bold text-white">
+            <strong>⚠️ AVISO PRIORITARIO POR TORMENTA / TEMPORAL</strong>
+            <p class="mt-1 text-slate-100">Se prevén condiciones adversas de tormenta o temporal. Se recomienda extremar la precaución y valorar suspender la salida.</p>
+        </div>`);
+    }
     if (motor?.tormentaElectrica) {
         partes.push(`<div role="alert" class="rounded-xl border-2 border-red-700 bg-red-950 p-4 text-sm font-black text-white">
             <strong>⛈️ PELIGRO POR TORMENTA ELÉCTRICA</strong>
@@ -1903,7 +1908,7 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
 
     // 1. RENDERIZADO INMEDIATO (0ms): Sin tiempos de espera ni bloqueos ("pensando")
     renderizarCoachProFallbackLocal({ ...payload.condiciones, motorExperto: motor }, userLvl, tramosData);
-    if (motor.recomendacion !== 'SALIDA RECOMENDADA' || motor.analysisConfidence < 80) return;
+    if (motor.recomendacion === 'NO RECOMENDADO' || motor.tormentaElectrica || motor.analysisConfidence < 40) return;
 
     // 2. Consulta en segundo plano opcional y no bloqueante
     try {
@@ -1926,14 +1931,10 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
 
 function coachContradiceMotor(coach, motor) {
     const texto = JSON.stringify(coach).toLowerCase();
-    const rango = ['SEGURO', 'PRECAUCIÓN', 'RIESGO ELEVADO', 'PELIGROSO', 'RIESGO EXTREMO', 'ANÁLISIS INCOMPLETO', 'NO RECOMENDADO']
-        .indexOf(motor.seguridad.nivel);
-    const afirmaSeguro = /\b(seguro|seguros|aceptable|aceptables|navegable|navegables|apropiado|apropiada|recomendable|excelente|ideal|favorables|condiciones ideales|puedes salir)\b/i.test(texto);
+    const afirmaSeguro = /\b(seguro|seguros|navegable|navegables|condiciones ideales|puedes salir)\b/i.test(texto);
     const afirmaPeligro = /\b(riesgo extremo|peligroso|peligrosa|no salir|salida desaconsejada|no recomendable)\b/i.test(texto);
-    return motor.recomendacion !== 'SALIDA RECOMENDADA'
-        || motor.analysisConfidence < 80
-        || (rango >= 1 && afirmaSeguro)
-        || (rango < 1 && afirmaPeligro);
+    return (motor.recomendacion === 'NO RECOMENDADO' && afirmaSeguro)
+        || (motor.seguridad.nivel === 'SEGURO' && afirmaPeligro);
 }
 
 function normalizarUnidadesCoach(valor) {
@@ -1961,7 +1962,7 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
     const badgeLvl = document.getElementById('proCoachLevelBadge');
     const badgeScore = document.getElementById('proCoachScoreBadge');
     if (!bodyCont || !coach) return;
-    if (motor && (motor.recomendacion !== 'SALIDA RECOMENDADA' || motor.analysisConfidence < 80)) {
+    if (motor && (motor.recomendacion === 'NO RECOMENDADO' || motor.tormentaElectrica || motor.analysisConfidence < 40)) {
         renderizarCoachProFallbackLocal({ motorExperto: motor }, userLvl);
         return;
     }
@@ -2245,7 +2246,7 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
         componenteViento: cond.componenteViento,
         nivelUsuario: userLvl
     });
-    if (motor.recomendacion !== 'SALIDA RECOMENDADA' || motor.analysisConfidence < 80) {
+    if (motor.recomendacion === 'NO RECOMENDADO' || motor.tormentaElectrica || motor.analysisConfidence < 40) {
         const body = document.getElementById('proCoachBody');
         if (body) {
             body.innerHTML = `
@@ -2254,7 +2255,7 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
                         ? '⛈️ No salgas a remar: hay riesgo de tormenta eléctrica.'
                         : motor.recomendacion === 'NO RECOMENDADO'
                             ? '⛔ No se recomienda salir a remar con las condiciones evaluadas.'
-                            : `⚠️ No se puede confirmar la seguridad (${motor.analysisConfidence}% de confianza).`}</p>
+                            : `⚠️ Datos insuficientes (${motor.analysisConfidence}% de confianza).`}</p>
                     <p class="mt-1 text-slate-200">${esc(motor.tormentaElectrica
                         ? 'Cancela o pospón la salida y vuelve a consultar el pronóstico más adelante.'
                         : motor.recomendacion === 'NO RECOMENDADO'
@@ -2411,15 +2412,15 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
     if (!cont) return;
 
     cont.classList.remove('hidden');
-    if (motor.recomendacion !== 'SALIDA RECOMENDADA' || motor.analysisConfidence < 80) {
+    if (motor.recomendacion === 'NO RECOMENDADO' || motor.tormentaElectrica || motor.analysisConfidence < 40) {
         cont.innerHTML = `
             <div class="flex flex-col gap-2">
                 <span class="font-black text-amber-300 text-xs uppercase tracking-wider">✨ Consejo del Coach (${esc(userLvl || 'Intermedio')})</span>
                 <p class="text-xs text-slate-100 leading-relaxed">${motor.tormentaElectrica
-                    ? '⛔ Cancela o pospón la salida y vuelve a consultar el pronóstico más adelante.'
+                    ? '⛔ Cancela o pospón la salida: hay riesgo de tormenta eléctrica.'
                     : motor.recomendacion === 'NO RECOMENDADO'
                         ? '⛔ No se recomienda salir a remar con las condiciones evaluadas.'
-                        : '⚠️ No salgas hasta disponer de datos meteorológicos suficientes para evaluar la seguridad.'}</p>
+                        : '⚠️ Información meteorológica insuficiente para evaluar la seguridad.'}</p>
             </div>`;
         return;
     }

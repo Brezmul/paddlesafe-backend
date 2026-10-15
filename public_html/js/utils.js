@@ -173,32 +173,48 @@ export function calcularConfianzaAnalisis({
     nivelUsuario,
     datos = {}
 }) {
+    // ======================================================
+    // JERARQUÍA DE FUENTES:
+    // NIVEL 1 - FUENTES PRINCIPALES (Open-Meteo, marina, viento, oleaje)
+    // Permiten generar el análisis por sí solas con confianza suficiente.
+    // ======================================================
     const campos = [
-        [vientoKmh, 20],
-        [rachasKmh, 8],
-        [olaM, 20],
-        [periodoOla, 5],
-        [precipitacion, 5],
-        [probabilidadPrecipitacion, 5],
-        [direccionViento, 8]
+        [vientoKmh, 25],
+        [rachasKmh, 10],
+        [olaM, 25],
+        [periodoOla, 10],
+        [direccionViento, 10]
     ];
     let confianza = campos.reduce((total, [valor, peso]) =>
         total + (datoNumericoDisponible(valor) ? peso : 0), 0);
-    if (componenteViento) confianza += 10;
-    if (aemetDisponible) confianza += 12;
-    if (datoNumericoDisponible(datos.weatherCode ?? datos.weather_code)) confianza += 7;
-    if (nivelUsuario) confianza += 5;
 
+    if (datoNumericoDisponible(precipitacion) || datoNumericoDisponible(probabilidadPrecipitacion)) confianza += 5;
+    if (datoNumericoDisponible(datos.weatherCode ?? datos.weather_code)) confianza += 5;
+    if (nivelUsuario) confianza += 5;
+    if (componenteViento) confianza += 5;
+
+    // Antigüedad de datos (solo penaliza si supera 24h)
     const actualizado = datos.dataUpdatedAt ?? datos.data_updated_at
         ?? datos.lastUpdated ?? datos.last_updated ?? datos.updatedAt ?? datos.updated_at
         ?? datos.issuedAt ?? datos.issued_at;
     if (actualizado) {
         const fecha = Date.parse(actualizado);
-        if (Number.isFinite(fecha) && Date.now() - fecha > 6 * 60 * 60 * 1000) confianza -= 25;
+        if (Number.isFinite(fecha) && Date.now() - fecha > 24 * 60 * 60 * 1000) confianza -= 15;
     }
     if (datos.sourceConflict === true || datos.source_conflict === true
-        || datos.conflictingSources === true || datos.conflicting_sources === true) confianza -= 20;
-    if (aemetDisponible === false) confianza -= 15;
+        || datos.conflictingSources === true || datos.conflicting_sources === true) confianza -= 10;
+
+    // ======================================================
+    // NIVEL 2 - FUENTES COMPLEMENTARIAS (AEMET)
+    // Modifican y enriquecen el análisis, pero NO impiden que el sistema funcione.
+    // Caso A: AEMET responde sin alertas -> confirmación oficial (+5%).
+    // Caso B: AEMET no disponible -> leve reducción (-5%), nunca invalida ni bloquea.
+    // ======================================================
+    if (aemetDisponible === true) {
+        confianza += 5;
+    } else if (aemetDisponible === false) {
+        confianza -= 5;
+    }
 
     return Math.max(0, Math.min(100, Math.round(confianza)));
 }
@@ -232,10 +248,11 @@ export function calcularMotorExpertoPaddleSafe({
     const oleaje = olaM === null || olaM === undefined || olaM === ''
         ? null
         : Number.isFinite(Number(olaM)) ? Number(olaM) : null;
+
     let nivel = Math.max(
         vientoKtRaw === null ? 1 : nivelVientoNudos(vientoKtRaw),
         rachasKtRaw === null ? 0 : nivelVientoNudos(rachasKtRaw),
-        oleaje === null ? 1 : nivelOleaje(oleaje)
+        oleaje === null ? 0 : nivelOleaje(oleaje)
     );
     const factoresCriticos = [];
     const nivelesUsuario = {
@@ -259,8 +276,11 @@ export function calcularMotorExpertoPaddleSafe({
     if (rachasKt !== null && (vientoKt === null || rachasKt - vientoKt >= 5)) {
         factoresCriticos.push(`Rachas de ${rachasKt} kt${vientoKt === null ? '' : ` frente a ${vientoKt} kt de viento sostenido`}.`);
     }
-    if (oleaje === null) factoresCriticos.push('No hay medición de oleaje; se aplica precaución hasta confirmar el estado del mar.');
-    else if (oleaje >= 1) factoresCriticos.push(`Oleaje de ${oleaje.toFixed(1)} m.`);
+    if (oleaje === null) {
+        if (vientoKt !== null) factoresCriticos.push('Sin registro de oleaje marítimo en la zona consultada.');
+    } else if (oleaje >= 1) {
+        factoresCriticos.push(`Oleaje de ${oleaje.toFixed(1)} m.`);
+    }
     if (datoNumericoDisponible(periodoOla) && Number(periodoOla) >= 10 && oleaje !== null && oleaje >= 0.5) {
         nivel = Math.max(nivel, 2);
         factoresCriticos.push(`Periodo de oleaje largo (${Number(periodoOla).toFixed(0)} s): aumenta la energía de las olas y requiere mayor cautela.`);
@@ -272,26 +292,39 @@ export function calcularMotorExpertoPaddleSafe({
         nivel = Math.max(nivel, 1);
         factoresCriticos.push('La probabilidad de precipitación es elevada; confirma la evolución meteorológica antes de salir.');
     }
-    if (!datoNumericoDisponible(periodoOla)) factoresCriticos.push('No hay información del periodo del oleaje.');
-    if (!datoNumericoDisponible(precipitacion) || !datoNumericoDisponible(probabilidadPrecipitacion)) {
-        factoresCriticos.push('La precipitación no se puede valorar completamente con los datos disponibles.');
-    }
     if (direccionViento !== null && direccionViento !== undefined && Number.isFinite(Number(direccionViento))) {
-        factoresCriticos.push(`Dirección meteorológica del viento: ${Math.round(Number(direccionViento))}°; la componente respecto a costa requiere la orientación local de la costa.`);
-    }
-    if (!datoNumericoDisponible(datos.weatherCode ?? datos.weather_code)) {
-        factoresCriticos.push('No se puede confirmar la presencia o ausencia de actividad eléctrica con la información disponible.');
+        factoresCriticos.push(`Dirección meteorológica del viento: ${Math.round(Number(direccionViento))}°.`);
     }
 
+    // ======================================================
+    // EVALUACIÓN DE ALERTAS Y RIESGOS EXTRAORDINARIOS
+    // ======================================================
     const textoAlerta = String(alerta?.tipo || '').toLowerCase();
+    const textoDescripcion = String(alerta?.descripcion || '').toLowerCase();
+    const textoCompleto = `${textoAlerta} ${textoDescripcion}`;
+    const weatherCode = Number(datos.weatherCode ?? datos.weather_code);
+
+    // CASO E: Tormenta eléctrica o riesgo confirmado de actividad eléctrica
+    // ⛔ NO RECOMENDADO SALIR A REMAR independientemente de viento, oleaje, etc.
     const tormentaElectrica = Boolean(tormenta)
-        || /tormenta|thunderstorm|lightning|descarga electrica|actividad electrica|rayo detectado/.test(textoAlerta)
-        || [95, 96, 99].includes(Number(datos.weatherCode ?? datos.weather_code));
+        || /tormenta\s*electrica|actividad\s*electrica|descarga\s*electrica|rayos?|lightning|relampagos?/.test(textoCompleto)
+        || [95, 96, 99].includes(weatherCode);
+
+    // CASO D: Alerta de tormenta o temporal sin actividad eléctrica confirmada
+    const alertaTormentaGeneral = !tormentaElectrica && (
+        /tormenta|temporal|galerna|squall|gale/.test(textoCompleto)
+        || (alerta?.activa && /tormenta|temporal/.test(textoAlerta))
+    );
+
     if (tormentaElectrica) {
         nivel = 4;
         factoresCriticos.push('Riesgo de tormenta eléctrica: no se debe salir a remar.');
+    } else if (alertaTormentaGeneral) {
+        nivel = Math.max(nivel, 2);
+        factoresCriticos.push('Aviso de tormenta o temporal activo: extremar la precaución y valorar suspender la salida.');
     }
 
+    // CASO C: Alertas oficiales AEMET activas
     if (alerta?.activa) {
         const nivelAlerta = String(alerta.nivel || '').toUpperCase();
         const nivelPorAlerta = nivelAlerta === 'ROJA' ? 4
@@ -301,23 +334,18 @@ export function calcularMotorExpertoPaddleSafe({
         const origenAviso = alerta.origen === 'AEMET' ? 'Aviso AEMET' : 'Aviso meteorológico';
         factoresCriticos.push(`${origenAviso} activo: ${alerta.tipo || nivelAlerta || 'consulta el parte oficial'}.`);
     }
-    if (!alerta?.disponible) {
-        factoresCriticos.push('No se ha podido confirmar la disponibilidad de avisos AEMET para esta consulta.');
-    }
-    if (datos.sourceConflict === true || datos.source_conflict === true
-        || datos.conflictingSources === true || datos.conflicting_sources === true) {
-        factoresCriticos.push('Las fuentes meteorológicas presentan datos en conflicto; se aplica un margen de seguridad.');
-    }
-    const actualizado = datos.dataUpdatedAt ?? datos.data_updated_at
-        ?? datos.lastUpdated ?? datos.last_updated ?? datos.updatedAt ?? datos.updated_at
-        ?? datos.issuedAt ?? datos.issued_at;
-    if (actualizado) {
-        const fecha = Date.parse(actualizado);
-        if (Number.isFinite(fecha) && Date.now() - fecha > 6 * 60 * 60 * 1000) {
-            factoresCriticos.push('Los datos meteorológicos están desactualizados; vuelve a consultar antes de decidir.');
-        }
+
+    // CASO B: AEMET no disponible (aviso informativo en factores)
+    if (alerta?.disponible === false) {
+        factoresCriticos.push('Avisos oficiales de AEMET no disponibles en este momento; se continúa el análisis con Open-Meteo y fuentes marinas.');
     }
 
+    if (datos.sourceConflict === true || datos.source_conflict === true
+        || datos.conflictingSources === true || datos.conflicting_sources === true) {
+        factoresCriticos.push('Las fuentes meteorológicas presentan datos divergentes; se aplica margen preventivo.');
+    }
+
+    // Cálculo de deriva
     const componenteNormalizada = String(componenteViento || '').toLowerCase().replace(/\s+/g, '-');
     const componente = ['offshore', 'onshore', 'side-shore'].includes(componenteNormalizada)
         ? componenteNormalizada
@@ -346,12 +374,10 @@ export function calcularMotorExpertoPaddleSafe({
     } else if (componente === 'side-shore') {
         derivaScore += 10;
         factoresCriticos.push('Componente side-shore: puede desplazar la tabla paralelamente a la costa.');
-    } else {
-        derivaScore += 20;
-        factoresCriticos.push('Orientación del viento y distancia a costa no disponibles; se añade margen preventivo y no se puede descartar deriva offshore.');
     }
     derivaScore = Math.max(0, Math.min(100, Math.round(derivaScore)));
 
+    // Confianza del análisis
     const confianza = calcularConfianzaAnalisis({
         vientoKmh,
         rachasKmh,
@@ -365,81 +391,99 @@ export function calcularMotorExpertoPaddleSafe({
         nivelUsuario,
         datos
     });
-    const analisisCompleto = [
-        vientoKmh, rachasKmh, oleaje, periodoOla, precipitacion,
-        probabilidadPrecipitacion, direccionViento
-    ].every(datoNumericoDisponible)
-        && Boolean(componente)
-        && alerta?.disponible === true
-        && datoNumericoDisponible(datos.weatherCode ?? datos.weather_code);
-    let scoreSeguridad = Math.min([100, 80, 60, 35, 0][nivel], confianza);
-    if (!analisisCompleto) scoreSeguridad = Math.min(scoreSeguridad, 79);
+
+    const tieneViento = datoNumericoDisponible(vientoKmh);
+    const tieneOleaje = datoNumericoDisponible(olaM);
+    const datosPrimariosDisponibles = tieneViento || tieneOleaje;
+
+    // Safety Score según nivel de riesgo meteorológico real
+    const baseScores = [95, 75, 55, 30, 0];
+    let scoreSeguridad = baseScores[nivel];
+
+    // Ajuste fino: condiciones óptimas de navegación
+    if (nivel === 0 && vientoKt !== null && vientoKt <= 6 && (oleaje === null || oleaje <= 0.4)) {
+        scoreSeguridad = 98;
+    }
+
+    // Ajuste por alertas AEMET (Caso C)
+    const limitesAlerta = { AMARILLA: 70, NARANJA: 45, ROJA: 20 };
+    const nivelAlerta = String(alerta?.nivel || '').toUpperCase();
+    if (alerta?.activa && limitesAlerta[nivelAlerta] !== undefined) {
+        scoreSeguridad = Math.min(scoreSeguridad, limitesAlerta[nivelAlerta]);
+    }
+
+    // Ajuste por tormenta general (Caso D)
+    if (alertaTormentaGeneral) {
+        scoreSeguridad = Math.min(scoreSeguridad, 40);
+    }
+
     let nivelTexto = NIVELES_SEGURIDAD[nivel];
-    let recomendacion = nivel >= 3 ? 'NO RECOMENDADO' : 'REVISAR CONDICIONES';
+    let recomendacion;
     let mensaje;
 
+    // ======================================================
+    // RESOLUCIÓN DE VEREDICTO Y MENSAJE
+    // ======================================================
     if (tormentaElectrica) {
+        // CASO E: Tormenta eléctrica -> Prioridad absoluta
         scoreSeguridad = 0;
         nivelTexto = 'NO RECOMENDADO';
         recomendacion = 'NO RECOMENDADO';
         mensaje = MENSAJE_TORMENTA_ELECTRICA;
-    } else if (confianza < 60) {
-        scoreSeguridad = Math.min(scoreSeguridad, 50);
+    } else if (!datosPrimariosDisponibles || confianza < 40) {
+        // Datos verdaderamente insuficientes para evaluar la salida
+        scoreSeguridad = Math.min(scoreSeguridad, 25);
         nivelTexto = 'ANÁLISIS INCOMPLETO';
         recomendacion = 'NO RECOMENDADO';
         mensaje = MENSAJE_DATOS_INSUFICIENTES;
         factoresCriticos.push('Información meteorológica insuficiente para confirmar la seguridad de la salida.');
-    }
-
-    const limitesAlerta = { AMARILLA: 70, NARANJA: 50, ROJA: 25 };
-    const nivelAlerta = String(alerta?.nivel || '').toUpperCase();
-    if (alerta?.activa && limitesAlerta[nivelAlerta] !== undefined) {
-        scoreSeguridad = Math.min(scoreSeguridad, limitesAlerta[nivelAlerta]);
-        if (nivelAlerta === 'AMARILLA') {
-            if (nivelTexto === 'SEGURO') nivelTexto = 'PRECAUCIÓN';
+    } else {
+        // Condiciones normales evaluables
+        if (alerta?.activa && ['ROJA', 'NARANJA'].includes(nivelAlerta)) {
+            recomendacion = 'NO RECOMENDADO';
+            if (nivelAlerta === 'ROJA') nivelTexto = 'NO RECOMENDADO';
+            else if (nivelTexto === 'SEGURO' || nivelTexto === 'PRECAUCIÓN') nivelTexto = 'RIESGO ELEVADO';
+        } else if (nivel >= 3) {
+            recomendacion = 'NO RECOMENDADO';
+        } else if (alertaTormentaGeneral) {
+            // CASO D: Tormenta general -> Extrema precaución
             recomendacion = 'PRECAUCIÓN';
-        } else if (nivelAlerta === 'NARANJA') {
-            nivelTexto = 'RIESGO ELEVADO';
-            recomendacion = 'NO RECOMENDADO';
+            if (nivelTexto === 'SEGURO') nivelTexto = 'PRECAUCIÓN';
+        } else if (alerta?.activa && nivelAlerta === 'AMARILLA') {
+            // CASO C: Alerta amarilla -> Precaución
+            recomendacion = 'PRECAUCIÓN';
+            if (nivelTexto === 'SEGURO') nivelTexto = 'PRECAUCIÓN';
+        } else if (nivel === 2) {
+            recomendacion = 'REVISAR CONDICIONES';
+        } else if (nivel === 1) {
+            recomendacion = 'PRECAUCIÓN';
+        } else if (nivel === 0) {
+            // CASO A y CASO B: Si condiciones son tranquilas
+            if (scoreSeguridad >= 75 && confianza >= 60) {
+                recomendacion = 'SALIDA RECOMENDADA';
+            } else {
+                recomendacion = 'PRECAUCIÓN';
+            }
         } else {
-            nivelTexto = 'NO RECOMENDADO';
-            recomendacion = 'NO RECOMENDADO';
+            recomendacion = 'REVISAR CONDICIONES';
+        }
+
+        const vientoTexto = vientoKt === null ? 'viento sin medición' : `viento de ${vientoKt} kt`;
+        const oleajeTexto = oleaje === null ? 'oleaje sin medición' : `oleaje de ${oleaje.toFixed(1)} m`;
+
+        if (nivel === 0) {
+            mensaje = `Con los datos disponibles, el viento se mantiene débil (${vientoKt !== null ? vientoKt + ' kt' : 'favorable'}) y el oleaje es bajo (${oleaje !== null ? oleaje.toFixed(1) + ' m' : 'calmo'}). Condiciones favorables para la navegación.`;
+        } else if (nivel === 1) {
+            mensaje = `${vientoTexto} y ${oleajeTexto}: condiciones navegables pero conviene extremar la prudencia y confirmar el parte local antes de salir.`;
+        } else if (nivel === 2) {
+            mensaje = `${vientoTexto} y ${oleajeTexto}: las condiciones requieren experiencia, una ruta protegida y una evaluación local antes de decidir.`;
+        } else if (nivel === 3) {
+            mensaje = `${vientoTexto} y ${oleajeTexto}: las condiciones presentan un riesgo elevado para el paddle surf recreativo.`;
+        } else {
+            mensaje = `${vientoTexto} y ${oleajeTexto}: riesgo extremo; no se recomienda salir.`;
         }
     }
 
-    if (!tormentaElectrica && nivelTexto !== 'ANÁLISIS INCOMPLETO' && nivelTexto !== 'NO RECOMENDADO') {
-        const rangoPorScore = scoreSeguridad < 30 ? 'RIESGO EXTREMO'
-            : scoreSeguridad < 50 ? 'PELIGROSO'
-                : scoreSeguridad < 65 ? 'RIESGO ELEVADO'
-                    : scoreSeguridad < 80 ? 'PRECAUCIÓN' : 'SEGURO';
-        const rangos = { 'SEGURO': 0, 'PRECAUCIÓN': 1, 'RIESGO ELEVADO': 2, 'PELIGROSO': 3, 'RIESGO EXTREMO': 4 };
-        if (rangos[rangoPorScore] > rangos[nivelTexto]) nivelTexto = rangoPorScore;
-    }
-
-    const vientoTexto = vientoKt === null ? 'viento sin medición' : `viento de ${vientoKt} kt`;
-    const oleajeTexto = oleaje === null ? 'oleaje sin medición' : `oleaje de ${oleaje.toFixed(1)} m`;
-    if (!mensaje) {
-        mensaje = !analisisCompleto || confianza < 80
-            ? `La confianza del análisis es parcial (${confianza}%). No se puede confirmar con fiabilidad que la salida sea segura; vuelve a consultar cuando haya datos meteorológicos más completos.`
-            : nivel === 0
-            ? `Con los datos disponibles, el viento se mantiene débil (${vientoKt} kt) y el oleaje es bajo (${oleaje.toFixed(1)} m). Aun así, confirma las condiciones locales antes de entrar al agua.`
-            : nivel === 1
-                ? `${vientoTexto} y ${oleajeTexto}: conviene extremar la prudencia y confirmar el parte local antes de salir.`
-                : nivel === 2
-                    ? `${vientoTexto} y ${oleajeTexto}: las condiciones requieren experiencia, una ruta protegida y una evaluación local antes de decidir.`
-                    : nivel === 3
-                        ? `${vientoTexto} y ${oleajeTexto}: las condiciones presentan un riesgo elevado para el paddle surf recreativo.`
-                        : `${vientoTexto} y ${oleajeTexto}: riesgo extremo; no se recomienda salir.`;
-    }
-    if (recomendacion !== 'NO RECOMENDADO' && alerta?.activa) {
-        recomendacion = 'PRECAUCIÓN';
-    }
-    if (!tormentaElectrica && analisisCompleto && !alerta?.activa && alerta?.disponible === true
-        && componente && nivelTexto === 'SEGURO' && scoreSeguridad >= 80 && confianza >= 80) {
-        recomendacion = 'SALIDA RECOMENDADA';
-    } else if (recomendacion !== 'NO RECOMENDADO' && recomendacion !== 'PRECAUCIÓN') {
-        recomendacion = 'REVISAR CONDICIONES';
-    }
     const derivaNivel = nivelDeriva(derivaScore);
     const derivaDescripcion = componente === 'offshore'
         ? `Viento offshore de ${vientoKt ?? 'N/D'} kt${direccionViento == null ? '' : ` (dirección ${Math.round(direccionViento)}°)`}: aumenta el riesgo de deriva mar adentro. Nivel ${derivaNivel.toLowerCase()}.`
@@ -447,18 +491,19 @@ export function calcularMotorExpertoPaddleSafe({
             ? `El viento onshore reduce la deriva mar adentro, pero las rachas y el oleaje mantienen un riesgo ${derivaNivel.toLowerCase()}.`
             : componente === 'side-shore'
                 ? `El viento side-shore puede desplazar la tabla a lo largo de la costa; el riesgo de deriva es ${derivaNivel.toLowerCase()}.`
-                : `Riesgo de deriva ${derivaNivel.toLowerCase()} por viento${vientoKt === null ? ' sin medición' : ` de ${vientoKt} kt`}, rachas y oleaje. La componente respecto a costa no está disponible.`;
+                : `Riesgo de deriva ${derivaNivel.toLowerCase()} por viento${vientoKt === null ? ' sin medición' : ` de ${vientoKt} kt`}, rachas y oleaje.`;
 
     return {
         estado: nivelTexto,
         mensaje,
         recomendacion,
-        cls: CLASES_RIESGO[nivelTexto],
+        cls: CLASES_RIESGO[nivelTexto] || 'border-slate-500 bg-slate-50 text-slate-800',
         seguridad: { nivel: nivelTexto, score: scoreSeguridad },
         analysisConfidence: confianza,
         confianzaAnalisis: confianza,
         aemet: alerta || { activa: false, disponible: false },
         tormentaElectrica,
+        alertaTormenta: alertaTormentaGeneral,
         riesgoDeriva: { nivel: derivaNivel, score: derivaScore, descripcion: derivaDescripcion },
         factoresCriticos: deduplicateInsights(factoresCriticos),
         vientoNudos: vientoKt

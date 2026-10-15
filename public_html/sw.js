@@ -12,7 +12,7 @@
 // OTA: sube VERSION en cada despliegue (junto con version.json). Al activarse,
 // el SW borra TODAS las cachés de versiones anteriores.
 // ==============================================================================
-const VERSION = 'paddlesafe-v40';
+const VERSION = 'paddlesafe-v41';
 const SHELL   = `${VERSION}-shell`;   // HTML + JS propio
 const STATIC  = `${VERSION}-static`;  // iconos, css, fuentes, manifest
 const IMGS    = `${VERSION}-img`;     // avatares, logos, marcadores (inmutables)

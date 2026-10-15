@@ -57,3 +57,17 @@
 3. Calibrar y documentar los pesos de confianza con revisión de meteorología marítima y seguridad de SUP.
 4. Determinar componente de viento y orientación costera desde la ruta real, con procedencia y hora de actualización de cada fuente.
 5. Sustituir el CDN de Tailwind por una compilación local para reducir dependencias en ejecución.
+
+## 7. Corrección de regresión del motor experto (v5.39 - paddlesafe-v41)
+
+- **Causa raíz corregida:** La confianza y el veredicto requerían estrictamente avisos AEMET y componente costero, penalizando la indisponibilidad de AEMET con -15% y bloqueando el score en ≤79. Esto forzaba que consultas válidas y seguras de Open-Meteo cayeran en "Información insuficiente" y "No recomendado", bloqueando además el Coach IA en la interfaz.
+- **Jerarquía de fuentes restablecida:**
+  - *Nivel 1 (Fuentes Principales: Open-Meteo, marina, viento, oleaje):* Aportan por sí solas hasta 90-100% de confianza y permiten generar recomendaciones y puntuaciones normales.
+  - *Nivel 2 (Fuentes Complementarias: AEMET):* Enriquecen con avisos oficiales. Si no están disponibles (Caso B), se muestra aviso informativo y leve ajuste de confianza (-5%), sin invalidar el análisis.
+- **Casos implementados y verificados con tests automatizados (33/33 assertions):**
+  - **Caso A:** AEMET responde sin alertas -> Evaluación normal, recomendación "SALIDA RECOMENDADA" (si tiempo en calma), score alto.
+  - **Caso B:** AEMET no disponible -> Banner informativo, Open-Meteo y marinos activos, recomendación y score reales, no se bloquea.
+  - **Caso C:** Alerta AEMET amarilla/naranja/roja -> Banner visible, score acotado (≤70, ≤45, ≤20), veredicto ajustado.
+  - **Caso D:** Alerta de tormenta/temporal -> Banner prioritario, extrema precaución, score ≤40.
+  - **Caso E:** Tormenta eléctrica confirmada -> Prohibición absoluta ⛔ "NO RECOMENDADO SALIR A REMAR", score 0, mensaje prioritario.
+- **Desbloqueo del Coach:** El Coach ya no se cancela con filtros rígidos de `< 80%` ni bloquea condiciones de precaución o favorables.
