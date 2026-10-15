@@ -246,14 +246,12 @@
 
         <!-- VERSIÓN GRATUITA: FORMULARIO BÁSICO -->
         <div class="p-5 sm:p-8 space-y-6">
-            <div id="global-alert-container" class="w-full"></div>
-
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="flex flex-col min-w-0">
                     <label class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Ubicación</label>
                     <div class="relative w-full group">
                         <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">📍</span>
-                        <input type="text" id="location" placeholder="Ej. Cala Blanca" onchange="if(this.value) buscarYCentrarMapa(this.value)" class="block w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-water transition-all shadow-sm text-sm outline-none">
+                        <input type="text" id="location" placeholder="Ej. Cala Blanca" onchange="if(this.value && typeof window.buscarYCentrarMapa === 'function') window.buscarYCentrarMapa(this.value)" class="block w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-water transition-all shadow-sm text-sm outline-none">
                     </div>
                     <button type="button" id="btn-gps" onclick="obtenerUbicacion()" class="mt-2 flex items-center gap-1 text-xs font-bold text-water hover:text-sky-700 w-fit px-1 transition-colors cursor-pointer">
                         <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" /></svg> Detectar ubicación
@@ -290,6 +288,8 @@
                 <svg id="spinner" class="animate-spin hidden -ml-1 mr-2 h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 <span id="btn-text">Análisis Básico Rápido</span>
             </button>
+
+            <div id="global-alert-container" class="w-full flex flex-col gap-2" aria-live="assertive"></div>
         </div>
 
         <div class="px-5 sm:px-8 pb-6">
@@ -309,12 +309,20 @@
                     <span id="basicPrecip" class="text-2xl font-black text-marine">--</span>
                     <span id="basicPrecipProb" class="text-xs text-water font-bold mt-1">Prob: --</span>
                 </div>
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center">
-                    <div id="basicLevel" class="text-sm font-black text-slate-400 text-center px-2">Esperando...</div>
-                </div>
             </div>
             
             <div id="resultado" class="text-sm font-mono text-slate-600 bg-slate-50 p-5 rounded-2xl border border-slate-200 whitespace-pre-wrap leading-relaxed min-h-[80px]">Completa los datos arriba para ver el reporte básico.</div>
+
+            <section id="basicExpertSummary" class="hidden rounded-2xl border border-slate-200 bg-slate-50 p-4 flex flex-col gap-3" aria-live="polite">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h3 class="text-xs font-black uppercase tracking-wider text-slate-600">Resumen experto</h3>
+                    <div id="basicLevel" class="text-sm font-black text-slate-400 text-center px-2">Esperando...</div>
+                </div>
+                <p id="basicConfidence" class="text-xs font-bold text-slate-600">Confianza del análisis: --%</p>
+                <p id="basicExpertMessage" class="text-sm leading-relaxed text-slate-700"></p>
+                <p id="basicExpertDrift" class="text-xs leading-relaxed text-slate-600"></p>
+                <ul id="basicExpertInsights" class="list-disc list-inside space-y-1 text-xs leading-relaxed text-slate-600"></ul>
+            </section>
             
             <!-- Coach - Resumen Básico -->
             <div id="basicCoachContainer" class="hidden mt-3 p-4 bg-gradient-to-br from-slate-900 to-slate-950 rounded-2xl border border-emerald-500/30 text-white shadow-lg transition-all duration-300"></div>
@@ -462,10 +470,6 @@
                         <!-- DASHBOARD PREMIUM -->
                         <div id="proDashboardResumen" class="bg-slate-900 rounded-2xl p-1 shadow-2xl border border-slate-700 hidden flex-col w-full">
                             
-                            <div class="p-5 border-b border-slate-800 flex flex-col items-center justify-center gap-2 w-full">
-                                <span id="proStatusVerdict" class="px-6 py-2 rounded-full text-sm font-black w-full text-center uppercase tracking-widest transition-all duration-300">--</span>
-                            </div>
-
                             <div class="p-5 grid grid-cols-3 gap-2 sm:gap-4 text-center w-full border-b border-slate-800">
                                 <div class="bg-slate-800/80 rounded-xl p-3 flex flex-col items-center justify-center border border-slate-700/50">
                                     <p class="text-2xl sm:text-3xl mb-1 drop-shadow-md" id="proIconoClima">☀️</p>
@@ -521,6 +525,17 @@
                                     <p class="text-xs text-slate-500 font-mono py-2">Esperando datos horarios del backend...</p>
                                 </div>
                             </div>
+
+                            <section id="proExpertSummary" class="hidden p-5 border-b border-slate-800 bg-slate-800/40 flex flex-col gap-3" aria-live="polite">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <h3 class="text-xs font-black uppercase tracking-wider text-slate-300">Resumen experto</h3>
+                                    <div id="proLevel" class="text-sm font-black text-center px-2">--</div>
+                                </div>
+                                <p id="proConfidence" class="text-xs font-bold text-slate-300">Confianza del análisis: --%</p>
+                                <p id="proExpertMessage" class="text-sm leading-relaxed text-slate-200"></p>
+                                <p id="proExpertDrift" class="text-xs leading-relaxed text-slate-300"></p>
+                                <ul id="proExpertInsights" class="list-disc list-inside space-y-1 text-xs leading-relaxed text-slate-300"></ul>
+                            </section>
 
                             <div id="proContainerNavegacion" class="p-5 flex justify-between items-center w-full border-b border-slate-800 bg-slate-800/30">
                                  <div class="text-left flex flex-col min-w-0 flex-1">

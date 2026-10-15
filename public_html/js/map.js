@@ -7,7 +7,8 @@ import {
     esc,
     formatearTiempo,
     calcularVeredicto,
-    kmhANudos
+    kmhANudos,
+    deduplicateInsights
 } from './utils.js';
 import { ClubState } from './club/state.js';
 
@@ -16,7 +17,9 @@ const ICONOS_SEGURIDAD = {
     'PRECAUCIÓN': '🟡',
     'RIESGO ELEVADO': '🟠',
     'PELIGROSO': '🔴',
-    'RIESGO EXTREMO': '⛔'
+    'RIESGO EXTREMO': '⛔',
+    'ANÁLISIS INCOMPLETO': '⚠️',
+    'NO RECOMENDADO': '⛔'
 };
 const ICONOS_DERIVA = {
     'BAJO': '🟢',
@@ -26,6 +29,21 @@ const ICONOS_DERIVA = {
     'EXTREMO': '⛔'
 };
 
+function registrarDiagnosticoClima(etiqueta, contenido) {
+    try {
+        if (window.localStorage?.getItem('paddlesafe:debug-weather') === 'true') {
+            console.debug(etiqueta, contenido);
+        }
+    } catch (error) {
+        console.warn('[clima] No se pudo consultar la opción de diagnóstico:', error);
+    }
+}
+
+function valorNumericoMeteo(...valores) {
+    const valor = valores.find(item => item !== null && item !== undefined && item !== '' && item !== '--' && item !== 'N/D');
+    if (valor === undefined || !Number.isFinite(Number(valor))) return null;
+    return Number(valor);
+}
 
 function crearFranjaForecast(horaSalida, duracionMinutos = 120) {
     const match = /^([01]\d|2[0-3]):[0-5]\d$/.exec(horaSalida || '');
@@ -50,10 +68,12 @@ async function solicitarPronostico(payload) {
             });
         } catch (error) {
             const esTransitorio = error?.name === 'AbortError' || error instanceof TypeError;
-            if (intento > 0 || !esTransitorio) throw error;
             ultimoError = error;
-            await new Promise(resolve => setTimeout(resolve, 350));
-            continue;
+            if (intento === 0 && esTransitorio) {
+                await new Promise(resolve => setTimeout(resolve, 350));
+                continue;
+            }
+            break;
         }
 
         let resultado;
@@ -61,28 +81,157 @@ async function solicitarPronostico(payload) {
             resultado = await response.json();
         } catch {
             const error = new Error("El servidor devolvió una respuesta no válida.");
-            if (response.status < 500 || intento > 0) throw error;
+            error.status = response.status;
             ultimoError = error;
-            await new Promise(resolve => setTimeout(resolve, 350));
-            continue;
+            if (response.status >= 500 && intento === 0) {
+                await new Promise(resolve => setTimeout(resolve, 350));
+                continue;
+            }
+            break;
         }
 
         if (!response.ok) {
             const error = new Error(resultado?.details || resultado?.error || `Error del servidor (${response.status}).`);
-            if (response.status < 500 || intento > 0) throw error;
+            error.status = response.status;
             ultimoError = error;
-            await new Promise(resolve => setTimeout(resolve, 350));
-            continue;
+            if (response.status >= 500 && intento === 0) {
+                await new Promise(resolve => setTimeout(resolve, 350));
+                continue;
+            }
+            break;
         }
 
-        if (!resultado?.datos) {
+        if (!resultado?.datos || typeof resultado.datos !== 'object' || Array.isArray(resultado.datos)) {
             throw new Error(resultado?.details || resultado?.error || "El servidor no devolvió datos del pronóstico.");
         }
 
+        const datos = resultado.datos;
+        registrarDiagnosticoClima('[AEMET] Raw Response', {
+            aemet: datos.aemet,
+            alerta_aemet: datos.alerta_aemet,
+            aemet_alerts: datos.aemet_alerts,
+            aemetAvailable: datos.aemetAvailable,
+            aemet_available: datos.aemet_available,
+            alertas: datos.alertas,
+            alerts: datos.alerts,
+            warnings: datos.warnings
+        });
         return resultado;
     }
 
+    const puedeUsarFallback = ultimoError?.status >= 500
+        || ultimoError?.name === 'AbortError'
+        || ultimoError instanceof TypeError;
+    if (puedeUsarFallback) {
+        console.warn('[pronóstico] Backend no disponible; se consulta Open-Meteo directamente y AEMET quedará sin confirmar.', ultimoError);
+        const datos = await solicitarPronosticoOpenMeteo(payload);
+        return { ok: true, datos, received: payload, fallback: true };
+    }
     throw ultimoError || new Error("No se pudo obtener el pronóstico.");
+}
+
+async function solicitarPronosticoOpenMeteo(payload) {
+    const rango = /\((\d{2}):00\s*-\s*(\d{2}):00\)/.exec(payload.timeRange || '');
+    if (!rango) throw new Error('No se puede activar el pronóstico alternativo: la franja horaria no es válida.');
+
+    let lat;
+    let lon;
+    const coordenadas = String(payload.location || '').split(',').map(valor => Number(valor.trim()));
+    if (coordenadas.length === 2 && coordenadas.every(Number.isFinite)
+        && Math.abs(coordenadas[0]) <= 90 && Math.abs(coordenadas[1]) <= 180) {
+        [lat, lon] = coordenadas;
+    } else {
+        const geocodingUrl = new URL('https://geocoding-api.open-meteo.com/v1/search');
+        geocodingUrl.search = new URLSearchParams({
+            name: String(payload.location || ''),
+            count: '1',
+            language: 'es',
+            format: 'json'
+        });
+        const geocodingResponse = await fetchConTimeout(geocodingUrl, { cache: 'no-store' }, 8000);
+        if (!geocodingResponse.ok) throw new Error(`Geocodificación alternativa respondió con HTTP ${geocodingResponse.status}.`);
+        const result = (await geocodingResponse.json()).results?.[0];
+        if (!Number.isFinite(result?.latitude) || !Number.isFinite(result?.longitude)) {
+            throw new Error('No se pudieron determinar coordenadas para el pronóstico alternativo.');
+        }
+        lat = result.latitude;
+        lon = result.longitude;
+    }
+
+    const horaInicio = Number(rango[1]);
+    const horaFin = Number(rango[2]);
+    const inicio = new Date(`${payload.date}T00:00:00Z`);
+    if (Number.isNaN(inicio.getTime()) || inicio.toISOString().slice(0, 10) !== payload.date
+        || horaInicio < 0 || horaFin > 24 || horaInicio >= horaFin) {
+        throw new Error('No se puede activar el pronóstico alternativo: la fecha o franja no es válida.');
+    }
+    const fin = new Date(inicio.getTime());
+    fin.setUTCHours(horaFin);
+    inicio.setUTCHours(horaInicio);
+    const fechaHora = fecha => fecha.toISOString().slice(0, 16);
+    const zona = `latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&timezone=auto`;
+    const forecastUrl = `https://api.open-meteo.com/v1/forecast?${zona}&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m,weather_code,precipitation,precipitation_probability&wind_speed_unit=ms&start_hour=${fechaHora(inicio)}&end_hour=${fechaHora(fin)}`;
+    const forecastResponse = await fetchConTimeout(forecastUrl, { cache: 'no-store' }, 10000);
+    if (!forecastResponse.ok) throw new Error(`Open-Meteo respondió con HTTP ${forecastResponse.status}.`);
+    const forecast = await forecastResponse.json();
+    const horas = forecast.hourly;
+    if (!Array.isArray(horas?.time) || horas.time.length === 0) {
+        throw new Error('Open-Meteo no devolvió datos horarios para el periodo seleccionado.');
+    }
+
+    let marine = null;
+    try {
+        const marineUrl = `https://marine-api.open-meteo.com/v1/marine?${zona}&hourly=wave_height,wave_period,sea_surface_temperature&start_date=${payload.date}&end_date=${fin.toISOString().slice(0, 10)}`;
+        const marineResponse = await fetchConTimeout(marineUrl, { cache: 'no-store' }, 8000);
+        if (marineResponse.ok) marine = await marineResponse.json();
+        else console.warn(`[pronóstico] Open-Meteo Marine respondió con HTTP ${marineResponse.status}; oleaje y periodo quedarán como datos limitados.`);
+    } catch (error) {
+        console.warn('[pronóstico] Open-Meteo Marine no está disponible; oleaje y periodo quedarán como datos limitados.', error);
+    }
+
+    const indices = horas.time.map((_, index) => index);
+    const valores = (array, indicesValidos = indices) => indicesValidos
+        .map(index => array?.[index])
+        .filter(valor => valor !== null && valor !== undefined && Number.isFinite(Number(valor)))
+        .map(Number);
+    const vientoValores = valores(horas.wind_speed_10m);
+    const rachasValores = valores(horas.wind_gusts_10m);
+    const codigos = valores(horas.weather_code);
+    const precipitacion = valores(horas.precipitation);
+    const probabilidad = valores(horas.precipitation_probability);
+    const indiceVientoMaximo = horas.wind_speed_10m?.reduce((maximo, valor, index, array) =>
+        valor !== null && valor !== undefined && Number.isFinite(Number(valor))
+            && (maximo < 0 || Number(valor) > Number(array[maximo]) ? index : maximo), -1) ?? -1;
+    const indiceMarinePorHora = new Map((marine?.hourly?.time || []).map((hora, index) => [hora, index]));
+    const indicesMarine = horas.time.map(hora => indiceMarinePorHora.get(hora)).filter(Number.isInteger);
+    const olaValores = valores(marine?.hourly?.wave_height, indicesMarine);
+    const periodoValores = valores(marine?.hourly?.wave_period, indicesMarine);
+    const temperaturaAgua = valores(marine?.hourly?.sea_surface_temperature, indicesMarine);
+    const weatherCode = codigos.includes(95) || codigos.includes(96) || codigos.includes(99)
+        ? codigos.find(codigo => [95, 96, 99].includes(codigo))
+        : codigos.length ? Math.max(...codigos) : null;
+    const clima = [95, 96, 99].includes(weatherCode) ? 'Tormenta eléctrica'
+        : weatherCode !== null && weatherCode >= 51 ? 'Lluvia'
+            : weatherCode !== null && weatherCode >= 45 ? 'Niebla'
+                : weatherCode !== null && weatherCode >= 1 ? 'Nublado' : 'Soleado';
+
+    return {
+        windSpeed: vientoValores.length ? Math.max(...vientoValores) : null,
+        windGusts: rachasValores.length ? Math.max(...rachasValores) : null,
+        windDirection: indiceVientoMaximo >= 0
+            ? valorNumericoMeteo(horas.wind_direction_10m?.[indiceVientoMaximo]) : null,
+        waveHeight: olaValores.length ? Math.max(...olaValores) : null,
+        wavePeriod: periodoValores.length ? Math.max(...periodoValores) : null,
+        precipitation: precipitacion.length ? Number(precipitacion.reduce((sum, valor) => sum + valor, 0).toFixed(2)) : null,
+        precipProbability: probabilidad.length ? Math.max(...probabilidad) : null,
+        weatherCode,
+        clima,
+        tempAire: valores(horas.temperature_2m).length ? Math.round(valores(horas.temperature_2m).reduce((sum, valor) => sum + valor, 0) / valores(horas.temperature_2m).length) : null,
+        tempAgua: temperaturaAgua.length ? Math.round(temperaturaAgua.reduce((sum, valor) => sum + valor, 0) / temperaturaAgua.length) : null,
+        aemetAvailable: false,
+        source: 'open-meteo-fallback',
+        coordinates: { latitude: lat, longitude: lon }
+    };
 }
 
 function mostrarCoachPronosticoNoDisponible(container) {
@@ -394,78 +543,243 @@ export function renderPreviewRuta() {
 }
 
 export function evaluarVientoRelativoInfo(rumboNavegacion, direccionVientoOrigen) {
+    if (!Number.isFinite(Number(rumboNavegacion)) || direccionVientoOrigen === null
+        || direccionVientoOrigen === undefined || !Number.isFinite(Number(direccionVientoOrigen))) {
+        return { texto: "DIRECCIÓN N/D", claseColor: "bg-slate-500/20 text-slate-300 border border-slate-500/50", modVelocidad: -0.5, colorRumbo: "text-slate-300", hexLineColor: "#94a3b8", icon: "⚠️" };
+    }
     let diff = Math.abs(direccionVientoOrigen - rumboNavegacion); if (diff > 180) diff = 360 - diff;
     if (diff <= 45) return { texto: "EN CONTRA", claseColor: "bg-red-500/20 text-red-400 border border-red-500/50", modVelocidad: -1.5, colorRumbo: "text-red-400", hexLineColor: "#ef4444", icon: "🛑" };
     else if (diff >= 135) return { texto: "A FAVOR", claseColor: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50", modVelocidad: 1.0, colorRumbo: "text-emerald-400", hexLineColor: "#10b981", icon: "🚀" };
     else return { texto: "LATERAL", claseColor: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/50", modVelocidad: -0.5, colorRumbo: "text-yellow-400", hexLineColor: "#eab308", icon: "⚠️" };
 }
 
-export function evaluarAlertasGlobales(d, v, o, p, pL) {
-    let desc = "Aviso AEMET"; let nvl = "ALERTA OFICIAL";
-    if(d) {
-        const ab = d.aemet || d.alerta_aemet || d.alertas || d.alerts;
-        if(ab && (typeof ab === 'string' ? ab.length > 0 : (Array.isArray(ab) && ab.length > 0))) {
-            if(typeof ab === 'string') desc = ab;
-            else desc = ab[0].descripcion || ab[0].event || ab[0].headline || "Alerta Meteorológica Activa";
-            const descLower = desc.toLowerCase();
-            if(descLower.includes("rojo") || descLower.includes("extremo")) nvl = "ROJA";
-            else if(descLower.includes("naranja") || descLower.includes("importante") || descLower.includes("tormenta")) nvl = "NARANJA";
-            else if(descLower.includes("amarillo") || descLower.includes("precaución")) nvl = "AMARILLA";
-            return { activa: true, origen: 'AEMET', nivel: nvl, tipo: desc };
-        }
+function obtenerRegistrosAlerta(valor, registros = [], profundidad = 0) {
+    if (profundidad > 5 || valor === null || valor === undefined || valor === false) return registros;
+    if (typeof valor === 'string') {
+        if (valor.trim()) registros.push({ descripcion: valor.trim() });
+        return registros;
     }
-    return { activa: false };
+    if (Array.isArray(valor)) {
+        valor.forEach(item => obtenerRegistrosAlerta(item, registros, profundidad + 1));
+        return registros;
+    }
+    if (typeof valor !== 'object') return registros;
+
+    const campos = valor.properties && typeof valor.properties === 'object'
+        ? { ...valor, ...valor.properties }
+        : valor;
+    const descripcion = campos.descripcion || campos.description || campos.headline
+        || campos.event || campos.eventName || campos.event_name || campos.fenomeno
+        || campos.phenomenon || campos.title || campos.name || campos.tipo
+        || campos.text || campos.summary;
+    if (descripcion || campos.severity || campos.severidad || campos.level || campos.nivel || campos.color) {
+        registros.push({ ...campos, descripcion: String(descripcion || 'Aviso meteorológico activo') });
+        return registros;
+    }
+
+    ['features', 'warnings', 'alerts', 'alertas', 'avisos', 'items', 'data', 'results'].forEach(clave => {
+        if (clave in valor) obtenerRegistrosAlerta(valor[clave], registros, profundidad + 1);
+    });
+    return registros;
 }
 
-function obtenerMotorExperto(dx) {
-    const vientoMs = Number(dx.windSpeed ?? dx.wind_speed);
-    const rachasMs = Number(dx.windGusts ?? dx.wind_gusts);
-    const vientoKmh = Number.isFinite(vientoMs) ? vientoMs * 3.6 : NaN;
-    const rachasKmh = Number.isFinite(rachasMs) ? rachasMs * 3.6 : NaN;
+function nivelAlertaMeteorologica(registro) {
+    const valor = [
+        registro.nivel, registro.level, registro.severity, registro.severidad,
+        registro.color, registro.awareness_level, registro.awarenessLevel
+    ].filter(Boolean).join(' ').toLowerCase();
+    if (/\broj[oa]\b|\bred\b|extrem|4\b/.test(valor)) return 'ROJA';
+    if (/\bnaranja\b|\borange\b|\bsevere\b|high|importante|3\b/.test(valor)) return 'NARANJA';
+    if (/\bamarill[oa]\b|\byellow\b|\bamber\b|\bmoderate\b|\bminor\b|2\b|1\b/.test(valor)) return 'AMARILLA';
+    const texto = String(registro.descripcion || '').toLowerCase();
+    if (/alerta roj[oa]|aviso roj[oa]|red warning/.test(texto)) return 'ROJA';
+    if (/alerta naranja|aviso naranja|orange warning/.test(texto)) return 'NARANJA';
+    if (/alerta amarill[oa]|aviso amarill[oa]|yellow warning/.test(texto)) return 'AMARILLA';
+    return 'NARANJA';
+}
+
+export function evaluarAlertasGlobales(d) {
+    const clavesAemet = ['aemet', 'alerta_aemet', 'alertaAemet', 'aemet_alerts', 'aemetAlerts'];
+    const clavesGenericas = ['alertas', 'alerts', 'warnings', 'avisos'];
+    const presentesAemet = clavesAemet.filter(clave => Object.prototype.hasOwnProperty.call(d || {}, clave)
+        && d[clave] !== null && d[clave] !== undefined);
+    const proveedorAemetExplicito = ['alertSource', 'alert_source', 'alertProvider', 'alert_provider']
+        .some(clave => /^aemet$/i.test(String(d?.[clave] || '').trim()));
+    const presentesGenericas = clavesGenericas.filter(clave => Object.prototype.hasOwnProperty.call(d || {}, clave)
+        && d[clave] !== null && d[clave] !== undefined);
+    const alertasAemet = presentesAemet.flatMap(clave => obtenerRegistrosAlerta(d[clave]))
+        .map(registro => ({ ...registro, origen: 'AEMET' }));
+    const alertasGenericas = presentesGenericas.flatMap(clave => obtenerRegistrosAlerta(d[clave]))
+        .map(registro => ({ ...registro, origen: proveedorAemetExplicito ? 'AEMET' : 'METEOROLÓGICA' }));
+    const registros = [...alertasAemet, ...alertasGenericas];
+    const tormenta = registros.some(registro =>
+        /tormenta|thunderstorm|lightning|descarga electrica|actividad electrica|rayos?/.test(
+            String(registro.descripcion || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+        )
+    );
+    const datosAemet = d?.aemet && typeof d.aemet === 'object' && !Array.isArray(d.aemet) ? d.aemet : null;
+    const disponibles = d?.aemetAvailable !== undefined ? Boolean(d.aemetAvailable)
+        : d?.aemet_available !== undefined ? Boolean(d.aemet_available)
+            : datosAemet?.available !== undefined ? Boolean(datosAemet.available)
+                : datosAemet?.disponible !== undefined ? Boolean(datosAemet.disponible)
+                    : presentesAemet.length > 0 || proveedorAemetExplicito;
+
+    const niveles = { AMARILLA: 1, NARANJA: 2, ROJA: 3 };
+    const alertas = [];
+    registros.forEach(registro => {
+        const alerta = {
+            tipo: registro.descripcion,
+            nivel: nivelAlertaMeteorologica(registro),
+            origen: registro.origen
+        };
+        const repetida = alertas.find(existente =>
+            deduplicateInsights([existente.tipo, alerta.tipo]).length === 1
+        );
+        if (!repetida) {
+            alertas.push(alerta);
+        } else {
+            if (niveles[alerta.nivel] > niveles[repetida.nivel]) repetida.nivel = alerta.nivel;
+            if (alerta.origen === 'AEMET') {
+                repetida.origen = 'AEMET';
+                repetida.tipo = alerta.tipo;
+            }
+        }
+    });
+    alertas.sort((a, b) => niveles[b.nivel] - niveles[a.nivel]);
+    const alerta = {
+        activa: alertas.length > 0,
+        disponible: disponibles,
+        origen: alertas.length > 0 && alertas.every(item => item.origen === 'AEMET') ? 'AEMET' : 'METEOROLÓGICA',
+        alertas,
+        nivel: alertas[0]?.nivel || null,
+        tipo: alertas.map(item => item.tipo).join(' · ') || 'Aviso AEMET',
+        tormenta
+    };
+    registrarDiagnosticoClima('[AEMET] Parsed Alerts', alerta);
+    return alerta;
+}
+
+function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
+    const vientoMs = valorNumericoMeteo(dx.windSpeed, dx.wind_speed);
+    const rachasMs = valorNumericoMeteo(dx.windGusts, dx.wind_gusts);
+    const vientoKmh = vientoMs === null ? null : vientoMs * 3.6;
+    const rachasKmh = rachasMs === null ? null : rachasMs * 3.6;
     const oleajeRaw = dx.waveHeight ?? dx.wave_height;
     const oleajeM = oleajeRaw === null || oleajeRaw === undefined || oleajeRaw === ''
-        ? null
-        : Number(oleajeRaw);
-    const alerta = evaluarAlertasGlobales(dx, vientoKmh, oleajeM, dx.precipitation, dx.precipProbability);
+        ? null : valorNumericoMeteo(oleajeRaw);
+    const alerta = evaluarAlertasGlobales(dx);
     const textoClima = `${dx.clima || ''} ${alerta.tipo || ''}`.toLowerCase();
-    const weatherCode = Number(dx.weatherCode ?? dx.weather_code);
-    const tormenta = /tormentas? inminent[ea]|actividad eléctrica activa|rayos detectados/.test(textoClima)
-        ? 'inminente'
-        : /tormenta|thunderstorm|lightning/.test(textoClima) || [95, 96, 99].includes(weatherCode)
-            ? 'posible' : null;
+    const weatherCode = valorNumericoMeteo(dx.weatherCode, dx.weather_code);
+    const tormenta = alerta.tormenta || /tormenta|thunderstorm|lightning|descarga electrica|actividad electrica|rayos detectados/.test(
+        textoClima.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    ) || [95, 96, 99].includes(weatherCode);
     const componenteViento = dx.componenteViento ?? dx.windComponent ?? null;
-    const direccionRaw = dx.windDirection;
-    const direccionViento = direccionRaw === null || direccionRaw === undefined || direccionRaw === ''
-        ? null
-        : Number.isFinite(Number(direccionRaw)) ? Number(direccionRaw) : null;
-
-    return calcularVeredicto({
-        alerta,
+    const direccionViento = valorNumericoMeteo(dx.windDirection, dx.wind_direction);
+    const entradaMotor = {
         vientoKmh,
         rachasKmh,
         olaM: oleajeM,
+        periodoOla: valorNumericoMeteo(dx.wavePeriod, dx.wave_period),
+        precipitacion: valorNumericoMeteo(dx.precipitation, dx.precipitation_mm),
+        probabilidadPrecipitacion: valorNumericoMeteo(dx.precipProbability, dx.precipitation_probability),
         direccionViento,
         componenteViento,
-        tormenta
+        tormenta,
+        alerta,
+        nivelUsuario
+    };
+    registrarDiagnosticoClima('[AEMET] Expert Engine Input', {
+        alertas: alerta,
+        tormenta,
+        nivelUsuario,
+        factores: { vientoKmh, rachasKmh, olaM: oleajeM, periodoOla: entradaMotor.periodoOla, direccionViento }
     });
+
+    return {
+        ...calcularVeredicto({ ...entradaMotor, datos: dx }),
+        fuenteAlternativa: /^open[-_ ]?meteo(?:[-_ ]fallback)?$/i.test(String(dx.source || ''))
+    };
 }
 
 function renderizarAvisoSuperior(motor) {
     const contenedor = document.getElementById('global-alert-container');
     if (!contenedor) return;
-    const estilos = {
-        'SEGURO': 'border-emerald-500/40 bg-emerald-50 text-emerald-800',
-        'PRECAUCIÓN': 'border-yellow-500/40 bg-yellow-50 text-yellow-800',
-        'RIESGO ELEVADO': 'border-orange-500/40 bg-orange-50 text-orange-800',
-        'PELIGROSO': 'border-red-500/40 bg-red-50 text-red-800',
-        'RIESGO EXTREMO': 'border-red-700 bg-red-100 text-red-900'
+    const alertas = motor?.aemet?.alertas || [];
+    const alertasAemet = alertas.filter(alerta => alerta.origen === 'AEMET');
+    const alertasGenerales = alertas.filter(alerta => alerta.origen !== 'AEMET');
+    const aemetDisponible = motor?.aemet?.disponible;
+    const colorAlerta = { AMARILLA: 'yellow', NARANJA: 'orange', ROJA: 'red' };
+    const clasesAlerta = {
+        yellow: 'border-yellow-500 bg-yellow-50 text-yellow-950',
+        orange: 'border-orange-500 bg-orange-50 text-orange-950',
+        red: 'border-red-600 bg-red-50 text-red-950'
     };
-    contenedor.innerHTML = `
-        <div class="rounded-xl border p-3 text-sm ${estilos[motor.seguridad.nivel]}">
-            <strong>${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${esc(motor.seguridad.nivel)} · Seguridad ${motor.seguridad.score}/100</strong>
-            <p class="mt-1">${esc(motor.mensaje)}</p>
-            <p class="mt-1 text-xs"><strong>${ICONOS_DERIVA[motor.riesgoDeriva.nivel]} Deriva ${esc(motor.riesgoDeriva.nivel)} (${motor.riesgoDeriva.score}/100):</strong> ${esc(motor.riesgoDeriva.descripcion)}</p>
+    const emojiAlerta = { AMARILLA: '🟡', NARANJA: '🟠', ROJA: '🔴' };
+    const renderizarBannerAlerta = (lista, titulo) => {
+        if (!lista.length) return '';
+        const prioritaria = lista[0];
+        const color = colorAlerta[prioritaria.nivel] || 'orange';
+        const emoji = emojiAlerta[prioritaria.nivel] || '⚠️';
+        const nivel = { AMARILLA: 'Amarillo', NARANJA: 'Naranja', ROJA: 'Rojo' }[prioritaria.nivel]
+            || prioritaria.nivel;
+        return `<div role="alert" class="rounded-xl border-l-4 p-3 text-sm font-bold ${clasesAlerta[color]}">
+            <strong>${emoji} ${titulo} ${esc(nivel)}</strong>
+            <ul class="mt-1 list-inside list-disc">${lista.map(alerta => `<li>${esc(alerta.tipo)}</li>`).join('')}</ul>
         </div>`;
+    };
+    const partes = [];
+    if (aemetDisponible === false) {
+        partes.push(`<div role="status" class="rounded-xl border-l-4 border-amber-500 bg-amber-50 p-3 text-sm text-amber-950">
+            <strong>⚠️ Avisos oficiales AEMET no disponibles</strong>
+            <p class="mt-1">No se puede confirmar la ausencia de avisos meteorológicos oficiales para esta consulta.</p>
+        </div>`);
+    }
+    if (motor?.fuenteAlternativa) {
+        partes.push(`<div role="status" class="rounded-xl border-l-4 border-sky-500 bg-sky-50 p-3 text-sm text-sky-950">
+            <strong>ℹ️ Pronóstico alternativo de Open-Meteo</strong>
+            <p class="mt-1">El pronóstico utiliza Open-Meteo como fuente alternativa. Los avisos oficiales AEMET se muestran por separado; consulta su estado antes de salir.</p>
+        </div>`);
+    }
+    partes.push(renderizarBannerAlerta(alertasAemet, 'Aviso AEMET'));
+    partes.push(renderizarBannerAlerta(alertasGenerales, 'Aviso meteorológico'));
+    if (motor?.tormentaElectrica) {
+        partes.push(`<div role="alert" class="rounded-xl border-2 border-red-700 bg-red-950 p-4 text-sm font-black text-white">
+            <strong>⛈️ PELIGRO POR TORMENTA ELÉCTRICA</strong>
+            <p class="mt-1">⛔ NO RECOMENDADO SALIR A REMAR</p>
+        </div>`);
+    }
+    contenedor.innerHTML = partes.join('');
+    registrarDiagnosticoClima('[AEMET] UI Output', {
+        banners: alertas.length,
+        tormentaElectrica: Boolean(motor?.tormentaElectrica),
+        recomendacion: motor?.recomendacion || 'NO RECOMENDADO',
+        safetyScore: motor?.seguridad?.score ?? 0,
+        analysisConfidence: motor.analysisConfidence,
+        fuenteAlternativa: Boolean(motor?.fuenteAlternativa)
+    });
+}
+
+function renderizarResumenExperto(motor, prefijo = 'basic') {
+    const contenedor = document.getElementById(`${prefijo}ExpertSummary`);
+    if (!contenedor) return;
+    const nivel = document.getElementById(`${prefijo}Level`);
+    const confianza = document.getElementById(`${prefijo}Confidence`);
+    const mensaje = document.getElementById(`${prefijo}ExpertMessage`);
+    const deriva = document.getElementById(`${prefijo}ExpertDrift`);
+    const insights = document.getElementById(`${prefijo}ExpertInsights`);
+    const icono = ICONOS_SEGURIDAD[motor.seguridad.nivel] || '⚠️';
+    if (nivel) {
+        nivel.className = `text-sm font-black text-center w-full px-2 py-1 ${motor.cls}`;
+        nivel.textContent = `${icono} ${motor.seguridad.nivel} · ${motor.seguridad.score}/100 · ${motor.recomendacion}`;
+    }
+    if (confianza) confianza.textContent = `Confianza del análisis: ${motor.analysisConfidence}%`;
+    if (mensaje) mensaje.textContent = motor.mensaje;
+    if (deriva) deriva.textContent = `${ICONOS_DERIVA[motor.riesgoDeriva.nivel]} Deriva ${motor.riesgoDeriva.nivel} (${motor.riesgoDeriva.score}/100): ${motor.riesgoDeriva.descripcion}`;
+    if (insights) {
+        insights.innerHTML = deduplicateInsights(motor.factoresCriticos)
+            .map(insight => `<li>${esc(insight)}</li>`).join('');
+    }
+    contenedor.classList.remove('hidden');
 }
 
 export async function consultarBasico() {
@@ -494,6 +808,7 @@ export async function consultarBasico() {
     const nivelBasico = document.getElementById('basicLevel');
     nivelBasico.className = 'text-sm font-black text-slate-400 text-center px-2';
     nivelBasico.textContent = 'Esperando...';
+    document.getElementById('basicExpertSummary')?.classList.add('hidden');
     const coachBasico = document.getElementById('basicCoachContainer');
     if (coachBasico) {
         coachBasico.classList.add('hidden');
@@ -514,37 +829,42 @@ export async function consultarBasico() {
         
         if(p.datos) {
             const dx = p.datos;
-            const vientoMs = Number(dx.windSpeed ?? dx.wind_speed);
-            const vientoKmh = Number.isFinite(vientoMs) ? vientoMs * 3.6 : NaN;
+            const vientoMs = valorNumericoMeteo(dx.windSpeed, dx.wind_speed);
+            const vientoKmh = vientoMs === null ? null : vientoMs * 3.6;
             const vientoNudos = kmhANudos(vientoKmh);
-            const wv = (dx.waveHeight != null && Number.isFinite(parseFloat(dx.waveHeight))) ? parseFloat(dx.waveHeight).toFixed(1) : null;
-            const pm = dx.precipitation || 0;
-            const pl = dx.precipProbability || 0;
+            const wv = valorNumericoMeteo(dx.waveHeight, dx.wave_height);
+            const pm = valorNumericoMeteo(dx.precipitation, dx.precipitation_mm);
+            const pl = valorNumericoMeteo(dx.precipProbability, dx.precipitation_probability);
             
             document.getElementById("basicWindSpeed").textContent = vientoNudos === null ? 'N/D' : `${vientoNudos.toFixed(1)} kt`;
-            document.getElementById("basicWave").textContent = wv !== null ? `${wv} m` : 'N/D';
-            document.getElementById("basicPrecip").textContent = `${pm} mm`;
-            document.getElementById("basicPrecipProb").textContent = `Prob: ${pl}%`;
+            document.getElementById("basicWave").textContent = wv !== null ? `${wv.toFixed(1)} m` : 'N/D';
+            document.getElementById("basicPrecip").textContent = pm === null ? 'N/D' : `${pm} mm`;
+            document.getElementById("basicPrecipProb").textContent = `Prob: ${pl === null ? 'N/D' : `${pl}%`}`;
             
             const cardD = ["N","NE","E","SE","S","SO","O","NO"];
-            const direccion = Number(dx.windDirection);
-            const hayDireccion = dx.windDirection !== null && dx.windDirection !== undefined
-                && dx.windDirection !== '' && Number.isFinite(direccion);
+            const direccion = valorNumericoMeteo(dx.windDirection, dx.wind_direction);
+            const hayDireccion = direccion !== null;
             const idir = hayDireccion ? Math.round((((direccion % 360) + 360) % 360) / 45) % 8 : null;
             document.getElementById("basicWindDir").innerHTML = `<div class="wind-arrow text-emerald-500 drop-shadow-sm w-4 h-4" style="transform: rotate(${hayDireccion ? direccion : 0}deg);"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.25a.75.75 0 0 1 .75.75v16.19l4.72-4.72a.75.75 0 1 1 1.06 1.06l-6 6a.75.75 0 0 1-1.06 0l-6-6a.75.75 0 1 1 1.06-1.06l4.72 4.72V3a.75.75 0 0 1 .75-.75Z" /></svg></div> ${hayDireccion ? `${cardD[idir]} (${Math.round(direccion)}°)` : 'Dirección N/D'}`;
             
-            const motor = obtenerMotorExperto(dx);
-            const lElBasic = document.getElementById("basicLevel");
-            
-            lElBasic.className = `text-sm font-black text-center w-full px-2 py-1 ${motor.cls}`;
-            lElBasic.textContent = `${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${motor.seguridad.nivel}`;
+            const motor = obtenerMotorExperto(dx, u);
             renderizarAvisoSuperior(motor);
-            res.innerHTML = `<strong>📍 ${esc((p.received?.location || loc).split(',')[0])}</strong><br>📅 ${esc(p.received?.date || d)} | 🕒 ${esc(p.received?.timeRange || r)}<br><br>💡 <strong>Veredicto:</strong> ${esc(motor.mensaje)}`;
+            renderizarResumenExperto(motor);
+            res.innerHTML = `<strong>📍 ${esc((p.received?.location || loc).split(',')[0])}</strong><br>📅 ${esc(p.received?.date || d)} | 🕒 ${esc(p.received?.timeRange || r)}`;
             solicitarCoachIABasico(dx, u, loc, motor);
         }
     } catch(e) { 
         res.innerHTML = `<strong>No se pudo cargar el pronóstico.</strong> ${esc(e?.message || 'Revisa tu conexión e inténtalo de nuevo.')}`;
         console.warn('Error al consultar el pronóstico básico:', e);
+        renderizarAvisoSuperior({
+            aemet: { alertas: [], disponible: false },
+            tormentaElectrica: false,
+            fuenteAlternativa: false,
+            recomendacion: 'NO RECOMENDADO',
+            seguridad: { score: 0 },
+            analysisConfidence: 0
+        });
+        renderizarResumenExperto(calcularVeredicto({ datos: {} }));
         mostrarCoachPronosticoNoDisponible(document.getElementById('basicCoachContainer'));
     } finally {
         btn.disabled = false; sp.classList.add('hidden'); bt.textContent = 'Análisis Básico Rápido';
@@ -633,30 +953,30 @@ export async function consultarRutaPro() {
 
 export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, lat, lon, fechaD) {
     datosMeteoActuales = dx;
-    const wkVal = Number(dx.windSpeed ?? dx.wind_speed);
-    const windKmh = Number.isFinite(wkVal) ? wkVal * 3.6 : NaN;
+    const wkVal = valorNumericoMeteo(dx.windSpeed, dx.wind_speed);
+    const windKmh = wkVal === null ? null : wkVal * 3.6;
     const windKnots = kmhANudos(windKmh);
     const wvRaw = dx.waveHeight ?? dx.wave_height;
     const wv = wvRaw !== null && wvRaw !== undefined && wvRaw !== '' && Number.isFinite(Number(wvRaw))
         ? Number(wvRaw).toFixed(1) : null;
     const wPeriod = dx.wavePeriod !== undefined ? dx.wavePeriod : (dx.wave_period !== undefined ? dx.wave_period : "--");
-    const pm = (dx.precipitation !== undefined && dx.precipitation !== null && dx.precipitation !== "") ? dx.precipitation : 0;
-    const pl = (dx.precipProbability !== undefined && dx.precipProbability !== null && dx.precipProbability !== "") ? dx.precipProbability : (dx.precipitation_probability || 0);
-    const gustsVal = Number(dx.windGusts ?? dx.wind_gusts);
-    const gustsKmh = Number.isFinite(gustsVal) ? gustsVal * 3.6
-        : Number.isFinite(wkVal) ? wkVal * 1.4 * 3.6 : NaN;
+    const pm = valorNumericoMeteo(dx.precipitation, dx.precipitation_mm);
+    const pl = valorNumericoMeteo(dx.precipProbability, dx.precipitation_probability);
+    const gustsVal = valorNumericoMeteo(dx.windGusts, dx.wind_gusts);
+    const gustsKmh = gustsVal === null ? null : gustsVal * 3.6;
     const gustsKnots = kmhANudos(gustsKmh);
     const uv = (dx.uvIndex !== undefined && dx.uvIndex !== null) ? dx.uvIndex : (dx.uv_index !== undefined ? dx.uv_index : "--");
     
     let uvText = uv >= 8 ? "MUY ALTO" : (uv >= 5 ? "ALTO" : (uv > 0 ? "MODERADO" : "--"));
     document.getElementById('proDashWind').innerHTML = `${windKnots === null ? 'N/D' : windKnots.toFixed(1)} <span class="text-[10px] text-slate-500">kt</span>`;
     document.getElementById('proDashGusts').innerHTML = `Rachas: ${gustsKnots === null ? 'N/D' : `${gustsKnots.toFixed(1)} kt`}`;
-    document.getElementById('proDashDirIcon').style.transform = `rotate(${dx.windDirection || 0}deg)`;
-    document.getElementById('proDashDirText').innerHTML = `${Math.round(dx.windDirection || 0)}°`;
+    const direccionViento = valorNumericoMeteo(dx.windDirection, dx.wind_direction);
+    document.getElementById('proDashDirIcon').style.transform = `rotate(${direccionViento ?? 0}deg)`;
+    document.getElementById('proDashDirText').textContent = direccionViento === null ? 'N/D' : `${Math.round(direccionViento)}°`;
     document.getElementById('proDashWave').innerHTML = `${wv !== null ? wv : 'N/D'} <span class="text-[10px] text-sky-900">m</span>`;
-    document.getElementById('proDashWavePeriod').innerHTML = `Periodo: ${wPeriod} s`;
-    document.getElementById('proDashPrecip').innerHTML = `${pl}%`;
-    document.getElementById('proDashPrecipMM').innerHTML = `${pm} mm`;
+    document.getElementById('proDashWavePeriod').textContent = `Periodo: ${wPeriod === '--' ? 'N/D' : `${wPeriod} s`}`;
+    document.getElementById('proDashPrecip').textContent = pl === null ? 'N/D' : `${pl}%`;
+    document.getElementById('proDashPrecipMM').textContent = pm === null ? 'N/D' : `${pm} mm`;
     document.getElementById('proDashUV').innerHTML = `${uv}`;
     document.getElementById('proDashUVText').innerHTML = uvText;
     
@@ -666,8 +986,11 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
     document.getElementById('proTempAgua').textContent = tempAguaValue !== "N/D" ? `${tempAguaValue}°` : "--°";
     
     let icono = "☀️", textoClima = "SOL";
-    if (dx.clima && dx.clima.toLowerCase().includes("nublado")) { icono = "☁️"; textoClima = "NUBES"; }
-    if ((dx.clima && dx.clima.toLowerCase().includes("lluvia")) || pl > 0) { icono = "🌧️"; textoClima = "LLUVIA"; }
+    const estadoClima = String(dx.clima || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const codigoClima = valorNumericoMeteo(dx.weatherCode, dx.weather_code);
+    if ([95, 96, 99].includes(codigoClima) || /tormenta|thunderstorm|lightning/.test(estadoClima)) { icono = "⛈️"; textoClima = "TORMENTA"; }
+    else if (estadoClima.includes("nublado")) { icono = "☁️"; textoClima = "NUBES"; }
+    else if (estadoClima.includes("lluvia") || (pl !== null && pl > 0)) { icono = "🌧️"; textoClima = "LLUVIA"; }
     document.getElementById('proIconoClima').textContent = icono;
     document.getElementById('proTextoClima').textContent = textoClima;
     
@@ -678,7 +1001,7 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
         lineasMultiPunto.forEach(l => map.removeLayer(l)); lineasMultiPunto.length = 0;
         etiquetasDistancia.forEach(l => map.removeLayer(l)); etiquetasDistancia.length = 0;
         
-        const dirViento = Number(dx.windDirection) || 0;
+        const dirViento = valorNumericoMeteo(dx.windDirection, dx.wind_direction);
         const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; let rutArray = [...coords];
         if (modoTravesiaActivo && coords.length === 2) rutArray.push(coords[0]);
         
@@ -755,18 +1078,9 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
             </div>`;
     }
     
-    const motor = obtenerMotorExperto(dx);
-    const lElPro = document.getElementById("proStatusVerdict");
-    const clasesPro = {
-        'SEGURO': 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50',
-        'PRECAUCIÓN': 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50',
-        'RIESGO ELEVADO': 'bg-orange-500/20 text-orange-400 border border-orange-500/50',
-        'PELIGROSO': 'bg-red-500/20 text-red-400 border border-red-500/50',
-        'RIESGO EXTREMO': 'bg-red-600 text-white animate-pulse shadow-glow border-red-700'
-    };
+    const motor = obtenerMotorExperto(dx, userLvl);
     renderizarAvisoSuperior(motor);
-    lElPro.className = `px-6 py-3 rounded-xl sm:rounded-full text-sm font-black w-full text-center uppercase tracking-widest transition-all duration-300 ${clasesPro[motor.seguridad.nivel]}`;
-    lElPro.textContent = `${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${motor.seguridad.nivel} · ${motor.seguridad.score}/100 · ${ICONOS_DERIVA[motor.riesgoDeriva.nivel]} DERIVA ${motor.riesgoDeriva.nivel} ${motor.riesgoDeriva.score}/100`;
+    renderizarResumenExperto(motor, 'pro');
     document.getElementById('proPlanificador').classList.replace('flex','hidden');
     document.getElementById('proDashboardResumen').classList.remove('hidden'); document.getElementById('proDashboardResumen').classList.add('flex');
     const isoLlamada = `${fechaD}T${horaSalida}:00`;
@@ -1581,12 +1895,15 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
         },
         userLevel: userLvl || "Intermedio",
         seguridad: motor.seguridad,
+        analysisConfidence: motor.analysisConfidence,
+        recomendacion: motor.recomendacion,
         riesgoDeriva: motor.riesgoDeriva,
         factoresCriticos: motor.factoresCriticos
     };
 
     // 1. RENDERIZADO INMEDIATO (0ms): Sin tiempos de espera ni bloqueos ("pensando")
     renderizarCoachProFallbackLocal({ ...payload.condiciones, motorExperto: motor }, userLvl, tramosData);
+    if (motor.recomendacion !== 'SALIDA RECOMENDADA' || motor.analysisConfidence < 80) return;
 
     // 2. Consulta en segundo plano opcional y no bloqueante
     try {
@@ -1609,11 +1926,14 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
 
 function coachContradiceMotor(coach, motor) {
     const texto = JSON.stringify(coach).toLowerCase();
-    const rango = ['SEGURO', 'PRECAUCIÓN', 'RIESGO ELEVADO', 'PELIGROSO', 'RIESGO EXTREMO']
+    const rango = ['SEGURO', 'PRECAUCIÓN', 'RIESGO ELEVADO', 'PELIGROSO', 'RIESGO EXTREMO', 'ANÁLISIS INCOMPLETO', 'NO RECOMENDADO']
         .indexOf(motor.seguridad.nivel);
-    const afirmaSeguro = /\b(seguro|seguros|aceptable|aceptables|navegable|navegables|apropiado|apropiada|recomendable|condiciones favorables|puedes salir)\b/i.test(texto);
+    const afirmaSeguro = /\b(seguro|seguros|aceptable|aceptables|navegable|navegables|apropiado|apropiada|recomendable|excelente|ideal|favorables|condiciones ideales|puedes salir)\b/i.test(texto);
     const afirmaPeligro = /\b(riesgo extremo|peligroso|peligrosa|no salir|salida desaconsejada|no recomendable)\b/i.test(texto);
-    return (rango >= 2 && afirmaSeguro) || (rango < 2 && afirmaPeligro);
+    return motor.recomendacion !== 'SALIDA RECOMENDADA'
+        || motor.analysisConfidence < 80
+        || (rango >= 1 && afirmaSeguro)
+        || (rango < 1 && afirmaPeligro);
 }
 
 function normalizarUnidadesCoach(valor) {
@@ -1641,6 +1961,10 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
     const badgeLvl = document.getElementById('proCoachLevelBadge');
     const badgeScore = document.getElementById('proCoachScoreBadge');
     if (!bodyCont || !coach) return;
+    if (motor && (motor.recomendacion !== 'SALIDA RECOMENDADA' || motor.analysisConfidence < 80)) {
+        renderizarCoachProFallbackLocal({ motorExperto: motor }, userLvl);
+        return;
+    }
 
     const score = motor?.seguridad.score
         ?? Math.max(0, Math.min(100, Math.round(Number(coach.score) || 70)));
@@ -1747,14 +2071,20 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
     let segArr = coach.seguridad_estrategia;
     if (typeof segArr === 'string') segArr = [segArr];
     if (!Array.isArray(segArr)) segArr = [];
-    const seguridadItems = segArr.length > 0
-        ? segArr.map(item => `
+    const referenciasMotor = motor
+        ? [motor.mensaje, ...motor.factoresCriticos, motor.riesgoDeriva?.descripcion].filter(Boolean)
+        : [];
+    const seguridadUnica = deduplicateInsights(segArr).filter(item =>
+        !referenciasMotor.some(referencia => deduplicateInsights([item, referencia]).length === 1)
+    );
+    const seguridadItems = seguridadUnica.length > 0
+        ? seguridadUnica.map(item => `
             <li class="flex items-start gap-2 text-xs text-slate-200">
                 <span class="text-sky-400 shrink-0 text-sm">🛡️</span>
                 <span class="leading-relaxed">${esc(item)}</span>
             </li>
         `).join('')
-        : '<li class="text-xs text-slate-400">Sin alertas críticas de seguridad.</li>';
+        : '<li class="text-xs text-slate-400">Consulta el resumen experto antes de decidir.</li>';
 
     let matArr = coach.material_recomendado;
     if (typeof matArr === 'string') matArr = [matArr];
@@ -1771,6 +2101,10 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
     const fuenteLabel = fuente && fuente.includes("gemini")
         ? "✨ Análisis del Coach"
         : "🌊 Motor Experto PaddleSafe (FESurfing / ISA)";
+    const resumenCoach = coach.resumen
+        && (!motor || deduplicateInsights([coach.resumen, motor.mensaje]).length > 1)
+        ? coach.resumen
+        : '';
 
     bodyCont.innerHTML = `
         <!-- Veredicto Principal del Coach -->
@@ -1781,7 +2115,7 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
                 </span>
                 <span class="text-[11px] font-mono text-emerald-400 font-bold bg-slate-900/80 px-2 py-0.5 rounded border border-emerald-500/20">${score}/100</span>
             </div>
-            <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(coach.resumen || '')}</p>
+            ${resumenCoach ? `<p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(resumenCoach)}</p>` : ''}
             <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden mt-0.5">
                 <div class="${scoreBarBg} h-full rounded-full transition-all duration-700" style="width: ${score}%"></div>
             </div>
@@ -1908,8 +2242,28 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
         rachasKmh: cond.rachas,
         olaM: cond.oleaje,
         direccionViento: cond.direccion,
-        componenteViento: cond.componenteViento
+        componenteViento: cond.componenteViento,
+        nivelUsuario: userLvl
     });
+    if (motor.recomendacion !== 'SALIDA RECOMENDADA' || motor.analysisConfidence < 80) {
+        const body = document.getElementById('proCoachBody');
+        if (body) {
+            body.innerHTML = `
+                <div class="rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs text-white">
+                    <p class="font-black">${motor.tormentaElectrica
+                        ? '⛈️ No salgas a remar: hay riesgo de tormenta eléctrica.'
+                        : motor.recomendacion === 'NO RECOMENDADO'
+                            ? '⛔ No se recomienda salir a remar con las condiciones evaluadas.'
+                            : `⚠️ No se puede confirmar la seguridad (${motor.analysisConfidence}% de confianza).`}</p>
+                    <p class="mt-1 text-slate-200">${esc(motor.tormentaElectrica
+                        ? 'Cancela o pospón la salida y vuelve a consultar el pronóstico más adelante.'
+                        : motor.recomendacion === 'NO RECOMENDADO'
+                            ? 'Cancela o pospón la salida y vuelve a consultar cuando mejoren las condiciones.'
+                            : 'Repite el análisis cuando haya información meteorológica más completa.')}</p>
+                </div>`;
+        }
+        return;
+    }
     const seg = [];
     const tec = [];
     const mat = [];
@@ -2057,6 +2411,18 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
     if (!cont) return;
 
     cont.classList.remove('hidden');
+    if (motor.recomendacion !== 'SALIDA RECOMENDADA' || motor.analysisConfidence < 80) {
+        cont.innerHTML = `
+            <div class="flex flex-col gap-2">
+                <span class="font-black text-amber-300 text-xs uppercase tracking-wider">✨ Consejo del Coach (${esc(userLvl || 'Intermedio')})</span>
+                <p class="text-xs text-slate-100 leading-relaxed">${motor.tormentaElectrica
+                    ? '⛔ Cancela o pospón la salida y vuelve a consultar el pronóstico más adelante.'
+                    : motor.recomendacion === 'NO RECOMENDADO'
+                        ? '⛔ No se recomienda salir a remar con las condiciones evaluadas.'
+                        : '⚠️ No salgas hasta disponer de datos meteorológicos suficientes para evaluar la seguridad.'}</p>
+            </div>`;
+        return;
+    }
 
     const wkVal = Number(dx.windSpeed ?? dx.wind_speed);
     const gustsVal = Number(dx.windGusts ?? dx.wind_gusts);
@@ -2093,6 +2459,8 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
         },
         userLevel: userLvl || "Intermedio",
         seguridad: motor.seguridad,
+        analysisConfidence: motor.analysisConfidence,
+        recomendacion: motor.recomendacion,
         riesgoDeriva: motor.riesgoDeriva,
         factoresCriticos: motor.factoresCriticos
     };
@@ -2103,13 +2471,10 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
                 <span class="font-black text-emerald-300 text-xs uppercase tracking-wider">✨ Coach (${esc(userLvl || 'Intermedio')})</span>
                 <span class="text-[10px] text-slate-400 font-mono">Motor Experto PaddleSafe</span>
             </div>
-            <p class="text-sm font-black text-white">${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${esc(motor.seguridad.nivel)} · ${motor.seguridad.score}/100</p>
-            <p class="text-xs text-slate-200 leading-relaxed">${esc(motor.mensaje)}</p>
             <div class="text-[11px] text-sky-300 flex items-start gap-1.5 bg-sky-950/40 p-2 rounded-lg border border-sky-500/20">
                 <span class="shrink-0">🛡️</span>
-                <span><strong>${ICONOS_DERIVA[motor.riesgoDeriva.nivel]} Deriva ${esc(motor.riesgoDeriva.nivel)} (${motor.riesgoDeriva.score}/100):</strong> ${esc(motor.riesgoDeriva.descripcion)}</span>
+                <span>Planifica la salida con el equipo de seguridad obligatorio y confirma el parte local antes de entrar al agua.</span>
             </div>
-            <p class="text-[11px] text-slate-300">${esc(motor.factoresCriticos.join(' '))}</p>
         </div>
     `;
 
@@ -2137,9 +2502,9 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
                         </div>
                         <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 ${scoreCls} border border-slate-700 font-bold">${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${esc(motor.seguridad.nivel)} · ${score}/100</span>
                     </div>
-                    <p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(coach.resumen || '')}</p>
-                    <p class="text-[11px] text-slate-300">${esc(motor.mensaje)}</p>
-                    <p class="text-[11px] text-sky-300">${ICONOS_DERIVA[motor.riesgoDeriva.nivel]} Deriva ${esc(motor.riesgoDeriva.nivel)} (${motor.riesgoDeriva.score}/100): ${esc(motor.riesgoDeriva.descripcion)}</p>
+                    ${deduplicateInsights([coach.resumen]).filter(insight =>
+                        deduplicateInsights([insight, motor.mensaje]).length > 1
+                    ).map(insight => `<p class="text-xs text-slate-200 leading-relaxed font-medium">${esc(insight)}</p>`).join('')}
                     ${coach.estrategia_viento && coach.estrategia_viento.tramo_facil ? `
                     <div class="text-[11px] text-emerald-300 flex items-start gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
                         <span class="shrink-0">💨</span>
