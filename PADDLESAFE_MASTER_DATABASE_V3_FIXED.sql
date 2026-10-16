@@ -6,32 +6,41 @@
 --            completamente auditada contra el catálogo real de Supabase PostgreSQL.
 --
 -- Correcciones Críticas de Compilación Aplicadas:
---   1. Tipos de datos en 'calcular_titulo_paddler':
---      - Causa raíz resuelta: FLOOR() y SQRT() en PostgreSQL devuelven tipo numeric.
+--   1. Resuelto Error PostgreSQL 42P13 ("cannot change return type of existing function"):
+--      - Causa: En PostgreSQL, CREATE OR REPLACE FUNCTION no puede alterar el tipo
+--        de retorno ni las columnas OUT de funciones RETURNS TABLE existentes si
+--        ya fueron desplegadas con una estructura diferente (ej: obtener_clubs_usuario).
+--      - Solución: Se incorpora un bloque dinámico de catálogo en el preflight que
+--        identifica y elimina de forma limpia cualquier firma previa de las funciones
+--        RPC (DROP FUNCTION IF EXISTS ... CASCADE), sumado a DROP explícitos antes de
+--        cada declaración.
+--   2. Tipos de datos en 'calcular_titulo_paddler':
+--      - Causa: FLOOR() y SQRT() en PostgreSQL devuelven tipo numeric.
 --        Al llamar calcular_titulo_paddler(numeric), PostgreSQL fallaba porque solo
---        esperaba integer. Se ha implementado doble protección:
+--        esperaba integer.
+--      - Solución:
 --        a) Casts explícitos ::integer en todas las llamadas.
 --        b) Sobrecargas polimórficas calcular_titulo_paddler(numeric) y
 --           calcular_titulo_paddler(double precision) que canalizan a integer.
---   2. Incompatibilidades aritméticas de tipo (double precision vs numeric):
+--   3. Incompatibilidades aritméticas de tipo (double precision vs numeric):
 --      - Resuelto el conflicto de operadores en 'paddlesafe_apply_gamification_delta'
 --        donde la suma de total_distance_km (double precision) y p_km_delta (numeric)
 --        generaba ambigüedad en el catálogo de operadores de PostgreSQL.
 --      - Sanitización de llamadas a ROUND() asegurando tipos numeric explícitos.
---   3. Resiliencia en módulo de Clubes:
+--   4. Resiliencia en módulo de Clubes:
 --      - Se garantiza la existencia previa de 'clubs', 'clubs_usuarios', 'club_chat',
 --        'clubs_solicitudes', 'clubs_invitaciones', 'club_rutas' y 'club_showcase'.
 --      - En 'club_eliminar', la eliminación sobre tablas dependientes opcionales
 --        se ejecuta mediante SQL dinámico condicionado a 'to_regclass()', evitando
 --        que el script falle si alguna tabla auxiliar aún no ha sido creada.
---   4. Módulo de Quedadas ('club_eventos' y 'club_eventos_asistentes'):
+--   5. Módulo de Quedadas ('club_eventos' y 'club_eventos_asistentes'):
 --      - Creación condicional y sincronización de columnas vía ADD COLUMN IF NOT EXISTS
 --        sin riesgo de pérdida de datos.
---   5. Aislamiento y resiliencia en esquema 'storage':
+--   6. Aislamiento y resiliencia en esquema 'storage':
 --      - Comprobación previa de 'storage.buckets' y 'storage.objects' antes de
 --        crear buckets o políticas de almacenamiento para evitar errores en
 --        entornos donde el esquema de storage no esté activo.
---   6. Fusión y coexistencia de alta de usuarios en 'auth.users':
+--   7. Fusión y coexistencia de alta de usuarios en 'auth.users':
 --      - Manejo unificado de 'handle_new_user()' y 'handle_new_user_consolidado()'
 --        con inserción defensiva 'ON CONFLICT (id) DO UPDATE'.
 -- ==============================================================================
@@ -39,7 +48,7 @@
 BEGIN;
 
 -- ==============================================================================
--- 0. PREFLIGHT DIAGNOSTIC GUARDS
+-- 0. PREFLIGHT DIAGNOSTIC GUARDS & CLEANUP
 -- ==============================================================================
 DO $$
 BEGIN
@@ -52,6 +61,44 @@ BEGIN
   IF to_regclass('auth.users') IS NULL THEN
     RAISE EXCEPTION 'Abortando rollout: El esquema de autenticación auth.users de Supabase no existe.';
   END IF;
+END;
+$$;
+
+-- ------------------------------------------------------------------------------
+-- 0.1. Limpieza preventiva y dinámica de firmas de funciones RPC en public
+-- Evita el error PostgreSQL 42P13 ("cannot change return type of existing function")
+-- cuando una función existía con parámetros OUT o RETURNS TABLE diferentes.
+-- ------------------------------------------------------------------------------
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN (
+    SELECT p.oid::regprocedure AS func_signature
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname IN (
+        'obtener_clubs_usuario',
+        'obtener_miembros_club',
+        'obtener_solicitudes_club',
+        'procesar_solicitud_club',
+        'club_eliminar',
+        'crear_club_multiclub',
+        'get_ranking_riders',
+        'get_ranking_clubs_v2',
+        'calcular_titulo_paddler',
+        'paddlesafe_apply_gamification_delta',
+        'paddlesafe_route_xp',
+        'actualizar_gamificacion_perfil',
+        'actualizar_gamificacion_desde_rutas',
+        'rutas_validar',
+        'handle_new_user_consolidado',
+        'handle_new_user'
+      )
+  ) LOOP
+    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.func_signature || ' CASCADE;';
+  END LOOP;
 END;
 $$;
 
@@ -78,6 +125,7 @@ ALTER TABLE public.perfiles
   ADD COLUMN IF NOT EXISTS sup_gear_updated_at timestamptz;
 
 -- 1.1. Función base para calcular el título de paddler (firma canónica integer)
+DROP FUNCTION IF EXISTS public.calcular_titulo_paddler(integer);
 CREATE OR REPLACE FUNCTION public.calcular_titulo_paddler(p_nivel integer)
 RETURNS text
 LANGUAGE sql
@@ -99,6 +147,7 @@ AS $$
 $$;
 
 -- 1.2. Sobrecarga de compatibilidad para numeric (evita errores con FLOOR / SQRT)
+DROP FUNCTION IF EXISTS public.calcular_titulo_paddler(numeric);
 CREATE OR REPLACE FUNCTION public.calcular_titulo_paddler(p_nivel numeric)
 RETURNS text
 LANGUAGE sql
@@ -109,6 +158,7 @@ AS $$
 $$;
 
 -- 1.3. Sobrecarga de compatibilidad para double precision (float8)
+DROP FUNCTION IF EXISTS public.calcular_titulo_paddler(double precision);
 CREATE OR REPLACE FUNCTION public.calcular_titulo_paddler(p_nivel double precision)
 RETURNS text
 LANGUAGE sql
@@ -268,6 +318,7 @@ GRANT INSERT, UPDATE, DELETE ON public.user_routes TO authenticated;
 -- ==============================================================================
 
 -- 3.1. Aplicación de deltas en perfiles con tipado estricto
+DROP FUNCTION IF EXISTS public.paddlesafe_apply_gamification_delta(uuid, integer, numeric);
 CREATE OR REPLACE FUNCTION public.paddlesafe_apply_gamification_delta(
   p_user_id uuid,
   p_xp_delta integer,
@@ -320,6 +371,7 @@ END;
 $$;
 
 -- 3.2. Extracción de XP y sanitización de velocidad anti-cheat
+DROP FUNCTION IF EXISTS public.paddlesafe_route_xp(jsonb);
 CREATE OR REPLACE FUNCTION public.paddlesafe_route_xp(p_route jsonb)
 RETURNS integer
 LANGUAGE plpgsql
@@ -382,6 +434,9 @@ END;
 $$;
 
 -- 3.3. Trigger en user_routes
+DROP TRIGGER IF EXISTS trg_actualizar_gamificacion_perfil ON public.user_routes;
+DROP FUNCTION IF EXISTS public.actualizar_gamificacion_perfil();
+
 CREATE OR REPLACE FUNCTION public.actualizar_gamificacion_perfil()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -431,7 +486,6 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_actualizar_gamificacion_perfil ON public.user_routes;
 CREATE TRIGGER trg_actualizar_gamificacion_perfil
 AFTER INSERT OR DELETE OR UPDATE OF user_id, distance_km, duration_seconds, xp_earned, avg_speed
 ON public.user_routes
@@ -439,6 +493,9 @@ FOR EACH ROW
 EXECUTE FUNCTION public.actualizar_gamificacion_perfil();
 
 -- 3.4. Trigger en rutas
+DROP TRIGGER IF EXISTS trg_actualizar_gamificacion_desde_rutas ON public.rutas;
+DROP FUNCTION IF EXISTS public.actualizar_gamificacion_desde_rutas();
+
 CREATE OR REPLACE FUNCTION public.actualizar_gamificacion_desde_rutas()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -488,7 +545,6 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_actualizar_gamificacion_desde_rutas ON public.rutas;
 CREATE TRIGGER trg_actualizar_gamificacion_desde_rutas
 AFTER INSERT OR DELETE OR UPDATE OF user_id, distancia_km, tiempo_minutos, points_earned, xp_earned
 ON public.rutas
@@ -735,6 +791,8 @@ CREATE TABLE IF NOT EXISTS public.club_showcase (
 );
 
 -- Vista de membresías para desacoplamiento y compatibilidad
+DROP VIEW IF EXISTS public.memberships CASCADE;
+
 DO $$
 BEGIN
   IF to_regclass('public.clubs_usuarios') IS NOT NULL THEN
@@ -797,6 +855,7 @@ CREATE POLICY "club_chat_delete_author_or_admin"
 GRANT SELECT, INSERT, DELETE ON public.club_chat TO authenticated;
 
 -- RPC: Crear club en sistema multi-club
+DROP FUNCTION IF EXISTS public.crear_club_multiclub(text);
 CREATE OR REPLACE FUNCTION public.crear_club_multiclub(p_nombre text)
 RETURNS uuid
 LANGUAGE plpgsql
@@ -826,7 +885,8 @@ BEGIN
 END;
 $$;
 
--- RPC: Obtener los clubes a los que pertenece el usuario
+-- RPC: Obtener los clubes a los que pertenece el usuario (Previamente causó error 42P13 al tener OUT params diferentes)
+DROP FUNCTION IF EXISTS public.obtener_clubs_usuario(uuid);
 CREATE OR REPLACE FUNCTION public.obtener_clubs_usuario(p_user_id uuid)
 RETURNS TABLE (
   club_id uuid,
@@ -860,6 +920,7 @@ AS $$
 $$;
 
 -- RPC: Obtener la tripulación de un club
+DROP FUNCTION IF EXISTS public.obtener_miembros_club(uuid);
 CREATE OR REPLACE FUNCTION public.obtener_miembros_club(p_club_id uuid)
 RETURNS TABLE (
   user_id uuid,
@@ -893,6 +954,7 @@ AS $$
 $$;
 
 -- RPC: Obtener solicitudes pendientes de ingreso al club
+DROP FUNCTION IF EXISTS public.obtener_solicitudes_club(uuid);
 CREATE OR REPLACE FUNCTION public.obtener_solicitudes_club(p_club_id uuid)
 RETURNS TABLE (
   id uuid,
@@ -930,6 +992,7 @@ END;
 $$;
 
 -- RPC: Procesar solicitud de ingreso
+DROP FUNCTION IF EXISTS public.procesar_solicitud_club(uuid, text);
 CREATE OR REPLACE FUNCTION public.procesar_solicitud_club(p_solicitud uuid, p_accion text)
 RETURNS void
 LANGUAGE plpgsql
@@ -973,6 +1036,7 @@ END;
 $$;
 
 -- RPC: Eliminación completa de club con SQL dinámico condicional
+DROP FUNCTION IF EXISTS public.club_eliminar(uuid);
 CREATE OR REPLACE FUNCTION public.club_eliminar(p_club uuid)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -1145,6 +1209,9 @@ GRANT SELECT, INSERT, DELETE ON public.club_eventos_asistentes TO authenticated;
 -- ==============================================================================
 
 -- 9.1. Validación de rangos físicos y velocidad en rutas
+DROP TRIGGER IF EXISTS trg_rutas_validar ON public.rutas;
+DROP FUNCTION IF EXISTS public.rutas_validar();
+
 CREATE OR REPLACE FUNCTION public.rutas_validar()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -1172,12 +1239,12 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_rutas_validar ON public.rutas;
 CREATE TRIGGER trg_rutas_validar
 BEFORE INSERT OR UPDATE ON public.rutas
 FOR EACH ROW EXECUTE FUNCTION public.rutas_validar();
 
 -- 9.2. RPC Ranking Riders Unificado
+DROP FUNCTION IF EXISTS public.get_ranking_riders(text);
 CREATE OR REPLACE FUNCTION public.get_ranking_riders(periodo text)
 RETURNS TABLE(id uuid, nombre text, avatar_url text, puntos_periodo bigint)
 LANGUAGE plpgsql
@@ -1240,6 +1307,7 @@ END;
 $$;
 
 -- 9.3. RPC Ranking Clubes V2 Unificado
+DROP FUNCTION IF EXISTS public.get_ranking_clubs_v2(text);
 CREATE OR REPLACE FUNCTION public.get_ranking_clubs_v2(periodo text)
 RETURNS TABLE(
   club_id uuid,
@@ -1314,6 +1382,11 @@ $$;
 -- ==============================================================================
 -- 10. ALTA AUTOMÁTICA CONSOLIDADA DE PERFILES EN AUTH.USERS
 -- ==============================================================================
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP TRIGGER IF EXISTS trg_crear_perfil_automatico ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_user_consolidado();
+DROP FUNCTION IF EXISTS public.handle_new_user();
+
 CREATE OR REPLACE FUNCTION public.handle_new_user_consolidado()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -1387,9 +1460,6 @@ $$;
 DO $$
 BEGIN
   IF to_regclass('auth.users') IS NOT NULL THEN
-    DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-    DROP TRIGGER IF EXISTS trg_crear_perfil_automatico ON auth.users;
-
     CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_consolidado();
