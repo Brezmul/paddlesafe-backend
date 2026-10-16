@@ -11,58 +11,61 @@ import { diferenciaAngular } from './consensus.js';
  * para spots clave de España e islas.
  */
 const SPOTS_CONOCIDOS = [
-    // Alicante / Costa Blanca
-    { match: /santa pola|tabarca/i, seaward: 135, type: 'mar_abierto' },
-    { match: /campello|el campello|muchavista/i, seaward: 110, type: 'mar_abierto' },
-    { match: /postiguet|playa de san juan|playa san juan|alicante/i, seaward: 130, type: 'mar_abierto' },
-    { match: /altea|albir/i, seaward: 90, type: 'bahia_protegida' },
-    { match: /denia|dénia|les marines/i, seaward: 45, type: 'mar_abierto' },
-    { match: /javea|xàbia|arenal|granadella/i, seaward: 90, type: 'mar_abierto' },
-    { match: /torrevieja|la mata|guardamar/i, seaward: 90, type: 'mar_abierto' },
-    { match: /calpe|moraira/i, seaward: 110, type: 'mar_abierto' },
+    // Costa Blanca Norte y Giros Críticos (Dénia a Torrevieja)
+    { nombre: 'Dénia / Las Rotas', lat: 38.830, lon: 0.145, match: /denia|dénia|las rotas|les marines/i, seaward: 45, type: 'mar_abierto' },
+    { nombre: 'Cabo San Antonio / Jávea Bahía', lat: 38.805, lon: 0.190, match: /san antonio|javea bahia|xabia bahia|arenal javea|puerto javea|javea|xàbia/i, seaward: 95, type: 'bahia_protegida' },
+    { nombre: 'Cala Blanca / Portitxol / Cap Negre', lat: 38.750, lon: 0.230, match: /cala blanca|portitxol|portichol|cap negre|cabo negro/i, seaward: 115, type: 'mar_abierto' },
+    { nombre: 'Granadella / Benitatxell / Moraira', lat: 38.690, lon: 0.155, match: /granadella|benitatxell|cumbre del sol|moraira|el portet/i, seaward: 160, type: 'mar_abierto' },
+    { nombre: 'Calpe / Altea', lat: 38.625, lon: 0.025, match: /calpe|penon de ifach|peñón de ifach|altea|albir/i, seaward: 135, type: 'bahia_protegida' },
+    { nombre: 'Benidorm / Villajoyosa', lat: 38.530, lon: -0.150, match: /benidorm|poniente|levante benidorm|villajoyosa|la vila/i, seaward: 155, type: 'mar_abierto' },
+    { nombre: 'El Campello / San Juan', lat: 38.410, lon: -0.400, match: /campello|el campello|muchavista|san juan playa|playa de san juan|playa san juan/i, seaward: 120, type: 'mar_abierto' },
+    { nombre: 'Cabo Huertas / Postiguet', lat: 38.355, lon: -0.460, match: /cabo huertas|cabo de las huertas|postiguet|alicante/i, seaward: 135, type: 'mar_abierto' },
+    { nombre: 'Arenales / Santa Pola Este', lat: 38.240, lon: -0.525, match: /arenales|arenales del sol|carabassi|carabassí|santa pola este|cabo santa pola/i, seaward: 110, type: 'mar_abierto' },
+    { nombre: 'Santa Pola Sur / Guardamar / Torrevieja', lat: 38.050, lon: -0.650, match: /santa pola sur|playa lisa|guardamar|la mata|torrevieja/i, seaward: 125, type: 'mar_abierto' },
+    { nombre: 'Isla de Tabarca', lat: 38.165, lon: -0.475, match: /tabarca|isla tabarca/i, seaward: 135, type: 'mar_abierto' },
 
     // Valencia / Castellón
-    { match: /valencia|malvarrosa|patacona|saler/i, seaward: 90, type: 'mar_abierto' },
-    { match: /cullera|gandia|oliva/i, seaward: 80, type: 'mar_abierto' },
-    { match: /castellon|benicassim|oropesa|peñiscola/i, seaward: 100, type: 'mar_abierto' },
+    { nombre: 'Valencia Malvarrosa / El Saler', lat: 39.480, lon: -0.320, match: /valencia|malvarrosa|patacona|saler/i, seaward: 90, type: 'mar_abierto' },
+    { nombre: 'Cullera / Gandía / Oliva', lat: 39.080, lon: -0.220, match: /cullera|gandia|oliva/i, seaward: 80, type: 'mar_abierto' },
+    { nombre: 'Castellón / Benicàssim / Peñíscola', lat: 40.030, lon: 0.050, match: /castellon|benicassim|oropesa|peñiscola/i, seaward: 100, type: 'mar_abierto' },
 
     // Cantabria / Asturias / País Vasco
-    { match: /somo|loredo|pedreña|santander/i, seaward: 350, type: 'mar_abierto' },
-    { match: /suances|los locos/i, seaward: 340, type: 'mar_abierto' },
-    { match: /liencres|valdearenas/i, seaward: 340, type: 'mar_abierto' },
-    { match: /laredo|castro urdiales|noja|santoña/i, seaward: 0, type: 'mar_abierto' },
-    { match: /gijon|gijón|san lorenzo|roces/i, seaward: 10, type: 'mar_abierto' },
-    { match: /salinas|aviles|luanco/i, seaward: 350, type: 'mar_abierto' },
-    { match: /ribadesella|llanes/i, seaward: 0, type: 'mar_abierto' },
-    { match: /zarautz|sopelana|mundaka|san sebastian|la concha/i, seaward: 350, type: 'mar_abierto' },
+    { nombre: 'Somo / Santander', lat: 43.460, lon: -3.750, match: /somo|loredo|pedreña|santander/i, seaward: 350, type: 'mar_abierto' },
+    { nombre: 'Suances / Los Locos', lat: 43.430, lon: -4.040, match: /suances|los locos/i, seaward: 340, type: 'mar_abierto' },
+    { nombre: 'Liencres / Valdearenas', lat: 43.450, lon: -3.960, match: /liencres|valdearenas/i, seaward: 340, type: 'mar_abierto' },
+    { nombre: 'Laredo / Noja / Santoña', lat: 43.420, lon: -3.420, match: /laredo|castro urdiales|noja|santoña/i, seaward: 0, type: 'mar_abierto' },
+    { nombre: 'Gijón San Lorenzo', lat: 43.540, lon: -5.650, match: /gijon|gijón|san lorenzo|roces/i, seaward: 10, type: 'mar_abierto' },
+    { nombre: 'Salinas / Avilés', lat: 43.580, lon: -5.960, match: /salinas|aviles|luanco/i, seaward: 350, type: 'mar_abierto' },
+    { nombre: 'Ribadesella / Llanes', lat: 43.460, lon: -5.060, match: /ribadesella|llanes/i, seaward: 0, type: 'mar_abierto' },
+    { nombre: 'Zarautz / San Sebastián / Mundaka', lat: 43.290, lon: -2.170, match: /zarautz|sopelana|mundaka|san sebastian|la concha/i, seaward: 350, type: 'mar_abierto' },
 
     // Cataluña
-    { match: /barceloneta|bogatell|barcelona|mar bella/i, seaward: 130, type: 'mar_abierto' },
-    { match: /sitges|vilanova|castelldefels/i, seaward: 150, type: 'mar_abierto' },
-    { match: /tossa|lloret|blanes|platja d'aro/i, seaward: 120, type: 'mar_abierto' },
-    { match: /roses|cadaques|empuriabrava|costa brava/i, seaward: 100, type: 'mar_abierto' },
+    { nombre: 'Barcelona Barceloneta', lat: 41.380, lon: 2.190, match: /barceloneta|bogatell|barcelona|mar bella/i, seaward: 130, type: 'mar_abierto' },
+    { nombre: 'Sitges / Castelldefels', lat: 41.250, lon: 1.900, match: /sitges|vilanova|castelldefels/i, seaward: 150, type: 'mar_abierto' },
+    { nombre: 'Tossa / Lloret / Blanes', lat: 41.720, lon: 2.930, match: /tossa|lloret|blanes|platja d'aro/i, seaward: 120, type: 'mar_abierto' },
+    { nombre: 'Roses / Cadaqués / Empuriabrava', lat: 42.260, lon: 3.180, match: /roses|cadaques|empuriabrava|costa brava/i, seaward: 100, type: 'mar_abierto' },
 
     // Andalucía / Estrecho
-    { match: /tarifa|valdevaqueros|los lances/i, seaward: 220, type: 'mar_abierto' },
-    { match: /cadiz|cádiz|cortadura|victoria/i, seaward: 250, type: 'mar_abierto' },
-    { match: /conil|palmar|el palmar|canos de meca/i, seaward: 240, type: 'mar_abierto' },
-    { match: /malaga|málaga|marbella|torremolinos|fuengirola/i, seaward: 170, type: 'mar_abierto' },
-    { match: /almeria|almería|cabo de gata|san jose/i, seaward: 150, type: 'mar_abierto' },
-    { match: /huelva|punta umbria|mazagon/i, seaward: 190, type: 'mar_abierto' },
+    { nombre: 'Tarifa / Valdevaqueros', lat: 36.030, lon: -5.630, match: /tarifa|valdevaqueros|los lances/i, seaward: 220, type: 'mar_abierto' },
+    { nombre: 'Cádiz Victoria / Cortadura', lat: 36.500, lon: -6.280, match: /cadiz|cádiz|cortadura|victoria/i, seaward: 250, type: 'mar_abierto' },
+    { nombre: 'El Palmar / Conil', lat: 36.230, lon: -6.070, match: /conil|palmar|el palmar|canos de meca/i, seaward: 240, type: 'mar_abierto' },
+    { nombre: 'Málaga / Marbella / Torremolinos', lat: 36.600, lon: -4.600, match: /malaga|málaga|marbella|torremolinos|fuengirola/i, seaward: 170, type: 'mar_abierto' },
+    { nombre: 'Cabo de Gata / Almería', lat: 36.750, lon: -2.250, match: /almeria|almería|cabo de gata|san jose/i, seaward: 150, type: 'mar_abierto' },
+    { nombre: 'Huelva Punta Umbría / Mazagón', lat: 37.150, lon: -6.900, match: /huelva|punta umbria|mazagon/i, seaward: 190, type: 'mar_abierto' },
 
     // Baleares
-    { match: /palma|can pastilla|el arenal/i, seaward: 200, type: 'bahia_protegida' },
-    { match: /alcudia|pollensa|pollença/i, seaward: 60, type: 'bahia_protegida' },
-    { match: /ibiza|eivissa|playa d'en bossa|san antonio/i, seaward: 180, type: 'mar_abierto' },
-    { match: /formentera|illetes/i, seaward: 270, type: 'mar_abierto' },
-    { match: /menorca|fornells|ciutadella|mahon/i, seaward: 30, type: 'mar_abierto' },
+    { nombre: 'Palma Bahía / Can Pastilla', lat: 39.540, lon: 2.650, match: /palma|can pastilla|el arenal/i, seaward: 200, type: 'bahia_protegida' },
+    { nombre: 'Alcudia / Pollença', lat: 39.850, lon: 3.120, match: /alcudia|pollensa|pollença/i, seaward: 60, type: 'bahia_protegida' },
+    { nombre: 'Ibiza / San Antonio', lat: 38.900, lon: 1.420, match: /ibiza|eivissa|playa d'en bossa|san antonio/i, seaward: 180, type: 'mar_abierto' },
+    { nombre: 'Formentera Illetes', lat: 38.740, lon: 1.430, match: /formentera|illetes/i, seaward: 270, type: 'mar_abierto' },
+    { nombre: 'Menorca Fornells / Mahón', lat: 40.050, lon: 4.130, match: /menorca|fornells|ciutadella|mahon/i, seaward: 30, type: 'mar_abierto' },
 
     // Galicia
-    { match: /vigo|samil|cangas|baiona/i, seaward: 260, type: 'bahia_protegida' },
-    { match: /coruna|coruña|riera|raxo|sanxenxo/i, seaward: 270, type: 'bahia_protegida' },
+    { nombre: 'Ría de Vigo / Samil', lat: 42.210, lon: -8.770, match: /vigo|samil|cangas|baiona/i, seaward: 260, type: 'bahia_protegida' },
+    { nombre: 'Ría de Pontevedra / Sanxenxo', lat: 42.400, lon: -8.810, match: /coruna|coruña|riera|raxo|sanxenxo/i, seaward: 270, type: 'bahia_protegida' },
 
     // Embalses y aguas interiores
-    { match: /pantano|embalse|lago|entrepeñas|buendia|iznajar|alange|valmayor/i, seaward: null, type: 'embalse_interior' }
+    { nombre: 'Aguas Interiores / Embalses', match: /pantano|embalse|lago|entrepeñas|buendia|iznajar|alange|valmayor/i, seaward: null, type: 'embalse_interior' }
 ];
 
 /**
@@ -189,28 +192,76 @@ export function resolverOrientacionCostera(arg1 = '', arg2 = null, arg3 = null) 
         };
     }
 
-    // 2. Buscar en catálogo curado de costa
-    const match = SPOTS_CONOCIDOS.find(s => s.match.test(spotNormalizado));
+    // 2. Buscar en catálogo curado de costa por coincidencia de texto
+    const match = SPOTS_CONOCIDOS.find(s => s.match && s.match.test(spotNormalizado));
     if (match) {
         const esEmb = match.type === 'embalse_interior';
         return {
             seawardDeg: match.seaward,
             esCosta: !esEmb,
             esEmbalse: esEmb,
-            tipoEntorno: match.type,
-            fuente: 'catalogo_spots'
+            tipoEntorno: match.type || 'mar_abierto',
+            fuente: 'catalogo_spots',
+            spotNombre: match.nombre || null
         };
     }
 
-    // 3. Fallback a geodesia costera de alta precisión
-    const seawardGeo = estimarRumboCosteroGeodesico(lat, lon);
-    const esInterior = seawardGeo === null;
+    // 3. Soporte geodésico por coordenadas si no hubo coincidencia por texto
+    if (lat !== null && lon !== null && Number.isFinite(lat) && Number.isFinite(lon)) {
+        // Comprobar si las coordenadas pertenecen a zonas interiores reconocidas
+        const seawardGeo = estimarRumboCosteroGeodesico(lat, lon);
+        if (seawardGeo === null) {
+            return {
+                seawardDeg: null,
+                esCosta: false,
+                esEmbalse: true,
+                tipoEntorno: 'embalse_interior',
+                fuente: 'geodesia_interior'
+            };
+        }
+
+        // Buscar el punto costero más cercano por distancia euclídea simple
+        let mejorSpot = null;
+        let menorDistSq = Infinity;
+        for (const spot of SPOTS_CONOCIDOS) {
+            if (spot.lat !== undefined && spot.lon !== undefined && spot.seaward !== null) {
+                const distSq = (spot.lat - lat) ** 2 + (spot.lon - lon) ** 2;
+                if (distSq < menorDistSq) {
+                    menorDistSq = distSq;
+                    mejorSpot = spot;
+                }
+            }
+        }
+
+        // Si se encuentra un punto clave costero en un radio aproximado de 0.45° (~45 km)
+        if (mejorSpot && menorDistSq <= 0.2025) {
+            return {
+                seawardDeg: mejorSpot.seaward,
+                esCosta: true,
+                esEmbalse: false,
+                tipoEntorno: mejorSpot.type || 'mar_abierto',
+                fuente: 'geodesia_proximidad_costa',
+                spotCercano: mejorSpot.nombre || null
+            };
+        }
+
+        // Fallback a rumbo geodésico peninsular regional
+        return {
+            seawardDeg: seawardGeo,
+            esCosta: true,
+            esEmbalse: false,
+            tipoEntorno: 'mar_abierto',
+            fuente: 'geodesia_coordenadas'
+        };
+    }
+
+    // 4. Fallback final si no hay coordenadas ni coincidencia de nombre
     return {
-        seawardDeg: seawardGeo,
-        esCosta: !esInterior,
-        esEmbalse: esInterior,
-        tipoEntorno: esInterior ? 'embalse_interior' : 'mar_abierto',
-        fuente: 'geodesia_coordenadas'
+        seawardDeg: 90,
+        esCosta: true,
+        esEmbalse: false,
+        tipoEntorno: 'mar_abierto',
+        fuente: 'fallback_defecto'
     };
 }
 
@@ -288,10 +339,15 @@ export function calcularIndiceDerivaPaddleSafe({
     rachasKt = 0,
     oleajeM = 0,
     componente = 'side-shore',
-    esCosta = true
+    esCosta = true,
+    driftMod = 1.0,
+    boardType = null
 }) {
     if (!esCosta) {
         let scoreInterior = Math.min(60, Math.round((vientoKt * 2.5) + (rachasKt * 1.2)));
+        if (Number.isFinite(driftMod) && driftMod > 0) {
+            scoreInterior = Math.min(80, Math.round(scoreInterior * driftMod));
+        }
         let nivelInterior = scoreInterior > 40 ? 'Moderado' : 'Bajo';
         return {
             score: scoreInterior,
@@ -321,6 +377,11 @@ export function calcularIndiceDerivaPaddleSafe({
         score += 10;
     }
 
+    // Aplicar modificador de deriva según tipo de tabla
+    if (Number.isFinite(driftMod) && driftMod > 0 && driftMod !== 1.0) {
+        score = score * driftMod;
+    }
+
     score = Math.max(0, Math.min(100, Math.round(score)));
     let nivel = 'Bajo';
     if (score >= 75) nivel = 'Muy Alto';
@@ -333,5 +394,9 @@ export function calcularIndiceDerivaPaddleSafe({
             ? `Riesgo ${nivel.toLowerCase()}: viento onshore hacia tierra; retorno seguro a la orilla facilitado.`
             : `Riesgo ${nivel.toLowerCase()}: viento lateral (${vientoKt} kt) desplazando paralelamente a costa.`;
 
-    return { score, nivel, descripcion, componente };
+    if (driftMod > 1.05) {
+        descripcion += ' Acentuado por mayor francobordo de tabla hinchable.';
+    }
+
+    return { score, nivel, descripcion, componente, driftMod };
 }

@@ -284,10 +284,90 @@ export async function guardarRutaDeportivaConGamificacion({
     };
 }
 
+/**
+ * Calcula el XP de una ruta según distancia y velocidad media (alias de calcularXpRutaNueva)
+ */
+export async function calcularXpRuta(params) {
+    if (typeof params === 'number') {
+        const distanceKm = params;
+        const avgSpeed = arguments[1] || 0;
+        const userId = arguments[2] || null;
+        return calcularXpRutaNueva({ userId, distanceKm, avgSpeed });
+    }
+    return calcularXpRutaNueva(params || {});
+}
+
+/**
+ * Sincroniza la progresión de XP, distancia acumulada y nivel en la tabla 'perfiles'
+ * tras finalizar una ruta o travesía GPS.
+ */
+export async function sincronizarProgresion({ userId, distanceKm = 0, durationMinutes = 0, avgSpeed = 0 }) {
+    if (!userId || !supabaseClient) return null;
+    const dist = Math.max(0, Number(Number(distanceKm || 0).toFixed(2)));
+    const mins = Math.max(0, Number(durationMinutes || 0));
+    const speed = Number(avgSpeed || (mins > 0 ? (dist / (mins / 60)) : 0));
+
+    // 1. Calcular XP ganado con validación anti-trampas
+    const resXp = await calcularXpRutaNueva({ userId, distanceKm: dist, avgSpeed: speed });
+    const xpGanado = resXp.xpGanado || Math.round(dist * 100);
+
+    try {
+        // 2. Obtener perfil actual para cálculo atómico
+        const { data: perfil, error: errPerf } = await supabaseClient
+            .from('perfiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+
+        if (errPerf) throw errPerf;
+
+        if (perfil) {
+            const currentXp = Number(perfil.total_xp ?? perfil.puntos ?? 0);
+            const currentDist = Number(perfil.total_distance_km ?? perfil.km_totales ?? 0);
+            const nuevoXp = currentXp + xpGanado;
+            const nuevaDist = Number((currentDist + dist).toFixed(2));
+            const nuevoNivel = Math.floor(Math.sqrt(nuevoXp / 100)) + 1;
+
+            const updatePayload = {
+                total_xp: nuevoXp,
+                puntos: nuevoXp,
+                total_distance_km: nuevaDist,
+                km_totales: nuevaDist,
+                current_level: nuevoNivel,
+                nivel: nuevoNivel
+            };
+
+            const { data: perfilActualizado, error: errUpd } = await supabaseClient
+                .from('perfiles')
+                .update(updatePayload)
+                .eq('id', userId)
+                .select()
+                .maybeSingle();
+
+            if (errUpd) throw errUpd;
+
+            return {
+                ok: true,
+                xpGanado,
+                nuevoXp,
+                nuevoNivel,
+                nuevaDist,
+                perfil: perfilActualizado || { ...perfil, ...updatePayload }
+            };
+        }
+    } catch (e) {
+        console.warn('[gamification] Aviso al sincronizar progresión:', e);
+    }
+    return { ok: false, xpGanado };
+}
+
 // Exponer en window para acceso global si fuese necesario
 if (typeof window !== 'undefined') {
     window.calcularNivelYProgreso = calcularNivelYProgreso;
     window.calcularXpRutaNueva = calcularXpRutaNueva;
+    window.calcularXpRuta = calcularXpRuta;
+    window.sincronizarProgresion = sincronizarProgresion;
+    window.sincronizarProgresionRuta = sincronizarProgresion;
     window.obtenerPosicionRanking = obtenerPosicionRanking;
     window.guardarRutaDeportivaConGamificacion = guardarRutaDeportivaConGamificacion;
 }

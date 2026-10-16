@@ -12,7 +12,7 @@
 // OTA: sube VERSION en cada despliegue (junto con version.json). Al activarse,
 // el SW borra TODAS las cachés de versiones anteriores.
 // ==============================================================================
-const VERSION = 'paddlesafe-v46';
+const VERSION = 'paddlesafe-v48';
 const SHELL   = `${VERSION}-shell`;   // HTML + JS propio
 const STATIC  = `${VERSION}-static`;  // iconos, css, fuentes, manifest
 const IMGS    = `${VERSION}-img`;     // avatares, logos, marcadores (inmutables)
@@ -20,7 +20,7 @@ const TILES   = `${VERSION}-tiles`;   // mapa
 const LIBS    = `${VERSION}-libs`;    // leaflet, supabase-js, tailwind… (CDN)
 const KEEP    = [SHELL, STATIC, IMGS, TILES, LIBS];
 
-const MAX = { shell: 24, static: 80, imgs: 200, tiles: 400, libs: 24 };
+const MAX = { shell: 24, static: 80, imgs: 200, tiles: 1000, libs: 24 };
 const NET_TIMEOUT = 4000;             // ms antes de caer a la caché (red lenta en el mar)
 
 // ---------- Clasificación de hosts ----------
@@ -262,5 +262,47 @@ self.addEventListener('message', event => {
   else if (t === 'CLEAR_CACHES') {
     event.waitUntil(caches.keys().then(ks =>
       Promise.all(ks.filter(k => k.startsWith('paddlesafe-')).map(k => caches.delete(k)))));
+  } else if (t === 'PREFETCH_TILES') {
+    const urls = Array.isArray(event.data.urls) ? event.data.urls : [];
+    event.waitUntil((async () => {
+      const cache = await caches.open(TILES);
+      let loaded = 0;
+      const total = urls.length;
+      const BATCH_SIZE = 6;
+
+      const notify = (status, extra = {}) => {
+        const payload = { type: 'PREFETCH_TILES_UPDATE', status, loaded, total, ...extra };
+        if (event.ports && event.ports[0]) {
+          try { event.ports[0].postMessage(payload); } catch (_) {}
+        }
+        if (event.source && event.source.postMessage) {
+          try { event.source.postMessage(payload); } catch (_) {}
+        }
+      };
+
+      notify('started');
+
+      for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+        const batch = urls.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async (url) => {
+          try {
+            const req = new Request(url, { mode: 'cors', credentials: 'omit', cache: 'default' });
+            const hit = await cache.match(req);
+            if (!hit) {
+              const res = await fetch(req);
+              if (cacheable(res)) {
+                await putSafe(cache, req, res.clone(), MAX.tiles);
+              }
+            }
+          } catch (_) {
+            // Silencioso ante errores puntuales de red/tesela
+          } finally {
+            loaded++;
+          }
+        }));
+        notify('progress');
+      }
+      notify('completed', { success: true });
+    })());
   }
 });

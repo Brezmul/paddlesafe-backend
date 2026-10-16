@@ -22,9 +22,16 @@ export function initAuthListeners() {
             setTimeout(async () => {
                 if (session) {
                     await cargarPerfilUsuarioActivo();
-                    if (event === 'SIGNED_IN') window.sincronizarRutasPendientes?.();
+                    if (event === 'SIGNED_IN') {
+                        window.sincronizarRutasPendientes?.();
+                        window.cargarSpotsGuardadosUsuario?.();
+                    }
                 }
-                else { appState.perfilUsuario = null; actualizarBotonCabecera(); }
+                else { 
+                    appState.perfilUsuario = null; 
+                    actualizarBotonCabecera(); 
+                    window.cargarSpotsGuardadosUsuario?.();
+                }
                 
                 const modal = document.getElementById('authModal');
                 if (modal && !modal.classList.contains('hidden') && appState.sesionActual && !document.getElementById('nuevaPassword') && appState.perfilUsuario) cerrarModalAuth();
@@ -48,6 +55,9 @@ export async function cargarPerfilUsuarioActivo() {
         actualizarBotonCabecera(); 
         if (window.socialNotifications && typeof window.socialNotifications.cargarNotificaciones === 'function') {
             window.socialNotifications.cargarNotificaciones();
+        }
+        if (typeof window.cargarSpotsGuardadosUsuario === 'function') {
+            window.cargarSpotsGuardadosUsuario();
         }
     }
 }

@@ -224,5 +224,113 @@ export function parseGPX(gpxXmlContent) {
     };
 }
 
+function escapeXml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
+/**
+ * Genera un string XML GPX 1.1 estándar válido a partir de un array de coordenadas
+ * @param {Array<[lat, lon]|{lat, lon/lng, time?, ele?}>} coords 
+ * @param {Object} metadata 
+ * @returns {string} XML GPX 1.1
+ */
+export function generarGPX(coords = [], metadata = {}) {
+    if (!Array.isArray(coords) || coords.length === 0) {
+        throw new Error("No hay coordenadas para generar el archivo GPX.");
+    }
+
+    const nombre = metadata.nombre || metadata.name || "Ruta PaddleSafe";
+    const descripcion = metadata.descripcion || metadata.desc || "Track generado por PaddleSafe";
+    const autor = metadata.autor || "PaddleSafe App";
+    const ahoraIso = new Date().toISOString();
+    const tiempoBase = metadata.startTime ? new Date(metadata.startTime) : new Date();
+
+    let acumuladoMetros = 0;
+    const VELOCIDAD_ESTIMADA_MS = (metadata.velocidadKmh || 4.5) / 3.6;
+
+    const puntosNormalizados = [];
+    for (let i = 0; i < coords.length; i++) {
+        const pt = coords[i];
+        let lat, lon, time = null, ele = 0;
+
+        if (Array.isArray(pt)) {
+            lat = Number(pt[0]);
+            lon = Number(pt[1]);
+        } else if (typeof pt === 'object' && pt !== null) {
+            lat = Number(pt.lat ?? pt.latitude);
+            lon = Number(pt.lon ?? pt.lng ?? pt.longitude);
+            time = pt.time || pt.timestamp || null;
+            ele = Number(pt.ele ?? pt.elevation ?? 0);
+        }
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+        if (i > 0 && puntosNormalizados.length > 0) {
+            const ant = puntosNormalizados[puntosNormalizados.length - 1];
+            acumuladoMetros += haversineDistance(ant.lat, ant.lon, lat, lon);
+        }
+
+        if (!time) {
+            const segundosEstimados = Math.round(acumuladoMetros / VELOCIDAD_ESTIMADA_MS);
+            time = new Date(tiempoBase.getTime() + segundosEstimados * 1000).toISOString();
+        } else if (typeof time === 'number') {
+            time = new Date(time).toISOString();
+        }
+
+        puntosNormalizados.push({ lat, lon, time, ele });
+    }
+
+    const trkptsXml = puntosNormalizados.map(p => 
+        `      <trkpt lat="${p.lat.toFixed(6)}" lon="${p.lon.toFixed(6)}">
+        <ele>${p.ele.toFixed(1)}</ele>
+        <time>${p.time}</time>
+      </trkpt>`
+    ).join('\n');
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="${escapeXml(autor)} - https://paddlesafe.app" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <name>${escapeXml(nombre)}</name>
+    <desc>${escapeXml(descripcion)}</desc>
+    <time>${ahoraIso}</time>
+  </metadata>
+  <trk>
+    <name>${escapeXml(nombre)}</name>
+    <type>PADDLEBOARDING</type>
+    <trkseg>
+${trkptsXml}
+    </trkseg>
+  </trk>
+</gpx>`;
+}
+
+/**
+ * Dispara la descarga en navegador de un archivo .gpx válido
+ * @param {Array} coords 
+ * @param {string} nombreArchivo 
+ */
+export function descargarGPX(coords = [], nombreArchivo = "ruta_paddlesafe.gpx") {
+    if (!nombreArchivo.toLowerCase().endsWith(".gpx")) {
+        nombreArchivo += ".gpx";
+    }
+    const cleanName = nombreArchivo.replace(/[\\/:*?"<>|]/g, '_');
+    const xml = generarGPX(coords, { nombre: cleanName.replace(/\.gpx$/i, '') });
+    const blob = new Blob([xml], { type: 'application/gpx+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = cleanName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export default parseGPX;
 

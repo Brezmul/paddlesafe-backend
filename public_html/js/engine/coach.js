@@ -171,6 +171,9 @@ export function generarConsejoCoach({
     // 10. Material y Equipamiento de Seguridad ISA
     const materialRecomendado = generarMaterialRecomendado(oleajeM, compCostera, esEmbalse);
 
+    const periodoOla = Number(condiciones.wavePeriod ?? condiciones.wave_period ?? condiciones.periodoOla ?? motor?.nextGen?.periodoOlaS ?? motor?.periodoOlaS ?? 0);
+    const evo = motor?.evolucionProxima || motor?.nextGen?.evolucionProxima || null;
+
     // 11. Consejo Personalizado del Instructor (Recomendación Principal Única)
     const consejoInstructor = generarConsejoInstructor(nivel, compCostera, vKt, oleajeM, distKm, motor);
 
@@ -181,8 +184,21 @@ export function generarConsejoCoach({
     const consejosNivelFiltrados = filtrarConsejosRedundantes(consejosNivel, [consejoInstructor, estrategiaViento?.consejo_pacing]);
     const seguridadFiltrada = filtrarConsejosRedundantes([
         textoDeriva,
-        ...generarSeguridadEstrategia(nivel, compCostera, vKt, oleajeM)
+        ...generarSeguridadEstrategia(nivel, compCostera, vKt, oleajeM, periodoOla, evo)
     ], [consejoInstructor, reglaOro]);
+
+    // Coaching adaptado a la física de la tabla (hinchable vs rígida race)
+    const equipo = condiciones.equipoUsuario || motor?.equipoUsuario || motor?.nextGen?.equipoUsuario || null;
+    const boardType = condiciones.boardType || motor?.boardType || equipo?.tipoTabla || null;
+    const driftMod = Number(condiciones.driftMod || motor?.driftMod || equipo?.driftMod || 1.0);
+
+    if (driftMod > 1.05 && vKt >= 10 && ['offshore', 'side-shore', 'cruzado'].includes(String(compCostera || '').toLowerCase())) {
+        materialRecomendado.push("Quilla touring de perfil profundo y leash al tobillo/rodilla para contrarrestar el efecto vela de tu tabla hinchable.");
+        seguridadFiltrada.unshift(`Atención Tabla Hinchable: con ${vKt} kt de viento ${compCostera}, el francobordo grueso (15 cm) actúa como vela. Rema de rodillas si notas deriva rápida mar adentro.`);
+    } else if (boardType === 'rigid_race' && (oleajeM >= 0.4 || (periodoOla > 0 && periodoOla <= 5))) {
+        materialRecomendado.push("Leash de cintura de zafado rápido y pala de ataque ágil.");
+        seguridadFiltrada.unshift("Atención Tabla Race: con mar picado / chop lateral, mantén flexión baja de rodillas y braceo amplio de pala para preservar la estabilidad.");
+    }
 
     // 13. Veredicto Ejecutivo del Instructor
     const veredicto = generarVeredictoEjecutivo(motor?.seguridad?.score ?? 80, vKt, rKt, oleajeM, compCostera, nivel, motor);
@@ -199,7 +215,7 @@ export function generarConsejoCoach({
         analisis_deriva: textoDeriva,
         analisis_zona: {
             orografia: esEmbalse ? "Entorno de aguas interiores abrigadas con posibles encajonamientos de viento." : "Costa con exposición al régimen de vientos y oleaje marítimo.",
-            peligros_detectados: generarPeligrosZona(compCostera, vKt, oleajeM, esEmbalse),
+            peligros_detectados: generarPeligrosZona(compCostera, vKt, oleajeM, esEmbalse, periodoOla, evo),
             recomendacion_seguridad: esEmbalse ? "Navega con chaleco y mantén distancia de presas y aliviaderos." : "Navega paralelo a la costa y mantén línea de visión despejada hacia la orilla."
         },
         ventana_recomendada: textoVentana,
@@ -491,8 +507,11 @@ function generarVeredictoEjecutivo(score, vKt, rKt, oleajeM, compCostera, nivel,
     return "CONDICIONES EXIGENTES: VALORAR APLAZAR O RUTA MUY RESGUARDADA";
 }
 
-function generarPeligrosZona(compCostera, vKt, oleajeM, esEmbalse) {
+function generarPeligrosZona(compCostera, vKt, oleajeM, esEmbalse, periodoOla = 0, evo = null) {
     const peligros = [];
+    if (evo && evo.mensaje) {
+        peligros.push(evo.mensaje);
+    }
     if (esEmbalse) {
         peligros.push("Fondos irregulares y ramas sumergidas cerca de las orillas: cuidado con el calado de la quilla.");
         peligros.push("Corrientes invisibles en proximidades de compuertas o aliviaderos de la presa.");
@@ -503,7 +522,11 @@ function generarPeligrosZona(compCostera, vKt, oleajeM, esEmbalse) {
         if (vKt >= 12) {
             peligros.push("Aceleración del viento en salientes rocosos y espigones por efecto Venturi.");
         }
-        if (oleajeM >= 0.5) {
+        if (oleajeM >= 0.4 && periodoOla > 0 && periodoOla <= 5) {
+            peligros.push(`Chop corto e inestabilidad lateral por ola de periodo reducido (${Math.round(periodoOla)}s).`);
+        } else if (oleajeM >= 0.3 && periodoOla >= 9) {
+            peligros.push(`Mar de fondo (${Math.round(periodoOla)}s): series con fuerza y rompiente orillera acusada.`);
+        } else if (oleajeM >= 0.5) {
             peligros.push("Mar cruzado y rebote de olas (clapotis) cerca de acantilados o muros de puertos.");
         }
         peligros.push("Presta atención al calado de la quilla central al embarcar y desembarcar en la rompiente de orilla.");
@@ -511,8 +534,11 @@ function generarPeligrosZona(compCostera, vKt, oleajeM, esEmbalse) {
     return peligros;
 }
 
-function generarSeguridadEstrategia(nivel, compCostera, vKt, oleajeM) {
+function generarSeguridadEstrategia(nivel, compCostera, vKt, oleajeM, periodoOla = 0, evo = null) {
     const list = [];
+    if (evo && evo.mensaje) {
+        list.push(`Evolución próxima: programa el fin de la sesión antes del empeoramiento a ${evo.vientoFuturoKt} kt.`);
+    }
     if (compCostera === 'offshore') {
         list.push("Navega siempre en paralelo a la orilla sin superar la distancia que puedas nadar en caso de emergencia.");
         list.push("Fija dos puntos de referencia visuales en tierra y comprueba tu posición cada pocos minutos para detectar deriva involuntaria.");

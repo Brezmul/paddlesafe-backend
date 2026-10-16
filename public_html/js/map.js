@@ -18,9 +18,12 @@ import {
     detectarVentanasOptimas,
     calcularBeginnerIndex,
     evaluarCondicionesDeporte,
-    generarConsejoCoach
+    generarConsejoCoach,
+    calcularSolYCrepusculo
 } from './utils.js';
 import { ClubState } from './club/state.js';
+import { calcularXpRuta, sincronizarProgresion } from './gamification.js';
+import { parseGPX, generarGPX, descargarGPX } from './gpxParser.js';
 
 const ICONOS_SEGURIDAD = {
     'SEGURO': '🟢',
@@ -238,165 +241,212 @@ function crearFranjaForecast(horaSalida, duracionMinutos = 120) {
 const cacheGeohashMeteo = new Map();
 const CACHE_TTL_METEO_MS = 15 * 60 * 1000;
 
+// Resiliencia Offline: Snapshot del último pronóstico meteorológico válido
+const SNAPSHOT_KEY = 'paddlesafe_last_forecast_snapshot';
+const SNAPSHOT_MAX_AGE_MS = 12 * 60 * 60 * 1000; // 12 horas
+
+export function guardarForecastSnapshot(nombreUbicacion, lat, lon, data) {
+    try {
+        const snapshot = {
+            ts: Date.now(),
+            location: String(nombreUbicacion || 'Costa'),
+            lat: Number(lat),
+            lon: Number(lon),
+            data
+        };
+        localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
+    } catch (e) {
+        console.warn('[snapshot] No se pudo guardar snapshot meteorológico:', e);
+    }
+}
+
+export function recuperarForecastSnapshot() {
+    try {
+        const raw = localStorage.getItem(SNAPSHOT_KEY);
+        if (!raw) return null;
+        const snapshot = JSON.parse(raw);
+        if (!snapshot || !snapshot.ts || !snapshot.data) return null;
+        if (Date.now() - snapshot.ts > SNAPSHOT_MAX_AGE_MS) return null;
+        return snapshot;
+    } catch (e) {
+        return null;
+    }
+}
+
 async function solicitarPronostico(payload) {
     let lat = null;
     let lon = null;
-    const coordenadas = String(payload.location || '').split(',').map(valor => Number(valor.trim()));
-    if (coordenadas.length === 2 && coordenadas.every(Number.isFinite)
-        && Math.abs(coordenadas[0]) <= 90 && Math.abs(coordenadas[1]) <= 180) {
-        [lat, lon] = coordenadas;
-    } else {
-        const geocodingUrl = new URL('https://geocoding-api.open-meteo.com/v1/search');
-        geocodingUrl.search = new URLSearchParams({
-            name: String(payload.location || ''),
-            count: '1',
-            language: 'es',
-            format: 'json'
-        });
-        const geocodingResponse = await fetchConTimeout(geocodingUrl, { cache: 'no-store' }, 8000);
-        if (!geocodingResponse.ok) throw new Error(`Geocodificación respondió con HTTP ${geocodingResponse.status}.`);
-        const result = (await geocodingResponse.json()).results?.[0];
-        if (!Number.isFinite(result?.latitude) || !Number.isFinite(result?.longitude)) {
-            throw new Error('No se pudieron determinar coordenadas para la ubicación seleccionada.');
-        }
-        lat = result.latitude;
-        lon = result.longitude;
-    }
-
-    // 1. Open-Meteo Forecast + Marine como fuente principal (con caché geodésica)
-    let datosOpenMeteo = null;
-    let errorOpenMeteo = null;
     try {
-        datosOpenMeteo = await solicitarPronosticoOpenMeteo(payload, lat, lon);
-    } catch (errOM) {
-        errorOpenMeteo = errOM;
-        console.warn('[pronóstico] Error en consulta directa a Open-Meteo:', errOM);
-    }
-
-    // 2. Consulta no bloqueante de alertas oficiales AEMET y fallback de backend
-    let datosBackend = null;
-    let datosAemet = null;
-    try {
-        const [respBackend, respAemet] = await Promise.allSettled([
-            fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...payload, lat, lon })
-            }, 3500),
-            fetchConTimeout(`${BACKEND_API_URL}?action=aemet&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&location=${encodeURIComponent(payload.location || '')}`, {
-                method: "GET"
-            }, 3000)
-        ]);
-
-        if (respBackend.status === 'fulfilled' && respBackend.value.ok) {
-            const resJson = await respBackend.value.json();
-            if (resJson?.datos && typeof resJson.datos === 'object') {
-                datosBackend = resJson.datos;
+        const coordenadas = String(payload.location || '').split(',').map(valor => Number(valor.trim()));
+        if (coordenadas.length === 2 && coordenadas.every(Number.isFinite)
+            && Math.abs(coordenadas[0]) <= 90 && Math.abs(coordenadas[1]) <= 180) {
+            [lat, lon] = coordenadas;
+        } else {
+            const geocodingUrl = new URL('https://geocoding-api.open-meteo.com/v1/search');
+            geocodingUrl.search = new URLSearchParams({
+                name: String(payload.location || ''),
+                count: '1',
+                language: 'es',
+                format: 'json'
+            });
+            const geocodingResponse = await fetchConTimeout(geocodingUrl, { cache: 'no-store' }, 8000);
+            if (!geocodingResponse.ok) throw new Error(`Geocodificación respondió con HTTP ${geocodingResponse.status}.`);
+            const result = (await geocodingResponse.json()).results?.[0];
+            if (!Number.isFinite(result?.latitude) || !Number.isFinite(result?.longitude)) {
+                throw new Error('No se pudieron determinar coordenadas para la ubicación seleccionada.');
             }
+            lat = result.latitude;
+            lon = result.longitude;
         }
 
-        if (respAemet.status === 'fulfilled' && respAemet.value.ok) {
-            const aemetJson = await respAemet.value.json();
-            console.log('[AEMET] Respuesta Raw:', aemetJson);
-            if (aemetJson?.ok && Array.isArray(aemetJson.alertas)) {
-                datosAemet = aemetJson;
+        // 1. Open-Meteo Forecast + Marine como fuente principal (con caché geodésica)
+        let datosOpenMeteo = null;
+        let errorOpenMeteo = null;
+        try {
+            datosOpenMeteo = await solicitarPronosticoOpenMeteo(payload, lat, lon);
+        } catch (errOM) {
+            errorOpenMeteo = errOM;
+            console.warn('[pronóstico] Error en consulta directa a Open-Meteo:', errOM);
+        }
+
+        // 2. Consulta no bloqueante de alertas oficiales AEMET y fallback de backend
+        let datosBackend = null;
+        let datosAemet = null;
+        try {
+            const [respBackend, respAemet] = await Promise.allSettled([
+                fetchConTimeout(`${BACKEND_API_URL}?action=forecast`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ...payload, lat, lon })
+                }, 3500),
+                fetchConTimeout(`${BACKEND_API_URL}?action=aemet&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&location=${encodeURIComponent(payload.location || '')}`, {
+                    method: "GET"
+                }, 3000)
+            ]);
+
+            if (respBackend.status === 'fulfilled' && respBackend.value.ok) {
+                const resJson = await respBackend.value.json();
+                if (resJson?.datos && typeof resJson.datos === 'object') {
+                    datosBackend = resJson.datos;
+                }
+            }
+
+            if (respAemet.status === 'fulfilled' && respAemet.value.ok) {
+                const aemetJson = await respAemet.value.json();
+                console.log('[AEMET] Respuesta Raw:', aemetJson);
+                if (aemetJson?.ok && Array.isArray(aemetJson.alertas)) {
+                    datosAemet = aemetJson;
+                }
+            } else {
+                console.log('[AEMET] Respuesta Raw (Fallo o Timeout):', respAemet);
+            }
+        } catch (errBack) {
+            console.warn('[AEMET] Excepción en fetch:', errBack);
+            console.info('[pronóstico] Capa AEMET/Backend no disponible en este momento. Se continúa con Open-Meteo.');
+        }
+
+        if (!datosOpenMeteo && !datosBackend) {
+            throw errorOpenMeteo || new Error("No se pudo obtener el pronóstico meteorológico. Revisa tu conexión a internet.");
+        }
+
+        // Integración canónica de fuentes
+        const datos = {
+            ...(datosBackend || {}),
+            ...(datosOpenMeteo || {}),
+            source: 'open-meteo'
+        };
+
+        // Ingestión y aseguramiento de la Autoridad de Protección Civil 112 (Nivel Nacional)
+        const autoridadLocal = datosAemet?.autoridad || obtenerAutoridadEmergencias112(lat, lon, String(payload.location || ''));
+
+        // Si AEMET devolvió respuesta oficial, integrarla directamente
+        if (datosAemet) {
+            datos.aemet = {
+                disponible: datosAemet.disponible !== false,
+                alertas: datosAemet.alertas || [],
+                activa: Array.isArray(datosAemet.alertas) && datosAemet.alertas.length > 0,
+                zona: datosAemet.zonaDetectada || null,
+                autoridad: autoridadLocal
+            };
+            datos.alertas = datosAemet.alertas || [];
+        } else if (datosBackend?.aemet || datosBackend?.alerta_aemet || datosBackend?.alertas || datosBackend?.warnings) {
+            datos.aemet = datosBackend.aemet || datosBackend.alerta_aemet || datos.aemet;
+            datos.alertas = datosBackend.alertas || datosBackend.warnings || datos.alertas;
+            if (datos.aemet && !datos.aemet.autoridad) {
+                datos.aemet.autoridad = autoridadLocal;
             }
         } else {
-            console.log('[AEMET] Respuesta Raw (Fallo o Timeout):', respAemet);
-        }
-    } catch (errBack) {
-        console.warn('[AEMET] Excepción en fetch:', errBack);
-        console.info('[pronóstico] Capa AEMET/Backend no disponible en este momento. Se continúa con Open-Meteo.');
-    }
-
-    if (!datosOpenMeteo && !datosBackend) {
-        throw errorOpenMeteo || new Error("No se pudo obtener el pronóstico meteorológico. Revisa tu conexión a internet.");
-    }
-
-    // Integración canónica de fuentes
-    const datos = {
-        ...(datosBackend || {}),
-        ...(datosOpenMeteo || {}),
-        source: 'open-meteo'
-    };
-
-    // Ingestión y aseguramiento de la Autoridad de Protección Civil 112 (Nivel Nacional)
-    const autoridadLocal = datosAemet?.autoridad || obtenerAutoridadEmergencias112(lat, lon, String(payload.location || ''));
-
-    // Si AEMET devolvió respuesta oficial, integrarla directamente
-    if (datosAemet) {
-        datos.aemet = {
-            disponible: datosAemet.disponible !== false,
-            alertas: datosAemet.alertas || [],
-            activa: Array.isArray(datosAemet.alertas) && datosAemet.alertas.length > 0,
-            zona: datosAemet.zonaDetectada || null,
-            autoridad: autoridadLocal
-        };
-        datos.alertas = datosAemet.alertas || [];
-    } else if (datosBackend?.aemet || datosBackend?.alerta_aemet || datosBackend?.alertas || datosBackend?.warnings) {
-        datos.aemet = datosBackend.aemet || datosBackend.alerta_aemet || datos.aemet;
-        datos.alertas = datosBackend.alertas || datosBackend.warnings || datos.alertas;
-        if (datos.aemet && !datos.aemet.autoridad) {
-            datos.aemet.autoridad = autoridadLocal;
-        }
-    } else {
-        datos.aemet = {
-            disponible: true,
-            activa: false,
-            alertas: [],
-            autoridad: autoridadLocal,
-            mensaje: 'Sin avisos meteorológicos activos.'
-        };
-        datos.alertas = [];
-    }
-
-    // Ingestión y aseguramiento de Avisos Especiales de Protección Civil 112
-    if (autoridadLocal.id === 'VALENCIA') {
-        const tieneAviso112 = (datos.aemet.alertas || []).some(a => a.origen?.includes('112') || /precipitaciones intensas|EGEN/i.test(a.tipo || a.descripcion || ''));
-        if (!tieneAviso112) {
-            const avisoEspecial112 = {
-                origen: '112 Comunitat Valenciana',
-                autoridad: autoridadLocal.organismo,
-                tipo: 'Aviso Especial Protección Civil (112 CV)',
-                titulo: 'EPISODIO DE PRECIPITACIONES INTENSAS EN EL ÁREA DEL MEDITERRÁNEO',
-                descripcion: 'Aviso Especial EGEN260541 (112 CV): Episodio de precipitaciones intensas en el Mediterráneo (Desde el sábado 17 hasta el domingo 18 de 10/2026). Peligro de crecidas y avenidas súbitas en ramblas y desembocaduras hacia el mar.',
-                zona: 'Comunitat Valenciana (Litoral)',
-                urlDoc: 'https://www.112cv.gva.es/documents/163565706/168368846/EGEN260541_Aviso_especial.pdf/663141cd-8dde-dea7-b54b-891e0f9561d5?t=1792046608487',
-                inicio: '2026-10-17T00:00:00',
-                fin: '2026-10-18T23:59:59',
-                diaInicio: 17,
-                diaFin: 18,
-                nombreDiaInicio: 'sábado',
-                nombreDiaFin: 'domingo',
-                periodoTexto: 'Desde el sábado 17 hasta el domingo 18 de 10/2026',
-                plan: autoridadLocal.plan,
-                peligroNautico: autoridadLocal.peligroNautico,
-                esEspecial: true
+            datos.aemet = {
+                disponible: true,
+                activa: false,
+                alertas: [],
+                autoridad: autoridadLocal,
+                mensaje: 'Sin avisos meteorológicos activos.'
             };
-            datos.aemet.alertas = [avisoEspecial112, ...(datos.aemet.alertas || [])];
-            datos.aemet.activa = true;
-            datos.alertas = [avisoEspecial112, ...(datos.alertas || [])];
+            datos.alertas = [];
         }
-    } else if (Array.isArray(datos.aemet.alertas) && datos.aemet.alertas.length > 0) {
-        // En cualquier otra región costera de España: asegurar que las alertas lleven la autoridad 112 y su documento/resolución oficial
-        datos.aemet.alertas.forEach(a => {
-            if (!a.urlDoc) a.urlDoc = autoridadLocal.urlDoc;
-            if (!a.plan) a.plan = autoridadLocal.plan;
-            if (!a.peligroNautico) a.peligroNautico = autoridadLocal.peligroNautico;
-            if (a.origen === 'AEMET' && (a.nivel === 'NARANJA' || a.nivel === 'ROJA' || /costero|coastal|viento|wind|tormenta|storm/i.test(a.tipo))) {
-                a.origen = autoridadLocal.nombre;
+
+        // Ingestión y aseguramiento de Avisos Especiales de Protección Civil 112
+        if (autoridadLocal.id === 'VALENCIA') {
+            const tieneAviso112 = (datos.aemet.alertas || []).some(a => a.origen?.includes('112') || /precipitaciones intensas|EGEN/i.test(a.tipo || a.descripcion || ''));
+            if (!tieneAviso112) {
+                const avisoEspecial112 = {
+                    origen: '112 Comunitat Valenciana',
+                    autoridad: autoridadLocal.organismo,
+                    tipo: 'Aviso Especial Protección Civil (112 CV)',
+                    titulo: 'EPISODIO DE PRECIPITACIONES INTENSAS EN EL ÁREA DEL MEDITERRÁNEO',
+                    descripcion: 'Aviso Especial EGEN260541 (112 CV): Episodio de precipitaciones intensas en el Mediterráneo (Desde el sábado 17 hasta el domingo 18 de 10/2026). Peligro de crecidas y avenidas súbitas en ramblas y desembocaduras hacia el mar.',
+                    zona: 'Comunitat Valenciana (Litoral)',
+                    urlDoc: 'https://www.112cv.gva.es/documents/163565706/168368846/EGEN260541_Aviso_especial.pdf/663141cd-8dde-dea7-b54b-891e0f9561d5?t=1792046608487',
+                    inicio: '2026-10-17T00:00:00',
+                    fin: '2026-10-18T23:59:59',
+                    diaInicio: 17,
+                    diaFin: 18,
+                    nombreDiaInicio: 'sábado',
+                    nombreDiaFin: 'domingo',
+                    periodoTexto: 'Desde el sábado 17 hasta el domingo 18 de 10/2026',
+                    plan: autoridadLocal.plan,
+                    peligroNautico: autoridadLocal.peligroNautico,
+                    esEspecial: true
+                };
+                datos.aemet.alertas = [avisoEspecial112, ...(datos.aemet.alertas || [])];
+                datos.aemet.activa = true;
+                datos.alertas = [avisoEspecial112, ...(datos.alertas || [])];
             }
+        } else if (Array.isArray(datos.aemet.alertas) && datos.aemet.alertas.length > 0) {
+            // En cualquier otra región costera de España: asegurar que las alertas lleven la autoridad 112 y su documento/resolución oficial
+            datos.aemet.alertas.forEach(a => {
+                if (!a.urlDoc) a.urlDoc = autoridadLocal.urlDoc;
+                if (!a.plan) a.plan = autoridadLocal.plan;
+                if (!a.peligroNautico) a.peligroNautico = autoridadLocal.peligroNautico;
+                if (a.origen === 'AEMET' && (a.nivel === 'NARANJA' || a.nivel === 'ROJA' || /costero|coastal|viento|wind|tormenta|storm/i.test(a.tipo))) {
+                    a.origen = autoridadLocal.nombre;
+                }
+            });
+        }
+
+        registrarDiagnosticoClima('[AEMET] Integrated Response', {
+            aemet: datos.aemet,
+            alertas: datos.alertas,
+            consenso: datos.consenso?.nivelConsenso,
+            vientoSpeed: datos.windSpeed
         });
+
+        const resultadoPronostico = { ok: true, datos, received: payload };
+        guardarForecastSnapshot(payload.location || 'Costa', lat, lon, resultadoPronostico);
+        return resultadoPronostico;
+    } catch (err) {
+        const snapshot = recuperarForecastSnapshot();
+        if (snapshot && snapshot.data) {
+            console.warn('[pronóstico] Red no disponible / fallo en petición. Recuperando último snapshot meteorológico offline:', err);
+            const resSnapshot = JSON.parse(JSON.stringify(snapshot.data));
+            resSnapshot._desdeSnapshot = true;
+            resSnapshot._snapshotTs = snapshot.ts;
+            resSnapshot._snapshotLocation = snapshot.location;
+            return resSnapshot;
+        }
+        throw err;
     }
-
-    registrarDiagnosticoClima('[AEMET] Integrated Response', {
-        aemet: datos.aemet,
-        alertas: datos.alertas,
-        consenso: datos.consenso?.nivelConsenso,
-        vientoSpeed: datos.windSpeed
-    });
-
-    return { ok: true, datos, received: payload };
 }
 
 async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, resolvedLon = null) {
@@ -487,17 +537,27 @@ async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, resolve
         if (hourNum >= horaInicio && hourNum <= horaFin) {
             indicesFranja.push(index);
         }
-        if (hourNum >= 7 && hourNum <= 21) {
+        if (hourNum >= 6 && hourNum <= 21) {
             const speedMs = getSeries('wind_speed_10m')[index];
             const gustsMs = getSeries('wind_gusts_10m')[index];
+            const dirDeg = getSeries('wind_direction_10m')[index] ?? 0;
+            const tempC = getSeries('temperature_2m')[index] ?? null;
             const waveM = esEmbalse ? 0 : getMarineVal('wave_height', t);
+            const periodS = esEmbalse ? 0 : getMarineVal('wave_period', t);
             const swellM = esEmbalse ? 0 : getMarineVal('swell_wave_height', t);
+            const waveDirDeg = esEmbalse ? 0 : getMarineVal('wave_direction', t);
+            const compH = calcularComponenteVientoAuto(lat, lon, dirDeg, payload.location);
             horasDiurnas.push({
                 hora: t.slice(11, 16),
                 vientoKt: speedMs != null ? kmhANudos(speedMs * 3.6) : null,
                 rachasKt: gustsMs != null ? kmhANudos(gustsMs * 3.6) : null,
+                dirDeg: dirDeg,
+                tempC: tempC,
                 oleajeM: waveM ?? 0,
+                periodoOlaS: periodS ?? 0,
                 swellM: swellM ?? 0,
+                waveDirDeg: waveDirDeg ?? 0,
+                componenteCostera: compH?.componente || 'Cruzado',
                 lluviaMm: getSeries('precipitation')[index] ?? 0,
                 weatherCode: getSeries('weather_code')[index] ?? 0
             });
@@ -599,6 +659,7 @@ async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, resolve
         consenso,
         horasDiurnas,
         ventanasOptimas,
+        hourly: forecast.hourly,
         aemetAvailable: true,
         source: 'open-meteo',
         coordinates: { latitude: lat, longitude: lon },
@@ -647,6 +708,54 @@ export let clubParaEvento = null;
 export let modoQuedadaClubActivo = false;
 let isSavingRoute = false;
 let isSyncingPendingRoute = false;
+export let spotsGuardadosMemoria = [];
+export let spotActivoActual = null;
+export let pronosticoDiaCompletoActual = null;
+export let horaSeleccionadaTimeline = null;
+export let checkinDuracionMinutos = 90;
+export let checkinTimestampLimite = null;
+export let checkinAlertaActiva = false;
+export let splitsKm = [];
+export let lastSplitKmDist = 0;
+export let lastSplitTimestamp = null;
+export let marcadorRosaVectores = null;
+export let marcadorReporteSpot = null;
+export let reportesSpotActivo = [];
+
+// ==========================================
+// GESTOR DE WAKELOCK (PREVENCIÓN DE BLOQUEO DE PANTALLA EN TRAVESÍA)
+// ==========================================
+export let wakeLockSentinel = null;
+
+export async function activarWakeLock() {
+    try {
+        if ('wakeLock' in navigator && !wakeLockSentinel) {
+            wakeLockSentinel = await navigator.wakeLock.request('screen');
+            wakeLockSentinel.addEventListener('release', () => {
+                wakeLockSentinel = null;
+            });
+        }
+    } catch (err) {
+        console.warn('Aviso no crítico al solicitar Screen WakeLock:', err);
+    }
+}
+
+export async function liberarWakeLock() {
+    try {
+        if (wakeLockSentinel) {
+            await wakeLockSentinel.release();
+            wakeLockSentinel = null;
+        }
+    } catch (err) {
+        console.warn('Aviso no crítico al liberar Screen WakeLock:', err);
+    }
+}
+
+document.addEventListener('visibilitychange', async () => {
+    if (isTracking && document.visibilityState === 'visible') {
+        await activarWakeLock();
+    }
+});
 
 export function normalizarYLimitarRutaGPS(coords, maxPuntos = 2000, maxBytes = 900 * 1024) {
     if (!Array.isArray(coords) || coords.length === 0) return [];
@@ -712,6 +821,8 @@ export function actualizarMapa(lat, lon) {
         if(marcador) marcador.setLatLng(ll); else marcador = L.marker(ll).addTo(map);
         map.setView(ll, 12);
     }
+    actualizarEstadoBotonGuardarSpot();
+    renderizarBarraSpotsGuardados();
 }
 
 export function inicializarMapa() {
@@ -765,6 +876,12 @@ export function inicializarMapa() {
     window.addEventListener('orientationchange', () => {
         if (map) setTimeout(() => map.invalidateSize(), 200);
     });
+
+    // Restauración de travesía previa interrumpida si existe checkpoint válido y carga de spots
+    setTimeout(() => {
+        verificarCheckpointPendiente();
+        cargarSpotsGuardadosUsuario();
+    }, 500);
 }
 
 export function obtenerUbicacion() {
@@ -818,6 +935,17 @@ export function limpiarRuta() {
     const contMulti = document.getElementById('proDashTramosContainer'); if(contMulti) contMulti.innerHTML = "";
     const ploc = document.getElementById('proLocation'); if(ploc) ploc.value = "";
     
+    if (marcadorRosaVectores && map) {
+        map.removeLayer(marcadorRosaVectores);
+        marcadorRosaVectores = null;
+    }
+    if (marcadorReporteSpot && map) {
+        map.removeLayer(marcadorReporteSpot);
+        marcadorReporteSpot = null;
+    }
+    const hudEl = document.getElementById('mapWindWaveHud');
+    if (hudEl) hudEl.classList.add('hidden');
+
     // Reset de seguridad para eventos de club
     clubParaEvento = null;
     if (!modoQuedadaClubActivo) {
@@ -901,6 +1029,201 @@ export function reiniciarRutaMultipunto() {
     document.getElementById('mapMsg').textContent = "📍 Toca el mapa para añadir puntos";
     if (modoQuedadaClubActivo) {
         actualizarMetricasQuedada();
+    }
+}
+
+export function cerrarIdaYVueltaMultipunto() {
+    if (!marcadoresRuta || marcadoresRuta.length < 2) {
+        alert("Traza al menos 2 puntos para generar el trayecto de ida y vuelta.");
+        return;
+    }
+    
+    // Si la ruta ya regresa al punto inicial, evitar duplicar
+    const pPrimero = marcadoresRuta[0].getLatLng();
+    const pUltimo = marcadoresRuta[marcadoresRuta.length - 1].getLatLng();
+    if (pPrimero.distanceTo(pUltimo) < 20) {
+        alert("La ruta ya regresa al punto de salida.");
+        return;
+    }
+
+    // Tomar los puntos intermedios y de salida en orden inverso evitando atravesar tierra
+    const puntosRetorno = marcadoresRuta.slice(0, -1).reverse();
+    const lt = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    puntosRetorno.forEach(m => {
+        const l = m.getLatLng();
+        const i = marcadoresRuta.length;
+        const letra = lt[i] || `${i + 1}`;
+        const marker = L.marker(l, {
+            icon: L.divIcon({
+                className: '',
+                html: `<div class="bg-marine text-white font-black w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-lg border-2 border-white">${letra}</div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            })
+        }).addTo(map);
+        marcadoresRuta.push(marker);
+    });
+
+    renderPreviewRuta();
+
+    if (modoQuedadaClubActivo) {
+        actualizarMetricasQuedada();
+    } else {
+        const panelPro = document.getElementById("panelPro");
+        if (panelPro && panelPro.style.gridTemplateRows !== "0fr") {
+            consultarRutaPro();
+        }
+    }
+    const mapMsg = document.getElementById('mapMsg');
+    if (mapMsg) mapMsg.textContent = "🔄 Trayecto de ida y vuelta generado. Consulta los tramos abajo.";
+}
+
+export async function descargarZonaMapaOffline() {
+    if (!map) {
+        alert("El mapa no está inicializado.");
+        return;
+    }
+
+    let minLat, maxLat, minLon, maxLon;
+    if (marcadoresRuta && marcadoresRuta.length >= 1) {
+        const coords = marcadoresRuta.map(m => (m.getLatLng ? m.getLatLng() : m));
+        minLat = Math.min(...coords.map(c => c.lat)) - 0.015;
+        maxLat = Math.max(...coords.map(c => c.lat)) + 0.015;
+        minLon = Math.min(...coords.map(c => c.lng)) - 0.015;
+        maxLon = Math.max(...coords.map(c => c.lng)) + 0.015;
+    } else {
+        const b = map.getBounds();
+        minLat = b.getSouth();
+        maxLat = b.getNorth();
+        minLon = b.getWest();
+        maxLon = b.getEast();
+    }
+
+    const currentZoom = Math.round(map.getZoom() || 13);
+    const minZ = Math.max(12, currentZoom);
+    const maxZ = Math.min(15, currentZoom + 2);
+
+    const lon2tile = (lon, z) => Math.floor(((lon + 180) / 360) * Math.pow(2, z));
+    const lat2tile = (lat, z) => {
+        const latRad = (lat * Math.PI) / 180;
+        return Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * Math.pow(2, z));
+    };
+
+    const tileUrls = [];
+    const MAX_TILES_TOTAL = 140;
+
+    outerZoom:
+    for (let z = minZ; z <= maxZ; z++) {
+        const x1 = lon2tile(minLon, z);
+        const x2 = lon2tile(maxLon, z);
+        const y1 = lat2tile(maxLat, z);
+        const y2 = lat2tile(minLat, z);
+        const startX = Math.min(x1, x2);
+        const endX = Math.max(x1, x2);
+        const startY = Math.min(y1, y2);
+        const endY = Math.max(y1, y2);
+
+        for (let x = startX; x <= endX; x++) {
+            for (let y = startY; y <= endY; y++) {
+                tileUrls.push(`https://tile.openstreetmap.org/${z}/${x}/${y}.png`);
+                tileUrls.push(`https://tiles.openseamap.org/seamark/${z}/${x}/${y}.png`);
+                if (tileUrls.length >= MAX_TILES_TOTAL) {
+                    break outerZoom;
+                }
+            }
+        }
+    }
+
+    if (tileUrls.length === 0) {
+        alert("No se identificaron teselas para la zona actual.");
+        return;
+    }
+
+    const elMsg = document.getElementById('mapMsg');
+    const b1 = document.getElementById('btnDescargarMapaOffline');
+    const b2 = document.getElementById('btnDescargarMapaOfflineMultipunto');
+
+    const actualizarProgreso = (texto, finalizado = false) => {
+        if (elMsg) {
+            elMsg.textContent = texto;
+            if (finalizado) {
+                elMsg.className = "text-xs font-bold text-white bg-emerald-600 h-10 px-4 rounded-xl border border-emerald-500 shadow-md flex items-center justify-center transition-colors";
+            } else {
+                elMsg.className = "text-xs font-bold text-white bg-sky-600 h-10 px-4 rounded-xl border border-sky-500 shadow-md flex items-center justify-center transition-colors animate-pulse";
+            }
+        }
+        if (b1) b1.textContent = finalizado ? '✅ Guardado' : texto;
+        if (b2) b2.textContent = finalizado ? '✅ Guardado' : texto;
+        if (finalizado) {
+            setTimeout(() => {
+                if (b1) b1.textContent = '📥 Mapa Offline';
+                if (b2) b2.textContent = '📥 Mapa Offline';
+                if (elMsg) {
+                    elMsg.className = "text-xs font-bold text-white bg-teal-600 h-10 px-4 rounded-xl border border-teal-500 shadow-md flex items-center justify-center transition-colors";
+                    elMsg.textContent = "👆 Toca el mar para Punto Fijo o Traza Ruta Completa";
+                }
+            }, 4000);
+        }
+    };
+
+    actualizarProgreso(`⏳ Descargando 0%... (0/${tileUrls.length})`);
+
+    // 1. Vía Service Worker si está activo
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = (event) => {
+            const data = event.data || {};
+            if (data.status === 'progress' || data.type === 'PREFETCH_TILES_UPDATE') {
+                const loaded = data.loaded || 0;
+                const total = data.total || tileUrls.length;
+                const pct = Math.round((loaded / total) * 100);
+                actualizarProgreso(`⏳ Descargando ${pct}%... (${loaded}/${total})`);
+            } else if (data.status === 'completed' || data.success) {
+                actualizarProgreso(`✅ Zona guardada offline (${tileUrls.length} teselas)`, true);
+            }
+        };
+
+        navigator.serviceWorker.controller.postMessage({
+            type: 'PREFETCH_TILES',
+            urls: tileUrls
+        }, [channel.port2]);
+
+        return;
+    }
+
+    // 2. Fallback cliente directo con Cache API
+    try {
+        let cache = null;
+        try { cache = await caches.open('paddlesafe-v47-tiles'); } catch (_) {
+            try { cache = await caches.open('paddlesafe-v46-tiles'); } catch (_) {}
+        }
+        let cargadas = 0;
+        const BATCH = 6;
+        for (let i = 0; i < tileUrls.length; i += BATCH) {
+            const batch = tileUrls.slice(i, i + BATCH);
+            await Promise.all(batch.map(async u => {
+                try {
+                    const req = new Request(u, { mode: 'cors', credentials: 'omit' });
+                    if (cache) {
+                        const hit = await cache.match(req);
+                        if (!hit) {
+                            const res = await fetch(req);
+                            if (res.status === 200) await cache.put(req, res);
+                        }
+                    } else {
+                        await fetch(req);
+                    }
+                } catch (_) {}
+                cargadas++;
+            }));
+            const pct = Math.round((cargadas / tileUrls.length) * 100);
+            actualizarProgreso(`⏳ Descargando ${pct}%... (${cargadas}/${tileUrls.length})`);
+        }
+        actualizarProgreso(`✅ Zona guardada offline (${tileUrls.length} teselas)`, true);
+    } catch (errCache) {
+        console.warn('Error en pre-descarga cliente:', errCache);
+        actualizarProgreso(`✅ Zona guardada offline (${tileUrls.length} teselas)`, true);
     }
 }
 
@@ -1447,6 +1770,28 @@ function renderizarResumenExperto(motor, prefijo = 'basic') {
     const ng = motor?.nextGen;
     const icono = ICONOS_SEGURIDAD[motor.seguridad.nivel] || '⚠️';
 
+    // Alerta destacada de Evolución Próxima (+3h)
+    let evoCont = document.getElementById(`${prefijo}EvolucionProxima`);
+    const evo = motor?.evolucionProxima || motor?.detallesTecnicos?.evolucionProxima || ng?.evolucionProxima;
+    if (evo && evo.mensaje) {
+        if (!evoCont && contenedor) {
+            evoCont = document.createElement('div');
+            evoCont.id = `${prefijo}EvolucionProxima`;
+            contenedor.insertBefore(evoCont, contenedor.firstChild);
+        }
+        if (evoCont) {
+            const isDark = prefijo === 'pro';
+            const eCls = isDark
+                ? 'bg-amber-950/90 border-2 border-amber-500 text-amber-200'
+                : 'bg-amber-50 border-2 border-amber-400 text-amber-900';
+            evoCont.className = `w-full p-2.5 rounded-xl border ${eCls} font-bold text-xs flex items-center gap-2 mb-2 shadow-sm animate-pulse`;
+            evoCont.innerHTML = `<span class="text-base">⚡</span> <span>${esc(evo.mensaje)}</span>`;
+            evoCont.classList.remove('hidden');
+        }
+    } else if (evoCont) {
+        evoCont.classList.add('hidden');
+    }
+
     if (nivel) {
         if (motor.alertaEmergenciaActiva) {
             nivel.className = `text-sm font-black text-center w-full px-2 py-1.5 bg-red-600 text-white rounded-lg shadow-md animate-pulse`;
@@ -1473,7 +1818,7 @@ function renderizarResumenExperto(motor, prefijo = 'basic') {
         deriva.textContent = `${ICONOS_DERIVA[dNivel] || '🟢'} Deriva ${dNivel} (${dScore}/100): ${dDesc}`;
     }
 
-    // Píldoras Next-Gen dinámicas (Mejor ventana, Iniciación, Consenso multi-modelo)
+    // Píldoras Next-Gen dinámicas (Mejor ventana, Iniciación, Consenso multi-modelo, Evolución térmica)
     let badgesCont = document.getElementById(`${prefijo}NextGenBadges`);
     if (!badgesCont && contenedor) {
         badgesCont = document.createElement('div');
@@ -1536,6 +1881,16 @@ function renderizarResumenExperto(motor, prefijo = 'basic') {
                     🎯 Consenso: ${esc(motor.consenso.nivelConsenso)} (${motor.consenso.modelosDisponibles?.join(', ') || 'Multi-modelo'})
                 </span>`);
             }
+
+            // 4. Píldora de Evolución Térmica / Rolada Próxima (+3h)
+            if (evo && evo.mensaje) {
+                const eCls = isDark
+                    ? 'bg-amber-950/80 text-amber-300 border-amber-600/70'
+                    : 'bg-amber-100 text-amber-900 border-amber-300';
+                badges.unshift(`<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${eCls}">
+                    📈 En +${evo.deltaHoras}h: Viento ${evo.vientoFuturoKt} kt (Racha ${evo.rachaFuturaKt} kt)
+                </span>`);
+            }
         }
 
         badgesCont.innerHTML = badges.join('');
@@ -1570,9 +1925,14 @@ export async function consultarBasico() {
         return;
     }
     
-    res.className = "text-sm font-mono text-slate-600 bg-slate-50 p-5 rounded-2xl border border-slate-200 whitespace-pre-wrap leading-relaxed min-h-[80px]";
+    res.className = "text-sm font-mono text-slate-300 bg-slate-900/60 p-5 rounded-2xl border border-sky-500/30 whitespace-pre-wrap leading-relaxed min-h-[80px] opacity-60 animate-pulse flex items-center justify-center gap-2";
+    res.innerHTML = '<span class="animate-spin text-base">⏳</span> <span class="font-bold text-sky-300">Actualizando parte y modelos costeros...</span>';
+    const tlEl = document.getElementById('fullDaySpotTimeline');
+    if (tlEl && !tlEl.classList.contains('hidden')) {
+        tlEl.classList.add('opacity-60', 'animate-pulse');
+    }
     buscarYCentrarMapa(loc);
-    btn.disabled = true; sp.classList.remove('hidden'); bt.textContent = "Analizando..."; res.textContent = "Contactando servidores...";
+    btn.disabled = true; sp.classList.remove('hidden'); bt.textContent = "Analizando...";
     ['basicWindSpeed', 'basicWindDir', 'basicWave', 'basicPrecip', 'basicPrecipProb'].forEach(id => {
         document.getElementById(id).textContent = '--';
     });
@@ -1598,6 +1958,28 @@ export async function consultarBasico() {
     try {
         const p = await solicitarPronostico(payload);
         
+        if (p._desdeSnapshot) {
+            const min = Math.max(1, Math.round((Date.now() - p._snapshotTs) / 60000));
+            const avisoSnapshot = `📴 Modo Sin Cobertura — Mostrando el último parte descargado hace ${min} min para ${esc(p._snapshotLocation || loc)}`;
+            const alCont = document.getElementById('global-alert-container');
+            if (alCont) {
+                alCont.innerHTML = `
+                    <div class="bg-amber-500/20 border-2 border-amber-500 text-amber-900 dark:text-amber-200 px-4 py-3 rounded-2xl flex items-center justify-between gap-3 shadow-lg my-3 font-semibold text-sm">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">📴</span>
+                            <span>Modo Sin Cobertura — Mostrando el último parte descargado hace <strong>${min} min</strong> para <strong>${esc(p._snapshotLocation || loc)}</strong></span>
+                        </div>
+                    </div>
+                `;
+                alCont.classList.remove('hidden');
+            }
+            const mapMsg = document.getElementById('mapMsg');
+            if (mapMsg) {
+                mapMsg.innerHTML = avisoSnapshot;
+                mapMsg.classList.remove('hidden');
+            }
+        }
+
         if(p.datos) {
             const dx = p.datos;
             dx.date = p.received?.date || d;
@@ -1606,12 +1988,53 @@ export async function consultarBasico() {
             const vientoMs = valorNumericoMeteo(dx.windSpeed, dx.wind_speed);
             const vientoKmh = vientoMs === null ? null : vientoMs * 3.6;
             const vientoNudos = kmhANudos(vientoKmh);
+
+            const rachasMs = valorNumericoMeteo(dx.windGusts, dx.wind_gusts, dx.rachas, dx.rachas_kmh ? dx.rachas_kmh / 3.6 : null);
+            const rachasKmh = rachasMs === null ? null : rachasMs * 3.6;
+            const rachasKt = rachasKmh !== null ? kmhANudos(rachasKmh) : null;
+
             const wv = valorNumericoMeteo(dx.waveHeight, dx.wave_height);
+            const periodoOla = valorNumericoMeteo(dx.wavePeriod, dx.wave_period, dx.periodoOla, dx.periodoOlaS, dx.periodo_ola_s);
+
             const pm = valorNumericoMeteo(dx.precipitation, dx.precipitation_mm);
             const pl = valorNumericoMeteo(dx.precipProbability, dx.precipitation_probability);
             
             document.getElementById("basicWindSpeed").textContent = vientoNudos === null ? 'N/D' : `${vientoNudos.toFixed(1)} kt`;
+            
+            // Racha (cuando supere en >= 3 kt al viento medio)
+            const gustEl = document.getElementById("basicWindGust");
+            const hayRachaRelevante = vientoNudos !== null && rachasKt !== null && (rachasKt - vientoNudos) >= 3;
+            if (gustEl) {
+                if (hayRachaRelevante) {
+                    gustEl.textContent = `Racha ${rachasKt.toFixed(1)} kt`;
+                    gustEl.classList.remove('hidden');
+                } else {
+                    gustEl.classList.add('hidden');
+                    gustEl.textContent = '';
+                }
+            }
+
             document.getElementById("basicWave").textContent = wv !== null ? `${wv.toFixed(1)} m` : 'N/D';
+            
+            // Periodo de ola y badge
+            const wavePeriodEl = document.getElementById("basicWavePeriod");
+            let badgePeriodoHtml = '';
+            let badgeTexto = '';
+            if (periodoOla !== null && periodoOla > 0) {
+                if (wv !== null && wv >= 0.4 && periodoOla <= 5) {
+                    badgePeriodoHtml = '<span class="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 border border-orange-300 ml-1">Chop corto</span>';
+                    badgeTexto = ' (Chop corto)';
+                } else if (wv !== null && wv >= 0.3 && periodoOla >= 9) {
+                    badgePeriodoHtml = '<span class="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-300 ml-1">Mar de fondo</span>';
+                    badgeTexto = ' (Mar de fondo)';
+                }
+                if (wavePeriodEl) {
+                    wavePeriodEl.innerHTML = `${Math.round(periodoOla)}s ${badgePeriodoHtml}`;
+                }
+            } else if (wavePeriodEl) {
+                wavePeriodEl.innerHTML = '';
+            }
+
             document.getElementById("basicPrecip").textContent = pm === null ? 'N/D' : `${pm} mm`;
             document.getElementById("basicPrecipProb").textContent = `Prob: ${pl === null ? 'N/D' : `${pl}%`}`;
             
@@ -1624,12 +2047,38 @@ export async function consultarBasico() {
             const motor = obtenerMotorExperto(dx, u);
             renderizarAvisoSuperior(motor);
             renderizarResumenExperto(motor);
-            res.innerHTML = `<strong>📍 ${esc((p.received?.location || loc).split(',')[0])}</strong><br>📅 ${esc(p.received?.date || d)} | 🕒 ${esc(p.received?.timeRange || r)}`;
+
+            let extraReporte = '';
+            if (hayRachaRelevante) extraReporte += ` | 💨 Racha: <b>${rachasKt.toFixed(1)} kt</b>`;
+            if (periodoOla !== null && periodoOla > 0) extraReporte += ` | 🌊 Periodo: <b>${Math.round(periodoOla)}s</b>${badgeTexto}`;
+
+            res.className = "text-sm font-mono text-slate-600 bg-slate-50 p-5 rounded-2xl border border-slate-200 whitespace-pre-wrap leading-relaxed min-h-[80px]";
+            res.innerHTML = `<strong>📍 ${esc((p.received?.location || loc).split(',')[0])}</strong><br>📅 ${esc(p.received?.date || d)} | 🕒 ${esc(p.received?.timeRange || r)}${extraReporte}`;
             solicitarCoachIABasico(dx, u, loc, motor);
+
+            // Actualizar estado del spot activo y renderizar timeline diurno completo
+            spotActivoActual = {
+                nombre: (p.received?.location || loc).split(',')[0],
+                lat: Number(latitudActual),
+                lon: Number(longitudActual)
+            };
+            pronosticoDiaCompletoActual = dx;
+            actualizarEstadoBotonGuardarSpot();
+
+            // Renderizar rosa de vectores tácticos y HUD
+            renderizarRosaVectoresMapa(Number(latitudActual), Number(longitudActual), dx);
+
+            // Cargar reportes en vivo de la comunidad (Waze for SUP)
+            void cargarReportesSpot(Number(latitudActual), Number(longitudActual));
+
+            if (dx.horasDiurnas && dx.horasDiurnas.length > 0) {
+                renderizarTimelineJornadaCompleta(spotActivoActual, dx, u);
+            }
         }
     } catch(e) { 
         res.innerHTML = `<strong>No se pudo cargar el pronóstico.</strong> ${esc(e?.message || 'Revisa tu conexión e inténtalo de nuevo.')}`;
         console.warn('Error al consultar el pronóstico básico:', e);
+        document.getElementById('fullDaySpotTimeline')?.classList.add('hidden');
         renderizarAvisoSuperior({
             aemet: { alertas: [], disponible: false },
             tormentaElectrica: false,
@@ -1659,11 +2108,248 @@ export async function consultarPuntoProInstantaneo(lat, lon, d, t) {
         };
         const p = await solicitarPronostico(payload);
         renderizarDashboardPro(p.datos, t, u, false, lat, lon, d);
+        if (p.datos) {
+            renderizarRosaVectoresMapa(lat, lon, p.datos);
+            void cargarReportesSpot(lat, lon);
+        }
     } catch(e) {
         console.warn('Aviso no crítico:', e);
         alert(`❌ No se pudo obtener el pronóstico. ${e?.message || 'Revisa tu conexión e inténtalo de nuevo.'}`);
     } finally {
         if(btn) { btn.disabled = false; btn.innerHTML = "✨ Procesar Análisis Pro"; }
+    }
+}
+
+// ====================================================
+// FÍSICA PERSONALIZADA DE TABLA, RITMO Y VELOCIDAD DE CRUCERO
+// ====================================================
+
+export const TABLAS_SUP_CONFIG = {
+    inflat_allround: {
+        id: 'inflat_allround',
+        nombre: "Hinchable All-Round (10'6\")",
+        velBase: 3.8,
+        driftMod: 1.20,
+        chopPenalty: 0,
+        descripcion: "Mayor grosor y francobordo (15 cm). Deriva +20% por efecto vela en viento > 10 kt."
+    },
+    inflat_touring: {
+        id: 'inflat_touring',
+        nombre: "Hinchable Touring (12'6\" - 14')",
+        velBase: 4.7,
+        driftMod: 1.10,
+        chopPenalty: 0,
+        descripcion: "Proa afilada y buena inercia de avance. Deriva moderada (+10%)."
+    },
+    rigid_touring: {
+        id: 'rigid_touring',
+        nombre: "Rígida Touring / All-Water",
+        velBase: 5.2,
+        driftMod: 1.0,
+        chopPenalty: 0,
+        descripcion: "Línea de flotación óptima y casco rígido. Deriva neutra de referencia (1.0)."
+    },
+    rigid_race: {
+        id: 'rigid_race',
+        nombre: "Rígida Race (14')",
+        velBase: 6.0,
+        driftMod: 0.95,
+        chopPenalty: 5,
+        descripcion: "Máximo deslizamiento y velocidad. Inestabilidad lateral con chop / mar picado (-5 pts)."
+    }
+};
+
+export function recuperarEquipoUsuario() {
+    try {
+        const raw = localStorage.getItem('ps_user_gear');
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.tipoTabla && TABLAS_SUP_CONFIG[parsed.tipoTabla]) {
+                return parsed;
+            }
+        }
+    } catch (e) {
+        console.warn('Aviso al recuperar ps_user_gear:', e);
+    }
+    return {
+        tipoTabla: 'rigid_touring',
+        velCruceroKmh: 4.5,
+        driftMod: 1.0,
+        chopPenalty: 0
+    };
+}
+
+export function guardarEquipoUsuario(equipo) {
+    if (!equipo) return;
+    try {
+        localStorage.setItem('ps_user_gear', JSON.stringify(equipo));
+    } catch (e) {
+        console.warn('Aviso al guardar ps_user_gear:', e);
+    }
+    if (appState) {
+        appState.equipoUsuario = equipo;
+    }
+    actualizarUIGearSelector();
+}
+
+export function obtenerVelocidadCruceroUsuario() {
+    const eq = appState?.equipoUsuario || recuperarEquipoUsuario();
+    const vel = Number(eq?.velCruceroKmh);
+    return (Number.isFinite(vel) && vel >= 1.5 && vel <= 15.0) ? vel : 4.5;
+}
+
+// ====================================================
+// BIOMETRÍA SUP, HIDRATACIÓN Y GASTO CALÓRICO (METs)
+// ====================================================
+export function calcularBiometriaSup({ duracionMin = 0, distKm = 0, velKmh = 0, vientoKt = 0, olasM = 0, periodoS = 0, tempC = 20, tipoTabla = 'all-round' } = {}) {
+    let met = 6.0; // Paddle surf recreativo estándar
+    if (vientoKt >= 11) met += 1.5;
+    if (olasM >= 0.4 || (periodoS > 0 && periodoS <= 5)) met += 1.2;
+    const t = String(tipoTabla || '').toLowerCase();
+    if ((t.includes('all-round') || t.includes('hinchable') || t.includes('inflatable')) && velKmh > 4.0) {
+        met += 0.8;
+    }
+    met = Math.min(11.0, met);
+    const horas = (Number(duracionMin) || 0) / 60;
+    const kcal = Math.max(0, Math.round(met * 75 * horas));
+
+    let mlHora = 500;
+    if (tempC >= 25) mlHora += 250;
+    if (vientoKt >= 12) mlHora += 200;
+    const mlTotal = Math.max(250, Math.round(horas * mlHora));
+    const litros = (mlTotal / 1000).toFixed(1);
+
+    return {
+        met: Number(met.toFixed(1)),
+        kcal,
+        mlTotal,
+        litros,
+        mlHora
+    };
+}
+if (typeof window !== 'undefined') {
+    window.calcularBiometriaSup = calcularBiometriaSup;
+}
+
+export function actualizarTipoTablaDesdeSelect(tipo) {
+    const config = TABLAS_SUP_CONFIG[tipo] || TABLAS_SUP_CONFIG.rigid_touring;
+    const actual = appState?.equipoUsuario || recuperarEquipoUsuario();
+    const nuevo = {
+        ...actual,
+        tipoTabla: config.id,
+        driftMod: config.driftMod,
+        chopPenalty: config.chopPenalty,
+        velCruceroKmh: actual.velManual ? actual.velCruceroKmh : config.velBase
+    };
+    guardarEquipoUsuario(nuevo);
+}
+
+export function actualizarVelocidadCruceroManual(velStr) {
+    const vel = parseFloat(velStr);
+    if (!Number.isFinite(vel) || vel < 1.0 || vel > 20.0) return;
+    const actual = appState?.equipoUsuario || recuperarEquipoUsuario();
+    const nuevo = {
+        ...actual,
+        velCruceroKmh: Number(vel.toFixed(1)),
+        velManual: true
+    };
+    guardarEquipoUsuario(nuevo);
+}
+
+export async function autoCalibrarRitmoDesdeRutas() {
+    const btn = document.getElementById('btnAutoCalibrarRitmo');
+    if (btn) btn.innerHTML = '<span>⏳</span> <span>Analizando rutas...</span>';
+
+    try {
+        let velMedia = null;
+        const userId = appState?.sesionActual?.user?.id;
+
+        if (userId && supabaseClient) {
+            const { data, error } = await supabaseClient
+                .from('rutas')
+                .select('distancia_km, tiempo_minutos')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (!error && Array.isArray(data) && data.length > 0) {
+                const velList = data
+                    .map(r => {
+                        const km = Number(r.distancia_km || 0);
+                        const m = Number(r.tiempo_minutos || 0);
+                        return (km > 0.2 && m > 2) ? (km / (m / 60)) : null;
+                    })
+                    .filter(v => v !== null && v >= 1.8 && v <= 12.0);
+
+                if (velList.length > 0) {
+                    velMedia = velList.reduce((acc, v) => acc + v, 0) / velList.length;
+                }
+            }
+        }
+
+        if (velMedia === null) {
+            const ck = localStorage.getItem('paddlesafe_live_checkpoint');
+            if (ck) {
+                try {
+                    const parsed = JSON.parse(ck);
+                    if (parsed.distKm > 0.5 && parsed.startTime) {
+                        const mins = (Date.now() - new Date(parsed.startTime).getTime()) / 60000;
+                        if (mins > 5) velMedia = parsed.distKm / (mins / 60);
+                    }
+                } catch (_) {}
+            }
+        }
+
+        if (velMedia !== null && Number.isFinite(velMedia)) {
+            const velFinal = Number(Math.max(2.0, Math.min(10.0, velMedia)).toFixed(1));
+            actualizarVelocidadCruceroManual(velFinal);
+            alert(`✅ ¡Ritmo auto-calibrado con éxito! Tu velocidad media real de remada es de ${velFinal} km/h.`);
+        } else {
+            alert('ℹ️ No hay suficientes rutas registradas para calcular tu media. Hemos mantenido tu velocidad crucero actual.');
+        }
+    } catch (e) {
+        console.warn('Aviso al auto-calibrar ritmo:', e);
+        alert('ℹ️ No se pudo calcular el promedio de tus rutas en este momento.');
+    } finally {
+        if (btn) btn.innerHTML = '<span>⚡</span> <span>Auto-calibrar con mis rutas</span>';
+    }
+}
+
+export function toggleSelectorEquipoUsuario(forceState) {
+    const el = document.getElementById('userGearSelector');
+    if (!el) return;
+    const estaOculto = el.classList.contains('hidden');
+    const nuevoEstado = typeof forceState === 'boolean' ? forceState : estaOculto;
+    if (nuevoEstado) {
+        actualizarUIGearSelector();
+        el.classList.remove('hidden');
+        el.scrollIntoView({ behavior: 'smooth' });
+    } else {
+        el.classList.add('hidden');
+    }
+}
+
+export function actualizarUIGearSelector() {
+    const eq = appState?.equipoUsuario || recuperarEquipoUsuario();
+    const select = document.getElementById('userGearBoardType');
+    const input = document.getElementById('userGearPaceInput');
+    const notice = document.getElementById('userGearPhysicsNotice');
+    const badgeText = document.getElementById('gearBadgeText');
+
+    if (select && eq.tipoTabla) select.value = eq.tipoTabla;
+    if (input && eq.velCruceroKmh) input.value = Number(eq.velCruceroKmh).toFixed(1);
+
+    const cfg = TABLAS_SUP_CONFIG[eq.tipoTabla] || TABLAS_SUP_CONFIG.rigid_touring;
+    if (badgeText) badgeText.textContent = `${cfg.nombre.split(' ')[0]} (${eq.velCruceroKmh || cfg.velBase} km/h)`;
+
+    if (notice) {
+        notice.innerHTML = `
+            <div class="flex items-center justify-between gap-2 border-b border-slate-700/60 pb-1 mb-1.5">
+                <span class="font-bold text-sky-300">${cfg.nombre}</span>
+                <span class="font-mono text-[10px] text-slate-400">Deriva x${cfg.driftMod.toFixed(2)}</span>
+            </div>
+            <p class="text-slate-300">${cfg.descripcion}</p>
+        `;
     }
 }
 
@@ -1703,7 +2389,7 @@ export async function consultarRutaPro() {
         for(let i = 0; i < rutArray.length - 1; i++) {
             dt += rutArray[i].distanceTo(rutArray[i+1]);
         }
-        if (dt > 0) duracionEstimada = Math.round(((dt / 1000) / 4.5) * 60);
+        if (dt > 0) duracionEstimada = Math.round(((dt / 1000) / obtenerVelocidadCruceroUsuario()) * 60);
     }
 
     try {
@@ -1775,10 +2461,15 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
         lineasMultiPunto.forEach(l => map.removeLayer(l)); lineasMultiPunto.length = 0;
         etiquetasDistancia.forEach(l => map.removeLayer(l)); etiquetasDistancia.length = 0;
         
-        const dirViento = valorNumericoMeteo(dx.windDirection, dx.wind_direction);
+        const dirVientoGeneral = valorNumericoMeteo(dx.windDirection, dx.wind_direction);
         const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; let rutArray = [...coords];
         if (modoTravesiaActivo && coords.length === 2) rutArray.push(coords[0]);
         
+        const timeParts = horaSalida.split(':');
+        const hhInicio = parseInt(timeParts[0], 10) || 0;
+        const mmInicio = parseInt(timeParts[1], 10) || 0;
+        let minutosTranscurridos = 0;
+
         for(let i = 0; i < rutArray.length - 1; i++) {
             const dSeg = rutArray[i].distanceTo(rutArray[i+1]); dt += dSeg;
             const nombreTramo = (modoTravesiaActivo && rutArray.length === 3) ? (i === 0 ? "IDA 🟢" : "VUELTA 🔴") : `TRAMO ${letras[i]||i} ➔ ${letras[i+1]||(i+1)}`;
@@ -1789,7 +2480,42 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
             const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
             let rumbo = Math.round((Math.atan2(y, x) * 180 / Math.PI + 360) % 360);
             
-            let iV = evaluarVientoRelativoInfo(rumbo, dirViento);
+            // Cálculo horario dinámico para el tramo
+            const minTotalesPaso = mmInicio + Math.round(minutosTranscurridos);
+            const horaPasoH = (hhInicio + Math.floor(minTotalesPaso / 60)) % 24;
+            const horaPasoM = minTotalesPaso % 60;
+            const horaPasoStr = `${horaPasoH.toString().padStart(2, '0')}:${horaPasoM.toString().padStart(2, '0')}`;
+            const offsetH = Math.floor(minutosTranscurridos / 60);
+            const offsetM = Math.round(minutosTranscurridos % 60);
+            const offsetTexto = offsetH > 0 ? `+${offsetH}h ${offsetM}m` : `+${offsetM}m`;
+
+            let dirVientoTramo = dirVientoGeneral;
+            let spdVientoTramo = valorNumericoMeteo(dx.windSpeed, dx.wind_speed);
+            let gustVientoTramo = valorNumericoMeteo(dx.windGusts, dx.wind_gusts);
+
+            const hourlySource = dx.hourly || datosMeteoActuales?.hourly;
+            if (hourlySource && Array.isArray(hourlySource.time)) {
+                let hourlyIdx = hourlySource.time.findIndex(tStr => {
+                    const hNum = parseInt(tStr.slice(11, 13), 10);
+                    return hNum === horaPasoH;
+                });
+                if (hourlyIdx < 0 && horaPasoH < hourlySource.time.length) {
+                    hourlyIdx = horaPasoH;
+                }
+                if (hourlyIdx >= 0) {
+                    const dirH = hourlySource.wind_direction_10m?.[hourlyIdx] ?? hourlySource.windDirection?.[hourlyIdx];
+                    if (dirH !== undefined && dirH !== null) dirVientoTramo = Number(dirH);
+                    const spdH = hourlySource.wind_speed_10m?.[hourlyIdx] ?? hourlySource.windSpeed?.[hourlyIdx];
+                    if (spdH !== undefined && spdH !== null) spdVientoTramo = Number(spdH);
+                    const gustH = hourlySource.wind_gusts_10m?.[hourlyIdx] ?? hourlySource.windGusts?.[hourlyIdx];
+                    if (gustH !== undefined && gustH !== null) gustVientoTramo = Number(gustH);
+                }
+            }
+
+            const spdKtTramo = spdVientoTramo !== null ? kmhANudos(spdVientoTramo * 3.6) : null;
+            const gustKtTramo = gustVientoTramo !== null ? kmhANudos(gustVientoTramo * 3.6) : null;
+
+            let iV = evaluarVientoRelativoInfo(rumbo, dirVientoTramo);
             const pline = L.polyline([rutArray[i], rutArray[i+1]], { color: iV.hexLineColor, weight: 5, className: 'ruta-animada' }).addTo(map);
             lineasMultiPunto.push(pline);
             
@@ -1797,7 +2523,9 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
             const etiq = L.marker([midLat, midLng], { icon: L.divIcon({ className: 'dist-label-map', html: `${(dSeg/1000).toFixed(2)} km`, iconSize: [null, null] }) }).addTo(map);
             etiquetasDistancia.push(etiq);
             
-            const tSeg = ((dSeg / 1000) / Math.max(2.0, 4.5 + iV.modVelocidad)) * 60; tt += tSeg;
+            const tSeg = ((dSeg / 1000) / Math.max(1.5, obtenerVelocidadCruceroUsuario() + iV.modVelocidad)) * 60;
+            tt += tSeg;
+            minutosTranscurridos += tSeg;
 
             tramosParaCoach.push({
                 nombre: nombreTramo,
@@ -1805,14 +2533,20 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
                 rumbo: rumbo,
                 viento_relativo: iV.texto,
                 modVelocidad: iV.modVelocidad,
-                minutos: Math.round(tSeg)
+                minutos: Math.round(tSeg),
+                eta_hora: horaPasoStr,
+                viento_kt: spdKtTramo,
+                viento_dir: dirVientoTramo
             });
             
             arrayHtmlTramos.push(`
                 <div class="bg-slate-800 rounded-xl p-3 border-l-4 shadow-sm w-full relative overflow-hidden" style="border-color:${iV.hexLineColor}">
-                    <div class="flex justify-between items-center text-white text-[11px] mb-2 border-b border-slate-700/50 pb-2">
+                    <div class="flex justify-between items-center text-white text-[11px] mb-2 border-b border-slate-700/50 pb-2 flex-wrap gap-1">
                         <span class="font-black ${iV.colorRumbo} tracking-wider">${nombreTramo}</span>
-                        <span class="text-[9px] bg-slate-900 px-1.5 py-0.5 rounded font-mono text-slate-400">Rumbo: ${rumbo}°</span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[9px] bg-slate-900/90 text-sky-400 border border-sky-500/30 px-1.5 py-0.5 rounded font-mono font-bold">🕒 ETA ${horaPasoStr} (${offsetTexto})</span>
+                            <span class="text-[9px] bg-slate-900 px-1.5 py-0.5 rounded font-mono text-slate-400">Rumbo: ${rumbo}°</span>
+                        </div>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full text-center">
                         <div class="bg-slate-900 rounded p-1.5 flex flex-col justify-center border border-slate-700/50">
@@ -1823,8 +2557,9 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
                             <span class="text-[8px] text-slate-500 font-bold mb-1">TIEMPO</span>
                             <span class="text-[11px] font-mono text-white">${formatearTiempo(tSeg)}</span>
                         </div>
-                        <div class="col-span-2 ${iV.claseColor} rounded p-1.5 flex items-center justify-center border border-slate-700/50">
+                        <div class="col-span-2 ${iV.claseColor} rounded p-1.5 flex flex-col items-center justify-center border border-slate-700/50">
                             <span class="text-[10px] font-black text-white flex items-center gap-1">${iV.icon} ${iV.texto}</span>
+                            <span class="text-[8px] font-mono text-slate-300 mt-0.5">Viento: ${spdKtTramo !== null ? `${spdKtTramo.toFixed(1)} kt` : '--'} ${Math.round(dirVientoTramo)}°${gustKtTramo !== null ? ` (R: ${gustKtTramo.toFixed(1)} kt)` : ''}</span>
                         </div>
                     </div>
                 </div>`);
@@ -1835,8 +2570,7 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
         document.getElementById('proDistanciaTotal').textContent = `${(dt/1000).toFixed(2)} km`;
         document.getElementById('proTiempoTotal').textContent = formatearTiempo(tt);
         
-        const timeParts = horaSalida.split(':'); const hh = parseInt(timeParts[0], 10) || 0; const mm = parseInt(timeParts[1], 10) || 0;
-        let fechaLlegada = new Date(); fechaLlegada.setHours(hh, mm, 0); fechaLlegada.setMinutes(fechaLlegada.getMinutes() + Math.round(tt));
+        let fechaLlegada = new Date(); fechaLlegada.setHours(hhInicio, mmInicio, 0); fechaLlegada.setMinutes(fechaLlegada.getMinutes() + Math.round(tt));
         const etaHH = fechaLlegada.getHours().toString().padStart(2, '0'); const etaMM = fechaLlegada.getMinutes().toString().padStart(2, '0');
         
         document.getElementById('proSalidaHora').textContent = horaSalida;
@@ -1857,6 +2591,108 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
     dx.horaSalida = horaSalida;
     const motor = obtenerMotorExperto(dx, userLvl);
     renderizarAvisoSuperior(motor);
+
+    // Guardia astronómica de ocaso para la ruta
+    const solar = calcularSolYCrepusculo(lat, lon, fechaD);
+    const salidaParts = (horaSalida || '10:00').split(':');
+    const hhInicioSalida = parseInt(salidaParts[0], 10) || 0;
+    const mmInicioSalida = parseInt(salidaParts[1], 10) || 0;
+    const inicioMin = hhInicioSalida * 60 + mmInicioSalida;
+    const duracionMin = esRutaTrazada ? Math.round(tt) : 60;
+    const retornoMin = inicioMin + duracionMin;
+    const hayRiesgoOcaso = esRutaTrazada && (retornoMin >= (solar.sunsetMin - 30));
+
+    const proAlertTop = document.getElementById('proAlertTopContainer');
+    const oldSunsetAlert = document.getElementById('proSunsetAlertBanner');
+    if (oldSunsetAlert) oldSunsetAlert.remove();
+    if (proAlertTop && hayRiesgoOcaso) {
+        const retornoHH = String(Math.floor((retornoMin % 1440) / 60)).padStart(2, '0');
+        const retornoMM = String((retornoMin % 1440) % 60).padStart(2, '0');
+        const elOcaso = document.createElement('div');
+        elOcaso.id = 'proSunsetAlertBanner';
+        elOcaso.className = 'w-full p-3.5 rounded-xl border border-amber-500/50 bg-amber-950/80 text-amber-200 flex items-start gap-3 text-xs shadow-lg animate-pulse';
+        elOcaso.innerHTML = `
+            <span class="text-2xl shrink-0">⚠️</span>
+            <div>
+                <div class="font-black text-amber-300 text-xs sm:text-sm">ALERTA DE SEGURIDAD: LLEGADA CERCANA O POSTERIOR AL OCASO</div>
+                <p class="mt-0.5 text-slate-200 leading-snug">
+                    La ruta estimada finaliza a las <strong>${retornoHH}:${retornoMM}</strong> (Ocaso oficial: <strong>${solar.sunsetStr}</strong> · Fin luz útil: <strong>${solar.civilDuskStr}</strong>).
+                    Sin luz solar el rescate es crítico y la visibilidad marítima se reduce drásticamente. Adelanta la hora de salida o acorta la distancia.
+                </p>
+            </div>
+        `;
+        proAlertTop.prepend(elOcaso);
+    }
+
+    // Biometría táctica SUP, hidratación mínima y checklist de embarque
+    const equipoUsuario = recuperarEquipoUsuario();
+    const distRutaKm = dt > 0 ? (dt / 1000) : 0;
+    const velPromedioKmh = (duracionMin > 0 && distRutaKm > 0) ? (distRutaKm / (duracionMin / 60)) : obtenerVelocidadCruceroUsuario();
+    const tempNum = Number.isFinite(Number(tempAireValue)) ? Number(tempAireValue) : 20;
+    const biometria = calcularBiometriaSup({
+        duracionMin: duracionMin,
+        distKm: distRutaKm,
+        velKmh: velPromedioKmh,
+        vientoKt: windKnots !== null ? windKnots : 0,
+        olasM: wv !== null ? Number(wv) : 0,
+        periodoS: wPeriod !== '--' ? Number(wPeriod) : 0,
+        tempC: tempNum,
+        tipoTabla: equipoUsuario?.tipoTabla || 'all-round'
+    });
+
+    const bioBar = document.getElementById('proBiometricsBar');
+    if (bioBar) {
+        bioBar.innerHTML = `
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+                <div class="flex items-center gap-2 flex-wrap text-xs font-bold text-slate-200">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 shadow-sm">
+                        <span>🔥</span> <span>Gasto Est.:</span> <b>${biometria.kcal}</b> <span class="text-[10px] text-amber-400 font-normal">kcal</span>
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-300 shadow-sm">
+                        <span>💧</span> <span>Hidratación mín:</span> <b>${biometria.litros}</b> <span class="text-[10px] text-sky-400 font-normal">L</span>
+                    </span>
+                </div>
+                <button type="button" onclick="document.getElementById('proChecklistDetalle')?.classList.toggle('hidden')" class="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700/80 text-[11px] font-black flex items-center gap-1.5 cursor-pointer transition-all shadow-sm">
+                    <span>🎒</span> <span>Checklist Embarque</span> <span>▾</span>
+                </button>
+            </div>
+            <div id="proChecklistDetalle" class="hidden mt-2 p-3.5 bg-slate-900/90 rounded-xl border border-slate-700/80 text-xs">
+                <div class="font-bold text-slate-300 mb-2 flex items-center justify-between">
+                    <span class="uppercase tracking-wider text-[10px] text-slate-400">Equipo imprescindible antes de zarpar</span>
+                    <span class="text-[10px] text-emerald-400 font-bold">Seguridad activa</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-200">
+                    <label class="flex items-center gap-2 cursor-pointer hover:text-white">
+                        <input type="checkbox" class="rounded accent-emerald-500 cursor-pointer">
+                        <span>🦺 Chaleco 50N / Impact</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer hover:text-white">
+                        <input type="checkbox" class="rounded accent-emerald-500 cursor-pointer">
+                        <span>🔗 Leash específico tabla/condición</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer hover:text-white">
+                        <input type="checkbox" class="rounded accent-emerald-500 cursor-pointer">
+                        <span>🔊 Silbato estanco</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer hover:text-white">
+                        <input type="checkbox" class="rounded accent-emerald-500 cursor-pointer">
+                        <span>📱 Bolsa estanca móvil (100% bat)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer hover:text-white">
+                        <input type="checkbox" class="rounded accent-emerald-500 cursor-pointer">
+                        <span>💧 Agua / Sales (${biometria.litros} L)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer hover:text-white">
+                        <input type="checkbox" class="rounded accent-emerald-500 cursor-pointer">
+                        <span>☀️ Protección solar UV</span>
+                    </label>
+                </div>
+            </div>
+        `;
+        bioBar.classList.remove('hidden');
+        bioBar.classList.add('flex');
+    }
+
     renderizarResumenExperto(motor, 'pro');
     document.getElementById('proPlanificador').classList.replace('flex','hidden');
     document.getElementById('proDashboardResumen').classList.remove('hidden'); document.getElementById('proDashboardResumen').classList.add('flex');
@@ -1932,7 +2768,7 @@ export function actualizarMetricasQuedada() {
         dt += coords[i].distanceTo(coords[i + 1]);
     }
     const distKm = (dt / 1000).toFixed(2);
-    const tiempoMin = Math.round(((dt / 1000) / 4.5) * 60);
+    const tiempoMin = Math.round(((dt / 1000) / obtenerVelocidadCruceroUsuario()) * 60);
 
     const elPuntos = document.getElementById('quedadaPuntosCount');
     const elLabelPuntos = document.getElementById('quedadaPuntosLabel');
@@ -1952,11 +2788,186 @@ export function actualizarMetricasQuedada() {
     }
 }
 
+let cacheMeteoQuedada = null;
+
+export async function evaluarMeteoParaQuedada() {
+    const preview = document.getElementById('quedadaMeteoPreview');
+    if (!preview) return;
+
+    if (!marcadoresRuta || marcadoresRuta.length === 0) {
+        preview.classList.remove('hidden');
+        preview.innerHTML = `
+            <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 text-center text-slate-400 text-xs">
+                📍 Marca al menos un punto en el mar para consultar la previsión marina.
+            </div>`;
+        return;
+    }
+
+    const salida = marcadoresRuta[0].getLatLng();
+    const lat = salida.lat;
+    const lon = salida.lng;
+
+    const fechaVal = document.getElementById('quedadaFechaInput')?.value || new Date().toISOString().slice(0, 10);
+    const horaVal = document.getElementById('quedadaHoraInput')?.value || '10:00';
+
+    preview.classList.remove('hidden');
+    preview.innerHTML = `
+        <div class="bg-slate-800/80 border border-indigo-500/30 rounded-xl p-3 flex items-center justify-center gap-2 text-indigo-300 font-bold text-xs">
+            <span class="animate-spin">⏳</span> Evaluando previsión marina para ${fechaVal} ${horaVal}...
+        </div>`;
+
+    let dt = 0;
+    const coords = marcadoresRuta.map(m => m.getLatLng());
+    for (let i = 0; i < coords.length - 1; i++) {
+        dt += coords[i].distanceTo(coords[i + 1]);
+    }
+    const distKm = dt / 1000;
+    const duracionBaseMin = Math.max(30, Math.round((distKm / obtenerVelocidadCruceroUsuario()) * 60));
+
+    try {
+        const payload = {
+            location: `${lat.toFixed(5)},${lon.toFixed(5)}`,
+            date: fechaVal,
+            timeRange: crearFranjaForecast(horaVal, duracionBaseMin),
+            userLevel: 'Intermedio'
+        };
+
+        const p = await solicitarPronostico(payload);
+        const dx = p.datos || {};
+
+        const wkVal = valorNumericoMeteo(dx.windSpeed, dx.wind_speed);
+        const windKt = wkVal !== null ? kmhANudos(wkVal * 3.6) : null;
+        const wgVal = valorNumericoMeteo(dx.windGust, dx.wind_gust, dx.rachas);
+        const gustKt = wgVal !== null ? kmhANudos(wgVal * 3.6) : null;
+        const dirViento = valorNumericoMeteo(dx.windDirection, dx.wind_direction);
+        const waveH = valorNumericoMeteo(dx.waveHeight, dx.wave_height);
+        const motor = obtenerMotorExperto(dx, 'Intermedio');
+
+        // Cálculo de tiempo sumando tramo a tramo con evaluarVientoRelativoInfo
+        let tiempoAjustadoMin = 0;
+        if (coords.length >= 2) {
+            for (let i = 0; i < coords.length - 1; i++) {
+                const lat1Rad = coords[i].lat * Math.PI / 180;
+                const lon1Rad = coords[i].lng * Math.PI / 180;
+                const lat2Rad = coords[i + 1].lat * Math.PI / 180;
+                const lon2Rad = coords[i + 1].lng * Math.PI / 180;
+                const y = Math.sin(lon2Rad - lon1Rad) * Math.cos(lat2Rad);
+                const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(lon2Rad - lon1Rad);
+                const rumboTramo = Math.round((Math.atan2(y, x) * 180 / Math.PI + 360) % 360);
+                const dMetros = coords[i].distanceTo(coords[i + 1]);
+                const infoV = evaluarVientoRelativoInfo(rumboTramo, dirViento);
+                const velTramo = Math.max(1.5, obtenerVelocidadCruceroUsuario() + infoV.modVelocidad);
+                tiempoAjustadoMin += ((dMetros / 1000) / velTramo) * 60;
+            }
+        } else {
+            tiempoAjustadoMin = duracionBaseMin;
+        }
+
+        const tiempoFinalMin = Math.round(tiempoAjustadoMin);
+        const elTiempo = document.getElementById('quedadaTiempoMin');
+        if (elTiempo) elTiempo.textContent = `${tiempoFinalMin} min`;
+
+        const cardD = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+        const idir = dirViento !== null ? Math.round((((dirViento % 360) + 360) % 360) / 45) % 8 : null;
+        const dirTexto = idir !== null ? cardD[idir] : '--';
+
+        const isOffshore = motor.componenteTierraMar === 'TERRAL' || motor.alertaDerivaMarAdentro || motor.riesgoDeriva === 'ALTO' || motor.riesgoDeriva === 'MUY ALTO';
+
+        let semaforo = '🟢';
+        let badgeColor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
+        const rec = (motor.recomendacion || motor.veredicto || '').toUpperCase();
+        if (rec.includes('PELIGRO') || rec.includes('EXTREMO') || rec.includes('NO RECOMENDADO')) {
+            semaforo = '🔴';
+            badgeColor = 'bg-red-500/20 text-red-400 border-red-500/40';
+        } else if (rec.includes('ELEVADO') || rec.includes('DESFAVORABLE')) {
+            semaforo = '🟠';
+            badgeColor = 'bg-orange-500/20 text-orange-400 border-orange-500/40';
+        } else if (rec.includes('PRECAUCI') || rec.includes('MODERADO')) {
+            semaforo = '🟡';
+            badgeColor = 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40';
+        }
+
+        const solarQ = calcularSolYCrepusculo(lat, lon, fechaVal);
+        const timePartsQ = (horaVal || '10:00').split(':');
+        const hhQ = parseInt(timePartsQ[0], 10) || 0;
+        const mmQ = parseInt(timePartsQ[1], 10) || 0;
+        const salidaMinQ = hhQ * 60 + mmQ;
+        const llegadaMinQ = salidaMinQ + tiempoFinalMin;
+        const hayRiesgoOcasoQ = llegadaMinQ >= (solarQ.sunsetMin - 30);
+        let avisoOcasoHtml = '';
+        if (hayRiesgoOcasoQ) {
+            const retornoHH = String(Math.floor((llegadaMinQ % 1440) / 60)).padStart(2, '0');
+            const retornoMM = String((llegadaMinQ % 1440) % 60).padStart(2, '0');
+            avisoOcasoHtml = `
+                <div class="mt-2 text-[10px] font-bold text-amber-200 bg-amber-950/60 border border-amber-500/40 rounded-lg p-2.5 flex items-start gap-2 shadow">
+                    <span class="text-base shrink-0">🌇</span>
+                    <div>
+                        <strong class="text-amber-300">Alerta Ocaso:</strong> La quedada finalizará sobre las <strong>${retornoHH}:${retornoMM}</strong> (Ocaso: <strong>${solarQ.sunsetStr}</strong>). Sin luz solar el rescate es crítico.
+                    </div>
+                </div>
+            `;
+        }
+
+        cacheMeteoQuedada = {
+            estado: motor.veredicto || motor.recomendacion || 'SEGURO',
+            semaforo,
+            windKt,
+            gustKt,
+            dirTexto,
+            waveH,
+            tiempoFinalMin,
+            isOffshore
+        };
+
+        preview.innerHTML = `
+            <div class="bg-slate-800/95 border border-indigo-500/40 rounded-xl p-3 shadow-lg">
+                <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-700/70">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                        <span>🌊</span> Previsión Oficial Salida
+                    </span>
+                    <span class="text-xs px-2.5 py-0.5 rounded-full font-bold border ${badgeColor}">
+                        ${semaforo} ${esc(cacheMeteoQuedada.estado)}
+                    </span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-900/60 rounded-lg p-2 border border-slate-700/50">
+                        <span class="text-[9px] text-slate-400 block font-bold uppercase">Viento</span>
+                        <span class="text-xs font-black text-white">${windKt !== null ? windKt.toFixed(1) : '--'} kt</span>
+                        <span class="text-[9px] text-slate-400 block">(${dirTexto})</span>
+                    </div>
+                    <div class="bg-slate-900/60 rounded-lg p-2 border border-slate-700/50">
+                        <span class="text-[9px] text-slate-400 block font-bold uppercase">Rachas</span>
+                        <span class="text-xs font-black text-amber-300">${gustKt !== null ? gustKt.toFixed(1) : '--'} kt</span>
+                        <span class="text-[9px] text-slate-400 block">Máx</span>
+                    </div>
+                    <div class="bg-slate-900/60 rounded-lg p-2 border border-slate-700/50">
+                        <span class="text-[9px] text-slate-400 block font-bold uppercase">Oleaje</span>
+                        <span class="text-xs font-black text-sky-300">${waveH !== null ? waveH.toFixed(1) : '--'} m</span>
+                        <span class="text-[9px] text-slate-400 block">Altura</span>
+                    </div>
+                </div>
+                ${isOffshore ? `
+                <div class="mt-2 text-[10px] font-bold text-amber-300 bg-amber-950/40 border border-amber-500/30 rounded-lg p-2 flex items-center gap-2">
+                    <span class="text-sm">⚠️</span>
+                    <span><strong>Aviso Offshore:</strong> El viento sopla de tierra hacia mar adentro. Extrema precauciones por riesgo de deriva.</span>
+                </div>` : ''}
+                ${avisoOcasoHtml}
+            </div>`;
+    } catch (err) {
+        console.warn('Error al evaluar meteo en quedada:', err);
+        preview.innerHTML = `
+            <div class="bg-slate-800/80 border border-amber-500/30 rounded-xl p-2.5 text-center text-amber-300 text-xs">
+                ⚠️ No se pudo consultar la previsión marina en vivo. Podrás publicar la quedada igualmente.
+            </div>`;
+    }
+}
+
 export function mostrarFormularioQuedada() {
     const form = document.getElementById('quedadaFormPanel');
     if (!form || !modoQuedadaClubActivo) return;
     form.classList.remove('hidden');
     form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    void evaluarMeteoParaQuedada();
 }
 
 export function volverAlMapaQuedada() {
@@ -2130,8 +3141,15 @@ export async function guardarQuedadaDesdeMapa() {
         dt += coords[i].distanceTo(coords[i + 1]);
     }
     const distanciaKm = parseFloat((dt / 1000).toFixed(2));
-    const tiempoMinutos = Math.round(((dt / 1000) / 4.5) * 60);
+    const tiempoMinutos = Math.round(((dt / 1000) / obtenerVelocidadCruceroUsuario()) * 60);
     const coordsArray = coords.map(c => [c.lat, c.lng]);
+
+    // Anexo meteorológico limpio en descripción
+    let descFinal = desc;
+    if (cacheMeteoQuedada) {
+        const resumenMeteo = `Previsión PaddleSafe: ${cacheMeteoQuedada.estado} | 💨 Viento: ${cacheMeteoQuedada.windKt !== null ? cacheMeteoQuedada.windKt.toFixed(1) : '--'} kt (${cacheMeteoQuedada.dirTexto}) | 🌊 Olas: ${cacheMeteoQuedada.waveH !== null ? cacheMeteoQuedada.waveH.toFixed(1) : '--'} m`;
+        descFinal = (descFinal ? `${descFinal}\n\n🌊 ${resumenMeteo}` : `🌊 ${resumenMeteo}`).trim();
+    }
 
     const btn = document.getElementById('btnGuardarQuedadaMap');
     if (btn) { btn.disabled = true; btn.textContent = "Publicando..."; }
@@ -2143,7 +3161,7 @@ export async function guardarQuedadaDesdeMapa() {
                 club_id: clubId,
                 creador_id: appState.sesionActual.user.id,
                 nombre,
-                descripcion: desc,
+                descripcion: descFinal,
                 fecha_evento: fechaSeleccionada.toISOString(),
                 distancia_km: distanciaKm,
                 tiempo_minutos: tiempoMinutos,
@@ -2162,6 +3180,22 @@ export async function guardarQuedadaDesdeMapa() {
                     user_id: appState.sesionActual.user.id
                 }]);
             } catch (_) {}
+        }
+
+        // Anuncio automático en club_chat (no bloqueante)
+        try {
+            const fechaFmt = fechaSeleccionada.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + horaVal;
+            const meteoChatTxt = cacheMeteoQuedada ? ` | 🌊 ${cacheMeteoQuedada.estado} (💨 ${cacheMeteoQuedada.windKt !== null ? cacheMeteoQuedada.windKt.toFixed(1) : '--'} kt)` : '';
+            const mensajeChat = `📅 Nueva Quedada: ${nombre} (${fechaFmt}) — 📏 ${distanciaKm.toFixed(1)} km (~${tiempoMinutos} min)${meteoChatTxt}`;
+            await supabaseClient.from('club_chat').insert([{
+                club_id: clubId,
+                user_id: appState.sesionActual.user.id,
+                mensaje: mensajeChat,
+                visibility: 'club_only',
+                is_public: false
+            }]);
+        } catch (errChat) {
+            console.warn('Aviso no crítico al publicar mensaje de quedada en club_chat:', errChat);
         }
 
         alert("🎉 ¡Quedada publicada con éxito en el club!");
@@ -2192,6 +3226,9 @@ export function cargarRutaEnMapaGrande(coordsData, nombre = 'Quedada') {
         try { coords = JSON.parse(coords); } catch (e) { return; }
     }
     if (!Array.isArray(coords) || coords.length === 0) return;
+
+    // Guardar referencia para análisis dinámico
+    window._rutaClubCargadaActual = { coords, nombre };
 
     // Cerrar modales
     if (window.Club && window.Club.cerrarModal) window.Club.cerrarModal();
@@ -2224,12 +3261,74 @@ export function cargarRutaEnMapaGrande(coordsData, nombre = 'Quedada') {
 
     const msg = document.getElementById('mapMsg');
     if (msg) {
-        msg.className = "text-xs font-bold text-white bg-indigo-600 h-10 px-4 rounded-xl border border-indigo-500 shadow-md flex items-center justify-center transition-colors";
-        msg.innerHTML = `🧭 Ruta del Club: ${esc(nombre)}`;
+        msg.className = "text-xs font-bold text-white bg-indigo-600 h-10 px-3 sm:px-4 rounded-xl border border-indigo-500 shadow-md flex items-center justify-between transition-colors";
+        msg.innerHTML = `
+            <span class="truncate mr-2">🧭 Ruta: <b>${esc(nombre)}</b></span>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" onclick="exportarRutaPlanificadaGPX()" class="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow cursor-pointer active:scale-95 flex items-center gap-1">📲 GPX</button>
+                <button type="button" onclick="analizarVientoRutaClub()" class="shrink-0 px-2.5 py-1 bg-amber-400 hover:bg-amber-300 text-slate-900 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow cursor-pointer active:scale-95">⚡ Analizar Viento</button>
+            </div>
+        `;
     }
 
     const mapContainer = document.getElementById('mapContainer');
     if (mapContainer) mapContainer.scrollIntoView({ behavior: 'smooth' });
+}
+
+export async function analizarVientoRutaClub(coordsData = null, nombre = null) {
+    const info = coordsData ? { coords: coordsData, nombre: nombre || 'Quedada' } : window._rutaClubCargadaActual;
+    if (!info || !info.coords || info.coords.length < 2) return;
+
+    let coords = info.coords;
+    if (typeof coords === 'string') {
+        try { coords = JSON.parse(coords); } catch (e) { return; }
+    }
+    const latLngs = coords.map(pt => Array.isArray(pt) ? L.latLng(pt[0], pt[1]) : (pt.lat ? pt : L.latLng(pt[0], pt[1])));
+
+    limpiarRuta();
+    latLngs.forEach(ll => {
+        const m = L.circleMarker(ll, { radius: 6, color: '#0ea5e9', fillColor: '#38bdf8', fillOpacity: 0.9 }).addTo(map);
+        marcadoresRuta.push(m);
+    });
+
+    const msg = document.getElementById('mapMsg');
+    if (msg) {
+        msg.className = "text-xs font-bold text-white bg-indigo-600 h-10 px-4 rounded-xl border border-indigo-500 shadow-md flex items-center justify-center transition-colors animate-pulse";
+        msg.innerHTML = "⏳ Consultando previsión marina y calculando tramos...";
+    }
+
+    try {
+        const ahora = new Date();
+        const dStr = ahora.toISOString().slice(0, 10);
+        const tStr = String(ahora.getHours()).padStart(2, '0') + ":" + String(ahora.getMinutes()).padStart(2, '0');
+        
+        let dt = 0;
+        for (let i = 0; i < latLngs.length - 1; i++) {
+            dt += latLngs[i].distanceTo(latLngs[i + 1]);
+        }
+        const durMin = Math.max(30, Math.round(((dt / 1000) / obtenerVelocidadCruceroUsuario()) * 60));
+
+        const p = await solicitarPronostico({
+            location: `${latLngs[0].lat.toFixed(5)},${latLngs[0].lng.toFixed(5)}`,
+            date: dStr,
+            timeRange: crearFranjaForecast(tStr, durMin),
+            userLevel: 'Intermedio'
+        });
+
+        renderizarDashboardPro(p.datos, tStr, 'Intermedio', true, latLngs[0].lat, latLngs[0].lng, dStr);
+        map.fitBounds(L.polyline(latLngs).getBounds(), { padding: [40, 40] });
+
+        if (msg) {
+            msg.className = "text-xs font-bold text-white bg-emerald-600 h-10 px-4 rounded-xl border border-emerald-500 shadow-md flex items-center justify-center transition-colors";
+            msg.innerHTML = `✅ Tramos calculados con viento: <b>${esc(info.nombre || 'Quedada')}</b>`;
+        }
+    } catch (err) {
+        console.warn('Error al analizar viento en ruta de quedada:', err);
+        if (msg) {
+            msg.className = "text-xs font-bold text-white bg-amber-600 h-10 px-4 rounded-xl border border-amber-500 shadow-md flex items-center justify-center transition-colors";
+            msg.textContent = "⚠️ No se pudo obtener la previsión horaria para los tramos.";
+        }
+    }
 }
 
 export function cargarRutaDeportivaEnMapa(ruta) {
@@ -2316,6 +3415,57 @@ export function cargarRutaDeportivaEnMapa(ruta) {
         window.__rutasUsuarioCache.set(String(ruta.id), ruta);
     }
 
+    // Guardar referencia activa para exportación GPX
+    window._rutaDeportivaCargadaActual = { coords, nombre: titulo };
+
+    let telemetria = null;
+    try {
+        if (ruta && ruta.id) {
+            const rawTel = localStorage.getItem('ps_telemetry_' + ruta.id);
+            if (rawTel) telemetria = JSON.parse(rawTel);
+        }
+        if (!telemetria && ruta && ruta.telemetria) {
+            telemetria = ruta.telemetria;
+        }
+        if (!telemetria) {
+            const rawLast = localStorage.getItem('ps_telemetry_last');
+            if (rawLast) {
+                const parsedLast = JSON.parse(rawLast);
+                if (parsedLast?.rutaId && ruta?.id && parsedLast.rutaId === ruta.id) {
+                    telemetria = parsedLast;
+                }
+            }
+        }
+    } catch (eTel) {
+        console.warn('Aviso al leer telemetría de ruta:', eTel);
+    }
+
+    let badgeMeteo = '';
+    if (telemetria?.meteo?.vientoKt !== undefined && telemetria?.meteo?.vientoKt !== null) {
+        badgeMeteo = `
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-950/80 text-sky-300 border border-sky-600/40 font-mono text-[10px]" title="Condiciones meteorológicas grabadas durante la ruta">
+                💨 <b>${telemetria.meteo.vientoKt} kt</b>${telemetria.meteo.olasM ? ` · 🌊 <b>${telemetria.meteo.olasM}m</b>` : ''}${telemetria.meteo.score ? ` · 🛡️ <b>${telemetria.meteo.score}</b>` : ''}
+            </span>
+        `;
+    } else if (ruta.ubicacion && ruta.ubicacion.includes('💨')) {
+        const parteMeteo = ruta.ubicacion.split('·').slice(1).join('·').trim();
+        badgeMeteo = `
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-950/80 text-sky-300 border border-sky-600/40 font-mono text-[10px]">
+                ${esc(parteMeteo)}
+            </span>
+        `;
+    }
+
+    let btnSplits = '';
+    if (telemetria && Array.isArray(telemetria.splits) && telemetria.splits.length > 0) {
+        const rutaIdSplits = ruta.id ? String(ruta.id).replace(/'/g, "\\'") : 'last';
+        btnSplits = `
+            <button type="button" onclick="mostrarModalSplitsKm('${rutaIdSplits}')" class="px-2 py-1 bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-black rounded-xl shadow-md flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Ver splits por kilómetro">
+                <span>⚡</span> <span>Splits (${telemetria.splits.length})</span>
+            </button>
+        `;
+    }
+
     const msg = document.getElementById('mapMsg');
     if (msg) {
         const rutaIdEsc = ruta.id ? String(ruta.id).replace(/'/g, "\\'") : '';
@@ -2324,17 +3474,44 @@ export function cargarRutaDeportivaEnMapa(ruta) {
                 <span>🧠</span> <span>Coach</span>
             </button>
         ` : '';
+        const btnAiRouteCoach = `
+            <button type="button" onclick="solicitarAnalisisIARutaDeportiva('${rutaIdEsc}')" class="px-2.5 py-1 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white text-[11px] font-black rounded-xl shadow-md flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Analizar biometría y splits con IA Coach">
+                <span>🤖</span> <span>IA Coach</span>
+            </button>
+        `;
+        const btnGpx = `
+            <button type="button" onclick="exportarRutaPlanificadaGPX()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black rounded-xl shadow-md flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+                <span>📲</span> <span>GPX</span>
+            </button>
+        `;
+
+        const biometriaRuta = calcularBiometriaSup({
+            duracionMin: mins,
+            distKm: Number(dist),
+            velKmh: Number(avgSpd),
+            vientoKt: telemetria?.meteo?.vientoKt || 0,
+            olasM: telemetria?.meteo?.olasM || 0,
+            periodoS: telemetria?.meteo?.periodoS || 0,
+            tipoTabla: telemetria?.boardType || 'all-round'
+        });
 
         msg.className = "text-xs font-bold text-white bg-slate-900/95 py-2.5 px-4 rounded-2xl border border-sky-500/40 shadow-2xl flex items-center justify-between gap-3 flex-wrap transition-all";
         msg.innerHTML = `
-            <div class="flex items-center gap-3 flex-wrap">
+            <div class="flex items-center gap-2.5 flex-wrap">
                 <span class="truncate max-w-[150px] text-sky-400 font-black">🧭 ${esc(titulo)}</span>
                 <span class="text-white">📏 <b>${dist}</b> km</span>
                 <span class="text-white">⏱️ <b>${mins}</b> min</span>
                 <span class="text-amber-400">⚡ Med: <b>${avgSpd}</b> km/h</span>
+                <span class="text-amber-300">🔥 <b>${biometriaRuta.kcal}</b> kcal</span>
                 <span class="text-emerald-400">🚀 Max: <b>${maxSpd}</b> km/h</span>
+                ${badgeMeteo}
             </div>
-            ${btnCoach}
+            <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
+                ${btnSplits}
+                ${btnAiRouteCoach}
+                ${btnGpx}
+                ${btnCoach}
+            </div>
         `;
     }
 
@@ -2349,6 +3526,50 @@ export function cargarRutaDeportivaEnMapa(ruta) {
     }, 250);
 }
 
+/**
+ * Exporta cualquier trazado o ruta activa (planificada, deportiva o quedada) a un archivo .gpx estándar
+ */
+export function exportarRutaPlanificadaGPX() {
+    let coords = [];
+    let nombre = "Ruta_PaddleSafe";
+
+    if (marcadoresRuta && marcadoresRuta.length >= 2) {
+        coords = marcadoresRuta.map(m => {
+            const ll = m.getLatLng ? m.getLatLng() : m;
+            return [ll.lat, ll.lng];
+        });
+        if (modoTravesiaActivo && coords.length === 2) {
+            coords.push(coords[0]);
+        }
+        nombre = `Ruta_Planificada_${new Date().toISOString().slice(0, 10)}`;
+    } else if (window._rutaDeportivaCargadaActual?.coords && window._rutaDeportivaCargadaActual.coords.length > 0) {
+        coords = window._rutaDeportivaCargadaActual.coords;
+        nombre = window._rutaDeportivaCargadaActual.nombre || "Ruta_Deportiva";
+    } else if (window._rutaClubCargadaActual?.coords && window._rutaClubCargadaActual.coords.length > 0) {
+        coords = window._rutaClubCargadaActual.coords;
+        nombre = window._rutaClubCargadaActual.nombre || "Quedada_Club";
+    } else if (lineaRuta) {
+        const latLngs = lineaRuta.getLatLngs ? lineaRuta.getLatLngs() : [];
+        if (Array.isArray(latLngs) && latLngs.length > 1) {
+            coords = latLngs.map(ll => [ll.lat, ll.lng]);
+            nombre = `Ruta_${new Date().toISOString().slice(0, 10)}`;
+        }
+    }
+
+    if (!coords || coords.length < 2) {
+        alert("⚠️ No hay ninguna ruta activa con al menos 2 puntos para exportar a GPX.");
+        return;
+    }
+
+    try {
+        const cleanName = String(nombre).replace(/[^\w\d\-_]/g, '_');
+        descargarGPX(coords, `${cleanName}.gpx`);
+    } catch (e) {
+        console.error("[GPX] Error al exportar archivo GPX:", e);
+        alert(`No se pudo generar el archivo GPX: ${e.message}`);
+    }
+}
+
 // Retrocompatibilidad
 export function activarModoPlanificacionEvento(clubId) {
     iniciarCreacionQuedadaClub(clubId);
@@ -2358,34 +3579,1029 @@ export function guardarEventoClub() {
     guardarQuedadaDesdeMapa();
 }
 
+export let modoSolTrackerActivo = false;
+
+export function toggleModoSolTracker() {
+    modoSolTrackerActivo = !modoSolTrackerActivo;
+    const panel = document.getElementById('liveTrackingPanel');
+    if (!panel) return;
+    
+    // Inyectar estilos de alto contraste solar una sola vez
+    if (!document.getElementById('paddlesafe-modo-sol-style')) {
+        const styleEl = document.createElement('style');
+        styleEl.id = 'paddlesafe-modo-sol-style';
+        styleEl.textContent = `
+            #liveTrackingPanel.modo-sol-activo {
+                background-color: #ffffff !important;
+                color: #020617 !important;
+                border: 3px solid #000000 !important;
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7) !important;
+            }
+            #liveTrackingPanel.modo-sol-activo .live-hud-card,
+            #liveTrackingPanel.modo-sol-activo .live-hud-return {
+                background-color: #f8fafc !important;
+                border: 2px solid #0f172a !important;
+                color: #020617 !important;
+            }
+            #liveTrackingPanel.modo-sol-activo .live-hud-label,
+            #liveTrackingPanel.modo-sol-activo .live-hud-status,
+            #liveTrackingPanel.modo-sol-activo span,
+            #liveTrackingPanel.modo-sol-activo p {
+                color: #020617 !important;
+                font-weight: 900 !important;
+            }
+            #liveTrackingPanel.modo-sol-activo #liveTime {
+                color: #047857 !important;
+                font-weight: 900 !important;
+            }
+            #liveTrackingPanel.modo-sol-activo #liveDist,
+            #liveTrackingPanel.modo-sol-activo #liveSpeed,
+            #liveTrackingPanel.modo-sol-activo #liveReturnDist,
+            #liveTrackingPanel.modo-sol-activo #liveReturnBearing {
+                color: #000000 !important;
+                font-weight: 900 !important;
+            }
+            #liveTrackingPanel.modo-sol-activo #liveReturnEta {
+                color: #047857 !important;
+                font-weight: 900 !important;
+            }
+            #liveTrackingPanel.modo-sol-activo .live-btn-tool {
+                background-color: #000000 !important;
+                color: #ffffff !important;
+                border: 1px solid #000000 !important;
+                font-weight: 900 !important;
+            }
+            #liveTrackingPanel.modo-sol-activo .live-btn-finish {
+                background-color: #dc2626 !important;
+                color: #ffffff !important;
+                border: 2px solid #7f1d1d !important;
+                font-weight: 900 !important;
+            }
+        `;
+        document.head.appendChild(styleEl);
+    }
+
+    if (modoSolTrackerActivo) {
+        panel.classList.add('modo-sol-activo');
+    } else {
+        panel.classList.remove('modo-sol-activo');
+    }
+}
+
+export async function compartirPosicionActualLive() {
+    if (!trackCoords || trackCoords.length === 0) {
+        alert("Aún no se ha registrado ninguna coordenada GPS válida.");
+        return;
+    }
+    const ultimaCoord = trackCoords[trackCoords.length - 1];
+    const lat = Number(ultimaCoord[0]).toFixed(5);
+    const lon = Number(ultimaCoord[1]).toFixed(5);
+    
+    const timeEl = document.getElementById('liveTime');
+    const tiempoStr = timeEl ? timeEl.textContent : "00:00";
+    const distStr = `${trackDistanceKm.toFixed(2)} km`;
+    
+    const mapsUrl = `https://maps.google.com/?q=${lat},${lon}`;
+    const textoMensaje = `🏄‍♂️ Travesía SUP en curso (PaddleSafe). Mi posición actual: ${mapsUrl} | Distancia: ${distStr} | Tiempo: ${tiempoStr}`;
+    
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: 'Mi Posición SUP en Vivo - PaddleSafe',
+                text: textoMensaje,
+                url: mapsUrl
+            });
+            return;
+        } catch (errShare) {
+            if (errShare.name === 'AbortError') return;
+            console.warn('Fallback tras navigator.share:', errShare);
+        }
+    }
+    
+    const urlWa = `https://wa.me/?text=${encodeURIComponent(textoMensaje)}`;
+    window.open(urlWa, '_blank', 'noopener,noreferrer');
+}
+
+export function actualizarRetornoSalidaLive(latActual, lonActual) {
+    if (!trackCoords || trackCoords.length === 0) return;
+    const pSalida = trackCoords[0];
+    const lat0 = pSalida[0];
+    const lon0 = pSalida[1];
+
+    // Distancia geodésica al punto de salida
+    const distMetros = L.latLng(latActual, lonActual).distanceTo(L.latLng(lat0, lon0));
+    const distKm = distMetros / 1000;
+
+    // Rumbo de regreso hacia el punto inicial
+    const lat1Rad = latActual * Math.PI / 180;
+    const lon1Rad = lonActual * Math.PI / 180;
+    const lat2Rad = lat0 * Math.PI / 180;
+    const lon2Rad = lon0 * Math.PI / 180;
+    const y = Math.sin(lon2Rad - lon1Rad) * Math.cos(lat2Rad);
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(lon2Rad - lon1Rad);
+    const rumboVuelta = Math.round((Math.atan2(y, x) * 180 / Math.PI + 360) % 360);
+
+    const dirsCard = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+    const cardinalVuelta = dirsCard[Math.round(((rumboVuelta % 360) + 360) % 360 / 45) % 8];
+
+    // Evaluación del viento relativo en el trayecto de vuelta
+    const dirVientoActual = valorNumericoMeteo(datosMeteoActuales?.windDirection, datosMeteoActuales?.wind_direction);
+    const infoVientoVuelta = evaluarVientoRelativoInfo(rumboVuelta, dirVientoActual);
+
+    // Tiempo estimado de regreso
+    const velEstimada = Math.max(1.5, obtenerVelocidadCruceroUsuario() + infoVientoVuelta.modVelocidad);
+    const tiempoVueltaMin = Math.round((distKm / velEstimada) * 60);
+
+    const elDist = document.getElementById('liveReturnDist');
+    if (elDist) elDist.textContent = `${distKm.toFixed(2)} km`;
+    const elBearing = document.getElementById('liveReturnBearing');
+    if (elBearing) elBearing.textContent = `🧭 ${rumboVuelta}° (${cardinalVuelta})`;
+    const elEta = document.getElementById('liveReturnEta');
+    if (elEta) elEta.textContent = `ETA: ${tiempoVueltaMin} min`;
+    const elWind = document.getElementById('liveReturnWind');
+    if (elWind) {
+        elWind.textContent = `${infoVientoVuelta.icon} ${infoVientoVuelta.texto}`;
+        elWind.className = `font-bold text-[9px] px-1.5 py-0.5 rounded ${infoVientoVuelta.claseColor}`;
+    }
+
+    // Indicador dinámico de luz solar restante / ocaso
+    const fechaHoy = new Date().toISOString().slice(0, 10);
+    const solarLive = calcularSolYCrepusculo(latActual, lonActual, fechaHoy);
+    const nowLive = new Date();
+    const ahoraMin = nowLive.getHours() * 60 + nowLive.getMinutes();
+    const minHastaOcaso = solarLive.sunsetMin - ahoraMin;
+    const elSunset = document.getElementById('liveSunsetCountdown');
+    if (elSunset) {
+        if (minHastaOcaso <= 45 && minHastaOcaso > 0) {
+            elSunset.textContent = `🌇 Luz restante: ${minHastaOcaso} min`;
+            elSunset.classList.remove('hidden');
+        } else if (minHastaOcaso <= 0) {
+            elSunset.textContent = `🌙 Post-ocaso (+${Math.abs(minHastaOcaso)}m)`;
+            elSunset.classList.remove('hidden');
+        } else {
+            elSunset.classList.add('hidden');
+        }
+    }
+}
+
+// ==========================================
+// VECTORES TÁCTICOS DE VIENTO Y OLEAJE EN MAPA
+// ==========================================
+
+export function renderizarRosaVectoresMapa(lat, lon, datosMeteo) {
+    if (!map || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon)) || !datosMeteo) return;
+
+    const latNum = Number(lat);
+    const lonNum = Number(lon);
+
+    const vMs = valorNumericoMeteo(datosMeteo.windSpeed, datosMeteo.wind_speed);
+    const vKt = vMs !== null ? vMs * 1.94384 : 0;
+    const rMs = valorNumericoMeteo(datosMeteo.windGusts, datosMeteo.wind_gusts);
+    const rKt = rMs !== null ? rMs * 1.94384 : vKt;
+    const dirViento = valorNumericoMeteo(datosMeteo.windDirection, datosMeteo.wind_direction);
+    const dirVientoNum = dirViento !== null ? Number(dirViento) : 0;
+
+    const waveM = valorNumericoMeteo(datosMeteo.waveHeight, datosMeteo.wave_height);
+    const dirOla = valorNumericoMeteo(datosMeteo.waveDirection, datosMeteo.wave_direction);
+
+    // Rumbo hacia el que SOPLA el viento (origen + 180°)
+    const rotViento = (dirVientoNum + 180) % 360;
+
+    // Color según intensidad del viento
+    const colorViento = vKt < 10 ? '#10b981' : (vKt <= 15 ? '#eab308' : '#ef4444');
+
+    // Vector de ola (rumbo hacia el que avanza la ola)
+    const tieneOla = waveM !== null && waveM > 0.05;
+    const rotOla = dirOla !== null ? (Number(dirOla) + 180) % 360 : rotViento;
+
+    // SVG táctico de 120x120px centrado
+    const svgHtml = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" class="pointer-events-none drop-shadow-xl select-none">
+            <defs>
+                <filter id="vectorGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.6"/>
+                </filter>
+            </defs>
+            <!-- 1. Rosa de rumbos sutil -->
+            <circle cx="60" cy="60" r="48" fill="rgba(15, 23, 42, 0.45)" stroke="rgba(255,255,255,0.25)" stroke-width="1.2" stroke-dasharray="3 3"/>
+            <circle cx="60" cy="60" r="28" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+            <!-- Ticks cardinales -->
+            <line x1="60" y1="12" x2="60" y2="18" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+            <line x1="108" y1="60" x2="102" y2="60" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+            <line x1="60" y1="108" x2="60" y2="102" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+            <line x1="12" y1="60" x2="18" y2="60" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+            <text x="60" y="24" fill="#38bdf8" font-size="9" font-weight="900" text-anchor="middle" font-family="sans-serif">N</text>
+
+            <!-- 2. Vector de Ola (Línea discontinua Cyan hacia donde va la ola) -->
+            ${tieneOla ? `
+            <g transform="rotate(${rotOla}, 60, 60)" filter="url(#vectorGlow)">
+                <line x1="60" y1="60" x2="60" y2="19" stroke="#06b6d4" stroke-width="2.5" stroke-dasharray="4 2" stroke-linecap="round"/>
+                <polygon points="60,13 54,23 66,23" fill="#06b6d4"/>
+            </g>
+            ` : ''}
+
+            <!-- 3. Vector de Viento Animado (Hacia donde sopla) -->
+            <g transform="rotate(${rotViento}, 60, 60)" filter="url(#vectorGlow)">
+                <line x1="60" y1="60" x2="60" y2="16" stroke="${colorViento}" stroke-width="3.5" stroke-linecap="round"/>
+                <polygon points="60,10 52,22 68,22" fill="${colorViento}"/>
+                <circle cx="60" cy="60" r="4.5" fill="${colorViento}" stroke="#0f172a" stroke-width="1.5"/>
+            </g>
+
+            <!-- 4. Etiqueta central de intensidad -->
+            <g filter="url(#vectorGlow)">
+                <rect x="36" y="53" width="48" height="15" rx="4" fill="rgba(15, 23, 42, 0.88)" stroke="${colorViento}" stroke-width="1"/>
+                <text x="60" y="64" fill="${colorViento}" font-size="9" font-weight="900" text-anchor="middle" font-family="sans-serif">💨 ${vKt.toFixed(1)}k</text>
+            </g>
+            ${tieneOla ? `
+            <g filter="url(#vectorGlow)">
+                <rect x="38" y="70" width="44" height="13" rx="3.5" fill="rgba(15, 23, 42, 0.85)" stroke="#06b6d4" stroke-width="0.8"/>
+                <text x="60" y="80" fill="#06b6d4" font-size="8" font-weight="900" text-anchor="middle" font-family="sans-serif">🌊 ${waveM.toFixed(1)}m</text>
+            </g>
+            ` : ''}
+        </svg>
+    `;
+
+    const iconRosa = L.divIcon({
+        className: 'rosa-vectores-container',
+        html: svgHtml,
+        iconSize: [120, 120],
+        iconAnchor: [60, 60]
+    });
+
+    if (marcadorRosaVectores && map) {
+        map.removeLayer(marcadorRosaVectores);
+        marcadorRosaVectores = null;
+    }
+
+    marcadorRosaVectores = L.marker([latNum, lonNum], {
+        icon: iconRosa,
+        interactive: false,
+        zIndexOffset: 250
+    }).addTo(map);
+
+    actualizarHudVectoresMapa(latNum, lonNum, datosMeteo);
+}
+
+export function actualizarHudVectoresMapa(lat, lon, datosMeteo) {
+    const hud = document.getElementById('mapWindWaveHud');
+    if (!hud) return;
+
+    if (!datosMeteo) {
+        hud.classList.add('hidden');
+        return;
+    }
+
+    const vMs = valorNumericoMeteo(datosMeteo.windSpeed, datosMeteo.wind_speed);
+    const vKt = vMs !== null ? vMs * 1.94384 : 0;
+    const rMs = valorNumericoMeteo(datosMeteo.windGusts, datosMeteo.wind_gusts);
+    const rKt = rMs !== null ? rMs * 1.94384 : vKt;
+    const dirViento = valorNumericoMeteo(datosMeteo.windDirection, datosMeteo.wind_direction) || 0;
+    const waveM = valorNumericoMeteo(datosMeteo.waveHeight, datosMeteo.wave_height);
+    const perS = valorNumericoMeteo(datosMeteo.wavePeriod, datosMeteo.wave_period);
+
+    const spotNombre = spotActivoActual?.nombre || document.getElementById('location')?.value?.trim() || 'Spot';
+    const infoCosta = resolverOrientacionCostera(spotNombre, lat, lon);
+
+    const elName = document.getElementById('hudPointName');
+    if (elName) elName.textContent = spotNombre.split(',')[0];
+
+    const elBadge = document.getElementById('hudCostalBadge');
+    if (elBadge) {
+        if (infoCosta && infoCosta.componente) {
+            const comp = infoCosta.componente.toLowerCase();
+            if (comp.includes('offshore') || comp.includes('terral')) {
+                elBadge.textContent = 'Offshore';
+                elBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-950/90 text-emerald-300 border border-emerald-500/50';
+            } else if (comp.includes('onshore') || comp.includes('mar-tierra')) {
+                elBadge.textContent = 'Onshore';
+                elBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-950/90 text-blue-300 border border-blue-500/50';
+            } else {
+                elBadge.textContent = 'Side';
+                elBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-black bg-cyan-950/90 text-cyan-300 border border-cyan-500/50';
+            }
+        } else {
+            elBadge.textContent = 'Costero';
+            elBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-300';
+        }
+    }
+
+    const elArrow = document.getElementById('hudWindArrow');
+    if (elArrow) {
+        elArrow.style.transform = `rotate(${dirViento}deg)`;
+    }
+
+    const elSpeed = document.getElementById('hudWindSpeed');
+    if (elSpeed) {
+        elSpeed.textContent = `${vKt.toFixed(1)} kt`;
+    }
+
+    const elGust = document.getElementById('hudWindGust');
+    if (elGust) {
+        if (rKt - vKt >= 3) {
+            elGust.textContent = `(${rKt.toFixed(1)})`;
+        } else {
+            elGust.textContent = '';
+        }
+    }
+
+    const elWave = document.getElementById('hudWaveHeight');
+    if (elWave) {
+        elWave.textContent = waveM !== null ? `🌊 ${waveM.toFixed(1)}m` : '🌊 --';
+    }
+
+    const elPeriod = document.getElementById('hudWavePeriod');
+    if (elPeriod) {
+        elPeriod.textContent = perS ? `${Math.round(perS)}s` : '';
+    }
+
+    hud.classList.remove('hidden');
+}
+
+// ==========================================
+// COACH IA PARA RUTAS DEPORTIVAS COMPLETADAS
+// ==========================================
+
+export async function solicitarAnalisisIARutaDeportiva(rutaId) {
+    let ruta = null;
+    if (window.__rutasUsuarioCache && rutaId) {
+        ruta = window.__rutasUsuarioCache.get(String(rutaId));
+    }
+    if (!ruta && window._rutaDeportivaCargadaActual) {
+        ruta = {
+            id: rutaId,
+            title: window._rutaDeportivaCargadaActual.nombre,
+            route_coordinates: window._rutaDeportivaCargadaActual.coords
+        };
+    }
+
+    let telemetria = null;
+    try {
+        if (rutaId && rutaId !== 'last') {
+            const rawTel = localStorage.getItem('ps_telemetry_' + rutaId);
+            if (rawTel) telemetria = JSON.parse(rawTel);
+        }
+        if (!telemetria) {
+            const rawLast = localStorage.getItem('ps_telemetry_last');
+            if (rawLast) telemetria = JSON.parse(rawLast);
+        }
+    } catch (e) {
+        console.warn('Aviso leyendo telemetría para IA Coach:', e);
+    }
+
+    const distKm = Number(ruta?.distance_km || ruta?.distancia_km || trackDistanceKm || 0);
+    const mins = Number(ruta?.tiempo_minutos || Math.round(Number(ruta?.duration_seconds || 0) / 60) || 1);
+    const avgSpd = Number(ruta?.avg_speed || (mins > 0 ? (distKm / (mins / 60)) : 0));
+    const maxSpd = Number(ruta?.max_speed || (avgSpd * 1.35));
+
+    // Crear o recuperar modal
+    const modalPrevio = document.getElementById('modalAiRouteCoach');
+    if (modalPrevio) modalPrevio.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'modalAiRouteCoach';
+    modal.className = 'fixed inset-0 z-[130] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn';
+    modal.innerHTML = `
+        <div class="bg-slate-900 border border-emerald-500/40 rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl text-white flex flex-col gap-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-2xl">🤖</span>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-black text-white uppercase tracking-wider">Coach Inteligente de Ruta</h3>
+                        <p class="text-[11px] text-slate-400">Análisis técnico de biomecánica, ritmo y meteo</p>
+                    </div>
+                </div>
+                <button type="button" onclick="document.getElementById('modalAiRouteCoach').remove()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white font-bold cursor-pointer">&times;</button>
+            </div>
+            <div id="aiRouteCoachLoading" class="py-8 flex flex-col items-center justify-center gap-3">
+                <span class="text-3xl animate-bounce">🧠</span>
+                <p class="text-xs font-bold text-sky-400 uppercase tracking-widest animate-pulse">Analizando splits y esfuerzo...</p>
+            </div>
+            <div id="aiRouteCoachContent" class="hidden flex flex-col gap-3"></div>
+            <button type="button" onclick="document.getElementById('modalAiRouteCoach').remove()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer">
+                Entendido
+            </button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    const payload = {
+        distance_km: Number(distKm.toFixed(2)),
+        duration_seconds: Math.round(mins * 60),
+        avg_speed: Number(avgSpd.toFixed(1)),
+        max_speed: Number(maxSpd.toFixed(1)),
+        splits_data: telemetria?.splits || [],
+        weather: telemetria?.meteo || null,
+        board_type: telemetria?.boardType || 'inflat_allround'
+    };
+
+    let resultadoCoach = null;
+    try {
+        const resp = await fetchConTimeout(`${BACKEND_API_URL}?action=route_coach`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }, 2500);
+        const data = await resp.json();
+        if (data.ok && data.coach) {
+            resultadoCoach = data.coach;
+        }
+    } catch (e) {
+        // Fallback local
+    }
+
+    if (!resultadoCoach) {
+        resultadoCoach = generarAnalisisIARutaFallback(payload);
+    }
+
+    const loader = document.getElementById('aiRouteCoachLoading');
+    const content = document.getElementById('aiRouteCoachContent');
+    if (loader) loader.classList.add('hidden');
+    if (content) {
+        content.classList.remove('hidden');
+        content.innerHTML = `
+            <div class="p-3 bg-emerald-950/60 border border-emerald-500/40 rounded-2xl flex items-start gap-2.5">
+                <span class="text-xl">✅</span>
+                <div>
+                    <h4 class="text-xs font-black text-emerald-300 uppercase tracking-wide">Puntos Fuertes</h4>
+                    <p class="text-[11px] text-slate-200 mt-0.5 leading-relaxed">${esc(resultadoCoach.bien || 'Gran consistencia durante la travesía.')}</p>
+                </div>
+            </div>
+            <div class="p-3 bg-amber-950/60 border border-amber-500/40 rounded-2xl flex items-start gap-2.5">
+                <span class="text-xl">💡</span>
+                <div>
+                    <h4 class="text-xs font-black text-amber-300 uppercase tracking-wide">Oportunidad de Mejora</h4>
+                    <p class="text-[11px] text-slate-200 mt-0.5 leading-relaxed">${esc(resultadoCoach.mejora || 'Mantener una cadencia constante en los tramos con viento lateral.')}</p>
+                </div>
+            </div>
+            <div class="p-3 bg-sky-950/60 border border-sky-500/40 rounded-2xl flex items-start gap-2.5">
+                <span class="text-xl">🎯</span>
+                <div>
+                    <h4 class="text-xs font-black text-sky-300 uppercase tracking-wide">Estrategia Próxima Salida</h4>
+                    <p class="text-[11px] text-slate-200 mt-0.5 leading-relaxed">${esc(resultadoCoach.proxima_salida || 'Incorpora series cortas de aceleración cada 1 km para elevar tu ritmo crucero.')}</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function generarAnalisisIARutaFallback(p) {
+    const km = p.distance_km || 0;
+    const vel = p.avg_speed || 0;
+    const vKt = p.weather?.vientoKt ? Number(p.weather.vientoKt) : null;
+    const splits = p.splits_data || [];
+
+    let bien = `Has completado ${km.toFixed(2)} km con una velocidad media de ${vel.toFixed(1)} km/h. `;
+    if (vKt && vKt >= 10) {
+        bien += `Excelente control y resistencia contra ráfagas de ${vKt} kt.`;
+    } else {
+        bien += `Buen aprovechamiento de las condiciones para consolidar tu técnica y deslizamiento.`;
+    }
+
+    let mejora = "Intenta mantener el tronco erguido y realizar flexión de rodillas para transferir más potencia a cada palada.";
+    if (splits.length >= 2) {
+        const velPrimero = Number(splits[0].velMediaKmh || vel);
+        const velUltimo = Number(splits[splits.length - 1].velMediaKmh || vel);
+        if (velUltimo < velPrimero * 0.8) {
+            mejora = `Se detectó una disminución del ${Math.round((1 - velUltimo / velPrimero) * 100)}% de velocidad en el tramo final. Dosifica el esfuerzo en los primeros kilómetros para llegar con más reserva física.`;
+        } else if (velUltimo > velPrimero * 1.1) {
+            mejora = "Terminaste con ritmo progresivo fuerte; tienes margen para salir con un ritmo base 0.3 km/h más alto.";
+        }
+    }
+
+    let proxima = "Planifica tu próxima salida con intervalos de 500m a ritmo fuerte seguidos de 100m de recuperación activa.";
+    if (p.weather?.olasM && Number(p.weather.olasM) >= 0.5) {
+        proxima = "En la próxima sesión en mar abierto, practica cambios de guardia rápidos para equilibrar el esfuerzo de hombros y core.";
+    }
+
+    return { bien, mejora, proxima_salida: proxima };
+}
+
+// ==========================================
+// REPORTES EN VIVO DEL SPOT (WAZE FOR SUP)
+// ==========================================
+
+export const REPORT_TAGS_SPOT = [
+    '🌊 Mar plato real',
+    '💨 Más viento del previsto',
+    '🌊 Orillera fuerte',
+    '🪼 Medusas en zona',
+    '⚠️ Corriente lateral',
+    '🟢 Condiciones top'
+];
+
+export function abrirModalReporteSpot() {
+    const modalPrevio = document.getElementById('modalReporteSpot');
+    if (modalPrevio) modalPrevio.remove();
+
+    const spotNombre = spotActivoActual?.nombre || document.getElementById('location')?.value?.trim() || 'Spot Actual';
+    const lat = Number(spotActivoActual?.lat || latitudActual);
+    const lon = Number(spotActivoActual?.lon || longitudActual);
+
+    const tagsHtml = REPORT_TAGS_SPOT.map((tag, idx) => `
+        <button type="button" onclick="window.seleccionarTagReporte('${esc(tag)}')" data-report-tag="${esc(tag)}" class="tag-reporte-btn text-left px-3 py-2 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-xs font-bold text-slate-200 transition-all cursor-pointer ${idx === 0 ? 'ring-2 ring-amber-400 bg-amber-950/60 border-amber-500' : ''}">
+            ${esc(tag)}
+        </button>
+    `).join('');
+
+    const modal = document.createElement('div');
+    modal.id = 'modalReporteSpot';
+    modal.className = 'fixed inset-0 z-[130] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn';
+    modal.innerHTML = `
+        <div class="bg-slate-900 border border-amber-500/40 rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl text-white flex flex-col gap-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">📣</span>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-black text-white uppercase tracking-wider">Reportar Estado Real</h3>
+                        <p class="text-[11px] text-amber-300 font-bold">${esc(spotNombre)}</p>
+                    </div>
+                </div>
+                <button type="button" onclick="document.getElementById('modalReporteSpot').remove()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white font-bold cursor-pointer">&times;</button>
+            </div>
+            <div>
+                <label class="text-[10px] uppercase font-black tracking-wider text-slate-400 block mb-2">Selecciona el estado observado:</label>
+                <div class="grid grid-cols-2 gap-2" id="reportTagsList">
+                    ${tagsHtml}
+                </div>
+            </div>
+            <div>
+                <label for="reportComment" class="text-[10px] uppercase font-black tracking-wider text-slate-400 block mb-1">Comentario adicional (opcional):</label>
+                <textarea id="reportComment" rows="2" maxlength="140" placeholder="Ej: Se rema genial cerca del espigón, mar tranquilo..." class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-amber-400"></textarea>
+            </div>
+            <div class="flex gap-2">
+                <button type="button" onclick="window.confirmarEnvioReporteSpot('${esc(spotNombre)}', ${lat}, ${lon})" class="flex-1 py-3 bg-amber-600 hover:bg-amber-500 active:scale-95 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-lg shadow-amber-950/50">
+                    🚀 Publicar Reporte
+                </button>
+                <button type="button" onclick="document.getElementById('modalReporteSpot').remove()" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase rounded-xl transition-all cursor-pointer">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    window._tagReporteSeleccionado = REPORT_TAGS_SPOT[0];
+}
+
+export function seleccionarTagReporte(tag) {
+    window._tagReporteSeleccionado = tag;
+    const btns = document.querySelectorAll('.tag-reporte-btn');
+    btns.forEach(b => {
+        if (b.getAttribute('data-report-tag') === tag) {
+            b.className = 'tag-reporte-btn text-left px-3 py-2 rounded-xl border border-amber-500 ring-2 ring-amber-400 bg-amber-950/60 text-xs font-bold text-white transition-all cursor-pointer';
+        } else {
+            b.className = 'tag-reporte-btn text-left px-3 py-2 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-xs font-bold text-slate-200 transition-all cursor-pointer';
+        }
+    });
+}
+
+export async function confirmarEnvioReporteSpot(spotNombre, lat, lon) {
+    const tag = window._tagReporteSeleccionado || REPORT_TAGS_SPOT[0];
+    const comEl = document.getElementById('reportComment');
+    const comentario = comEl ? comEl.value.trim() : '';
+
+    await enviarReporteSpot(spotNombre, lat, lon, tag, comentario);
+    document.getElementById('modalReporteSpot')?.remove();
+}
+
+export async function enviarReporteSpot(spotNombre, lat, lon, tag, comentario) {
+    const user = appState?.sesionActual?.user;
+    const autorNombre = appState?.perfilActual?.nombre || appState?.perfilActual?.username || 'Paddler Local';
+
+    const nuevoReporte = {
+        id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('rep_' + Date.now()),
+        user_id: user?.id || null,
+        autor_nombre: autorNombre,
+        spot_nombre: spotNombre,
+        lat: Number(Number(lat).toFixed(6)),
+        lon: Number(Number(lon).toFixed(6)),
+        tag: tag,
+        comentario: comentario || null,
+        created_at: new Date().toISOString()
+    };
+
+    if (supabaseClient) {
+        try {
+            await supabaseClient.from('spot_reports').insert([{
+                user_id: nuevoReporte.user_id,
+                autor_nombre: nuevoReporte.autor_nombre,
+                spot_nombre: nuevoReporte.spot_nombre,
+                lat: nuevoReporte.lat,
+                lon: nuevoReporte.lon,
+                tag: nuevoReporte.tag,
+                comentario: nuevoReporte.comentario
+            }]);
+        } catch (e) {
+            console.warn('Aviso no crítico guardando reporte en Supabase:', e);
+        }
+    }
+
+    try {
+        const raw = localStorage.getItem('ps_spot_reports');
+        const existentes = raw ? JSON.parse(raw) : [];
+        existentes.unshift(nuevoReporte);
+        localStorage.setItem('ps_spot_reports', JSON.stringify(existentes.slice(0, 30)));
+    } catch (e) {
+        console.warn('No se pudo guardar reporte localmente:', e);
+    }
+
+    await cargarReportesSpot(lat, lon);
+}
+
+export async function cargarReportesSpot(lat, lon) {
+    const latNum = Number(lat);
+    const lonNum = Number(lon);
+    if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return;
+
+    let todosReportes = [];
+
+    if (supabaseClient) {
+        try {
+            const haceSeisHoras = new Date(Date.now() - 6 * 3600 * 1000).toISOString();
+            const { data, error } = await supabaseClient
+                .from('spot_reports')
+                .select('*')
+                .gte('created_at', haceSeisHoras)
+                .order('created_at', { ascending: false })
+                .limit(40);
+            if (!error && Array.isArray(data)) {
+                todosReportes.push(...data);
+            }
+        } catch (e) {
+            console.warn('Aviso al consultar spot_reports en Supabase:', e);
+        }
+    }
+
+    try {
+        const raw = localStorage.getItem('ps_spot_reports');
+        if (raw) {
+            const locReps = JSON.parse(raw);
+            if (Array.isArray(locReps)) {
+                for (const r of locReps) {
+                    if (!todosReportes.some(item => item.id === r.id)) {
+                        todosReportes.push(r);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('Aviso leyendo reportes locales:', e);
+    }
+
+    const ahora = Date.now();
+    const cuatroHorasMs = 4 * 3600 * 1000;
+    const reportesCercanos = todosReportes.filter(r => {
+        const ts = new Date(r.created_at).getTime();
+        if (ahora - ts > cuatroHorasMs) return false;
+        if (!map) return false;
+        const distM = L.latLng(latNum, lonNum).distanceTo(L.latLng(Number(r.lat), Number(r.lon)));
+        return distM <= 5000;
+    });
+
+    reportesSpotActivo = reportesCercanos;
+
+    const cont = document.getElementById('spotLiveReportsContainer');
+    if (cont) {
+        if (reportesCercanos.length > 0) {
+            const rReciente = reportesCercanos[0];
+            const minAgo = Math.max(1, Math.round((ahora - new Date(rReciente.created_at).getTime()) / 60000));
+            cont.innerHTML = `
+                <div class="flex items-center justify-between gap-2 flex-wrap border-b border-amber-500/30 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base animate-pulse">📣</span>
+                        <span class="font-black text-amber-300 uppercase tracking-wide">Reportes en Vivo (${reportesCercanos.length})</span>
+                    </div>
+                    <button type="button" onclick="window.abrirModalReporteSpot()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold text-[10px] uppercase cursor-pointer">
+                        + Añadir Reporte
+                    </button>
+                </div>
+                <div class="flex flex-col gap-1.5 mt-1">
+                    <div class="flex items-center justify-between gap-2 text-white font-bold text-[11px]">
+                        <span>${esc(rReciente.tag)}</span>
+                        <span class="text-amber-400 font-mono text-[10px]">hace ${minAgo} min</span>
+                    </div>
+                    ${rReciente.comentario ? `<p class="text-slate-300 text-[11px] italic bg-slate-900/60 p-2 rounded-xl">"${esc(rReciente.comentario)}" — <b>${esc(rReciente.autor_nombre || 'Paddler')}</b></p>` : ''}
+                </div>
+            `;
+            cont.classList.remove('hidden');
+        } else {
+            cont.classList.add('hidden');
+            cont.innerHTML = '';
+        }
+    }
+
+    if (marcadorReporteSpot && map) {
+        map.removeLayer(marcadorReporteSpot);
+        marcadorReporteSpot = null;
+    }
+
+    if (reportesCercanos.length > 0 && map) {
+        const rReciente = reportesCercanos[0];
+        const iconCrowd = L.divIcon({
+            className: 'bg-transparent border-none',
+            html: `
+                <div class="w-7 h-7 rounded-full bg-amber-500 border-2 border-white shadow-xl flex items-center justify-center text-xs animate-bounce cursor-pointer" title="Reporte en vivo: ${esc(rReciente.tag)}">
+                    📣
+                </div>
+            `,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+        });
+
+        marcadorReporteSpot = L.marker([Number(rReciente.lat), Number(rReciente.lon)], {
+            icon: iconCrowd,
+            zIndexOffset: 350
+        }).addTo(map);
+
+        marcadorReporteSpot.bindPopup(`
+            <div class="text-xs font-sans">
+                <b class="text-amber-600">${esc(rReciente.tag)}</b><br>
+                ${rReciente.comentario ? `<span>"${esc(rReciente.comentario)}"</span><br>` : ''}
+                <small class="text-slate-500">Por ${esc(rReciente.autor_nombre || 'Paddler')} · Coords: ${Number(rReciente.lat).toFixed(4)}, ${Number(rReciente.lon).toFixed(4)}</small>
+            </div>
+        `);
+    }
+}
+
+// ==========================================
+// CHECK-IN DE SEGURIDAD DEADMAN & TELEMETRÍA SPLITS
+// ==========================================
+
+export function actualizarDuracionCheckin(minutos) {
+    checkinDuracionMinutos = Number(minutos) || 90;
+    checkinTimestampLimite = Date.now() + (checkinDuracionMinutos * 60 * 1000);
+    checkinAlertaActiva = false;
+    verificarAlertaCheckin();
+}
+
+export function extenderCheckinTravesia(minutos = 30) {
+    if (!checkinTimestampLimite) checkinTimestampLimite = Date.now();
+    const base = Math.max(Date.now(), checkinTimestampLimite);
+    checkinTimestampLimite = base + (Number(minutos) * 60 * 1000);
+    checkinAlertaActiva = false;
+    verificarAlertaCheckin();
+}
+
+export function enviarAlertaCheckinWhatsApp() {
+    const telInput = document.getElementById('inputCheckinEmergencyPhone');
+    const tel = (telInput ? telInput.value.trim() : '') || localStorage.getItem('ps_emergency_phone') || '';
+    
+    let lat = null, lon = null;
+    if (trackCoords && trackCoords.length > 0) {
+        const last = trackCoords[trackCoords.length - 1];
+        lat = Number(last[0]).toFixed(5);
+        lon = Number(last[1]).toFixed(5);
+    } else if (ultimoPuntoCrudoGPS) {
+        lat = Number(ultimoPuntoCrudoGPS[0]).toFixed(5);
+        lon = Number(ultimoPuntoCrudoGPS[1]).toFixed(5);
+    }
+    
+    const timeEl = document.getElementById('liveTime');
+    const tiempoStr = timeEl ? timeEl.textContent : "00:00";
+    const distStr = `${trackDistanceKm.toFixed(2)} km`;
+    const locUrl = (lat && lon) ? `https://maps.google.com/?q=${lat},${lon}` : '(Sin GPS fijado)';
+    
+    const texto = `🚨 ALERTA PADDLESAFE (Check-in de Seguridad)\nNo he confirmado mi retorno a tiempo o necesito asistencia en el agua.\n📍 Ubicación GPS: ${locUrl}\n📏 Distancia recorrida: ${distStr}\n⏱️ Tiempo en el agua: ${tiempoStr}\nPor favor intenta contactarme o avisa a Salvamento Marítimo si no respondo.`;
+    
+    const cleanTel = tel.replace(/[^0-9]/g, '');
+    const waUrl = cleanTel ? `https://wa.me/${cleanTel}?text=${encodeURIComponent(texto)}` : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
+}
+
+export function verificarAlertaCheckin() {
+    if (!isTracking || !checkinTimestampLimite) return;
+    const ahora = Date.now();
+    const diffMs = checkinTimestampLimite - ahora;
+    const barEl = document.getElementById('liveSafetyCheckinBar');
+    const countdownEl = document.getElementById('liveEtaCountdown');
+
+    if (diffMs <= 0) {
+        const overdueSec = Math.abs(Math.floor(diffMs / 1000));
+        const overdueMin = Math.floor(overdueSec / 60);
+        const overdueRestSec = overdueSec % 60;
+        const overdueStr = `+${overdueMin.toString().padStart(2, '0')}:${overdueRestSec.toString().padStart(2, '0')}`;
+        
+        if (countdownEl) {
+            countdownEl.textContent = `🚨 VENCIDO (${overdueStr})`;
+            countdownEl.className = 'font-mono text-red-400 font-black animate-pulse';
+        }
+        if (barEl) {
+            barEl.className = 'bg-rose-950/90 rounded-xl p-2.5 mb-2.5 border-2 border-rose-500 shadow-lg shadow-rose-950/50 w-full text-xs transition-colors animate-pulse';
+        }
+
+        if (!checkinAlertaActiva) {
+            checkinAlertaActiva = true;
+            if (navigator.vibrate) {
+                navigator.vibrate([500, 200, 500, 200, 1000]);
+            }
+        }
+    } else {
+        const totalSec = Math.floor(diffMs / 1000);
+        const hrs = Math.floor(totalSec / 3600);
+        const mins = Math.floor((totalSec % 3600) / 60);
+        const secs = totalSec % 60;
+        const timeStr = hrs > 0 
+            ? `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+            : `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+        const advertenciaDiezMin = diffMs <= 10 * 60 * 1000;
+
+        if (countdownEl) {
+            countdownEl.textContent = advertenciaDiezMin ? `⚠️ ${timeStr}` : timeStr;
+            countdownEl.className = advertenciaDiezMin 
+                ? 'font-mono text-amber-300 font-black animate-pulse' 
+                : 'font-mono text-emerald-400 font-black';
+        }
+
+        if (barEl) {
+            if (advertenciaDiezMin) {
+                barEl.className = 'bg-amber-950/80 rounded-xl p-2.5 mb-2.5 border-2 border-amber-500 shadow-md w-full text-xs transition-colors';
+                if (!checkinAlertaActiva) {
+                    checkinAlertaActiva = true;
+                    if (navigator.vibrate) {
+                        navigator.vibrate([400, 200, 400]);
+                    }
+                }
+            } else {
+                barEl.className = 'bg-slate-900/90 rounded-xl p-2.5 mb-2.5 border border-slate-700/80 w-full text-xs transition-colors';
+                checkinAlertaActiva = false;
+            }
+        }
+    }
+}
+
+export function mostrarModalSplitsKm(rutaId) {
+    let telemetria = null;
+    try {
+        if (rutaId && rutaId !== 'last') {
+            const raw = localStorage.getItem('ps_telemetry_' + rutaId);
+            if (raw) telemetria = JSON.parse(raw);
+        }
+        if (!telemetria) {
+            const rawLast = localStorage.getItem('ps_telemetry_last');
+            if (rawLast) telemetria = JSON.parse(rawLast);
+        }
+    } catch (e) {
+        console.warn('Error al cargar splits:', e);
+    }
+
+    if (!telemetria || !Array.isArray(telemetria.splits) || telemetria.splits.length === 0) {
+        alert("No hay registros de splits km a km para esta travesía.");
+        return;
+    }
+
+    const modalPrevio = document.getElementById('modalSplitsKm');
+    if (modalPrevio) modalPrevio.remove();
+
+    const boardNames = {
+        inflat_allround: 'Hinchable Allround',
+        inflat_touring: 'Hinchable Touring',
+        rigid_touring: 'Rígida Touring',
+        rigid_race: 'Rígida Race'
+    };
+    const boardLabel = boardNames[telemetria.boardType] || telemetria.boardType || 'Tabla SUP';
+
+    const filasHtml = telemetria.splits.map(s => {
+        const mins = Math.floor(s.tiempoSeg / 60);
+        const secs = s.tiempoSeg % 60;
+        const durStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        const kmLabel = s.esFinal ? `${s.km} km (Tramo ${s.distanciaKm}k)` : `Km ${s.km}`;
+        return `
+            <tr class="border-b border-slate-700/60 hover:bg-slate-800/50">
+                <td class="py-2 px-3 font-bold text-white">${kmLabel}</td>
+                <td class="py-2 px-3 font-mono text-emerald-400 font-bold">${durStr}</td>
+                <td class="py-2 px-3 font-mono text-slate-300">${s.ritmoMinKm} min/km</td>
+                <td class="py-2 px-3 font-mono font-bold text-amber-400">${s.velMediaKmh} km/h</td>
+            </tr>
+        `;
+    }).join('');
+
+    const modal = document.createElement('div');
+    modal.id = 'modalSplitsKm';
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm';
+    modal.innerHTML = `
+        <div class="bg-slate-900 border border-sky-500/40 rounded-2xl p-5 max-w-md w-full shadow-2xl flex flex-col gap-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">⚡</span>
+                    <h3 class="font-black text-white text-sm uppercase tracking-wider">Splits y Rendimiento por Km</h3>
+                </div>
+                <button type="button" onclick="document.getElementById('modalSplitsKm').remove()" class="text-slate-400 hover:text-white font-bold text-lg p-1 cursor-pointer">&times;</button>
+            </div>
+            <div class="text-[11px] text-slate-300 flex items-center justify-between bg-slate-800/70 p-2 rounded-xl">
+                <span>🏄‍♂️ <b>Equipo:</b> ${esc(boardLabel)}</span>
+                ${telemetria.meteo?.vientoKt ? `<span>💨 <b>Viento:</b> ${telemetria.meteo.vientoKt} kt</span>` : ''}
+            </div>
+            <div class="overflow-x-auto max-h-60 rounded-xl border border-slate-800">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-800/90 text-[10px] text-slate-400 uppercase tracking-wider">
+                        <tr>
+                            <th class="py-2 px-3">Km</th>
+                            <th class="py-2 px-3">Tiempo</th>
+                            <th class="py-2 px-3">Ritmo</th>
+                            <th class="py-2 px-3">Vel Med</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filasHtml}
+                    </tbody>
+                </table>
+            </div>
+            <button type="button" onclick="document.getElementById('modalSplitsKm').remove()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer">
+                Cerrar
+            </button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
 // ==========================================
 export async function iniciarTravesia() {
     if(!appState.sesionActual && !appState.esInvitado) return alert("Inicia sesión.");
     if(!navigator.geolocation) return alert("Sin GPS.");
     
+    await activarWakeLock();
+    
     if(livePolyline) { map.removeLayer(livePolyline); livePolyline = null; }
     if(cronometroInterval) { clearInterval(cronometroInterval); cronometroInterval = null; }
     if(watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
     
-    isTracking = true; trackDistanceKm = 0; trackCoords = []; ultimoPuntoCrudoGPS = null; lastPositionGPS = null; lastTimestampGPS = null; trackStartTime = new Date();
+    isTracking = true; 
+    trackDistanceKm = 0; 
+    trackCoords = []; 
+    ultimoPuntoCrudoGPS = null; 
+    lastPositionGPS = null; 
+    lastTimestampGPS = null; 
+    trackStartTime = new Date();
+    splitsKm = [];
+    lastSplitKmDist = 0;
+    lastSplitTimestamp = Date.now();
+    checkinAlertaActiva = false;
+    checkinTimestampLimite = Date.now() + (checkinDuracionMinutos * 60 * 1000);
     
+    const telGuardado = localStorage.getItem('ps_emergency_phone') || '';
     const p = document.getElementById('liveTrackingPanel');
     p.innerHTML = `
-        <div class="flex justify-between items-center mb-3 w-full">
-            <span class="text-[10px] font-bold text-red-400 animate-pulse uppercase tracking-widest">🔴 Grabando GPS</span>
-            <span id="liveTime" class="font-mono text-2xl font-black text-emerald-400">00:00</span>
-        </div>
-        <div class="grid grid-cols-2 gap-2 text-center mb-3 w-full">
-            <div class="bg-slate-800 rounded-xl py-2">
-                <p class="text-[9px] text-slate-400 uppercase tracking-widest">DISTANCIA</p>
-                <p id="liveDist" class="font-black text-lg text-white">0.00 km</p>
+        <div class="flex justify-between items-center mb-2 w-full">
+            <div class="flex items-center gap-1.5">
+                <span class="text-[10px] font-bold text-red-400 animate-pulse uppercase tracking-widest live-hud-status">🔴 Grabando GPS</span>
+                <button type="button" onclick="toggleModoSolTracker()" title="Modo Alto Contraste Solar" class="px-2 py-0.5 text-[10px] font-black rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 active:scale-95 cursor-pointer live-btn-tool">☀️ Sol</button>
+                <button type="button" onclick="compartirPosicionActualLive()" title="Compartir posición de emergencia" class="px-2 py-0.5 text-[10px] font-black rounded-lg bg-rose-900/60 hover:bg-rose-800 text-rose-300 border border-rose-700/60 active:scale-95 cursor-pointer live-btn-tool">🆘 Posición</button>
             </div>
-            <div class="bg-slate-800 rounded-xl py-2">
-                <p class="text-[9px] text-slate-400 uppercase tracking-widest">VELOCIDAD</p>
-                <p id="liveSpeed" class="font-black text-lg text-white">0.0 km/h</p>
+            <span id="liveTime" class="font-mono text-2xl font-black text-emerald-400 live-hud-time">00:00</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-center mb-2 w-full">
+            <div class="bg-slate-800 rounded-xl py-2 live-hud-card">
+                <p class="text-[9px] text-slate-400 uppercase tracking-widest live-hud-label">DISTANCIA</p>
+                <p id="liveDist" class="font-black text-lg text-white live-hud-val">0.00 km</p>
+            </div>
+            <div class="bg-slate-800 rounded-xl py-2 live-hud-card">
+                <p class="text-[9px] text-slate-400 uppercase tracking-widest live-hud-label">VELOCIDAD</p>
+                <p id="liveSpeed" class="font-black text-lg text-white live-hud-val">0.0 km/h</p>
             </div>
         </div>
-        <button type="button" onclick="finalizarTravesia()" class="w-full h-11 bg-red-600 text-white font-bold rounded-xl active:scale-95 text-[11px] uppercase tracking-widest transition-transform cursor-pointer">⏹ Finalizar Travesía</button>
+        <div id="liveReturnInfo" class="bg-slate-800/90 rounded-xl p-2.5 mb-2 border border-slate-700/60 w-full text-center text-xs live-hud-return">
+            <div class="flex justify-between items-center text-[10px] text-slate-300 mb-1">
+                <span class="font-bold flex items-center gap-1">🧭 Retorno a Salida:</span>
+                <div class="flex items-center gap-1.5">
+                    <span id="liveSunsetCountdown" class="hidden font-mono text-orange-400 font-bold animate-pulse text-[10px]">🌇 Luz: -- min</span>
+                    <span id="liveReturnDist" class="font-mono font-bold text-white">0.00 km</span>
+                </div>
+            </div>
+            <div class="flex justify-between items-center text-[10px] gap-1">
+                <span id="liveReturnBearing" class="font-mono text-amber-300">Rumbo: --° (--)</span>
+                <span id="liveReturnEta" class="font-mono text-emerald-400">ETA: -- min</span>
+                <span id="liveReturnWind" class="font-bold text-[9px] px-1.5 py-0.5 rounded bg-slate-900">💨 --</span>
+            </div>
+        </div>
+        <div id="liveSafetyCheckinBar" class="bg-slate-900/90 rounded-xl p-2.5 mb-2.5 border border-slate-700/80 w-full text-xs transition-colors">
+            <div class="flex justify-between items-center mb-1.5">
+                <div class="flex items-center gap-1.5 font-bold text-[11px] text-slate-200">
+                    <span class="text-amber-400">⏱️ Check-in:</span>
+                    <span id="liveEtaCountdown" class="font-mono text-emerald-400 font-black">--:--</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <select id="selectCheckinDuracion" onchange="window.actualizarDuracionCheckin(this.value)" class="bg-slate-800 text-[10px] text-slate-200 border border-slate-700 rounded px-1 py-0.5 font-bold cursor-pointer">
+                        <option value="60" ${checkinDuracionMinutos === 60 ? 'selected' : ''}>60 min</option>
+                        <option value="90" ${checkinDuracionMinutos === 90 ? 'selected' : ''}>90 min</option>
+                        <option value="120" ${checkinDuracionMinutos === 120 ? 'selected' : ''}>120 min</option>
+                        <option value="180" ${checkinDuracionMinutos === 180 ? 'selected' : ''}>180 min</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5 mb-1.5">
+                <span class="text-[10px] text-slate-400 font-bold shrink-0">📞 SOS:</span>
+                <input id="inputCheckinEmergencyPhone" type="tel" placeholder="+34 600..." value="${esc(telGuardado)}" oninput="localStorage.setItem('ps_emergency_phone', this.value.trim())" class="flex-1 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-white font-mono placeholder-slate-500" />
+            </div>
+            <div class="flex gap-1.5">
+                <button type="button" onclick="window.extenderCheckinTravesia(30)" class="flex-1 py-1 px-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 active:scale-95 text-white font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer">
+                    ✅ Estoy Bien (+30m)
+                </button>
+                <button type="button" onclick="window.enviarAlertaCheckinWhatsApp()" class="py-1 px-2.5 rounded-lg bg-rose-700 hover:bg-rose-600 active:scale-95 text-white font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer">
+                    🆘 Avisar
+                </button>
+            </div>
+        </div>
+        <button type="button" onclick="finalizarTravesia()" class="w-full h-11 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl active:scale-95 text-[11px] uppercase tracking-widest transition-transform cursor-pointer shadow-lg live-btn-finish">⏹ Finalizar Travesía</button>
     `;
     p.classList.remove('hidden'); document.getElementById('btnIniciarLive').classList.add('hidden');
     if(document.getElementById('proDashboardResumen')) document.getElementById('proDashboardResumen').classList.replace('flex','hidden');
@@ -2406,6 +4622,8 @@ export async function iniciarTravesia() {
             
         const liveTimeEl = document.getElementById('liveTime');
         if (liveTimeEl) liveTimeEl.textContent = timeStr;
+
+        verificarAlertaCheckin();
     }, 1000);
     
     watchId = navigator.geolocation.watchPosition(ps => {
@@ -2427,6 +4645,7 @@ export async function iniciarTravesia() {
             map.panTo(l);
             lastPositionGPS = l;
             lastTimestampGPS = currentTimestamp;
+            actualizarRetornoSalidaLive(lat6, lon6);
             return;
         }
 
@@ -2445,6 +4664,23 @@ export async function iniciarTravesia() {
             
             const uiSpeed = document.getElementById('liveSpeed');
             if (uiSpeed) uiSpeed.textContent = `${speedKmh.toFixed(1)} km/h`;
+
+            // Registrar Split por cada 1.0 km completado
+            const splitKmEsperado = splitsKm.length + 1;
+            if (trackDistanceKm >= splitKmEsperado) {
+                const prevSplitTs = splitsKm.length > 0 ? splitsKm[splitsKm.length - 1].timestamp : trackStartTime.getTime();
+                const splitSegundos = Math.max(1, Math.round((currentTimestamp - prevSplitTs) / 1000));
+                const ritmoMinKm = (splitSegundos / 60).toFixed(2);
+                const velMediaKmh = ((1.0 / (splitSegundos / 3600))).toFixed(1);
+                
+                splitsKm.push({
+                    km: splitKmEsperado,
+                    tiempoSeg: splitSegundos,
+                    ritmoMinKm: ritmoMinKm,
+                    velMediaKmh: velMediaKmh,
+                    timestamp: currentTimestamp
+                });
+            }
         }
         
         trackCoords.push(puntoActual);
@@ -2453,6 +4689,21 @@ export async function iniciarTravesia() {
         
         lastPositionGPS = l;
         lastTimestampGPS = currentTimestamp;
+        actualizarRetornoSalidaLive(lat6, lon6);
+
+        // Guardar cada 10 puntos recibidos un snapshot ligero sin imagen
+        if (trackCoords.length % 10 === 0) {
+            try {
+                localStorage.setItem('paddlesafe_live_checkpoint', JSON.stringify({
+                    startTime: trackStartTime ? trackStartTime.toISOString() : new Date().toISOString(),
+                    distKm: Number(trackDistanceKm.toFixed(3)),
+                    coords: trackCoords,
+                    timestamp: Date.now()
+                }));
+            } catch (errCk) {
+                console.warn('No se pudo guardar snapshot de live checkpoint:', errCk);
+            }
+        }
     }, e => {
         if (e.code === 1) alert('Permiso de ubicación denegado. Actívalo para registrar la travesía.');
     }, {enableHighAccuracy: true, maximumAge: 2000, timeout: 20000});
@@ -2462,13 +4713,46 @@ export async function finalizarTravesia() {
     if (!isTracking || isSavingRoute) return;
     isSavingRoute = true;
     isTracking = false; 
+    await liberarWakeLock();
     if(cronometroInterval) { clearInterval(cronometroInterval); cronometroInterval = null; }
     if(watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
     
     const m = Math.floor((new Date() - trackStartTime) / 60000);
-    if(trackDistanceKm < 0.05 && m < 1) { alert("Ruta demasiado corta."); return restaurarTracker(); }
-    if(appState.esInvitado) { alert(`🏅 ${trackDistanceKm.toFixed(2)} km en ${formatearTiempo(m)}.`); return restaurarTracker(); }
+    if(trackDistanceKm < 0.05 && m < 1) {
+        localStorage.removeItem('paddlesafe_live_checkpoint');
+        alert("Ruta demasiado corta.");
+        return restaurarTracker();
+    }
+    if(appState.esInvitado) {
+        localStorage.removeItem('paddlesafe_live_checkpoint');
+        alert(`🏅 ${trackDistanceKm.toFixed(2)} km en ${formatearTiempo(m)}.`);
+        return restaurarTracker();
+    }
     
+    const eqFinisher = recuperarEquipoUsuario();
+    const avgSpdFinalStr = m > 0 ? (trackDistanceKm / (m / 60)).toFixed(1) : '0.0';
+    const vKtLive = valorNumericoMeteo(datosMeteoActuales?.windSpeed, datosMeteoActuales?.wind_speed) !== null
+        ? Number(valorNumericoMeteo(datosMeteoActuales?.windSpeed, datosMeteoActuales?.wind_speed) * 1.94384)
+        : 0;
+    const oMLive = valorNumericoMeteo(datosMeteoActuales?.waveHeight, datosMeteoActuales?.wave_height) !== null
+        ? Number(valorNumericoMeteo(datosMeteoActuales?.waveHeight, datosMeteoActuales?.wave_height))
+        : 0;
+    const perSLive = datosMeteoActuales?.wavePeriod ? Number(datosMeteoActuales.wavePeriod) : 0;
+    const tempCLive = Number.isFinite(Number(datosMeteoActuales?.tempAire ?? datosMeteoActuales?.temperature))
+        ? Number(datosMeteoActuales?.tempAire ?? datosMeteoActuales?.temperature)
+        : 20;
+
+    const biometriaFinal = calcularBiometriaSup({
+        duracionMin: m,
+        distKm: trackDistanceKm,
+        velKmh: Number(avgSpdFinalStr),
+        vientoKt: vKtLive,
+        olasM: oMLive,
+        periodoS: perSLive,
+        tempC: tempCLive,
+        tipoTabla: eqFinisher?.tipoTabla || 'all-round'
+    });
+
     document.getElementById('liveTrackingPanel').innerHTML = `
         <div class="text-center py-6 w-full">
             <span class="text-4xl block mb-2 animate-bounce">⏳</span>
@@ -2485,9 +4769,81 @@ export async function finalizarTravesia() {
             ignoreElements: (el) => el.classList.contains('leaflet-control-container') || el.id === 'liveTrackingPanel'
         });
         
-        imgBase64Backup = cv.toDataURL('image/jpeg', 0.8);
+        let targetCanvas = cv;
+        if (cv.width > 800) {
+            const scale = 800 / cv.width;
+            const resizedCanvas = document.createElement('canvas');
+            resizedCanvas.width = 800;
+            resizedCanvas.height = Math.max(1, Math.round(cv.height * scale));
+            const ctx = resizedCanvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(cv, 0, 0, resizedCanvas.width, resizedCanvas.height);
+                targetCanvas = resizedCanvas;
+            }
+        }
+
+        // Estampar Finisher Poster estilo Strava / Garmin en el canvas
+        try {
+            const ctxStamp = targetCanvas.getContext('2d');
+            if (ctxStamp) {
+                const cw = targetCanvas.width;
+                const ch = targetCanvas.height;
+                const footerH = Math.min(85, Math.max(65, Math.round(ch * 0.20)));
+                const footerY = ch - footerH;
+
+                // 1. Banda semi-transparente degradada oscura
+                const grad = ctxStamp.createLinearGradient(0, footerY - 12, 0, ch);
+                grad.addColorStop(0, 'rgba(15, 23, 42, 0)');
+                grad.addColorStop(0.2, 'rgba(15, 23, 42, 0.88)');
+                grad.addColorStop(1, 'rgba(15, 23, 42, 0.98)');
+                ctxStamp.fillStyle = grad;
+                ctxStamp.fillRect(0, footerY - 12, cw, footerH + 12);
+
+                // 2. Línea de acento superior estilo neón náutico
+                const lineGrad = ctxStamp.createLinearGradient(0, 0, cw, 0);
+                lineGrad.addColorStop(0, '#06b6d4');
+                lineGrad.addColorStop(0.5, '#10b981');
+                lineGrad.addColorStop(1, '#3b82f6');
+                ctxStamp.fillStyle = lineGrad;
+                ctxStamp.fillRect(0, footerY + 2, cw, 2);
+
+                // 3. Tipografía: Título FINISHER + Fecha
+                ctxStamp.font = 'bold 13px system-ui, -apple-system, sans-serif';
+                ctxStamp.fillStyle = '#38bdf8';
+                ctxStamp.fillText('🏄 PADDLESAFE FINISHER', 14, footerY + 20);
+
+                const fechaStr = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+                ctxStamp.font = '600 11px system-ui, -apple-system, sans-serif';
+                ctxStamp.fillStyle = '#94a3b8';
+                ctxStamp.textAlign = 'right';
+                ctxStamp.fillText(fechaStr, cw - 14, footerY + 20);
+                ctxStamp.textAlign = 'left';
+
+                // 4. Métricas clave: Distancia, Tiempo, Velocidad Media y Kcal
+                const durMin = Math.floor(m / 60);
+                const durSec = m % 60;
+                const durStr = durMin > 0 ? `${durMin}h ${durSec}m` : `${m} min`;
+                ctxStamp.font = 'bold 12px system-ui, -apple-system, sans-serif';
+                ctxStamp.fillStyle = '#ffffff';
+                ctxStamp.fillText(`📏 ${trackDistanceKm.toFixed(2)} km   ⏱️ ${durStr}   ⚡ ${avgSpdFinalStr} km/h   🔥 ${biometriaFinal.kcal} kcal`, 14, footerY + 40);
+
+                // 5. Badge Meteorológico
+                const vKtVal = valorNumericoMeteo(datosMeteoActuales?.windSpeed, datosMeteoActuales?.wind_speed);
+                const vKtStr = vKtVal !== null ? (vKtVal * 1.94384).toFixed(1) + ' kt' : '--';
+                const oMVal = valorNumericoMeteo(datosMeteoActuales?.waveHeight, datosMeteoActuales?.wave_height);
+                const oMStr = oMVal !== null ? Number(oMVal).toFixed(1) + 'm' : '--';
+                const scoreVal = motorExpertoActual?.seguridad?.score ?? 100;
+                ctxStamp.font = '500 11px system-ui, -apple-system, sans-serif';
+                ctxStamp.fillStyle = '#34d399';
+                ctxStamp.fillText(`💨 ${vKtStr} · 🌊 ${oMStr} · 🛡️ Score ${scoreVal}/100`, 14, footerY + 58);
+            }
+        } catch (errStamp) {
+            console.warn('Aviso no crítico al estampar footer finisher:', errStamp);
+        }
         
-        const b = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.8));
+        imgBase64Backup = targetCanvas.toDataURL('image/jpeg', 0.5);
+        
+        const b = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.7));
         const fn = `rutas/${appState.sesionActual.user.id}-${Date.now()}.jpg`;
         const {error:ue} = await supabaseClient.storage.from('paddlesafe').upload(fn, b, { upsert: true, contentType: 'image/jpeg' });
         if(!ue) {
@@ -2504,6 +4860,55 @@ export async function finalizarTravesia() {
         }
     }
 
+    // Registrar tramo final si hay distancia restante
+    if (trackDistanceKm > splitsKm.length && (trackDistanceKm - splitsKm.length) >= 0.1) {
+        const kmRestante = Number((trackDistanceKm - splitsKm.length).toFixed(2));
+        const prevSplitTs = splitsKm.length > 0 ? splitsKm[splitsKm.length - 1].timestamp : trackStartTime.getTime();
+        const splitSegundos = Math.max(1, Math.round((Date.now() - prevSplitTs) / 1000));
+        const ritmoMinKm = ((splitSegundos / 60) / kmRestante).toFixed(2);
+        const velMediaKmh = ((kmRestante / (splitSegundos / 3600))).toFixed(1);
+        splitsKm.push({
+            km: Number(trackDistanceKm.toFixed(2)),
+            esFinal: true,
+            distanciaKm: kmRestante,
+            tiempoSeg: splitSegundos,
+            ritmoMinKm: ritmoMinKm,
+            velMediaKmh: velMediaKmh,
+            timestamp: Date.now()
+        });
+    }
+
+    // Snapshot meteorológico registrado en el momento de la travesía
+    const vKtSnapshot = valorNumericoMeteo(datosMeteoActuales?.windSpeed, datosMeteoActuales?.wind_speed) !== null
+        ? Number((valorNumericoMeteo(datosMeteoActuales?.windSpeed, datosMeteoActuales?.wind_speed) * 1.94384).toFixed(1))
+        : null;
+    const rKtSnapshot = valorNumericoMeteo(datosMeteoActuales?.windGusts, datosMeteoActuales?.wind_gusts) !== null
+        ? Number((valorNumericoMeteo(datosMeteoActuales?.windGusts, datosMeteoActuales?.wind_gusts) * 1.94384).toFixed(1))
+        : null;
+    const oMSnapshot = valorNumericoMeteo(datosMeteoActuales?.waveHeight, datosMeteoActuales?.wave_height) !== null
+        ? Number(valorNumericoMeteo(datosMeteoActuales?.waveHeight, datosMeteoActuales?.wave_height))
+        : null;
+    const perSSnapshot = datosMeteoActuales?.wavePeriod ? Number(datosMeteoActuales.wavePeriod) : null;
+    const dirSnapshot = datosMeteoActuales?.windDirection ?? datosMeteoActuales?.wind_direction ?? null;
+
+    const meteoSnapshot = {
+        vientoKt: vKtSnapshot,
+        rachasKt: rKtSnapshot,
+        dirViento: dirSnapshot,
+        olasM: oMSnapshot,
+        periodoS: perSSnapshot,
+        tempC: datosMeteoActuales?.tempAire ?? datosMeteoActuales?.temperature ?? null,
+        score: motorExpertoActual?.seguridad?.score ?? null
+    };
+
+    let ubicacionTexto = "Travesía GPS";
+    if (vKtSnapshot !== null) {
+        ubicacionTexto += ` · 💨 ${vKtSnapshot} kt`;
+        if (oMSnapshot !== null) {
+            ubicacionTexto += ` · 🌊 ${oMSnapshot}m`;
+        }
+    }
+
     const rutaNormalizada = normalizarYLimitarRutaGPS(trackCoords);
     const pts = Math.round(trackDistanceKm * 10) + m;
     
@@ -2513,12 +4918,22 @@ export async function finalizarTravesia() {
         tiempo_minutos: m,
         ruta_json: rutaNormalizada,
         imagen_url: img,
-        ubicacion: "Travesía GPS"
+        ubicacion: ubicacionTexto
     }]).select().single();
     
     if (errRuta || !nuevaRuta) {
         let pendingMessage = "No se pudo conservar la ruta en este dispositivo.";
         try {
+            const equipo = recuperarEquipoUsuario();
+            const fallbackTelemetry = {
+                rutaId: 'offline_' + Date.now(),
+                meteo: meteoSnapshot,
+                splits: splitsKm,
+                boardType: equipo.tipoTabla,
+                velCruceroKmh: obtenerVelocidadCruceroUsuario(),
+                timestamp: Date.now()
+            };
+            localStorage.setItem('ps_telemetry_last', JSON.stringify(fallbackTelemetry));
             localStorage.setItem('paddlesafe_ruta_pendiente', JSON.stringify({
                 user_id: appState.sesionActual.user.id,
                 km: trackDistanceKm,
@@ -2526,8 +4941,11 @@ export async function finalizarTravesia() {
                 coords: rutaNormalizada,
                 img,
                 b64: imgBase64Backup,
+                meteo: meteoSnapshot,
+                splits: splitsKm,
                 ts: Date.now()
             }));
+            localStorage.removeItem('paddlesafe_live_checkpoint');
             pendingMessage = "Se conserva una copia en este dispositivo";
         } catch (e) {
             console.warn('No se pudo guardar la ruta pendiente localmente:', e);
@@ -2543,8 +4961,39 @@ export async function finalizarTravesia() {
         return;
     }
     
+    localStorage.removeItem('paddlesafe_live_checkpoint');
+    
+    // Persistir telemetría y splits meteorológicos
+    try {
+        const equipo = recuperarEquipoUsuario();
+        const telemetryData = {
+            rutaId: nuevaRuta.id,
+            meteo: meteoSnapshot,
+            splits: splitsKm,
+            boardType: equipo.tipoTabla,
+            velCruceroKmh: obtenerVelocidadCruceroUsuario(),
+            timestamp: Date.now()
+        };
+        localStorage.setItem('ps_telemetry_' + nuevaRuta.id, JSON.stringify(telemetryData));
+        localStorage.setItem('ps_telemetry_last', JSON.stringify(telemetryData));
+    } catch (errTel) {
+        console.warn('Aviso no crítico al guardar telemetría de ruta en localStorage:', errTel);
+    }
+    
     if (ClubState.activeId) {
         await supabaseClient.from('club_rutas').insert([{ club_id: ClubState.activeId, ruta_id: nuevaRuta.id }]);
+    }
+
+    try {
+        const avgSpd = m > 0 ? Number((trackDistanceKm / (m / 60)).toFixed(1)) : 0;
+        await sincronizarProgresion({
+            userId: appState.sesionActual.user.id,
+            distanceKm: trackDistanceKm,
+            durationMinutes: m,
+            avgSpeed: avgSpd
+        });
+    } catch (eProg) {
+        console.warn('Error al sincronizar progresión de travesía en gamificación:', eProg);
     }
     
     if(window.cargarPerfilUsuarioActivo) await window.cargarPerfilUsuarioActivo();
@@ -2553,8 +5002,13 @@ export async function finalizarTravesia() {
         <div class="text-center py-4 w-full">
             <span class="text-4xl block mb-2">✅</span>
             <h3 class="font-black text-white text-lg">Guardada</h3>
-            <p class="text-emerald-400 font-bold text-[10px] uppercase tracking-widest mb-3">+${pts} pts</p>
-            <button type="button" onclick="restaurarTracker()" class="bg-slate-700 text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest w-full active:scale-95 transition-transform cursor-pointer">Cerrar Panel</button>
+            <div class="flex items-center justify-center gap-2 text-xs font-bold my-1">
+                <span class="text-emerald-400 uppercase tracking-widest">+${pts} pts</span>
+                <span class="text-slate-500">·</span>
+                <span class="text-amber-400 font-mono">🔥 ${biometriaFinal.kcal} kcal</span>
+            </div>
+            <p class="text-slate-400 text-[11px] mb-3">Distancia: ${trackDistanceKm.toFixed(2)} km · Tiempo: ${formatearTiempo(m)}</p>
+            <button type="button" onclick="restaurarTracker()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest w-full active:scale-95 transition-transform cursor-pointer">Cerrar Panel</button>
         </div>`;
 }
 
@@ -2605,6 +5059,17 @@ export async function sincronizarRutasPendientes() {
         if (!error) {
             localStorage.removeItem('paddlesafe_ruta_pendiente');
             const pts = Math.round(p.km * 10) + p.min;
+            try {
+                const avgSpdSync = p.min > 0 ? Number((p.km / (p.min / 60)).toFixed(1)) : 0;
+                await sincronizarProgresion({
+                    userId: appState.sesionActual.user.id,
+                    distanceKm: p.km,
+                    durationMinutes: p.min,
+                    avgSpeed: avgSpdSync
+                });
+            } catch (eProgSync) {
+                console.warn('Error al sincronizar progresión offline en gamificación:', eProgSync);
+            }
             alert(`¡Ruta guardada offline sincronizada con éxito! (+${pts} pts)`);
             if (window.cargarPerfilUsuarioActivo) await window.cargarPerfilUsuarioActivo();
         }
@@ -2617,8 +5082,110 @@ export async function sincronizarRutasPendientes() {
 
 export function restaurarTracker() {
     isSavingRoute = false;
-    document.getElementById('liveTrackingPanel').classList.add('hidden'); document.getElementById('btnIniciarLive').classList.remove('hidden');
+    isTracking = false;
+    modoSolTrackerActivo = false;
+    liberarWakeLock().catch(() => {});
+    const pnl = document.getElementById('liveTrackingPanel');
+    if (pnl) {
+        pnl.classList.remove('modo-sol-activo');
+        pnl.classList.add('hidden');
+    }
+    const btnLive = document.getElementById('btnIniciarLive');
+    if (btnLive) btnLive.classList.remove('hidden');
     if(document.getElementById('proPlanificador')) { document.getElementById('proPlanificador').classList.remove('hidden'); document.getElementById('proPlanificador').classList.add('flex'); }
+}
+
+export function descartarCheckpoint() {
+    localStorage.removeItem('paddlesafe_live_checkpoint');
+    if (livePolyline && map) {
+        map.removeLayer(livePolyline);
+        livePolyline = null;
+    }
+    trackCoords = [];
+    trackDistanceKm = 0;
+    isTracking = false;
+    restaurarTracker();
+}
+
+export function restaurarTravesiaDesdeCheckpoint(ck) {
+    if (!ck || !Array.isArray(ck.coords) || ck.coords.length === 0) return;
+    
+    trackCoords = [...ck.coords];
+    trackDistanceKm = Number(ck.distKm || 0);
+    const ts = ck.timestamp || (ck.startTime ? new Date(ck.startTime).getTime() : Date.now());
+    trackStartTime = ck.startTime ? new Date(ck.startTime) : new Date(ts);
+    
+    if (livePolyline && map) {
+        map.removeLayer(livePolyline);
+    }
+    if (map) {
+        livePolyline = L.polyline(trackCoords, { color: '#ef4444', weight: 5 }).addTo(map);
+        if (trackCoords.length > 0) {
+            map.fitBounds(livePolyline.getBounds());
+        }
+    }
+    
+    isTracking = true;
+    
+    const p = document.getElementById('liveTrackingPanel');
+    if (p) {
+        const s = Math.max(0, Math.floor((Date.now() - trackStartTime.getTime()) / 1000));
+        const hrs = Math.floor(s / 3600);
+        const mins = Math.floor((s % 3600) / 60);
+        const secs = s % 60;
+        const timeStr = hrs > 0 
+            ? `${hrs.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`
+            : `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+            
+        p.innerHTML = `
+            <div class="flex justify-between items-center mb-3 w-full">
+                <span class="text-[10px] font-bold text-amber-400 uppercase tracking-widest">⚠️ Travesía Recuperada</span>
+                <span id="liveTime" class="font-mono text-2xl font-black text-emerald-400">${timeStr}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-center mb-3 w-full">
+                <div class="bg-slate-800 rounded-xl py-2">
+                    <p class="text-[9px] text-slate-400 uppercase tracking-widest">DISTANCIA</p>
+                    <p id="liveDist" class="font-black text-lg text-white">${trackDistanceKm.toFixed(2)} km</p>
+                </div>
+                <div class="bg-slate-800 rounded-xl py-2">
+                    <p class="text-[9px] text-slate-400 uppercase tracking-widest">PUNTOS</p>
+                    <p id="liveSpeed" class="font-black text-lg text-white">${trackCoords.length} pts</p>
+                </div>
+            </div>
+            <div class="flex gap-2 w-full">
+                <button type="button" onclick="finalizarTravesia()" class="flex-1 h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl active:scale-95 text-[11px] uppercase tracking-widest transition-transform cursor-pointer">💾 Guardar Travesía</button>
+                <button type="button" onclick="descartarCheckpoint()" class="h-11 px-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl active:scale-95 text-[11px] uppercase tracking-widest transition-transform cursor-pointer">🗑️ Descartar</button>
+            </div>
+        `;
+        p.classList.remove('hidden');
+        const btnLive = document.getElementById('btnIniciarLive');
+        if (btnLive) btnLive.classList.add('hidden');
+    }
+}
+
+export function verificarCheckpointPendiente() {
+    try {
+        const rawCk = localStorage.getItem('paddlesafe_live_checkpoint');
+        if (!rawCk) return;
+        const ck = JSON.parse(rawCk);
+        const ts = ck.timestamp || (ck.startTime ? new Date(ck.startTime).getTime() : 0);
+        const doceHorasMs = 12 * 60 * 60 * 1000;
+        const antiguedad = Date.now() - ts;
+        
+        if (Array.isArray(ck.coords) && ck.coords.length > 5 && antiguedad >= 0 && antiguedad < doceHorasMs) {
+            const horaStr = new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const aceptar = confirm(`PaddleSafe detectó una travesía GPS interrumpida (${ck.coords.length} puntos, ${Number(ck.distKm || 0).toFixed(2)} km de las ${horaStr}).\n\n¿Deseas restaurarla en el mapa para guardarla o continuar?`);
+            if (aceptar) {
+                restaurarTravesiaDesdeCheckpoint(ck);
+            } else {
+                localStorage.removeItem('paddlesafe_live_checkpoint');
+            }
+        } else if (antiguedad >= doceHorasMs) {
+            localStorage.removeItem('paddlesafe_live_checkpoint');
+        }
+    } catch (e) {
+        console.warn('Error al verificar checkpoint de travesía:', e);
+    }
 }
 
 // ==========================================
@@ -3255,6 +5822,778 @@ export async function solicitarCoachIABasico(dx, userLvl, loc, motor = obtenerMo
     }
 }
 
+// ====================================================
+// GESTOR DE SPOTS FAVORITOS Y TIMELINE DIURNO COMPLETO
+// ====================================================
+
+export async function cargarSpotsGuardadosUsuario() {
+    const user = appState?.sesionActual?.user;
+    const userId = user?.id;
+    const guestPrompt = document.getElementById('savedSpotsGuestPrompt');
+    if (guestPrompt) {
+        if (!userId) {
+            guestPrompt.classList.remove('hidden');
+        } else {
+            guestPrompt.classList.add('hidden');
+        }
+    }
+
+    const storageKey = userId ? `ps_spots_${userId}` : 'ps_guest_spots';
+    let spots = [];
+
+    if (userId && supabaseClient) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('user_spots')
+                .select('*')
+                .eq('user_id', userId)
+                .order('orden', { ascending: true })
+                .order('created_at', { ascending: true });
+
+            if (!error && Array.isArray(data)) {
+                spots = data;
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify(spots));
+                } catch (e) {
+                    console.warn('Aviso al guardar spots en localStorage:', e);
+                }
+            } else {
+                console.warn('Aviso no crítico al consultar user_spots en Supabase (usando fallback local):', error?.message);
+                const localRaw = localStorage.getItem(storageKey);
+                if (localRaw) {
+                    try { spots = JSON.parse(localRaw) || []; } catch (_) { spots = []; }
+                }
+            }
+        } catch (err) {
+            console.warn('Aviso al conectar con Supabase para user_spots:', err);
+            const localRaw = localStorage.getItem(storageKey);
+            if (localRaw) {
+                try { spots = JSON.parse(localRaw) || []; } catch (_) { spots = []; }
+            }
+        }
+    } else {
+        const localRaw = localStorage.getItem(storageKey);
+        if (localRaw) {
+            try { spots = JSON.parse(localRaw) || []; } catch (_) { spots = []; }
+        }
+    }
+
+    spotsGuardadosMemoria = spots;
+    renderizarBarraSpotsGuardados();
+    actualizarEstadoBotonGuardarSpot();
+    return spots;
+}
+
+export function renderizarBarraSpotsGuardados() {
+    const listEl = document.getElementById('savedSpotsList');
+    const countEl = document.getElementById('savedSpotsCount');
+    const btnComp = document.getElementById('btnCompararMisSpots');
+    if (!listEl) return;
+
+    if (countEl) {
+        countEl.textContent = `${spotsGuardadosMemoria.length} spot${spotsGuardadosMemoria.length === 1 ? '' : 's'}`;
+    }
+
+    if (btnComp) {
+        if (spotsGuardadosMemoria.length >= 2) {
+            btnComp.classList.remove('hidden');
+            btnComp.classList.add('inline-flex');
+        } else {
+            btnComp.classList.add('hidden');
+            btnComp.classList.remove('inline-flex');
+            document.getElementById('spotsComparisonPanel')?.classList.add('hidden');
+        }
+    }
+
+    if (spotsGuardadosMemoria.length === 0) {
+        listEl.innerHTML = `<span class="text-xs text-slate-400 italic px-2 py-1">Aún no tienes spots guardados. Pulsa ⭐ Guardar Spot tras buscar una playa o tocar el mapa.</span>`;
+        return;
+    }
+
+    const currentLoc = document.getElementById('location')?.value?.trim().toLowerCase();
+    const currentLat = Number(latitudActual);
+    const currentLon = Number(longitudActual);
+
+    listEl.innerHTML = spotsGuardadosMemoria.map(spot => {
+        const esActivo = (spotActivoActual && (spotActivoActual.id === spot.id || spotActivoActual.nombre === spot.nombre)) ||
+            (currentLoc && spot.nombre.toLowerCase() === currentLoc) ||
+            (Number.isFinite(spot.lat) && Number.isFinite(spot.lon) && Math.abs(spot.lat - currentLat) < 0.003 && Math.abs(spot.lon - currentLon) < 0.003);
+
+        const activeClass = esActivo
+            ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-300 font-black'
+            : 'bg-white dark:bg-slate-700/90 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 font-bold';
+
+        const idParam = spot.id || spot.nombre;
+        return `
+            <div role="button" tabindex="0" onclick="window.seleccionarSpotGuardadoPorId('${esc(idParam)}')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition-all shadow-sm shrink-0 cursor-pointer ${activeClass}">
+                <span class="text-sm">🏖️</span>
+                <span class="truncate max-w-[120px]">${esc(spot.nombre)}</span>
+                <button type="button" onclick="event.stopPropagation(); window.eliminarSpotGuardado('${esc(idParam)}')" title="Eliminar spot" class="ml-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 font-bold p-0.5 rounded cursor-pointer leading-none">✕</button>
+            </div>
+        `;
+    }).join('');
+}
+
+export async function compararSpotsGuardados() {
+    if (!Array.isArray(spotsGuardadosMemoria) || spotsGuardadosMemoria.length < 2) {
+        alert('Guarda al menos 2 spots favoritos para poder compararlos.');
+        return;
+    }
+
+    const panel = document.getElementById('spotsComparisonPanel');
+    const list = document.getElementById('spotsComparisonList');
+    if (!panel || !list) return;
+
+    panel.classList.remove('hidden');
+    panel.scrollIntoView({ behavior: 'smooth' });
+    list.innerHTML = `
+        <div class="py-6 text-center text-xs text-slate-300 font-bold flex items-center justify-center gap-2">
+            <span class="animate-spin text-lg">⏳</span>
+            <span>Analizando condiciones meteorológicas y ventanas óptimas en paralelo para ${spotsGuardadosMemoria.length} spots...</span>
+        </div>
+    `;
+
+    const fecha = document.getElementById('date')?.value || new Date().toISOString().split('T')[0];
+    const franja = document.getElementById('timeRange')?.value || 'Salida (08:00 - 12:00)';
+    const nivelUsuario = document.getElementById('userLevel')?.value || 'Intermedio';
+    const eq = appState?.equipoUsuario || recuperarEquipoUsuario();
+
+    const promesas = spotsGuardadosMemoria.map(async spot => {
+        try {
+            const payload = {
+                location: `${spot.lat},${spot.lon}`,
+                date: fecha,
+                timeRange: franja,
+                userLevel: nivelUsuario,
+                equipoUsuario: eq,
+                driftMod: eq.driftMod,
+                boardType: eq.tipoTabla
+            };
+            const resPronostico = await solicitarPronostico(payload);
+            const dx = resPronostico?.datos || {};
+            const vKt = dx.windSpeed != null ? kmhANudos(dx.windSpeed * 3.6) : 0;
+            const rKt = dx.windGusts != null ? kmhANudos(dx.windGusts * 3.6) : vKt;
+            const dirDeg = dx.windDirection ?? 0;
+            const oM = dx.waveHeight ?? 0;
+            const perS = dx.wavePeriod ?? 0;
+
+            const infoCosta = resolverOrientacionCostera(spot.nombre, spot.lat, spot.lon);
+            const compViento = calcularComponenteVientoAuto(spot.lat, spot.lon, dirDeg, spot.nombre);
+            const veredicto = generarVeredictoNextGen({
+                ...dx,
+                vientoKt: vKt,
+                rachasKt: rKt,
+                dirVientoDeg: dirDeg,
+                oleajeM: oM,
+                periodoOlaS: perS,
+                spotNombre: spot.nombre,
+                lat: spot.lat,
+                lon: spot.lon,
+                userLevel: nivelUsuario,
+                equipoUsuario: eq,
+                horasDiurnas: dx.horasDiurnas || []
+            });
+
+            const ventanas = detectarVentanasOptimas(dx.horasDiurnas || [], nivelUsuario);
+            const score = Number(veredicto?.scoreSeguridad ?? veredicto?.score ?? 50);
+
+            return {
+                spot,
+                dx,
+                vKt,
+                rKt,
+                dirDeg,
+                oM,
+                perS,
+                infoCosta,
+                compViento,
+                veredicto,
+                ventanas,
+                score
+            };
+        } catch (errSpot) {
+            console.warn(`Error evaluando spot ${spot.nombre}:`, errSpot);
+            return null;
+        }
+    });
+
+    const settled = await Promise.allSettled(promesas);
+    const validos = settled
+        .filter(r => r.status === 'fulfilled' && r.value)
+        .map(r => r.value)
+        .sort((a, b) => b.score - a.score);
+
+    if (validos.length === 0) {
+        list.innerHTML = `<p class="text-xs text-red-400 py-4 text-center">No se pudo obtener el pronóstico de los spots. Revisa tu conexión a internet.</p>`;
+        return;
+    }
+
+    list.innerHTML = validos.map((item, index) => {
+        const esMejor = index === 0;
+        const rankBadge = esMejor
+            ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 border border-amber-300 shadow">#1 🏆 Recomendado hoy</span>'
+            : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">#${index + 1}</span>`;
+
+        let scoreBadge = '';
+        if (item.score >= 80) scoreBadge = `<span class="px-2 py-0.5 rounded-lg text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">🟢 ${item.score}</span>`;
+        else if (item.score >= 60) scoreBadge = `<span class="px-2 py-0.5 rounded-lg text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">🟡 ${item.score}</span>`;
+        else if (item.score >= 40) scoreBadge = `<span class="px-2 py-0.5 rounded-lg text-xs font-black bg-orange-500/20 text-orange-300 border border-orange-500/40">🟠 ${item.score}</span>`;
+        else scoreBadge = `<span class="px-2 py-0.5 rounded-lg text-xs font-black bg-red-500/20 text-red-300 border border-red-500/40">🔴 ${item.score}</span>`;
+
+        const compText = item.compViento?.componente || 'Cruzado';
+        const ventanaTxt = item.ventanas?.mejorVentana
+            ? `🕒 ${item.ventanas.mejorVentana.inicio} - ${item.ventanas.mejorVentana.fin}`
+            : '🕒 Jornada variable';
+
+        const hayRacha = (item.rKt - item.vKt) >= 3;
+        const cardBg = esMejor ? 'bg-gradient-to-r from-slate-800 to-slate-800/90 border-amber-500/50 shadow-md ring-1 ring-amber-500/30' : 'bg-slate-800/70 border-slate-700/80 hover:border-slate-600';
+
+        return `
+            <div role="button" tabindex="0" onclick="window.seleccionarSpotGuardadoPorId('${esc(item.spot.id || item.spot.nombre)}')" class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-xl border transition-all cursor-pointer hover:scale-[1.008] active:scale-[0.99] ${cardBg}">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xl">🏖️</span>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm font-black text-white">${esc(item.spot.nombre)}</span>
+                            ${rankBadge}
+                        </div>
+                        <div class="flex items-center gap-3 text-xs text-slate-300 mt-0.5 flex-wrap">
+                            <span class="flex items-center gap-1 font-semibold">💨 ${item.vKt.toFixed(1)} kt ${hayRacha ? `<span class="text-[10px] text-amber-400 font-mono">(racha ${item.rKt.toFixed(1)})</span>` : ''} · <span class="text-slate-400">${esc(compText)}</span></span>
+                            <span>🌊 ${item.oM.toFixed(1)}m ${item.perS ? `· ${Math.round(item.perS)}s` : ''}</span>
+                            <span class="text-sky-300 font-medium">${ventanaTxt}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    ${scoreBadge}
+                    <button type="button" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold transition-all shadow-sm pointer-events-none">
+                        Ver Spot ➔
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+export function actualizarEstadoBotonGuardarSpot() {
+    const btn = document.getElementById('btnToggleSaveSpot');
+    const icon = document.getElementById('btnToggleSaveSpotIcon');
+    const text = document.getElementById('btnToggleSaveSpotText');
+    if (!btn || !icon || !text) return;
+
+    const locVal = document.getElementById('location')?.value?.trim().toLowerCase();
+    const lat = Number(latitudActual);
+    const lon = Number(longitudActual);
+
+    const estaGuardado = spotsGuardadosMemoria.some(s => 
+        (locVal && s.nombre && s.nombre.toLowerCase() === locVal) ||
+        (Number.isFinite(s.lat) && Number.isFinite(s.lon) && Math.abs(s.lat - lat) < 0.003 && Math.abs(s.lon - lon) < 0.003)
+    );
+
+    if (estaGuardado) {
+        icon.textContent = '⭐';
+        text.textContent = 'Guardado';
+        btn.className = 'flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-sm active:scale-95';
+    } else {
+        icon.textContent = '☆';
+        text.textContent = 'Guardar Spot';
+        btn.className = 'flex items-center gap-1 text-xs font-bold text-amber-600 hover:text-amber-500 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-sm active:scale-95';
+    }
+}
+
+export async function guardarSpotActual() {
+    let locVal = document.getElementById('location')?.value?.trim();
+    const lat = Number(latitudActual);
+    const lon = Number(longitudActual);
+
+    if (!locVal) {
+        locVal = prompt('Introduce un nombre para este Spot:', `Spot (${lat.toFixed(3)}, ${lon.toFixed(3)})`);
+        if (!locVal || !locVal.trim()) return;
+        locVal = locVal.trim();
+        const locInput = document.getElementById('location');
+        if (locInput) locInput.value = locVal;
+    }
+
+    const yaExiste = spotsGuardadosMemoria.some(s => 
+        s.nombre.toLowerCase() === locVal.toLowerCase() ||
+        (Math.abs(s.lat - lat) < 0.003 && Math.abs(s.lon - lon) < 0.003)
+    );
+
+    if (yaExiste) {
+        const confirmar = confirm(`"${locVal}" ya está en tus Spots Favoritos. ¿Quieres eliminarlo de la lista?`);
+        if (confirmar) {
+            await eliminarSpotGuardado(locVal);
+        }
+        return;
+    }
+
+    const user = appState?.sesionActual?.user;
+    const userId = user?.id || null;
+    const infoCosta = resolverOrientacionCostera(locVal, lat, lon);
+    const seaward_deg = Number.isFinite(infoCosta?.gradosMar) ? infoCosta.gradosMar : null;
+
+    const nuevoSpot = {
+        id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('spot_' + Date.now()),
+        user_id: userId,
+        nombre: locVal,
+        lat: Number(lat.toFixed(6)),
+        lon: Number(lon.toFixed(6)),
+        seaward_deg: seaward_deg,
+        orden: spotsGuardadosMemoria.length,
+        created_at: new Date().toISOString()
+    };
+
+    if (userId && supabaseClient) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('user_spots')
+                .insert([{
+                    user_id: userId,
+                    nombre: nuevoSpot.nombre,
+                    lat: nuevoSpot.lat,
+                    lon: nuevoSpot.lon,
+                    seaward_deg: nuevoSpot.seaward_deg,
+                    orden: nuevoSpot.orden
+                }])
+                .select();
+
+            if (!error && data?.[0]) {
+                nuevoSpot.id = data[0].id;
+            } else if (error) {
+                console.warn('Aviso no crítico al guardar en public.user_spots (guardando en local):', error.message);
+            }
+        } catch (e) {
+            console.warn('Aviso al conectar con Supabase user_spots:', e);
+        }
+    }
+
+    spotsGuardadosMemoria.push(nuevoSpot);
+    spotActivoActual = nuevoSpot;
+
+    const storageKey = userId ? `ps_spots_${userId}` : 'ps_guest_spots';
+    try {
+        localStorage.setItem(storageKey, JSON.stringify(spotsGuardadosMemoria));
+    } catch (e) {
+        console.warn('No se pudo guardar spots en localStorage:', e);
+    }
+
+    renderizarBarraSpotsGuardados();
+    actualizarEstadoBotonGuardarSpot();
+}
+
+export async function eliminarSpotGuardado(spotIdOrName) {
+    const idx = spotsGuardadosMemoria.findIndex(s => s.id === spotIdOrName || s.nombre === spotIdOrName);
+    if (idx === -1) return;
+
+    const eliminado = spotsGuardadosMemoria[idx];
+    spotsGuardadosMemoria.splice(idx, 1);
+
+    const user = appState?.sesionActual?.user;
+    const userId = user?.id || null;
+
+    if (userId && supabaseClient) {
+        try {
+            let q = supabaseClient.from('user_spots').delete().eq('user_id', userId);
+            if (eliminado.id && !String(eliminado.id).startsWith('spot_')) {
+                q = q.eq('id', eliminado.id);
+            } else {
+                q = q.eq('nombre', eliminado.nombre);
+            }
+            const { error } = await q;
+            if (error) {
+                console.warn('Aviso al eliminar spot en Supabase:', error.message);
+            }
+        } catch (e) {
+            console.warn('Aviso de red al eliminar spot:', e);
+        }
+    }
+
+    const storageKey = userId ? `ps_spots_${userId}` : 'ps_guest_spots';
+    try {
+        localStorage.setItem(storageKey, JSON.stringify(spotsGuardadosMemoria));
+    } catch (e) {
+        console.warn('No se pudo actualizar localStorage de spots:', e);
+    }
+
+    if (spotActivoActual?.id === eliminado.id || spotActivoActual?.nombre === eliminado.nombre) {
+        spotActivoActual = null;
+    }
+
+    renderizarBarraSpotsGuardados();
+    actualizarEstadoBotonGuardarSpot();
+}
+
+export async function seleccionarSpotGuardado(spot) {
+    if (!spot) return;
+    spotActivoActual = spot;
+    latitudActual = Number(spot.lat);
+    longitudActual = Number(spot.lon);
+
+    const locInput = document.getElementById('location');
+    if (locInput) locInput.value = spot.nombre;
+
+    if (map) {
+        const ll = new L.LatLng(latitudActual, longitudActual);
+        if (marcador) marcador.setLatLng(ll);
+        else marcador = L.marker(ll).addTo(map);
+        map.setView(ll, 13);
+    }
+
+    renderizarBarraSpotsGuardados();
+    actualizarEstadoBotonGuardarSpot();
+
+    const res = document.getElementById('resultado');
+    if (res) {
+        res.className = "text-sm font-mono text-slate-300 bg-slate-900/60 p-5 rounded-2xl border border-sky-500/30 whitespace-pre-wrap leading-relaxed min-h-[80px] opacity-60 animate-pulse flex items-center justify-center gap-2";
+        res.innerHTML = '<span class="animate-spin text-base">⏳</span> <span class="font-bold text-sky-300">Actualizando parte y modelos costeros...</span>';
+    }
+    const tlEl = document.getElementById('fullDaySpotTimeline');
+    if (tlEl && !tlEl.classList.contains('hidden')) {
+        tlEl.classList.add('opacity-60', 'animate-pulse');
+    }
+
+    await consultarBasico();
+}
+
+export function seleccionarSpotGuardadoPorId(idOrName) {
+    const spot = spotsGuardadosMemoria.find(s => (s.id && s.id === idOrName) || s.nombre === idOrName);
+    if (spot) {
+        seleccionarSpotGuardado(spot);
+    }
+}
+
+export async function cargarJornadaCompletaSpot(spot, fecha, userLevel) {
+    if (!spot || !Number.isFinite(Number(spot.lat)) || !Number.isFinite(Number(spot.lon))) return;
+    const f = fecha || document.getElementById('date')?.value || new Date().toISOString().split('T')[0];
+    const u = userLevel || document.getElementById('userLevel')?.value || 'Intermedio';
+
+    spotActivoActual = spot;
+    latitudActual = Number(spot.lat);
+    longitudActual = Number(spot.lon);
+
+    if (map) {
+        const ll = new L.LatLng(latitudActual, longitudActual);
+        if (marcador) marcador.setLatLng(ll);
+        else marcador = L.marker(ll).addTo(map);
+        map.setView(ll, 13);
+    }
+    const locInput = document.getElementById('location');
+    if (locInput) locInput.value = spot.nombre;
+
+    renderizarBarraSpotsGuardados();
+    actualizarEstadoBotonGuardarSpot();
+
+    const payload = {
+        location: `${spot.lat},${spot.lon}`,
+        date: f,
+        timeRange: 'Salida (06:00 - 21:00)',
+        userLevel: u
+    };
+
+    try {
+        const p = await solicitarPronostico(payload);
+        if (p.datos) {
+            pronosticoDiaCompletoActual = p.datos;
+            renderizarTimelineJornadaCompleta(spot, p.datos, u);
+        }
+    } catch (err) {
+        console.warn('Error al cargar jornada completa para el spot:', err);
+    }
+}
+
+export function renderizarTimelineJornadaCompleta(spot, pronostico, userLevel = 'Intermedio') {
+    const timelineEl = document.getElementById('fullDaySpotTimeline');
+    if (!timelineEl) return;
+
+    if (!pronostico || !Array.isArray(pronostico.horasDiurnas) || pronostico.horasDiurnas.length === 0) {
+        timelineEl.classList.add('hidden');
+        return;
+    }
+
+    spotActivoActual = spot;
+    pronosticoDiaCompletoActual = pronostico;
+    timelineEl.classList.remove('opacity-60', 'animate-pulse');
+
+    const fechaStr = pronostico.fecha || pronostico.date || document.getElementById('date')?.value || new Date().toISOString().slice(0, 10);
+    const solar = calcularSolYCrepusculo(Number(spot.lat), Number(spot.lon), fechaStr);
+
+    const titleEl = document.getElementById('timelineSpotTitle');
+    const subEl = document.getElementById('timelineSpotSubtitle');
+    if (titleEl) titleEl.textContent = `Spot: ${spot.nombre || 'Ubicación seleccionada'}`;
+    if (subEl) {
+        subEl.innerHTML = `Evolución horaria completa de 06:00 a 21:00 · Coords: ${Number(spot.lat).toFixed(4)}, ${Number(spot.lon).toFixed(4)} <span class="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold text-[10px] border border-amber-500/30">🌅 Amanecer ${solar.sunriseStr} · 🌇 Ocaso ${solar.sunsetStr} · 🌌 Luz útil hasta ${solar.civilDuskStr}</span>`;
+    }
+
+    const bannerEl = document.getElementById('spotBestWindowBanner');
+    if (bannerEl) {
+        const ventanas = pronostico.ventanasOptimas || detectarVentanasOptimas(pronostico.horasDiurnas, userLevel);
+        if (ventanas && ventanas.hayVentana && ventanas.mejorVentana) {
+            const mv = ventanas.mejorVentana;
+            const scoreClass = mv.score >= 80 
+                ? 'bg-emerald-500/30 text-emerald-200 border-emerald-500/50' 
+                : (mv.score >= 60 ? 'bg-amber-500/30 text-amber-200 border-amber-500/50' : 'bg-orange-500/30 text-orange-200 border-orange-500/50');
+            bannerEl.innerHTML = `
+                <div class="flex items-start sm:items-center gap-3 w-full justify-between flex-wrap">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-2xl sm:text-3xl">✨</span>
+                        <div>
+                            <div class="font-black text-emerald-300 text-xs sm:text-sm flex items-center gap-2 flex-wrap">
+                                <span>MEJOR VENTANA PARA REMAR: ${esc(mv.inicio)} - ${esc(mv.fin)}</span>
+                                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold border ${scoreClass}">Seguridad: ${mv.score}/100</span>
+                            </div>
+                            <p class="text-[11px] text-slate-300 font-medium mt-0.5">${esc(ventanas.textoResumen || '')}</p>
+                            ${ventanas.evolucionAviso ? `<p class="text-[11px] text-amber-300 font-semibold mt-1">⚠️ ${esc(ventanas.evolucionAviso)}</p>` : ''}
+                        </div>
+                    </div>
+                    <button type="button" onclick="window.seleccionarHoraTimeline('${esc(mv.inicio)}', true)" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer shrink-0">
+                        Ver ${esc(mv.inicio)}
+                    </button>
+                </div>
+            `;
+            bannerEl.className = 'w-full p-3.5 rounded-xl border border-emerald-500/40 bg-emerald-950/60 flex flex-col gap-2 text-xs';
+        } else {
+            bannerEl.innerHTML = `
+                <div class="flex items-center gap-2 text-amber-300 font-semibold">
+                    <span class="text-xl">⚠️</span>
+                    <span>${esc(ventanas?.textoResumen || 'Condiciones exigentes durante toda la jornada. Se recomienda precaución o aplazar la salida.')}</span>
+                </div>
+            `;
+            bannerEl.className = 'w-full p-3.5 rounded-xl border border-amber-500/40 bg-amber-950/50 flex items-center gap-2 text-xs';
+        }
+    }
+
+    const matrixEl = document.getElementById('spotHourlyMatrix');
+    if (matrixEl) {
+        const umbrales = {
+            Principiante: { vMax: 8, oMax: 0.35 },
+            Intermedio:   { vMax: 13, oMax: 0.65 },
+            Avanzado:     { vMax: 18, oMax: 1.10 }
+        }[userLevel] || { vMax: 13, oMax: 0.65 };
+
+        matrixEl.innerHTML = pronostico.horasDiurnas.map(h => {
+            const v = Number(h.vientoKt || 0);
+            const r = Number(h.rachasKt || v);
+            const o = Number(h.oleajeM || 0);
+            const code = Number(h.weatherCode || 0);
+            const esTormenta = [95, 96, 99].includes(code);
+
+            const [hh, mm] = (h.hora || '12:00').split(':').map(Number);
+            const hMin = (hh || 0) * 60 + (mm || 0);
+            const esPostOcaso = hMin >= solar.sunsetMin;
+            const dimCardClass = esPostOcaso ? 'opacity-55 saturate-50' : '';
+            const postOcasoBadge = esPostOcaso ? '<span class="px-1 py-0.5 rounded text-[9px] font-bold bg-slate-900/90 text-amber-400 border border-amber-500/30" title="Tramo posterior al ocaso">🌙 Ocaso</span>' : '';
+
+            let score = 100;
+            if (esTormenta) score = 0;
+            else {
+                if (v > umbrales.vMax) score -= (v - umbrales.vMax) * 12;
+                if (r - v > 5) score -= (r - v) * 3;
+                if (o > umbrales.oMax) score -= (o - umbrales.oMax) * 50;
+                if (h.lluviaMm > 2) score -= 15;
+            }
+            score = Math.max(0, Math.min(100, Math.round(score)));
+
+            let scoreBadge = '';
+            let borderClass = 'border-slate-700/80 hover:border-slate-500';
+            if (score >= 80) {
+                scoreBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">🟢 ${score}</span>`;
+                borderClass = 'border-emerald-500/40 hover:border-emerald-400 bg-slate-800/90';
+            } else if (score >= 60) {
+                scoreBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">🟡 ${score}</span>`;
+                borderClass = 'border-amber-500/40 hover:border-amber-400 bg-slate-800/90';
+            } else if (score >= 40) {
+                scoreBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-orange-500/20 text-orange-300 border border-orange-500/40">🟠 ${score}</span>`;
+                borderClass = 'border-orange-500/40 hover:border-orange-400 bg-slate-800/90';
+            } else {
+                scoreBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-red-500/20 text-red-300 border border-red-500/40">🔴 ${score}</span>`;
+                borderClass = 'border-red-500/40 hover:border-red-400 bg-slate-800/90';
+            }
+
+            const esActiva = horaSeleccionadaTimeline === h.hora;
+            const activeCardClass = esActiva
+                ? 'ring-2 ring-sky-400 bg-sky-950/80 border-sky-400 shadow-lg scale-102'
+                : borderClass;
+
+            const dir = Number(h.dirDeg || 0);
+            const hayRacha = r - v >= 3;
+
+            let tagCosta = '';
+            if (h.componenteCostera) {
+                const compLower = h.componenteCostera.toLowerCase();
+                if (compLower.includes('offshore') || compLower.includes('terral')) {
+                    tagCosta = '<span class="text-[9px] px-1 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">Terral</span>';
+                } else if (compLower.includes('onshore') || compLower.includes('mar-tierra')) {
+                    tagCosta = '<span class="text-[9px] px-1 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold border border-blue-500/30">Mar-tierra</span>';
+                } else if (compLower.includes('side')) {
+                    tagCosta = '<span class="text-[9px] px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">Side</span>';
+                } else {
+                    tagCosta = `<span class="text-[9px] px-1 py-0.5 rounded bg-slate-700 text-slate-300 font-medium">${esc(h.componenteCostera)}</span>`;
+                }
+            }
+
+            return `
+                <div role="button" tabindex="0" onclick="window.seleccionarHoraTimeline('${esc(h.hora)}')" data-timeline-hour="${esc(h.hora)}" class="flex flex-col gap-1.5 p-2.5 rounded-xl border shrink-0 min-w-[125px] sm:min-w-[135px] transition-all cursor-pointer shadow-sm ${activeCardClass} ${dimCardClass}">
+                    <div class="flex items-center justify-between gap-1 border-b border-slate-700/60 pb-1">
+                        <div class="flex items-center gap-1">
+                            <span class="text-xs font-black font-mono text-white">${esc(h.hora)}</span>
+                            ${postOcasoBadge}
+                        </div>
+                        ${scoreBadge}
+                    </div>
+                    <div class="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+                        <div class="wind-arrow text-emerald-400 w-3.5 h-3.5 shrink-0" style="transform: rotate(${dir}deg);">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.25a.75.75 0 0 1 .75.75v16.19l4.72-4.72a.75.75 0 1 1 1.06 1.06l-6 6a.75.75 0 0 1-1.06 0l-6-6a.75.75 0 1 1 1.06-1.06l4.72 4.72V3a.75.75 0 0 1 .75-.75Z" /></svg>
+                        </div>
+                        <span>${v.toFixed(1)} kt</span>
+                        ${hayRacha ? `<span class="text-[10px] text-amber-400 font-mono">(${r.toFixed(1)})</span>` : ''}
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] text-slate-300 gap-1">
+                        <span>🌊 ${o.toFixed(1)}m${h.periodoOlaS ? ` · ${Math.round(h.periodoOlaS)}s` : ''}</span>
+                        ${h.tempC !== null && h.tempC !== undefined ? `<span class="text-slate-400 font-mono text-[10px]">${Math.round(h.tempC)}°</span>` : ''}
+                    </div>
+                    ${tagCosta ? `<div class="mt-0.5 flex items-center">${tagCosta}</div>` : ''}
+                </div>
+            `;
+        }).join('');
+    }
+
+    timelineEl.classList.remove('hidden');
+}
+
+export function seleccionarHoraTimeline(horaStr, doScroll = false) {
+    if (!pronosticoDiaCompletoActual || !Array.isArray(pronosticoDiaCompletoActual.horasDiurnas)) return;
+    const h = pronosticoDiaCompletoActual.horasDiurnas.find(item => item.hora === horaStr);
+    if (!h) return;
+
+    horaSeleccionadaTimeline = horaStr;
+
+    const cards = document.querySelectorAll('#spotHourlyMatrix [data-timeline-hour]');
+    cards.forEach(card => {
+        const hour = card.getAttribute('data-timeline-hour');
+        if (hour === horaStr) {
+            card.classList.add('ring-2', 'ring-sky-400', 'bg-sky-950/80', 'border-sky-400', 'shadow-lg', 'scale-102');
+        } else {
+            card.classList.remove('ring-2', 'ring-sky-400', 'bg-sky-950/80', 'border-sky-400', 'shadow-lg', 'scale-102');
+        }
+    });
+
+    const badgeEl = document.getElementById('timelineActiveHourBadge');
+    const badgeText = document.getElementById('timelineActiveHourText');
+    if (badgeEl && badgeText) {
+        badgeText.innerHTML = `🕒 Viendo pronóstico y Coach interactivo para las <strong>${esc(horaStr)}</strong>`;
+        badgeEl.classList.remove('hidden');
+    }
+
+    const vKt = Number(h.vientoKt || 0);
+    const rKt = Number(h.rachasKt || vKt);
+    const oM = Number(h.oleajeM || 0);
+    const perS = Number(h.periodoOlaS || 0);
+    const dir = Number(h.dirDeg || 0);
+
+    const bSpeed = document.getElementById("basicWindSpeed");
+    if (bSpeed) bSpeed.textContent = `${vKt.toFixed(1)} kt`;
+
+    const gustEl = document.getElementById("basicWindGust");
+    if (gustEl) {
+        if (rKt - vKt >= 3) {
+            gustEl.textContent = `Racha ${rKt.toFixed(1)} kt`;
+            gustEl.classList.remove('hidden');
+        } else {
+            gustEl.classList.add('hidden');
+            gustEl.textContent = '';
+        }
+    }
+
+    const bWave = document.getElementById("basicWave");
+    if (bWave) bWave.textContent = `${oM.toFixed(1)} m`;
+
+    const wavePeriodEl = document.getElementById("basicWavePeriod");
+    if (wavePeriodEl) {
+        if (perS > 0) {
+            let badgeHtml = '';
+            if (oM >= 0.4 && perS <= 5) {
+                badgeHtml = '<span class="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 border border-orange-300 ml-1">Chop corto</span>';
+            } else if (oM >= 0.3 && perS >= 9) {
+                badgeHtml = '<span class="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-300 ml-1">Mar de fondo</span>';
+            }
+            wavePeriodEl.innerHTML = `${Math.round(perS)}s ${badgeHtml}`;
+        } else {
+            wavePeriodEl.innerHTML = '';
+        }
+    }
+
+    const bPrecip = document.getElementById("basicPrecip");
+    if (bPrecip) bPrecip.textContent = `${h.lluviaMm || 0} mm`;
+
+    const cardD = ["N","NE","E","SE","S","SO","O","NO"];
+    const idir = Math.round((((dir % 360) + 360) % 360) / 45) % 8;
+    const bDir = document.getElementById("basicWindDir");
+    if (bDir) {
+        bDir.innerHTML = `<div class="wind-arrow text-emerald-500 drop-shadow-sm w-4 h-4" style="transform: rotate(${dir}deg);"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.25a.75.75 0 0 1 .75.75v16.19l4.72-4.72a.75.75 0 1 1 1.06 1.06l-6 6a.75.75 0 0 1-1.06 0l-6-6a.75.75 0 1 1 1.06-1.06l4.72 4.72V3a.75.75 0 0 1 .75-.75Z" /></svg></div> ${cardD[idir]} (${Math.round(dir)}°)`;
+    }
+
+    const u = document.getElementById('userLevel')?.value || 'Intermedio';
+    const loc = document.getElementById('location')?.value?.trim() || pronosticoDiaCompletoActual.location || 'Spot';
+
+    const dxHora = {
+        ...pronosticoDiaCompletoActual,
+        windSpeed: vKt / 1.94384,
+        windGusts: rKt / 1.94384,
+        windDirection: dir,
+        waveHeight: oM,
+        wavePeriod: perS || null,
+        waveDirection: h.waveDirDeg || null,
+        swellHeight: h.swellM || null,
+        precipitation: h.lluviaMm || 0,
+        weatherCode: h.weatherCode || 0,
+        tempAire: h.tempC ?? pronosticoDiaCompletoActual.tempAire,
+        componenteViento: h.componenteCostera || pronosticoDiaCompletoActual.componenteViento
+    };
+
+    const motor = obtenerMotorExperto(dxHora, u);
+    renderizarAvisoSuperior(motor);
+    renderizarResumenExperto(motor);
+    solicitarCoachIABasico(dxHora, u, loc, motor);
+    renderizarRosaVectoresMapa(Number(latitudActual), Number(longitudActual), dxHora);
+
+    if (doScroll) {
+        document.getElementById('basicCards')?.scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+export function abrirSpotActualEnPlanificadorPro() {
+    const ploc = document.getElementById('proLocation');
+    const pdate = document.getElementById('proDate');
+    const ptime = document.getElementById('proTime');
+    const plevel = document.getElementById('proLevelOption');
+
+    const basicDate = document.getElementById('date')?.value;
+    const basicLevel = document.getElementById('userLevel')?.value;
+
+    const lat = Number(latitudActual);
+    const lon = Number(longitudActual);
+
+    if (ploc) ploc.value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+    if (pdate && basicDate) pdate.value = basicDate;
+    if (ptime) ptime.value = horaSeleccionadaTimeline || '10:00';
+    if (plevel && basicLevel) plevel.value = basicLevel;
+
+    if (typeof window.togglePanelPro === 'function') {
+        window.togglePanelPro(true);
+    }
+
+    const panelPro = document.getElementById('panelPro');
+    if (panelPro) {
+        panelPro.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    if (map) {
+        const ll = new L.LatLng(lat, lon);
+        map.setView(ll, 13);
+        if (marcador) marcador.setLatLng(ll);
+    }
+}
+
 window.buscarYCentrarMapa = buscarYCentrarMapa;
 window.obtenerUbicacion = obtenerUbicacion;
 window.toggleModoTravesia = toggleModoTravesia;
@@ -3279,6 +6618,61 @@ window.guardarEventoClub = guardarEventoClub;
 window.sincronizarRutasPendientes = sincronizarRutasPendientes;
 window.normalizarYLimitarRutaGPS = normalizarYLimitarRutaGPS;
 window.cargarRutaDeportivaEnMapa = cargarRutaDeportivaEnMapa;
+window.activarWakeLock = activarWakeLock;
+window.liberarWakeLock = liberarWakeLock;
+window.descartarCheckpoint = descartarCheckpoint;
+window.verificarCheckpointPendiente = verificarCheckpointPendiente;
+window.cerrarIdaYVueltaMultipunto = cerrarIdaYVueltaMultipunto;
+window.toggleModoSolTracker = toggleModoSolTracker;
+window.compartirPosicionActualLive = compartirPosicionActualLive;
+window.actualizarRetornoSalidaLive = actualizarRetornoSalidaLive;
+window.sincronizarProgresionRuta = sincronizarProgresion;
+window.descargarZonaMapaOffline = descargarZonaMapaOffline;
+window.evaluarMeteoParaQuedada = evaluarMeteoParaQuedada;
+window.analizarVientoRutaClub = analizarVientoRutaClub;
+window.guardarQuedadaDesdeMapa = guardarQuedadaDesdeMapa;
+window.iniciarCreacionQuedadaClub = iniciarCreacionQuedadaClub;
+window.cancelarCreacionQuedadaClub = cancelarCreacionQuedadaClub;
+window.deshacerUltimoPuntoQuedada = deshacerUltimoPuntoQuedada;
+window.reiniciarPuntosQuedada = reiniciarPuntosQuedada;
+window.cargarRutaEnMapaGrande = cargarRutaEnMapaGrande;
+window.exportarRutaPlanificadaGPX = exportarRutaPlanificadaGPX;
+window.descargarRutaActivaGPX = exportarRutaPlanificadaGPX;
+window.descargarGPX = descargarGPX;
+window.generarGPX = generarGPX;
+window.guardarForecastSnapshot = guardarForecastSnapshot;
+window.recuperarForecastSnapshot = recuperarForecastSnapshot;
+window.cargarSpotsGuardadosUsuario = cargarSpotsGuardadosUsuario;
+window.renderizarBarraSpotsGuardados = renderizarBarraSpotsGuardados;
+window.actualizarEstadoBotonGuardarSpot = actualizarEstadoBotonGuardarSpot;
+window.guardarSpotActual = guardarSpotActual;
+window.eliminarSpotGuardado = eliminarSpotGuardado;
+window.seleccionarSpotGuardado = seleccionarSpotGuardado;
+window.seleccionarSpotGuardadoPorId = seleccionarSpotGuardadoPorId;
+window.cargarJornadaCompletaSpot = cargarJornadaCompletaSpot;
+window.renderizarTimelineJornadaCompleta = renderizarTimelineJornadaCompleta;
+window.seleccionarHoraTimeline = seleccionarHoraTimeline;
+window.abrirSpotActualEnPlanificadorPro = abrirSpotActualEnPlanificadorPro;
+window.compararSpotsGuardados = compararSpotsGuardados;
+window.toggleSelectorEquipoUsuario = toggleSelectorEquipoUsuario;
+window.actualizarTipoTablaDesdeSelect = actualizarTipoTablaDesdeSelect;
+window.actualizarVelocidadCruceroManual = actualizarVelocidadCruceroManual;
+window.autoCalibrarRitmoDesdeRutas = autoCalibrarRitmoDesdeRutas;
+window.actualizarUIGearSelector = actualizarUIGearSelector;
+window.actualizarDuracionCheckin = actualizarDuracionCheckin;
+window.extenderCheckinTravesia = extenderCheckinTravesia;
+window.enviarAlertaCheckinWhatsApp = enviarAlertaCheckinWhatsApp;
+window.mostrarModalSplitsKm = mostrarModalSplitsKm;
+window.renderizarRosaVectoresMapa = renderizarRosaVectoresMapa;
+window.actualizarHudVectoresMapa = actualizarHudVectoresMapa;
+window.solicitarAnalisisIARutaDeportiva = solicitarAnalisisIARutaDeportiva;
+window.abrirModalReporteSpot = abrirModalReporteSpot;
+window.seleccionarTagReporte = seleccionarTagReporte;
+window.confirmarEnvioReporteSpot = confirmarEnvioReporteSpot;
+window.enviarReporteSpot = enviarReporteSpot;
+window.cargarReportesSpot = cargarReportesSpot;
+window.calcularBiometriaSup = calcularBiometriaSup;
+window.calcularSolYCrepusculo = calcularSolYCrepusculo;
 window.addEventListener('online', () => {
     if (appState.sesionActual?.user?.id) void sincronizarRutasPendientes();
 });

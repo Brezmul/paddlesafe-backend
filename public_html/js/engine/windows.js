@@ -28,10 +28,10 @@ export function detectarVentanasOptimas(horasPronostico = [], userLevel = 'Inter
         };
     }
 
-    // Filtrar franja diurna útil (07:00 a 21:00)
+    // Filtrar franja diurna útil (06:00 a 21:00)
     const diurnas = horasPronostico.filter(h => {
         const horaNum = parseInt(String(h.hora || '').slice(0, 2), 10);
-        return !isNaN(horaNum) && horaNum >= 7 && horaNum <= 21;
+        return !isNaN(horaNum) && horaNum >= 6 && horaNum <= 21;
     });
 
     if (diurnas.length === 0) {

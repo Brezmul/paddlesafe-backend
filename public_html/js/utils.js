@@ -389,3 +389,73 @@ export { calcularBeginnerIndex, evaluarCondicionesDeporte, DEPORTES } from './en
 export { detectarVentanasOptimas } from './engine/windows.js';
 export { generarVeredictoNextGen, ESTADOS_VEREDICTO, ICONOS_SEGURIDAD } from './engine/verdict.js';
 export { generarConsejoCoach } from './engine/coach.js';
+
+// ==============================================================================
+// CÁLCULO ASTRONÓMICO DE AMANECER, OCASO Y CREPÚSCULO CIVIL (NOAA OFFLINE)
+// ==============================================================================
+export function calcularSolYCrepusculo(lat, lon, fechaStr) {
+    const latNum = Number(lat) || 0;
+    const lonNum = Number(lon) || 0;
+    const d = fechaStr ? new Date(fechaStr) : new Date();
+
+    const startOfYear = new Date(d.getFullYear(), 0, 0);
+    const diff = d - startOfYear;
+    const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    const gamma = (2 * Math.PI / 365) * (dayOfYear - 1);
+    const eqtime = 229.18 * (0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma) - 0.014615 * Math.cos(2 * gamma) - 0.040849 * Math.sin(2 * gamma));
+    const decl = 0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma) - 0.006758 * Math.cos(2 * gamma) + 0.000907 * Math.sin(2 * gamma) - 0.002697 * Math.cos(3 * gamma) + 0.00148 * Math.sin(3 * gamma);
+
+    const rad = Math.PI / 180;
+    const latRad = latNum * rad;
+
+    const calcZenith = (zenithDeg) => {
+        const cosHA = (Math.cos(zenithDeg * rad) / (Math.cos(latRad) * Math.cos(decl))) - (Math.tan(latRad) * Math.tan(decl));
+        if (cosHA > 1) return null;
+        if (cosHA < -1) return null;
+        const haRad = Math.acos(cosHA);
+        return haRad / rad;
+    };
+
+    const haSunrise = calcZenith(90.833);
+    const haDusk = calcZenith(96.0);
+
+    const targetDateAtNoon = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
+    const tzOffsetHoras = -(targetDateAtNoon.getTimezoneOffset() / 60);
+
+    let sunriseMin = 420;
+    let sunsetMin = 1200;
+    let duskMin = 1230;
+
+    if (haSunrise !== null) {
+        const solarNoonMin = 720 - (4 * lonNum) - eqtime + (tzOffsetHoras * 60);
+        sunriseMin = Math.round(solarNoonMin - (haSunrise * 4));
+        sunsetMin = Math.round(solarNoonMin + (haSunrise * 4));
+    }
+    if (haDusk !== null) {
+        const solarNoonMin = 720 - (4 * lonNum) - eqtime + (tzOffsetHoras * 60);
+        duskMin = Math.round(solarNoonMin + (haDusk * 4));
+    }
+
+    const toHHMM = (m) => {
+        const norm = ((m % 1440) + 1440) % 1440;
+        const hh = String(Math.floor(norm / 60)).padStart(2, '0');
+        const mm = String(norm % 60).padStart(2, '0');
+        return `${hh}:${mm}`;
+    };
+
+    const result = {
+        sunriseStr: toHHMM(sunriseMin),
+        sunsetStr: toHHMM(sunsetMin),
+        civilDuskStr: toHHMM(duskMin),
+        sunriseMin,
+        sunsetMin,
+        duskMin
+    };
+
+    return result;
+}
+
+if (typeof window !== 'undefined') {
+    window.calcularSolYCrepusculo = calcularSolYCrepusculo;
+}

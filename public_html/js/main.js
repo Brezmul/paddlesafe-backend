@@ -57,6 +57,10 @@ window.deshacerUltimoPuntoQuedada = () => MapModule.deshacerUltimoPuntoQuedada()
 window.reiniciarPuntosQuedada = () => MapModule.reiniciarPuntosQuedada();
 window.guardarQuedadaDesdeMapa = () => MapModule.guardarQuedadaDesdeMapa();
 window.cargarRutaEnMapaGrande = (...args) => MapModule.cargarRutaEnMapaGrande(...args);
+window.exportarRutaPlanificadaGPX = (...args) => MapModule.exportarRutaPlanificadaGPX(...args);
+window.descargarRutaActivaGPX = (...args) => MapModule.exportarRutaPlanificadaGPX(...args);
+window.guardarForecastSnapshot = (...args) => MapModule.guardarForecastSnapshot(...args);
+window.recuperarForecastSnapshot = (...args) => MapModule.recuperarForecastSnapshot(...args);
 
 const closeClubProfileSafe = () => {
     if (window.Club && typeof window.Club.cerrarClubProfileView === 'function') window.Club.cerrarClubProfileView();
@@ -142,6 +146,37 @@ async function inicializarAplicacion() {
     if (document.getElementById('date')) document.getElementById('date').value = strHoy;
     if (document.getElementById('proDate')) document.getElementById('proDate').value = strHoy;
 
+    // Reactividad para actualización de la jornada completa del spot al cambiar fecha o nivel
+    const dateEl = document.getElementById('date');
+    if (dateEl && !dateEl.dataset.spotsBound) {
+        dateEl.dataset.spotsBound = "true";
+        dateEl.addEventListener('change', () => {
+            if (MapModule.spotActivoActual && MapModule.cargarJornadaCompletaSpot) {
+                MapModule.cargarJornadaCompletaSpot(MapModule.spotActivoActual, dateEl.value, document.getElementById('userLevel')?.value);
+            }
+        });
+    }
+
+    const userLevelEl = document.getElementById('userLevel');
+    if (userLevelEl && !userLevelEl.dataset.spotsBound) {
+        userLevelEl.dataset.spotsBound = "true";
+        userLevelEl.addEventListener('change', () => {
+            if (MapModule.spotActivoActual && MapModule.pronosticoDiaCompletoActual && MapModule.renderizarTimelineJornadaCompleta) {
+                MapModule.renderizarTimelineJornadaCompleta(MapModule.spotActivoActual, MapModule.pronosticoDiaCompletoActual, userLevelEl.value);
+            }
+        });
+    }
+
+    // Carga inicial de spots favoritos del usuario
+    if (MapModule.cargarSpotsGuardadosUsuario) {
+        MapModule.cargarSpotsGuardadosUsuario();
+    }
+
+    // Inicialización del selector de equipo y física de tabla
+    if (MapModule.actualizarUIGearSelector) {
+        MapModule.actualizarUIGearSelector();
+    }
+
     if (supabaseClient && supabaseClient.auth) {
         try {
             if (Auth.initAuthListeners) Auth.initAuthListeners();
@@ -164,12 +199,168 @@ async function inicializarAplicacion() {
         }
     }
     handleSPA();
+    inicializarManejadorNavegacionModales();
 }
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', inicializarAplicacion, { once: true });
 } else {
     inicializarAplicacion();
+}
+
+// ====================================================
+// GESTOR UNIFICADO DE NAVEGACIÓN Y CIERRE DE MODALES (ESC / PWA BACK)
+// ====================================================
+
+export function obtenerModalActivo() {
+    const modalIds = [
+        'modalReporteSpot',
+        'modalAiRouteCoach',
+        'modalSplitsKm',
+        'rutaDetalleModal',
+        'friendSystemModal',
+        'clubAdminRequestsModal',
+        'clubProfileViewModal',
+        'userProfileModal',
+        'authModal',
+        'socialFeedModal',
+        'rankingModal',
+        'clubsModal',
+        'notificationsModal',
+        'spotsComparisonPanel'
+    ];
+
+    for (const id of modalIds) {
+        const el = document.getElementById(id);
+        if (el && !el.classList.contains('hidden') && el.style.display !== 'none') {
+            return { id, element: el };
+        }
+    }
+    return null;
+}
+
+export function cerrarModalActivo(modalInfo) {
+    if (!modalInfo) return false;
+    const { id, element } = modalInfo;
+
+    if (['modalReporteSpot', 'modalAiRouteCoach', 'modalSplitsKm'].includes(id)) {
+        element.remove();
+        return true;
+    }
+    if (id === 'spotsComparisonPanel') {
+        element.classList.add('hidden');
+        return true;
+    }
+    if (id === 'userProfileModal') {
+        if (typeof window.goBackSPA === 'function') window.goBackSPA();
+        else {
+            element.classList.add('opacity-0');
+            setTimeout(() => element.classList.add('hidden'), 200);
+        }
+        return true;
+    }
+    if (id === 'clubsModal') {
+        if (window.Club && typeof window.Club.cerrarModal === 'function') window.Club.cerrarModal();
+        else if (typeof window.cerrarModalClubs === 'function') window.cerrarModalClubs();
+        else {
+            element.classList.add('opacity-0');
+            setTimeout(() => element.classList.add('hidden'), 200);
+        }
+        return true;
+    }
+    if (id === 'clubProfileViewModal') {
+        closeClubProfileSafe();
+        return true;
+    }
+    if (id === 'socialFeedModal' && typeof window.cerrarModalFeed === 'function') {
+        window.cerrarModalFeed();
+        return true;
+    }
+    if (id === 'rankingModal' && typeof window.cerrarModalRanking === 'function') {
+        window.cerrarModalRanking();
+        return true;
+    }
+    if (id === 'authModal' && typeof window.cerrarModalAuth === 'function') {
+        window.cerrarModalAuth();
+        return true;
+    }
+    if (id === 'rutaDetalleModal' && typeof window.cerrarModalDetallesRuta === 'function') {
+        window.cerrarModalDetallesRuta();
+        return true;
+    }
+    if (id === 'clubAdminRequestsModal' && typeof window.cerrarModalSolicitudes === 'function') {
+        window.cerrarModalSolicitudes();
+        return true;
+    }
+    if (id === 'friendSystemModal' && typeof window.cerrarModalAmigos === 'function') {
+        window.cerrarModalAmigos();
+        return true;
+    }
+
+    element.classList.add('opacity-0');
+    setTimeout(() => element.classList.add('hidden'), 200);
+    return true;
+}
+
+let listenerNavegacionModalesInicializado = false;
+export function inicializarManejadorNavegacionModales() {
+    if (listenerNavegacionModalesInicializado) return;
+    listenerNavegacionModalesInicializado = true;
+
+    // 1. Escuchar tecla Escape
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            const modal = obtenerModalActivo();
+            if (modal) {
+                e.preventDefault();
+                cerrarModalActivo(modal);
+                if (window.history.state?.modalOpen) {
+                    window.history.back();
+                }
+            }
+        }
+    });
+
+    // 2. Interceptar popstate (botón atrás en Android / navegador)
+    window.addEventListener('popstate', () => {
+        const modal = obtenerModalActivo();
+        if (modal) {
+            cerrarModalActivo(modal);
+        }
+    }, true);
+
+    // 3. MutationObserver para sincronizar apertura con history.state
+    try {
+        const observer = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                if (m.type === 'attributes' && m.attributeName === 'class') {
+                    const el = m.target;
+                    if (el && !el.classList.contains('hidden') && el.classList.contains('fixed')) {
+                        if (!window.history.state?.modalOpen) {
+                            window.history.pushState({ modalOpen: true, modalId: el.id }, '');
+                        }
+                    }
+                } else if (m.type === 'childList') {
+                    for (const node of m.addedNodes) {
+                        if (node.nodeType === 1 && (node.id === 'modalSplitsKm' || node.id === 'modalAiRouteCoach' || node.id === 'modalReporteSpot')) {
+                            if (!window.history.state?.modalOpen) {
+                                window.history.pushState({ modalOpen: true, modalId: node.id }, '');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['class'],
+            childList: true,
+            subtree: true
+        });
+    } catch (eObs) {
+        console.warn('Aviso observador de modales:', eObs);
+    }
 }
 
 // ====================================================
@@ -672,3 +863,6 @@ window.cambiarTabPerfilSPA = cambiarTabPerfilSPA;
 window.abrirModalRanking = abrirModalRanking;
 window.cerrarModalRanking = cerrarModalRanking;
 window.cargarTopPaddlers = cargarTopPaddlers;
+window.obtenerModalActivo = obtenerModalActivo;
+window.cerrarModalActivo = cerrarModalActivo;
+window.inicializarManejadorNavegacionModales = inicializarManejadorNavegacionModales;

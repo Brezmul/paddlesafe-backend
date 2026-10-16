@@ -81,6 +81,103 @@ export const ICONOS_SEGURIDAD = {
 };
 
 /**
+ * Análisis de Evolución Próxima (+3h) para detectar subidas térmicas o roladas bruscas
+ */
+export function analizarEvolucionProxima(params = {}, vReal = 0, rReal = 0, dirVientoDeg = null, seawardDeg = null) {
+    const hourly = params.hourly || params.dx?.hourly || null;
+    const horasDiurnas = params.horasDiurnas || [];
+
+    let hActualNum = new Date().getHours();
+    if (params.horaSalida) {
+        const p = String(params.horaSalida).split(':');
+        if (p[0]) hActualNum = parseInt(p[0], 10) || hActualNum;
+    }
+
+    // 1. Array de horas diurnas procesadas
+    if (Array.isArray(horasDiurnas) && horasDiurnas.length > 0) {
+        const idxActual = horasDiurnas.findIndex(h => {
+            const hNum = parseInt(String(h.hora || '').replace(/\D/g, ''), 10);
+            return hNum === hActualNum;
+        });
+        const startIdx = idxActual >= 0 ? idxActual : 0;
+        for (let offset = 1; offset <= 3; offset++) {
+            const target = horasDiurnas[startIdx + offset];
+            if (!target) continue;
+            const vFuturo = Number(target.vientoKt ?? (target.viento_kmh ? target.viento_kmh / 1.852 : 0));
+            const rFuturo = Number(target.rachasKt ?? (target.rachas_kmh ? target.rachas_kmh / 1.852 : vFuturo));
+            const dirFutura = Number(target.dirDeg ?? target.dirViento ?? dirVientoDeg);
+            const compFutura = seawardDeg !== null ? calcularComponenteVientoAuto(dirFutura, seawardDeg) : null;
+            const esOffshoreFutura = compFutura?.componente === 'offshore';
+
+            const subeViento = (vFuturo - vReal) >= 5;
+            const subeRacha = (rFuturo - rReal) >= 7;
+            const rolaOffshore = esOffshoreFutura && vFuturo >= 10;
+
+            if (subeViento || subeRacha || rolaOffshore) {
+                const horaLabel = target.hora || `+${offset}h`;
+                let desc = `en +${offset}h (${horaLabel}) el viento sube a ${vFuturo.toFixed(1)} kt (Racha ${rFuturo.toFixed(1)} kt)`;
+                if (rolaOffshore) desc += ' con rolada hacia mar adentro (Offshore)';
+                return {
+                    detectada: true,
+                    deltaHoras: offset,
+                    horaSurge: horaLabel,
+                    vientoFuturoKt: Number(vFuturo.toFixed(1)),
+                    rachaFuturaKt: Number(rFuturo.toFixed(1)),
+                    deltaVientoKt: Number((vFuturo - vReal).toFixed(1)),
+                    deltaRachaKt: Number((rFuturo - rReal).toFixed(1)),
+                    esOffshore: rolaOffshore,
+                    mensaje: `📈 Atención: ${desc}`
+                };
+            }
+        }
+    }
+
+    // 2. Open-Meteo hourly object
+    if (hourly && Array.isArray(hourly.time)) {
+        let idx = hourly.time.findIndex(t => t.includes(`T${String(hActualNum).padStart(2, '0')}:`));
+        if (idx === -1) idx = 0;
+
+        for (let offset = 1; offset <= 3; offset++) {
+            const tIdx = idx + offset;
+            if (tIdx >= hourly.time.length) break;
+
+            const timeStr = hourly.time[tIdx];
+            const horaPaso = new Date(timeStr.includes('Z') ? timeStr : timeStr + 'Z').toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            
+            const rawV = Number(hourly.wind_speed_10m?.[tIdx] ?? hourly.windspeed_10m?.[tIdx] ?? 0);
+            const rawR = Number(hourly.wind_gusts_10m?.[tIdx] ?? hourly.windgusts_10m?.[tIdx] ?? rawV);
+            const vFuturo = rawV > 35 ? rawV / 1.852 : (rawV > 0 && rawV <= 25 ? rawV * 3.6 / 1.852 : rawV / 1.852);
+            const rFuturo = rawR > 35 ? rawR / 1.852 : (rawR > 0 && rawR <= 25 ? rawR * 3.6 / 1.852 : rawR / 1.852);
+            const dirFutura = Number(hourly.wind_direction_10m?.[tIdx] ?? hourly.winddirection_10m?.[tIdx] ?? dirVientoDeg);
+            const compFutura = seawardDeg !== null ? calcularComponenteVientoAuto(dirFutura, seawardDeg) : null;
+            const esOffshoreFutura = compFutura?.componente === 'offshore';
+
+            const subeViento = (vFuturo - vReal) >= 5;
+            const subeRacha = (rFuturo - rReal) >= 7;
+            const rolaOffshore = esOffshoreFutura && vFuturo >= 10;
+
+            if (subeViento || subeRacha || rolaOffshore) {
+                let desc = `en +${offset}h (${horaPaso}) el viento sube a ${vFuturo.toFixed(1)} kt (Racha ${rFuturo.toFixed(1)} kt)`;
+                if (rolaOffshore) desc += ' con rolada hacia mar adentro (Offshore)';
+                return {
+                    detectada: true,
+                    deltaHoras: offset,
+                    horaSurge: horaPaso,
+                    vientoFuturoKt: Number(vFuturo.toFixed(1)),
+                    rachaFuturaKt: Number(rFuturo.toFixed(1)),
+                    deltaVientoKt: Number((vFuturo - vReal).toFixed(1)),
+                    deltaRachaKt: Number((rFuturo - rReal).toFixed(1)),
+                    esOffshore: rolaOffshore,
+                    mensaje: `📈 Atención: ${desc}`
+                };
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
  * Orquesta la evaluación experta canónica y definitiva de PaddleSafe Next-Gen
  */
 export function generarVeredictoNextGen(params = {}) {
@@ -106,7 +203,7 @@ export function generarVeredictoNextGen(params = {}) {
 
     const dirVientoDeg = params.dirVientoDeg ?? params.dir_viento_deg ?? params.direccionViento ?? null;
     const oleajeM = params.oleajeM ?? params.olaM ?? params.altura_ola_m ?? null;
-    const periodoOlaS = params.periodoOlaS ?? params.periodoOla ?? params.periodo_ola_s ?? null;
+    const periodoOlaS = params.periodoOlaS ?? params.periodoOla ?? params.periodo_ola_s ?? params.wavePeriod ?? params.wave_period ?? null;
     const swellM = params.swellM ?? params.swell_height ?? null;
     const swellPeriodoS = params.swellPeriodoS ?? params.periodoSwell ?? params.swell_period ?? null;
     const swellDirDeg = params.swellDirDeg ?? params.direccionSwell ?? params.swell_direction ?? null;
@@ -326,12 +423,17 @@ export function generarVeredictoNextGen(params = {}) {
     const compViento = orientacionCostaDeg !== null
         ? calcularComponenteVientoAuto(dirVientoDeg, orientacionCostaDeg)
         : calcularComponenteVientoAuto(lat, lon, dirVientoDeg, spotNombre);
+    const equipoUsuario = params.equipoUsuario || null;
+    const boardType = params.boardType || equipoUsuario?.tipoTabla || null;
+    const driftMod = Number(params.driftMod || equipoUsuario?.driftMod || 1.0);
     const deriva = calcularIndiceDerivaPaddleSafe({
         vientoKt: vientoKt || 0,
         rachasKt: rachasKt || vientoKt || 0,
         oleajeM: oleajeM || 0,
         componente: compViento.componente,
-        esCosta: infoCosta.esCosta
+        esCosta: infoCosta.esCosta,
+        driftMod,
+        boardType
     });
 
     // 3. Consenso de modelos meteorológicos
@@ -388,7 +490,26 @@ export function generarVeredictoNextGen(params = {}) {
     else if (oReal >= 0.8) score -= 20;
     else if (oReal >= 0.5) score -= 10;
 
+    // Evaluación hidrodinámica de periodo de ola
+    const periodo = Number(periodoOlaS || 0);
+    let tipoMar = null;
+    if (oReal >= 0.4 && periodo > 0 && periodo <= 5) {
+        score -= 10;
+        tipoMar = 'Chop corto';
+    } else if (oReal >= 0.3 && periodo >= 9) {
+        tipoMar = 'Mar de fondo';
+    }
+
     if (compViento.componente === 'offshore') score -= 15;
+
+    // Física de la tabla: mayor deriva por francobordo e inestabilidad lateral en race
+    if (driftMod > 1.0 && vReal >= 10 && ['offshore', 'side-shore', 'cruzado'].includes(String(compViento.componente || '').toLowerCase())) {
+        const extraPenalizacionDeriva = Math.round((driftMod - 1.0) * 20);
+        score -= extraPenalizacionDeriva;
+    }
+    if (boardType === 'rigid_race' && (tipoMar === 'Chop corto' || oReal >= 0.4)) {
+        score -= 5;
+    }
 
     // Alertas oficiales AEMET (solo penalizan si aplican a la jornada consultada, no si son preventivas a futuro ni expiradas)
     const alertaActivaJornada = Boolean(
@@ -423,7 +544,13 @@ export function generarVeredictoNextGen(params = {}) {
     if (vReal >= 12) factoresCriticos.push(`Viento sostenido de ${vReal} kt.`);
     if (rReal - vReal >= 5) factoresCriticos.push(`Rachas de ${rReal} kt frente a ${vReal} kt de viento medio.`);
     if (oReal >= 0.8 && infoCosta.esCosta) factoresCriticos.push(`Oleaje significativo de ${oReal.toFixed(1)} m.`);
-    if (periodoOlaS >= 10 && oReal >= 0.5) factoresCriticos.push(`Periodo de ola largo (${Math.round(periodoOlaS)}s): mayor fuerza de las series.`);
+    if (oReal >= 0.4 && periodo > 0 && periodo <= 5) {
+        factoresCriticos.push(`Ola corta de ${Math.round(periodo)}s: alta inestabilidad lateral.`);
+    } else if (oReal >= 0.3 && periodo >= 9) {
+        factoresCriticos.push(`Mar de fondo ordenado (${Math.round(periodo)}s: precaución en rompiente de orilla).`);
+    } else if (periodoOlaS >= 10 && oReal >= 0.5) {
+        factoresCriticos.push(`Periodo de ola largo (${Math.round(periodoOlaS)}s): mayor fuerza de las series.`);
+    }
 
     if (compViento.componente === 'offshore') {
         factoresCriticos.push('Componente offshore (terral): el viento aleja de la costa y dificulta el retorno.');
@@ -433,8 +560,21 @@ export function generarVeredictoNextGen(params = {}) {
         factoresCriticos.push('Componente onshore: favorece el retorno a tierra pero crea oleaje frontal.');
     }
 
+    if (driftMod > 1.05 && vReal >= 10 && ['offshore', 'side-shore', 'cruzado'].includes(String(compViento.componente || '').toLowerCase())) {
+        factoresCriticos.push(`Tabla hinchable (+ francobordo): deriva acrecentada por efecto vela con ${vReal} kt (${compViento.componente}).`);
+    }
+    if (boardType === 'rigid_race' && (tipoMar === 'Chop corto' || oReal >= 0.4)) {
+        factoresCriticos.push("Tabla Rígida Race (14'): penalización por inestabilidad lateral en chop corto.");
+    }
+
     if (alertaActivaJornada) {
         factoresCriticos.push(`Aviso oficial ${alertaOficial.origen || 'AEMET'} activo (${alertaOficial.nivel || ''}): ${alertaOficial.tipo || alertaOficial.descripcion || 'atención al parte'}.`);
+    }
+
+    // Análisis de evolución térmica y roladas próximas (+3h)
+    const evolucionProxima = analizarEvolucionProxima(params, vReal, rReal, dirVientoDeg, infoCosta.seawardDeg);
+    if (evolucionProxima && evolucionProxima.mensaje) {
+        factoresCriticos.unshift(evolucionProxima.mensaje);
     }
 
     // 10. Determinación del Estado Categórico Final
@@ -507,12 +647,17 @@ export function generarVeredictoNextGen(params = {}) {
         confianzaAnalisis: confianza,
         factoresCriticos,
         fuenteAlternativa: false,
+        tipoMar: tipoMar || null,
+        periodoOlaS: periodo > 0 ? periodo : null,
+        evolucionProxima: evolucionProxima || null,
         detallesTecnicos: {
             vientoKt: vReal,
             rachasKt: rReal,
             direccionDeg: dirVientoDeg,
             oleajeM: oReal,
-            periodoOlaS,
+            periodoOlaS: periodo > 0 ? periodo : null,
+            tipoMar: tipoMar || null,
+            evolucionProxima: evolucionProxima || null,
             swellM,
             tempAireC,
             tempAguaC,
