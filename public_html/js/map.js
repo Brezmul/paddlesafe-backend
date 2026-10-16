@@ -22,7 +22,7 @@ import {
     calcularSolYCrepusculo
 } from './utils.js';
 import { ClubState } from './club/state.js';
-import { calcularXpRuta, sincronizarProgresion } from './gamification.js';
+import { calcularXpRuta } from './gamification.js';
 import { parseGPX, generarGPX, descargarGPX } from './gpxParser.js';
 
 const ICONOS_SEGURIDAD = {
@@ -4910,7 +4910,18 @@ export async function finalizarTravesia() {
     }
 
     const rutaNormalizada = normalizarYLimitarRutaGPS(trackCoords);
-    const pts = Math.round(trackDistanceKm * 10) + m;
+    const avgSpeed = m > 0 ? Number((trackDistanceKm / (m / 60)).toFixed(1)) : 0;
+    let pointsEarned = avgSpeed > 45 ? 0 : Math.round(trackDistanceKm * 100);
+    try {
+        const xpResult = await calcularXpRuta({
+            userId: appState.sesionActual.user.id,
+            distanceKm: trackDistanceKm,
+            avgSpeed
+        });
+        pointsEarned = Number(xpResult?.xpGanado ?? pointsEarned);
+    } catch (xpError) {
+        console.warn('No se pudo calcular XP de la travesía; se aplica la regla base de PaddleSafe:', xpError);
+    }
     
     const { data: nuevaRuta, error: errRuta } = await supabaseClient.from('rutas').insert([{
         user_id: appState.sesionActual.user.id,
@@ -4918,7 +4929,16 @@ export async function finalizarTravesia() {
         tiempo_minutos: m,
         ruta_json: rutaNormalizada,
         imagen_url: img,
-        ubicacion: ubicacionTexto
+        ubicacion: ubicacionTexto,
+        points_earned: pointsEarned,
+        splits_data: splitsKm,
+        wind_speed_kt: vKtSnapshot,
+        wind_gust_kt: rKtSnapshot,
+        wind_direction_deg: dirSnapshot,
+        wave_height_m: oMSnapshot,
+        wave_period_s: perSSnapshot,
+        conditions_score: meteoSnapshot.score,
+        weather_snapshot: meteoSnapshot
     }]).select().single();
     
     if (errRuta || !nuevaRuta) {
@@ -4943,6 +4963,7 @@ export async function finalizarTravesia() {
                 b64: imgBase64Backup,
                 meteo: meteoSnapshot,
                 splits: splitsKm,
+                points_earned: pointsEarned,
                 ts: Date.now()
             }));
             localStorage.removeItem('paddlesafe_live_checkpoint');
@@ -4984,18 +5005,6 @@ export async function finalizarTravesia() {
         await supabaseClient.from('club_rutas').insert([{ club_id: ClubState.activeId, ruta_id: nuevaRuta.id }]);
     }
 
-    try {
-        const avgSpd = m > 0 ? Number((trackDistanceKm / (m / 60)).toFixed(1)) : 0;
-        await sincronizarProgresion({
-            userId: appState.sesionActual.user.id,
-            distanceKm: trackDistanceKm,
-            durationMinutes: m,
-            avgSpeed: avgSpd
-        });
-    } catch (eProg) {
-        console.warn('Error al sincronizar progresión de travesía en gamificación:', eProg);
-    }
-    
     if(window.cargarPerfilUsuarioActivo) await window.cargarPerfilUsuarioActivo();
     
     document.getElementById('liveTrackingPanel').innerHTML = `
@@ -5003,7 +5012,7 @@ export async function finalizarTravesia() {
             <span class="text-4xl block mb-2">✅</span>
             <h3 class="font-black text-white text-lg">Guardada</h3>
             <div class="flex items-center justify-center gap-2 text-xs font-bold my-1">
-                <span class="text-emerald-400 uppercase tracking-widest">+${pts} pts</span>
+                <span class="text-emerald-400 uppercase tracking-widest">+${pointsEarned} pts</span>
                 <span class="text-slate-500">·</span>
                 <span class="text-amber-400 font-mono">🔥 ${biometriaFinal.kcal} kcal</span>
             </div>
@@ -5047,30 +5056,44 @@ export async function sincronizarRutasPendientes() {
 
         const coordsNormalizadas = normalizarYLimitarRutaGPS(p.coords);
 
+        const avgSpeedSync = p.min > 0 ? Number((p.km / (p.min / 60)).toFixed(1)) : 0;
+        let pointsEarned = Number(p.points_earned);
+        if (!Number.isFinite(pointsEarned)) {
+            pointsEarned = avgSpeedSync > 45 ? 0 : Math.round(Number(p.km) * 100);
+            try {
+                const xpResult = await calcularXpRuta({
+                    userId: appState.sesionActual.user.id,
+                    distanceKm: p.km,
+                    avgSpeed: avgSpeedSync
+                });
+                pointsEarned = Number(xpResult?.xpGanado ?? pointsEarned);
+            } catch (xpError) {
+                console.warn('No se pudo calcular XP para la ruta offline; se aplica la regla base de PaddleSafe:', xpError);
+            }
+        }
+
+        const meteo = p.meteo || {};
         const { error } = await supabaseClient.from('rutas').insert([{
             user_id: appState.sesionActual.user.id,
             distancia_km: Number(p.km.toFixed(2)),
             tiempo_minutos: p.min,
             ruta_json: coordsNormalizadas,
             imagen_url: urlSincronizada || p.img,
-            ubicacion: "Travesía GPS (Sincronización Offline)"
+            ubicacion: "Travesía GPS (Sincronización Offline)",
+            points_earned: pointsEarned,
+            splits_data: Array.isArray(p.splits) ? p.splits : [],
+            wind_speed_kt: meteo.vientoKt ?? null,
+            wind_gust_kt: meteo.rachasKt ?? null,
+            wind_direction_deg: meteo.dirViento ?? null,
+            wave_height_m: meteo.olasM ?? null,
+            wave_period_s: meteo.periodoS ?? null,
+            conditions_score: meteo.score ?? null,
+            weather_snapshot: meteo
         }]);
         
         if (!error) {
             localStorage.removeItem('paddlesafe_ruta_pendiente');
-            const pts = Math.round(p.km * 10) + p.min;
-            try {
-                const avgSpdSync = p.min > 0 ? Number((p.km / (p.min / 60)).toFixed(1)) : 0;
-                await sincronizarProgresion({
-                    userId: appState.sesionActual.user.id,
-                    distanceKm: p.km,
-                    durationMinutes: p.min,
-                    avgSpeed: avgSpdSync
-                });
-            } catch (eProgSync) {
-                console.warn('Error al sincronizar progresión offline en gamificación:', eProgSync);
-            }
-            alert(`¡Ruta guardada offline sincronizada con éxito! (+${pts} pts)`);
+            alert(`¡Ruta guardada offline sincronizada con éxito! (+${pointsEarned} pts)`);
             if (window.cargarPerfilUsuarioActivo) await window.cargarPerfilUsuarioActivo();
         }
     } catch (e) {
