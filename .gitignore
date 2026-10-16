@@ -2,16 +2,10 @@
 Thumbs.db
 *.zip
 *.log
-
-# Prohibido backend o sql
-api/
-lib/
-sql/
-*.sql
 node_modules/
 package*.json
-vercel.json
-paddlesafe-backend-main/
-Paddlesafe_frontend/
 scratch/
 .vscode/
+hostinger_public_html_ready.zip
+paddlesafe-backend-main/
+Paddlesafe_frontend/
