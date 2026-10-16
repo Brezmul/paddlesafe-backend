@@ -8,6 +8,11 @@ api/
 lib/
 sql/
 *.sql
+
+# Prohibido documentación interna y auditorías en rama pública/Hostinger
+*.md
+docs/
+
 node_modules/
 package*.json
 vercel.json
@@ -15,3 +20,4 @@ paddlesafe-backend-main/
 Paddlesafe_frontend/
 scratch/
 .vscode/
+hostinger_public_html_ready.zip

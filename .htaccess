@@ -4,9 +4,9 @@ DirectoryIndex public_html/index.html public_html/index.php index.html index.php
   RewriteEngine On
   RewriteBase /
 
-  # Seguridad: bloqueo total contra peticiones a backend, lib o sql
+  # Seguridad: bloqueo total contra peticiones a backend, lib, sql o auditorías internas
   RewriteRule ^(api|lib|sql|node_modules|\.git)(/|$) - [F,L]
-  RewriteRule \.(sql|env|log)$ - [F,L]
+  RewriteRule \.(sql|env|log|md)$ - [F,L]
 
   # Si la petición ya incluye public_html/, no volver a reescribir
   RewriteRule ^public_html/ - [L]

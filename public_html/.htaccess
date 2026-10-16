@@ -3,9 +3,9 @@ DirectoryIndex index.html index.php
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
-  # Seguridad estricta: bloqueo total contra peticiones a backend, lib o sql
+  # Seguridad estricta: bloqueo total contra peticiones a backend, lib, sql o auditorías internas
   RewriteRule ^(api|lib|sql|\.git)(/|$) - [F,L]
-  RewriteRule \.(sql|env|log)$ - [F,L]
+  RewriteRule \.(sql|env|log|md)$ - [F,L]
 
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
