@@ -28,20 +28,66 @@ import uploadRouteHandler from "../lib/handlers/upload_route.js";
 import warningsHandler from "../lib/handlers/warnings.js";
 import routeCoachHandler from "../lib/handlers/route_coach.js";
 
+// Rate limiting en memoria por IP (ventana deslizante de 60 segundos)
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const GENERAL_LIMIT = 60;
+const INTENSIVE_LIMIT = 12;
+const INTENSIVE_ACTIONS = new Set(["coach", "route_coach", "analyze_route", "compare", "ai"]);
+
+function checkRateLimit(ip, action) {
+  const ahora = Date.now();
+  // Limpieza periódica de registros antiguos
+  if (rateLimitMap.size > 1000) {
+    for (const [key, record] of rateLimitMap.entries()) {
+      if (ahora - record.startTime > RATE_LIMIT_WINDOW_MS) {
+        rateLimitMap.delete(key);
+      }
+    }
+  }
+
+  let record = rateLimitMap.get(ip);
+  if (!record || (ahora - record.startTime > RATE_LIMIT_WINDOW_MS)) {
+    record = { startTime: ahora, total: 0, intensive: 0 };
+    rateLimitMap.set(ip, record);
+  }
+
+  record.total += 1;
+  const isIntensive = INTENSIVE_ACTIONS.has(action);
+  if (isIntensive) {
+    record.intensive += 1;
+  }
+
+  if (record.total > GENERAL_LIMIT) {
+    return false;
+  }
+  if (isIntensive && record.intensive > INTENSIVE_LIMIT) {
+    return false;
+  }
+  return true;
+}
+
 export default async function handler(req, res) {
-  // Asegurar cabeceras CORS y responder 200 al preflight OPTIONS del navegador
+  // Asegurar cabeceras CORS y defensivas básicas
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS,PATCH,DELETE,POST,PUT");
   res.setHeader(
     "Access-Control-Allow-Headers",
     "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, apikey"
   );
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
   const { action } = req.query;
+
+  const clientIp = (req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "127.0.0.1").split(",")[0].trim();
+  if (!checkRateLimit(clientIp, action)) {
+    return res.status(429).json({ error: "Demasiadas peticiones. Espera unos segundos." });
+  }
 
   try {
     switch (action) {

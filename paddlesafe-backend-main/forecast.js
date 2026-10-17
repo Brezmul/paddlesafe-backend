@@ -212,7 +212,7 @@ async function llamarMarineOpenMeteo(lat, lon, date, timeRange, presupuesto = nu
     marineUrl.search = new URLSearchParams({
       latitude: (Number(lat) + dLat).toFixed(4),
       longitude: (Number(lon) + dLon).toFixed(4),
-      hourly: "wave_height,sea_surface_temperature",
+      hourly: "wave_height,wave_direction,wave_period,swell_wave_height,sea_surface_temperature",
       cell_selection: "sea",
       timezone: "auto",
       start_hour: window.startLocal,
@@ -245,6 +245,9 @@ async function llamarMarineOpenMeteo(lat, lon, date, timeRange, presupuesto = nu
 
   return {
     wave_height: marineData?.hourly?.wave_height,
+    wave_direction: marineData?.hourly?.wave_direction,
+    wave_period: marineData?.hourly?.wave_period,
+    swell_wave_height: marineData?.hourly?.swell_wave_height,
     ocean_temperature: marineData?.hourly?.sea_surface_temperature
   };
 }
@@ -255,7 +258,7 @@ export async function llamarOpenMeteo(lat, lon, date, timeRange, incluirMarine =
   weatherUrl.search = new URLSearchParams({
     latitude: lat,
     longitude: lon,
-    hourly: "wind_speed_10m,wind_direction_10m,temperature_2m,weather_code,precipitation,precipitation_probability",
+    hourly: "wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m,weather_code,precipitation,precipitation_probability",
     timezone: "auto",
     wind_speed_unit: "ms",
     start_hour: window.startLocal,
@@ -288,12 +291,16 @@ export async function llamarOpenMeteo(lat, lon, date, timeRange, incluirMarine =
     hourly: {
       time: weatherData.hourly?.time,
       wind_speed_10m: weatherData.hourly?.wind_speed_10m,
+      wind_gusts_10m: weatherData.hourly?.wind_gusts_10m,
       wind_direction_10m: weatherData.hourly?.wind_direction_10m,
       temperature_2m: weatherData.hourly?.temperature_2m,
       weather_code: weatherData.hourly?.weather_code,
       precipitation: weatherData.hourly?.precipitation,
       precipitation_probability: weatherData.hourly?.precipitation_probability,
       wave_height: marineData?.wave_height,
+      wave_direction: marineData?.wave_direction,
+      wave_period: marineData?.wave_period,
+      swell_wave_height: marineData?.swell_wave_height,
       ocean_temperature: marineData?.ocean_temperature
     }
   };
@@ -419,10 +426,18 @@ export function normalizarFallback(data) {
     .map(Number);
   const windSpeeds = finiteValues(hourly.wind_speed_10m);
   const windSpeed = windSpeeds.length ? Math.max(...windSpeeds) : null;
+  const windGusts = finiteValues(hourly.wind_gusts_10m);
+  const windGust = windGusts.length ? Math.max(...windGusts) : (windSpeed !== null ? Number((windSpeed * 1.35).toFixed(1)) : null);
   const windIndex = hourly.wind_speed_10m?.findIndex((value) => Number(value) === windSpeed) ?? -1;
   const windDirection = hourly.wind_direction_10m?.[windIndex] ?? finiteValues(hourly.wind_direction_10m)[0] ?? null;
   const waveHeights = finiteValues(hourly.wave_height);
   const waveHeight = waveHeights.length ? Math.max(...waveHeights) : null;
+  const wavePeriods = finiteValues(hourly.wave_period);
+  const wavePeriod = wavePeriods.length ? Math.max(...wavePeriods) : null;
+  const waveDirections = finiteValues(hourly.wave_direction);
+  const waveDirection = waveDirections.length ? waveDirections[0] : null;
+  const swellHeights = finiteValues(hourly.swell_wave_height);
+  const swellHeight = swellHeights.length ? Math.max(...swellHeights) : null;
   const average = (values, fallback) => {
     const available = finiteValues(values);
     return available.length
@@ -451,10 +466,22 @@ export function normalizarFallback(data) {
   if (weatherCode >= 45 && weatherCode <= 48) clima = "Niebla";
   if (weatherCode >= 51 && weatherCode <= 99) clima = "Lluvia";
 
+  const rachasKt = windGust !== null ? Number((windGust * 1.94384).toFixed(1)) : null;
+
   return {
     windSpeed,
     windDirection,
     waveHeight,
+    wavePeriod,
+    wave_period: wavePeriod,
+    waveDirection,
+    wave_direction: waveDirection,
+    swellHeight,
+    swell_wave_height: swellHeight,
+    rachas: windGust,
+    windGust,
+    windGusts: windGust,
+    rachasKt,
     tempAire: Math.round(tempAire),
     tempAgua: Math.round(tempAgua),
     clima,

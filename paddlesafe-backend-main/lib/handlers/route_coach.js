@@ -105,7 +105,7 @@ INSTRUCCIONES CLAVE DE ENTRENADOR:
   "proxima_salida": "(Un reto o consejo técnico concreto y medible para la próxima salida, ej. mantener el ritmo del km 2 en los últimos kilómetros)"
 }`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const payload = {
     contents: [
@@ -199,7 +199,7 @@ export default async function handler(req, res) {
     if (apiKey) {
       try {
         feedback = await consultarGeminiFlashRoute(datosSesion, apiKey);
-        fuente = "gemini-1.5-flash";
+        fuente = "gemini-2.5-flash";
       } catch (geminiErr) {
         console.warn("[route_coach] Fallback a motor experto local:", geminiErr.message);
         feedback = generarFeedbackExpertoLocal(datosSesion);

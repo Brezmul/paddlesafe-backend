@@ -454,7 +454,7 @@ Responde ÚNICAMENTE en formato JSON con las siguientes claves:
   "regla_oro": "(Frase final contundente e inolvidable)"
 }`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const payload = {
     contents: [
@@ -539,7 +539,7 @@ export default async function handler(req, res) {
     if (apiKey) {
       try {
         coachResultado = await consultarGeminiFlash(cond, userLevel, apiKey);
-        fuente = "gemini-1.5-flash";
+        fuente = "gemini-2.5-flash";
       } catch (geminiErr) {
         console.warn("Aviso no crítico: Fallback activado tras fallo en Gemini API:", geminiErr.message);
         coachResultado = generarCoachExperto(cond, userLevel);

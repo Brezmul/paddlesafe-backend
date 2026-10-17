@@ -19,3 +19,8 @@ Thumbs.db
 # Deployment builds
 *.zip
 hostinger_public_html_ready.zip
+
+# Database schemas & sensitive SQL (kept private in 'database' branch)
+sql/
+*.sql
+
