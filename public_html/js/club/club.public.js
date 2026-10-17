@@ -203,7 +203,7 @@ export const ClubPublic = {
                 try {
                     const { data: rutas } = await supabaseClient
                         .from('club_rutas')
-                        .select('created_at, rutas(id, ubicacion, distancia_km, tiempo_minutos, fecha, imagen_url)')
+                        .select('created_at, rutas(id, user_id, ubicacion, distancia_km, tiempo_minutos, velocidad_media, fecha, created_at, imagen_url, ruta_json, route_coordinates, splits_data, weather_snapshot, wind_speed_kt, wave_height_m, conditions_score)')
                         .eq('club_id', clubId)
                         .order('created_at', { ascending: false })
                         .limit(20);
@@ -211,10 +211,13 @@ export const ClubPublic = {
                         c.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold">Sin rutas registradas por el club.</p>';
                     } else {
                         c.innerHTML = `
-                            <div class="space-y-2.5">
+                            <div class="space-y-3">
                                 ${rutas.map(r => {
                                     const ruta = r.rutas;
                                     if (!ruta) return '';
+                                    if (typeof window.renderTarjetaRutaSocial === 'function') {
+                                        return `<div class="p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">${window.renderTarjetaRutaSocial(ruta, null)}</div>`;
+                                    }
                                     return `
                                         <div class="flex items-center justify-between p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
                                             <div class="flex items-center gap-3 min-w-0">

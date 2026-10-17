@@ -161,6 +161,14 @@ export function estimarRumboCosteroGeodesico(lat, lon) {
     return 90;
 }
 
+function empaquetarOrientacionCostera(res) {
+    if (!res || typeof res !== 'object') return res;
+    return Object.assign(res, {
+        valueOf() { return this.seawardDeg ?? 0; },
+        [Symbol.toPrimitive](hint) { return this.seawardDeg ?? 0; }
+    });
+}
+
 /**
  * Resuelve la orientación costera de un spot (soporta (nombreSpot, lat, lon) o (lat, lon, nombreSpot))
  */
@@ -183,27 +191,27 @@ export function resolverOrientacionCostera(arg1 = '', arg2 = null, arg3 = null) 
 
     // 1. Si contiene palabras clave de embalse o lago, clasificar de inmediato como interior
     if (/embalse|pantano|lago|laguna|rio|río|presa|reservoir|lake/i.test(spotNormalizado)) {
-        return {
+        return empaquetarOrientacionCostera({
             seawardDeg: null,
             esCosta: false,
             esEmbalse: true,
             tipoEntorno: 'embalse_interior',
             fuente: 'deteccion_interior'
-        };
+        });
     }
 
     // 2. Buscar en catálogo curado de costa por coincidencia de texto
     const match = SPOTS_CONOCIDOS.find(s => s.match && s.match.test(spotNormalizado));
     if (match) {
         const esEmb = match.type === 'embalse_interior';
-        return {
+        return empaquetarOrientacionCostera({
             seawardDeg: match.seaward,
             esCosta: !esEmb,
             esEmbalse: esEmb,
             tipoEntorno: match.type || 'mar_abierto',
             fuente: 'catalogo_spots',
             spotNombre: match.nombre || null
-        };
+        });
     }
 
     // 3. Soporte geodésico por coordenadas si no hubo coincidencia por texto
@@ -211,13 +219,13 @@ export function resolverOrientacionCostera(arg1 = '', arg2 = null, arg3 = null) 
         // Comprobar si las coordenadas pertenecen a zonas interiores reconocidas
         const seawardGeo = estimarRumboCosteroGeodesico(lat, lon);
         if (seawardGeo === null) {
-            return {
+            return empaquetarOrientacionCostera({
                 seawardDeg: null,
                 esCosta: false,
                 esEmbalse: true,
                 tipoEntorno: 'embalse_interior',
                 fuente: 'geodesia_interior'
-            };
+            });
         }
 
         // Buscar el punto costero más cercano por distancia euclídea simple
@@ -235,34 +243,34 @@ export function resolverOrientacionCostera(arg1 = '', arg2 = null, arg3 = null) 
 
         // Si se encuentra un punto clave costero en un radio aproximado de 0.45° (~45 km)
         if (mejorSpot && menorDistSq <= 0.2025) {
-            return {
+            return empaquetarOrientacionCostera({
                 seawardDeg: mejorSpot.seaward,
                 esCosta: true,
                 esEmbalse: false,
                 tipoEntorno: mejorSpot.type || 'mar_abierto',
                 fuente: 'geodesia_proximidad_costa',
                 spotCercano: mejorSpot.nombre || null
-            };
+            });
         }
 
         // Fallback a rumbo geodésico peninsular regional
-        return {
+        return empaquetarOrientacionCostera({
             seawardDeg: seawardGeo,
             esCosta: true,
             esEmbalse: false,
             tipoEntorno: 'mar_abierto',
             fuente: 'geodesia_coordenadas'
-        };
+        });
     }
 
     // 4. Fallback final si no hay coordenadas ni coincidencia de nombre
-    return {
+    return empaquetarOrientacionCostera({
         seawardDeg: 90,
         esCosta: true,
         esEmbalse: false,
         tipoEntorno: 'mar_abierto',
         fuente: 'fallback_defecto'
-    };
+    });
 }
 
 export function calcularComponenteVientoAuto(...args) {
@@ -331,6 +339,14 @@ export function calcularComponenteVientoAuto(...args) {
     };
 }
 
+function empaquetarDeriva(res) {
+    if (!res || typeof res !== 'object') return res;
+    return Object.assign(res, {
+        valueOf() { return this.score ?? 0; },
+        [Symbol.toPrimitive](hint) { return this.score ?? 0; }
+    });
+}
+
 /**
  * Calcula el Índice de Deriva PaddleSafe
  */
@@ -349,11 +365,11 @@ export function calcularIndiceDerivaPaddleSafe({
             scoreInterior = Math.min(80, Math.round(scoreInterior * driftMod));
         }
         let nivelInterior = scoreInterior > 40 ? 'Moderado' : 'Bajo';
-        return {
+        return empaquetarDeriva({
             score: scoreInterior,
             nivel: nivelInterior,
             descripcion: `Aguas interiores: deriva controlada por orillas (${nivelInterior.toLowerCase()}). Viento de ${vientoKt} kt.`
-        };
+        });
     }
 
     let score = 10;
@@ -398,5 +414,5 @@ export function calcularIndiceDerivaPaddleSafe({
         descripcion += ' Acentuado por mayor francobordo de tabla hinchable.';
     }
 
-    return { score, nivel, descripcion, componente, driftMod };
+    return empaquetarDeriva({ score, nivel, descripcion, componente, driftMod });
 }

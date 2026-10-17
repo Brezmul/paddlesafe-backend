@@ -2206,7 +2206,7 @@ export function calcularBiometriaSup({ duracionMin = 0, distKm = 0, velKmh = 0, 
     if (vientoKt >= 11) met += 1.5;
     if (olasM >= 0.4 || (periodoS > 0 && periodoS <= 5)) met += 1.2;
     const t = String(tipoTabla || '').toLowerCase();
-    if ((t.includes('all-round') || t.includes('hinchable') || t.includes('inflatable')) && velKmh > 4.0) {
+    if ((t.includes('all-round') || t.includes('allround') || t.includes('hinchable') || t.includes('inflatable') || t.includes('inflat')) && velKmh > 4.0) {
         met += 0.8;
     }
     met = Math.min(11.0, met);
@@ -2223,6 +2223,7 @@ export function calcularBiometriaSup({ duracionMin = 0, distKm = 0, velKmh = 0, 
         met: Number(met.toFixed(1)),
         kcal,
         mlTotal,
+        hidratacionMl: mlTotal,
         litros,
         mlHora
     };
@@ -4431,10 +4432,48 @@ export function verificarAlertaCheckin() {
 
 export function mostrarModalSplitsKm(rutaId) {
     let telemetria = null;
+    const ruta = (window.socialRoutesCache && window.socialRoutesCache[String(rutaId)]) 
+        || (window.__rutasUsuarioCache && window.__rutasUsuarioCache.get(String(rutaId))) 
+        || null;
+
     try {
         if (rutaId && rutaId !== 'last') {
             const raw = localStorage.getItem('ps_telemetry_' + rutaId);
             if (raw) telemetria = JSON.parse(raw);
+        }
+        if (!telemetria && ruta?.splits_data) {
+            const parsed = typeof ruta.splits_data === 'string' ? JSON.parse(ruta.splits_data) : ruta.splits_data;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                telemetria = { splits: parsed };
+            } else if (parsed && Array.isArray(parsed.splits) && parsed.splits.length > 0) {
+                telemetria = parsed;
+            }
+        }
+        if (!telemetria && ruta) {
+            let coords = ruta.route_coordinates || ruta.coordinates || ruta.ruta_json;
+            if (typeof coords === 'string') {
+                try { coords = JSON.parse(coords); } catch (_) { coords = null; }
+            }
+            if (Array.isArray(coords) && coords.length >= 2) {
+                const normCoords = coords.map(pt => Array.isArray(pt) ? { lat: Number(pt[0]), lon: Number(pt[1]) } : { lat: Number(pt.lat), lon: Number(pt.lon ?? pt.lng) }).filter(pt => Number.isFinite(pt.lat) && Number.isFinite(pt.lon));
+                if (normCoords.length >= 2) {
+                    try {
+                        const xml = generarGPX(normCoords);
+                        const parsed = parseGPX(xml);
+                        if (parsed && Array.isArray(parsed.splits) && parsed.splits.length > 0) {
+                            telemetria = {
+                                splits: parsed.splits.map(s => ({
+                                    km: s.km,
+                                    tiempoSeg: s.duration_seconds || 0,
+                                    ritmoMinKm: s.duration_seconds && s.distance_km ? ((s.duration_seconds / 60) / s.distance_km).toFixed(2) : '--',
+                                    velMediaKmh: s.avg_speed_kmh || (s.duration_seconds ? (s.distance_km / (s.duration_seconds / 3600)).toFixed(1) : '--'),
+                                    distanciaKm: s.distance_km
+                                }))
+                            };
+                        }
+                    } catch (_) {}
+                }
+            }
         }
         if (!telemetria) {
             const rawLast = localStorage.getItem('ps_telemetry_last');
@@ -4461,16 +4500,19 @@ export function mostrarModalSplitsKm(rutaId) {
     const boardLabel = boardNames[telemetria.boardType] || telemetria.boardType || 'Tabla SUP';
 
     const filasHtml = telemetria.splits.map(s => {
-        const mins = Math.floor(s.tiempoSeg / 60);
-        const secs = s.tiempoSeg % 60;
+        const tSec = s.tiempoSeg || s.duration_seconds || 0;
+        const mins = Math.floor(tSec / 60);
+        const secs = tSec % 60;
         const durStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        const kmLabel = s.esFinal ? `${s.km} km (Tramo ${s.distanciaKm}k)` : `Km ${s.km}`;
+        const kmLabel = s.esFinal ? `${s.km} km (Tramo ${s.distanciaKm || s.distance_km}k)` : `Km ${s.km}`;
+        const ritmoStr = s.ritmoMinKm || (s.distance_km && tSec ? ((tSec / 60) / s.distance_km).toFixed(2) : '--');
+        const velStr = s.velMediaKmh || s.avg_speed_kmh || (s.distance_km && tSec ? (s.distance_km / (tSec / 3600)).toFixed(1) : '--');
         return `
             <tr class="border-b border-slate-700/60 hover:bg-slate-800/50">
                 <td class="py-2 px-3 font-bold text-white">${kmLabel}</td>
                 <td class="py-2 px-3 font-mono text-emerald-400 font-bold">${durStr}</td>
-                <td class="py-2 px-3 font-mono text-slate-300">${s.ritmoMinKm} min/km</td>
-                <td class="py-2 px-3 font-mono font-bold text-amber-400">${s.velMediaKmh} km/h</td>
+                <td class="py-2 px-3 font-mono text-slate-300">${ritmoStr} min/km</td>
+                <td class="py-2 px-3 font-mono font-bold text-amber-400">${velStr} km/h</td>
             </tr>
         `;
     }).join('');

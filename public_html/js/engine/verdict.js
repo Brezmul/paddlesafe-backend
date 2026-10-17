@@ -84,28 +84,38 @@ export const ICONOS_SEGURIDAD = {
  * Análisis de Evolución Próxima (+3h) para detectar subidas térmicas o roladas bruscas
  */
 export function analizarEvolucionProxima(params = {}, vReal = 0, rReal = 0, dirVientoDeg = null, seawardDeg = null) {
-    const hourly = params.hourly || params.dx?.hourly || null;
-    const horasDiurnas = params.horasDiurnas || [];
+    const isArrayParams = Array.isArray(params);
+    const hourly = isArrayParams ? null : (params.hourly || params.dx?.hourly || null);
+    const horasDiurnas = isArrayParams
+        ? params
+        : ((Array.isArray(params.horasDiurnas) && params.horasDiurnas.length > 0)
+            ? params.horasDiurnas
+            : (Array.isArray(hourly) ? hourly : []));
 
     let hActualNum = new Date().getHours();
-    if (params.horaSalida) {
+    if (!isArrayParams && params.horaSalida) {
         const p = String(params.horaSalida).split(':');
         if (p[0]) hActualNum = parseInt(p[0], 10) || hActualNum;
     }
 
-    // 1. Array de horas diurnas procesadas
+    // 1. Array de horas diurnas procesadas o array de objetos horarios
     if (Array.isArray(horasDiurnas) && horasDiurnas.length > 0) {
-        const idxActual = horasDiurnas.findIndex(h => {
-            const hNum = parseInt(String(h.hora || '').replace(/\D/g, ''), 10);
+        let idxActual = horasDiurnas.findIndex(h => {
+            const hNum = parseInt(String(h.hora || h.time || '').replace(/\D/g, '').slice(0, 2), 10);
             return hNum === hActualNum;
         });
         const startIdx = idxActual >= 0 ? idxActual : 0;
+        if (!vReal && horasDiurnas[startIdx]) {
+            vReal = Number(horasDiurnas[startIdx].vientoKt ?? (horasDiurnas[startIdx].wind_speed_10m ?? 0));
+            rReal = Number(horasDiurnas[startIdx].rachasKt ?? (horasDiurnas[startIdx].wind_gusts_10m ?? vReal));
+        }
+
         for (let offset = 1; offset <= 3; offset++) {
             const target = horasDiurnas[startIdx + offset];
             if (!target) continue;
-            const vFuturo = Number(target.vientoKt ?? (target.viento_kmh ? target.viento_kmh / 1.852 : 0));
-            const rFuturo = Number(target.rachasKt ?? (target.rachas_kmh ? target.rachas_kmh / 1.852 : vFuturo));
-            const dirFutura = Number(target.dirDeg ?? target.dirViento ?? dirVientoDeg);
+            const vFuturo = Number(target.vientoKt ?? (target.wind_speed_10m !== undefined ? target.wind_speed_10m : (target.viento_kmh ? target.viento_kmh / 1.852 : 0)));
+            const rFuturo = Number(target.rachasKt ?? (target.wind_gusts_10m !== undefined ? target.wind_gusts_10m : (target.rachas_kmh ? target.rachas_kmh / 1.852 : vFuturo)));
+            const dirFutura = Number(target.dirDeg ?? target.dirViento ?? target.wind_direction_10m ?? dirVientoDeg);
             const compFutura = seawardDeg !== null ? calcularComponenteVientoAuto(dirFutura, seawardDeg) : null;
             const esOffshoreFutura = compFutura?.componente === 'offshore';
 
@@ -114,7 +124,7 @@ export function analizarEvolucionProxima(params = {}, vReal = 0, rReal = 0, dirV
             const rolaOffshore = esOffshoreFutura && vFuturo >= 10;
 
             if (subeViento || subeRacha || rolaOffshore) {
-                const horaLabel = target.hora || `+${offset}h`;
+                const horaLabel = target.hora || target.time || `+${offset}h`;
                 let desc = `en +${offset}h (${horaLabel}) el viento sube a ${vFuturo.toFixed(1)} kt (Racha ${rFuturo.toFixed(1)} kt)`;
                 if (rolaOffshore) desc += ' con rolada hacia mar adentro (Offshore)';
                 return {

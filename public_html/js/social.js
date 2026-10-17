@@ -4,6 +4,500 @@
 
 import { supabaseClient, appState } from './config.js';
 import { esc, safeUrl, IMG_FALLBACK } from './utils.js';
+import { descargarGPX, parseGPX, generarGPX } from './gpxParser.js';
+import { ClubState } from './club/state.js';
+
+// ====================================================
+// REGISTRO Y CACHÉ EN MEMORIA DE RUTAS SOCIALES
+// ====================================================
+export const socialRoutesCache = {};
+if (typeof window !== 'undefined') {
+    window.socialRoutesCache = socialRoutesCache;
+}
+
+/**
+ * Extrae telemetría meteorológica y bioenergética de una travesía social o de club
+ */
+export function extraerTelemetriaRutaSocial(ruta) {
+    if (!ruta) return { weather: null, kcal: 0, velMedia: 0, duracionMin: 0, distKm: 0, splits: null };
+
+    const rutaId = String(ruta.id || ruta.ruta_id || '');
+    let weather = null;
+    let splits = null;
+
+    // 1. Columnas directas en el objeto ruta
+    if (ruta.weather_snapshot) {
+        weather = typeof ruta.weather_snapshot === 'string' ? JSON.parse(ruta.weather_snapshot) : ruta.weather_snapshot;
+    }
+
+    // 2. LocalStorage de telemetría de navegación
+    if (!weather && rutaId) {
+        try {
+            const raw = localStorage.getItem('ps_telemetry_' + rutaId);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed.weatherSnapshot) weather = parsed.weatherSnapshot;
+                else if (parsed.vientoKt !== undefined) weather = parsed;
+                if (parsed.splits) splits = parsed.splits;
+            }
+        } catch (_) {}
+    }
+
+    // 3. Inspeccionar splits_data
+    if (ruta.splits_data) {
+        try {
+            const parsedSplits = typeof ruta.splits_data === 'string' ? JSON.parse(ruta.splits_data) : ruta.splits_data;
+            if (Array.isArray(parsedSplits)) splits = parsedSplits;
+            else if (parsedSplits && typeof parsedSplits === 'object') {
+                if (!weather && parsedSplits.weather) weather = parsedSplits.weather;
+                if (!splits && parsedSplits.splits) splits = parsedSplits.splits;
+            }
+        } catch (_) {}
+    }
+
+    // 4. Inspeccionar ai_feedback
+    if (!weather && ruta.ai_feedback) {
+        try {
+            const fb = typeof ruta.ai_feedback === 'string' ? JSON.parse(ruta.ai_feedback) : ruta.ai_feedback;
+            if (fb?.meteo || fb?.weatherSnapshot) weather = fb.meteo || fb.weatherSnapshot;
+        } catch (_) {}
+    }
+
+    // 5. Inspeccionar ruta_json
+    if (ruta.ruta_json) {
+        try {
+            const rj = typeof ruta.ruta_json === 'string' ? JSON.parse(ruta.ruta_json) : ruta.ruta_json;
+            if (!weather && rj?.weather) weather = rj.weather;
+            if (!splits && rj?.splits) splits = rj.splits;
+        } catch (_) {}
+    }
+
+    // 6. Columnas independientes si existen en la tabla
+    if (!weather && (ruta.wind_speed_kt != null || ruta.wave_height_m != null)) {
+        weather = {
+            vientoKt: Number(ruta.wind_speed_kt) || 0,
+            rachaKt: Number(ruta.wind_gust_kt) || Number(ruta.wind_speed_kt) || 0,
+            dirViento: Number(ruta.wind_direction_deg) || null,
+            olasM: Number(ruta.wave_height_m) || 0,
+            periodoS: Number(ruta.wave_period_s) || 0,
+            score: Number(ruta.conditions_score) || null
+        };
+    }
+
+    // Normalizar snapshot meteorológico
+    let weatherSnapshot = null;
+    if (weather) {
+        const vKt = Number(weather.vientoKt ?? weather.wind_speed_kt ?? weather.viento ?? 0);
+        const rKt = Number(weather.rachaKt ?? weather.rachasKt ?? weather.wind_gust_kt ?? vKt);
+        const dir = weather.dirViento ?? weather.dirVientoDeg ?? weather.wind_direction_deg ?? null;
+        const oM = Number(weather.olasM ?? weather.oleajeM ?? weather.wave_height_m ?? 0);
+        const pS = Number(weather.periodoS ?? weather.periodoOlaS ?? weather.wave_period_s ?? 0);
+        const sc = weather.score ?? weather.scoreSeguridad ?? weather.conditions_score ?? null;
+
+        weatherSnapshot = {
+            vientoKt: vKt,
+            rachaKt: rKt,
+            dirViento: dir !== null ? Number(dir) : null,
+            olasM: oM,
+            periodoS: pS,
+            score: sc !== null ? Number(sc) : null
+        };
+    }
+
+    const duracionMin = Number(ruta.tiempo_minutos || ruta.duration_minutes || (ruta.duration_seconds ? Math.round(ruta.duration_seconds / 60) : 0));
+    const distKm = Number(ruta.distancia_km || ruta.distance_km || 0);
+    const velMedia = duracionMin > 0
+        ? Number((distKm / (duracionMin / 60)).toFixed(1))
+        : Number(ruta.velocidad_media || ruta.avg_speed_kmh || ruta.avg_speed || 0);
+
+    // Cálculo calórico biometría SUP
+    let kcal = 0;
+    if (typeof window.calcularBiometriaSup === 'function') {
+        const bio = window.calcularBiometriaSup({
+            duracionMin,
+            distKm,
+            velKmh: velMedia,
+            vientoKt: weatherSnapshot?.vientoKt || 0,
+            olasM: weatherSnapshot?.olasM || 0,
+            periodoS: weatherSnapshot?.periodoS || 0,
+            tempC: 22,
+            tipoTabla: 'all-round'
+        });
+        kcal = bio?.kcal || 0;
+    }
+    if (!kcal && duracionMin > 0) {
+        kcal = Math.round((6.0 + (velMedia > 5 ? 1.5 : 0)) * 75 * (duracionMin / 60));
+    }
+
+    return {
+        weather: weatherSnapshot,
+        kcal,
+        velMedia,
+        duracionMin,
+        distKm,
+        splits
+    };
+}
+
+/**
+ * Renderiza una tarjeta de travesía enriquecida para el Feed y el Muro de Club
+ */
+export function renderTarjetaRutaSocial(ruta, clubNombre = null) {
+    if (!ruta) return '';
+    const rutaId = String(ruta.id || ruta.ruta_id || '');
+    if (rutaId) {
+        socialRoutesCache[rutaId] = ruta;
+        if (ruta.id) socialRoutesCache[String(ruta.id)] = ruta;
+        if (ruta.ruta_id) socialRoutesCache[String(ruta.ruta_id)] = ruta;
+    }
+
+    const { weather, kcal, velMedia, duracionMin, distKm } = extraerTelemetriaRutaSocial(ruta);
+    const autorNombre = ruta.perfiles?.nombre || 'Paddler';
+    const autorAvatar = safeUrl(ruta.perfiles?.avatar_url, IMG_FALLBACK);
+    const ubicacion = ruta.ubicacion || ruta.title || 'Travesía SUP';
+    const fechaStr = ruta.fecha || ruta.created_at ? new Date(ruta.fecha || ruta.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+
+    // Comprobar si la ruta tiene coordenadas disponibles
+    let coords = ruta.route_coordinates || ruta.coordinates || ruta.ruta_json;
+    if (typeof coords === 'string') {
+        try { coords = JSON.parse(coords); } catch (_) { coords = null; }
+    }
+    const tieneCoords = Array.isArray(coords) && coords.length > 0;
+    const esPropietario = appState.sesionActual?.user?.id && ruta.user_id === appState.sesionActual.user.id;
+
+    // 1. Badge de condición costera si hay snapshot meteo
+    let weatherBadgeHtml = '';
+    if (weather) {
+        const scoreVal = weather.score != null ? Math.round(weather.score) : null;
+        const scoreIcon = scoreVal != null ? (scoreVal >= 75 ? '🟢' : scoreVal >= 50 ? '🟡' : '🔴') : '';
+        weatherBadgeHtml = `
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-[11px] font-bold text-sky-800 dark:text-sky-300 mt-1 mb-2">
+                <span>💨 ${weather.vientoKt} kt</span>
+                <span>·</span>
+                <span>🌊 ${weather.olasM.toFixed(1)}m</span>
+                ${scoreVal != null ? `<span>·</span><span>${scoreIcon} Score ${scoreVal}</span>` : ''}
+            </div>
+        `;
+    }
+
+    // 2. Previsualización Póster Finisher si hay imagen_url
+    let posterHtml = '';
+    if (ruta.imagen_url) {
+        const resumenStats = `📏 ${distKm.toFixed(2)} km · ⏱️ ${duracionMin} min · 🚀 ${velMedia.toFixed(1)} km/h`;
+        posterHtml = `
+            <div class="relative mt-2 mb-3 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 group cursor-pointer shadow-md bg-slate-900" onclick="verPosterFinisherFullscreen('${esc(ruta.imagen_url)}', '${esc(ubicacion)}', '${esc(resumenStats)}')">
+                <img src="${esc(safeUrl(ruta.imagen_url))}" class="w-full max-h-64 object-cover object-center group-hover:scale-[1.02] transition-transform duration-300" loading="lazy" alt="Póster Finisher" onerror="this.onerror=null; this.parentElement.style.display='none';" />
+                <span class="absolute top-2.5 left-2.5 bg-slate-900/85 backdrop-blur-md text-amber-300 border border-amber-400/40 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">🏄 PÓSTER FINISHER</span>
+            </div>
+        `;
+    }
+
+    // 3. Cuadrícula táctica de 4 pastillas (Stats)
+    const statsGridHtml = `
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 my-2.5">
+            <div class="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
+                <span class="text-xs">📏</span>
+                <span class="text-xs font-black text-slate-800 dark:text-slate-100">${distKm.toFixed(2)} km</span>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
+                <span class="text-xs">⏱️</span>
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-100">${duracionMin} min</span>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
+                <span class="text-xs">🚀</span>
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-100">${velMedia.toFixed(1)} km/h</span>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
+                <span class="text-xs">🔥</span>
+                <span class="text-xs font-black text-amber-600 dark:text-amber-400">~${kcal} kcal</span>
+            </div>
+        </div>
+    `;
+
+    // 4. Barra de acciones operativas y Likes
+    let actionButtonsHtml = '';
+    if (tieneCoords || rutaId) {
+        actionButtonsHtml = `
+            <div class="flex items-center justify-between flex-wrap gap-2 pt-2.5 mt-2 border-t border-slate-100 dark:border-slate-700/60">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    ${tieneCoords ? `
+                        <button type="button" onclick="abrirRutaSocialEnMapa('${rutaId}')" class="px-2.5 py-1 bg-marine hover:bg-sky-700 text-white font-bold text-[11px] rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+                            <span>🗺️</span><span>Ver en Mapa</span>
+                        </button>
+                        <button type="button" onclick="descargarGpxRutaSocial('${rutaId}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+                            <span>📲</span><span>GPX</span>
+                        </button>
+                    ` : ''}
+                    <button type="button" onclick="mostrarModalSplitsKm('${rutaId}')" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+                        <span>📊</span><span>Splits</span>
+                    </button>
+                    ${esPropietario ? `
+                        <button type="button" onclick="compartirRutaEnMiClub('${rutaId}')" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Compartir en el muro de mi club">
+                            <span>📣</span><span>Club</span>
+                        </button>
+                    ` : ''}
+                </div>
+                <div class="flex items-center gap-1">
+                    <button type="button" onclick="toggleLikeRutaSocial('${rutaId}')" id="btnLikeSocial-${rutaId}" class="px-2 py-1 text-slate-500 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 font-bold text-xs rounded-lg flex items-center gap-1 transition-colors cursor-pointer">
+                        <span>❤️</span><span id="likeCountSocial-${rutaId}">0</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="flex flex-col gap-1 w-full text-left">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3 min-w-0">
+                    <img src="${autorAvatar}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-11 h-11 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700 shadow-sm shrink-0" alt="Avatar">
+                    <div class="min-w-0">
+                        <p class="text-sm font-black text-marine dark:text-white leading-tight truncate">${esc(autorNombre)}</p>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate font-semibold">${esc(ubicacion)} ${clubNombre ? `· <span class="text-water dark:text-sky-400 font-bold">${esc(clubNombre)}</span>` : ''}</p>
+                    </div>
+                </div>
+                ${fechaStr ? `<span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider shrink-0">${fechaStr}</span>` : ''}
+            </div>
+            ${weatherBadgeHtml}
+            ${posterHtml}
+            ${statsGridHtml}
+            ${actionButtonsHtml}
+        </div>
+    `;
+}
+
+/**
+ * Visualiza el Póster Finisher a pantalla completa
+ */
+export function verPosterFinisherFullscreen(imgUrl, titulo = 'Póster Finisher', resumenStats = '') {
+    if (!imgUrl) return;
+    let lb = document.getElementById('posterFinisherLightbox');
+    if (!lb) {
+        lb = document.createElement('div');
+        lb.id = 'posterFinisherLightbox';
+        lb.className = 'fixed inset-0 z-[130] bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 transition-opacity opacity-0';
+        document.body.appendChild(lb);
+    }
+
+    lb.innerHTML = `
+        <div class="relative max-w-xl w-full flex flex-col items-center gap-3 animate-in fade-in zoom-in-95 duration-200">
+            <div class="w-full flex items-center justify-between text-white px-2">
+                <div class="min-w-0">
+                    <h3 class="font-black text-sm uppercase tracking-wider text-water truncate">${esc(titulo)}</h3>
+                    ${resumenStats ? `<p class="text-xs text-slate-400 mt-0.5">${esc(resumenStats)}</p>` : ''}
+                </div>
+                <button type="button" onclick="cerrarPosterFinisherFullscreen()" class="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center font-bold text-lg active:scale-95 transition-all cursor-pointer">✕</button>
+            </div>
+            <div class="relative w-full rounded-2xl overflow-hidden border border-slate-700 shadow-2xl bg-black max-h-[70vh] flex items-center justify-center">
+                <img src="${esc(safeUrl(imgUrl))}" alt="Póster Finisher" class="max-w-full max-h-[70vh] object-contain rounded-xl" />
+            </div>
+            <div class="w-full flex items-center justify-center gap-3 pt-1">
+                <a href="${esc(safeUrl(imgUrl))}" download="paddlesafe_finisher.png" target="_blank" class="px-4 py-2.5 bg-marine hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer">📥 Descargar Imagen</a>
+                <button type="button" onclick="compartirPosterFinisher('${esc(safeUrl(imgUrl))}', '${esc(titulo)}')" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer">📲 Compartir</button>
+            </div>
+        </div>
+    `;
+
+    lb.classList.remove('hidden');
+    requestAnimationFrame(() => {
+        lb.classList.remove('opacity-0');
+    });
+
+    if (window.history && window.history.pushState) {
+        window.history.pushState({ modalOpen: true, modalId: 'posterFinisherLightbox' }, '');
+    }
+}
+
+export function cerrarPosterFinisherFullscreen() {
+    const lb = document.getElementById('posterFinisherLightbox');
+    if (!lb) return;
+    lb.classList.add('opacity-0');
+    setTimeout(() => {
+        lb.classList.add('hidden');
+    }, 200);
+}
+
+export async function compartirPosterFinisher(imgUrl, titulo) {
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: titulo || 'Mi travesía PaddleSafe',
+                text: '¡Mira mi póster finisher de travesía en PaddleSafe!',
+                url: imgUrl
+            });
+            return;
+        } catch (_) {}
+    }
+    if (navigator.clipboard) {
+        await navigator.clipboard.writeText(imgUrl);
+        alert('Enlace del póster copiado al portapapeles.');
+    } else {
+        window.open(imgUrl, '_blank');
+    }
+}
+
+/**
+ * Carga una travesía del feed social directamente en el mapa
+ */
+export function abrirRutaSocialEnMapa(rutaId) {
+    const ruta = socialRoutesCache[String(rutaId)] || window.__rutasUsuarioCache?.get(String(rutaId));
+    if (!ruta) {
+        alert("No se encontraron los datos de la ruta seleccionada.");
+        return;
+    }
+    if (typeof window.cerrarModalActivo === 'function') {
+        const modal = typeof window.obtenerModalActivo === 'function' ? window.obtenerModalActivo() : null;
+        if (modal) window.cerrarModalActivo(modal);
+    }
+    if (typeof window.cerrarModalFeed === 'function') window.cerrarModalFeed();
+    if (window.Club && window.Club.cerrarModal) window.Club.cerrarModal();
+
+    if (typeof window.cargarRutaDeportivaEnMapa === 'function') {
+        window.cargarRutaDeportivaEnMapa(ruta);
+    }
+}
+
+/**
+ * Descarga una travesía social en formato GPX
+ */
+export function descargarGpxRutaSocial(rutaId) {
+    const ruta = socialRoutesCache[String(rutaId)] || window.__rutasUsuarioCache?.get(String(rutaId));
+    if (!ruta) {
+        alert("Ruta no encontrada para exportar.");
+        return;
+    }
+    let rawCoords = ruta.route_coordinates || ruta.coordinates || ruta.ruta_json;
+    if (typeof rawCoords === 'string') {
+        try { rawCoords = JSON.parse(rawCoords); } catch (e) { rawCoords = []; }
+    }
+    if (!Array.isArray(rawCoords) || rawCoords.length === 0) {
+        alert("Esta ruta no tiene coordenadas disponibles para exportar en GPX.");
+        return;
+    }
+    const normalized = rawCoords.map(pt => {
+        if (Array.isArray(pt)) return { lat: Number(pt[0]), lon: Number(pt[1]) };
+        return { lat: Number(pt.lat), lon: Number(pt.lon ?? pt.lng) };
+    }).filter(pt => Number.isFinite(pt.lat) && Number.isFinite(pt.lon));
+
+    if (normalized.length < 2) {
+        alert("La ruta necesita al menos 2 puntos válidos para generar un archivo GPX.");
+        return;
+    }
+
+    const cleanTitle = (ruta.ubicacion || ruta.title || 'ruta_paddlesafe').replace(/[^a-zA-Z0-9_\-]/g, '_');
+    descargarGPX(normalized, `${cleanTitle}.gpx`);
+}
+
+/**
+ * Comparte una travesía propia en el muro del club del usuario
+ */
+export async function compartirRutaEnMiClub(rutaId) {
+    if (!appState.sesionActual || appState.esInvitado) {
+        if (typeof window.abrirModalAuth === 'function') window.abrirModalAuth();
+        else alert("Inicia sesión para compartir travesías en tu club.");
+        return;
+    }
+
+    const user = appState.sesionActual.user;
+    const ruta = socialRoutesCache[String(rutaId)] || window.__rutasUsuarioCache?.get(String(rutaId));
+    if (!ruta) {
+        alert("Ruta no encontrada.");
+        return;
+    }
+
+    let clubId = ClubState?.activeId || null;
+    let clubNombre = 'Mi Club';
+
+    if (!clubId) {
+        const { misClubsIds } = await socialFeed.obtenerFiltrosUsuario();
+        if (misClubsIds && misClubsIds.length > 0) {
+            clubId = misClubsIds[0];
+        }
+    }
+
+    if (!clubId) {
+        alert("Debes pertenecer a un club para poder compartir travesías en su muro.");
+        return;
+    }
+
+    try {
+        const { data: clubData } = await supabaseClient.from('clubs').select('nombre').eq('id', clubId).maybeSingle();
+        if (clubData?.nombre) clubNombre = clubData.nombre;
+    } catch (_) {}
+
+    const { distKm, velMedia, kcal } = extraerTelemetriaRutaSocial(ruta);
+    const nombreUbicacion = ruta.ubicacion || ruta.title || 'Travesía SUP';
+
+    // 1. Insertar en public.club_rutas ignorando duplicados
+    try {
+        const { error: insErr } = await supabaseClient.from('club_rutas').insert([{
+            club_id: clubId,
+            ruta_id: rutaId,
+            compartida_por: user.id
+        }]);
+        if (insErr && insErr.code !== '23505') {
+            await supabaseClient.from('club_rutas').insert([{
+                club_id: clubId,
+                ruta_id: rutaId
+            }]);
+        }
+    } catch (err) {
+        console.warn("Aviso guardando club_ruta:", err);
+    }
+
+    // 2. Mensaje en el chat del club
+    const mensajeChat = `🏄‍♂️ He compartido una travesía en el club: ${nombreUbicacion} — 📏 ${distKm.toFixed(2)} km | 🚀 ${velMedia.toFixed(1)} km/h | 🔥 ${kcal} kcal`;
+
+    try {
+        await supabaseClient.from('club_chat').insert([{
+            club_id: clubId,
+            user_id: user.id,
+            mensaje: mensajeChat,
+            visibility: 'club_only',
+            is_public: false
+        }]);
+    } catch (_) {
+        try {
+            await supabaseClient.from('club_chat').insert([{
+                club_id: clubId,
+                user_id: user.id,
+                mensaje: mensajeChat
+            }]);
+        } catch (_) {}
+    }
+
+    // 3. Notificación de confirmación toast
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] bg-emerald-600 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-4 duration-300';
+    toast.innerHTML = `<span>📣</span><span>¡Travesía compartida con éxito en <b>${esc(clubNombre)}</b>!</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('opacity-0', 'transition-opacity');
+        setTimeout(() => toast.remove(), 400);
+    }, 3000);
+}
+
+/**
+ * Toggle like local/interactivo en una tarjeta de travesía social
+ */
+export function toggleLikeRutaSocial(rutaId) {
+    const key = 'ps_like_' + rutaId;
+    const isLiked = localStorage.getItem(key) === 'true';
+    const countEl = document.getElementById(`likeCountSocial-${rutaId}`);
+    const btnEl = document.getElementById(`btnLikeSocial-${rutaId}`);
+    let currentCount = parseInt(countEl?.textContent || '0', 10);
+
+    if (isLiked) {
+        localStorage.removeItem(key);
+        currentCount = Math.max(0, currentCount - 1);
+        if (btnEl) btnEl.classList.remove('text-red-500', 'dark:text-red-400');
+    } else {
+        localStorage.setItem(key, 'true');
+        currentCount += 1;
+        if (btnEl) btnEl.classList.add('text-red-500', 'dark:text-red-400');
+    }
+    if (countEl) countEl.textContent = currentCount;
+}
 
 // ====================================================
 // NOTIFICACIONES INTERNAS (socialNotifications)
@@ -445,10 +939,33 @@ export const socialFeed = {
             } else {
                 qRutas = supabaseClient
                     .from('club_rutas')
-                    .select('created_at, club_id, ruta_id, rutas!inner(user_id, ubicacion, distancia_km), clubs(nombre)');
+                    .select('created_at, club_id, ruta_id, rutas(id, user_id, ubicacion, distancia_km, tiempo_minutos, velocidad_media, fecha, created_at, imagen_url, ruta_json, route_coordinates, splits_data, weather_snapshot, wind_speed_kt, wind_gust_kt, wave_height_m, wave_period_s, conditions_score), clubs(id, nombre)');
                 if (filtro === 'mis_clubs') qRutas = qRutas.in('club_id', misClubsIds);
                 if (filtro === 'mis_amigos') qRutas = qRutas.in('rutas.user_id', misAmigosIds);
                 qRutas = qRutas.order('created_at', { ascending: false }).limit(15);
+            }
+
+            // 2b. Consultar rutas directas de usuarios para feed global o amigos
+            let qRutasDirectas;
+            if (filtro === 'mis_clubs') {
+                qRutasDirectas = Promise.resolve({ data: [] });
+            } else if (filtro === 'mis_amigos') {
+                if (misAmigosIds.length > 0) {
+                    qRutasDirectas = supabaseClient
+                        .from('rutas')
+                        .select('id, user_id, ubicacion, distancia_km, tiempo_minutos, velocidad_media, fecha, created_at, imagen_url, ruta_json, route_coordinates, splits_data, weather_snapshot, wind_speed_kt, wind_gust_kt, wave_height_m, wave_period_s, conditions_score')
+                        .in('user_id', misAmigosIds)
+                        .order('created_at', { ascending: false })
+                        .limit(15);
+                } else {
+                    qRutasDirectas = Promise.resolve({ data: [] });
+                }
+            } else {
+                qRutasDirectas = supabaseClient
+                    .from('rutas')
+                    .select('id, user_id, ubicacion, distancia_km, tiempo_minutos, velocidad_media, fecha, created_at, imagen_url, ruta_json, route_coordinates, splits_data, weather_snapshot, wind_speed_kt, wind_gust_kt, wave_height_m, wave_period_s, conditions_score')
+                    .order('created_at', { ascending: false })
+                    .limit(15);
             }
 
             // 3. Consultar chat de clubes:
@@ -467,10 +984,10 @@ export const socialFeed = {
                 qChat = qChat.order('created_at', { ascending: false }).limit(15);
             }
             
-            const [resM, resR, resC] = await Promise.allSettled([qMiembros, qRutas, qChat]);
+            const [resM, resR, resC, resRD] = await Promise.allSettled([qMiembros, qRutas, qChat, qRutasDirectas]);
             let acts = [];
 
-            const queryResults = [resM, resR, resC];
+            const queryResults = [resM, resR, resC, resRD];
             const queryErrors = queryResults.flatMap(result => {
                 if (result.status === 'rejected') return [result.reason];
                 return result.value?.error ? [result.value.error] : [];
@@ -480,10 +997,32 @@ export const socialFeed = {
             const dataM = resM.status === 'fulfilled' && resM.value?.data ? resM.value.data : [];
             const dataR = resR.status === 'fulfilled' && resR.value?.data ? resR.value.data : [];
             const dataC = resC.status === 'fulfilled' && resC.value?.data ? resC.value.data : [];
+            const dataRD = resRD?.status === 'fulfilled' && resRD.value?.data ? resRD.value.data : [];
+
+            // Cargar perfiles de las rutas para garantizar nombres y avatares
+            const rutasParaPerfil = [
+                ...dataR.map(i => i.rutas).filter(Boolean),
+                ...dataRD
+            ];
+            const uids = Array.from(new Set(rutasParaPerfil.map(r => r.user_id).filter(Boolean)));
+            if (uids.length > 0) {
+                try {
+                    const { data: perfilesData } = await supabaseClient.from('perfiles').select('id, nombre, avatar_url').in('id', uids);
+                    if (perfilesData && perfilesData.length > 0) {
+                        const pMap = new Map(perfilesData.map(p => [p.id, p]));
+                        rutasParaPerfil.forEach(r => {
+                            if (r.user_id && pMap.has(r.user_id)) {
+                                r.perfiles = pMap.get(r.user_id);
+                            }
+                        });
+                    }
+                } catch (eP) {
+                    console.warn('[socialFeed] Aviso cargando perfiles de rutas:', eP);
+                }
+            }
 
             // A) Altas en clubes
             dataM.forEach(i => {
-                // La tabla clubs no tiene una columna de visibilidad en el esquema actual.
                 const esPublico = true;
                 acts.push({
                     tipo: 'miembro',
@@ -497,15 +1036,28 @@ export const socialFeed = {
 
             // B) Rutas de clubes
             dataR.forEach(i => {
-                // La tabla rutas no tiene una columna de privacidad en el esquema actual.
-                const esPublico = true;
+                const r = i.rutas;
+                if (!r) return;
                 acts.push({
                     tipo: 'ruta',
-                    date: new Date(i.created_at),
+                    date: new Date(i.created_at || r.fecha || r.created_at || Date.now()),
                     clubId: i.club_id,
-                    userId: i.rutas?.user_id || null,
-                    is_public: esPublico,
-                    html: `<div class="flex items-center gap-4"><div class="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800/50 flex items-center justify-center text-xl shadow-sm text-sky-500 shrink-0">🗺️</div><div class="flex-1 min-w-0"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug">El club <strong class="text-marine dark:text-white font-black">${esc(i.clubs?.nombre || 'Club')}</strong> trazó ruta en <strong class="text-marine dark:text-white">${esc(i.rutas?.ubicacion || 'Ruta marina')}</strong>.</p><div class="inline-block mt-1 bg-water/10 dark:bg-sky-500/20 px-2 py-0.5 rounded text-[10px] font-black text-water dark:text-sky-400 uppercase tracking-widest">${i.rutas?.distancia_km || 0} km</div></div></div>`
+                    userId: r.user_id || null,
+                    is_public: true,
+                    html: renderTarjetaRutaSocial(r, i.clubs?.nombre || 'Club')
+                });
+            });
+
+            // B2) Rutas directas de la flota (amigos o global)
+            dataRD.forEach(r => {
+                if (dataR.some(cr => String(cr.ruta_id || cr.rutas?.id) === String(r.id))) return;
+                acts.push({
+                    tipo: 'ruta',
+                    date: new Date(r.fecha || r.created_at || Date.now()),
+                    clubId: null,
+                    userId: r.user_id || null,
+                    is_public: true,
+                    html: renderTarjetaRutaSocial(r, null)
                 });
             });
 
@@ -688,6 +1240,17 @@ window.cerrarPanelMisAmigos = cerrarPanelMisAmigos;
 window.cambiarTabAmistades = cambiarTabAmistades;
 window.comprobarNuevasSolicitudesSilencioso = comprobarNuevasSolicitudesSilencioso;
 window.socialFeed = socialFeed;
+window.cambiarFiltro = (filtro) => socialFeed.cambiarFiltro(filtro);
 window.abrirModalFeed = abrirModalFeed;
 window.cerrarModalFeed = cerrarModalFeed;
 window.inicializarBotonesSociales = inicializarBotonesSociales;
+window.socialRoutesCache = socialRoutesCache;
+window.extraerTelemetriaRutaSocial = extraerTelemetriaRutaSocial;
+window.renderTarjetaRutaSocial = renderTarjetaRutaSocial;
+window.verPosterFinisherFullscreen = verPosterFinisherFullscreen;
+window.cerrarPosterFinisherFullscreen = cerrarPosterFinisherFullscreen;
+window.compartirPosterFinisher = compartirPosterFinisher;
+window.abrirRutaSocialEnMapa = abrirRutaSocialEnMapa;
+window.descargarGpxRutaSocial = descargarGpxRutaSocial;
+window.compartirRutaEnMiClub = compartirRutaEnMiClub;
+window.toggleLikeRutaSocial = toggleLikeRutaSocial;

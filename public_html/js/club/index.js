@@ -6,6 +6,7 @@ import { ClubDelete } from './club.delete.js';
 import { ClubPublic } from './club.public.js';
 import { ClubChat } from './club.chat.js';
 import { ClubEvents } from './club.events.js';
+import { ClubRetos, abrirCreadorRetoClub, cerrarCreadorRetoClub, aplicarPlantillaRetoClub, crearRetoMensualClub, toggleParticipacionRetoClub, toggleDesplegarParticipantesReto } from './club.retos.js';
 import { supabaseClient, appState } from '../config.js';
 import { esc, safeUrl, IMG_FALLBACK } from '../utils.js';
 
@@ -136,6 +137,7 @@ const ClubFacade = {
             'tripulacion': document.getElementById('btnClubTabTripulacion') || document.querySelector('button[onclick*="cambiarVistaInterna(\'tripulacion\')"]'),
             'chat': document.getElementById('btnClubTabChat') || document.querySelector('button[onclick*="cambiarVistaInterna(\'chat\')"]'),
             'eventos': document.getElementById('btnClubTabEventos') || document.querySelector('button[onclick*="cambiarVistaInterna(\'eventos\')"]'),
+            'retos': document.getElementById('btnClubTabRetos') || document.querySelector('button[onclick*="cambiarVistaInterna(\'retos\')"]'),
             'gestion': document.getElementById('btnClubTabGestion') || document.querySelector('button[onclick*="cambiarVistaInterna(\'gestion\')"]') || document.querySelector('button[onclick*="cambiarVistaInterna(\'admin\')"]')
         };
 
@@ -156,6 +158,10 @@ const ClubFacade = {
 
         if (vista === 'eventos') {
             return await ClubEvents.render(contenedor, clubId, true, soyAdmin);
+        }
+
+        if (vista === 'retos') {
+            return await ClubRetos.render(contenedor, clubId, soyAdmin);
         }
 
         const esGestion = vista === 'gestion' || vista === 'admin';
@@ -471,6 +477,26 @@ const ClubFacade = {
         if (window.cargarRutaEnMapaGrande) {
             window.cargarRutaEnMapaGrande(coordsStr, nombre);
         }
+    },
+
+    // 7. Retos del Club
+    abrirCreadorRetoClub() {
+        abrirCreadorRetoClub();
+    },
+    cerrarCreadorRetoClub() {
+        cerrarCreadorRetoClub();
+    },
+    aplicarPlantillaRetoClub(presetId) {
+        aplicarPlantillaRetoClub(presetId);
+    },
+    crearRetoMensualClub(e) {
+        crearRetoMensualClub(e);
+    },
+    toggleParticipacionRetoClub(retoId) {
+        toggleParticipacionRetoClub(retoId);
+    },
+    toggleDesplegarParticipantesReto(retoId) {
+        toggleDesplegarParticipantesReto(retoId);
     }
 };
 
@@ -478,6 +504,13 @@ const ClubFacade = {
 window.Club = ClubFacade;
 window.ClubChat = ClubChat;
 window.ClubEvents = ClubEvents;
+window.ClubRetos = ClubRetos;
+window.abrirCreadorRetoClub = abrirCreadorRetoClub;
+window.cerrarCreadorRetoClub = cerrarCreadorRetoClub;
+window.aplicarPlantillaRetoClub = aplicarPlantillaRetoClub;
+window.crearRetoMensualClub = crearRetoMensualClub;
+window.toggleParticipacionRetoClub = toggleParticipacionRetoClub;
+window.toggleDesplegarParticipantesReto = toggleDesplegarParticipantesReto;
 window.cambiarTabClubs = (tab) => ClubFacade.cambiarTabClubs(tab);
 window.abrirModalClubs = () => ClubFacade.abrirModal();
 window.cerrarModalClubs = () => ClubFacade.cerrarModal();

@@ -361,6 +361,981 @@ export async function sincronizarProgresion({ userId, distanceKm = 0, durationMi
     return { ok: false, xpGanado };
 }
 
+// ==============================================================================
+// 10. CATÁLOGO DE LOGROS MERITOCRÁTICOS ISA & MOTOR DE PRs (PADDLE PROFILE 2.0)
+// ==============================================================================
+
+export const CATALOGO_LOGROS_MERITO = [
+    {
+        id: 'bautismo_mar',
+        nombre: 'Bautismo de Mar',
+        icono: '🌊',
+        descripcion: 'Completa tu 1ª travesía registrada',
+        target: 1,
+        evaluar: (stats) => {
+            const salidas = stats?.totales?.totalSalidas || 0;
+            return {
+                unlocked: salidas >= 1,
+                progressPct: Math.min(100, Math.round((salidas / 1) * 100)),
+                progressText: `${salidas} / 1 salida`
+            };
+        }
+    },
+    {
+        id: 'costero_10k',
+        nombre: 'Explorador 10K',
+        icono: '🧭',
+        descripcion: 'Completa una travesía de >= 10 km en una sesión',
+        target: 10,
+        evaluar: (stats) => {
+            const maxDist = Number(stats?.recordDistancia?.distKm || 0);
+            return {
+                unlocked: maxDist >= 10,
+                progressPct: Math.min(100, Math.round((maxDist / 10) * 100)),
+                progressText: `${maxDist.toFixed(1)} / 10 km`
+            };
+        }
+    },
+    {
+        id: 'ultramaraton_25k',
+        nombre: 'Ultramaratón 25K',
+        icono: '🔱',
+        descripcion: 'Completa una travesía épica de >= 25 km',
+        target: 25,
+        evaluar: (stats) => {
+            const maxDist = Number(stats?.recordDistancia?.distKm || 0);
+            return {
+                unlocked: maxDist >= 25,
+                progressPct: Math.min(100, Math.round((maxDist / 25) * 100)),
+                progressText: `${maxDist.toFixed(1)} / 25 km`
+            };
+        }
+    },
+    {
+        id: 'quilla_veloz',
+        nombre: 'Quilla Rápida',
+        icono: '⚡',
+        descripcion: 'Alcanza >= 5.2 km/h de media en una ruta de >= 3 km',
+        target: 5.2,
+        evaluar: (stats, perfil, rutas) => {
+            let maxVelEn3Km = 0;
+            if (Array.isArray(rutas)) {
+                rutas.forEach(r => {
+                    const dist = Number(r.distance_km || r.distancia_km || 0);
+                    const vel = Number(r.avg_speed || r.avg_speed_kmh || 0);
+                    if (dist >= 3.0 && vel > maxVelEn3Km) {
+                        maxVelEn3Km = vel;
+                    }
+                });
+            }
+            return {
+                unlocked: maxVelEn3Km >= 5.2,
+                progressPct: Math.min(100, Math.round((maxVelEn3Km / 5.2) * 100)),
+                progressText: `${maxVelEn3Km.toFixed(1)} / 5.2 km/h`
+            };
+        }
+    },
+    {
+        id: 'domador_viento',
+        nombre: 'Domador del Eolo',
+        icono: '💨',
+        descripcion: 'Completa una travesía con viento >= 12 kt',
+        target: 12,
+        evaluar: (stats, perfil, rutas) => {
+            let maxViento = 0;
+            if (Array.isArray(rutas)) {
+                rutas.forEach(r => {
+                    let v = 0;
+                    if (r.vientoKt) v = Number(r.vientoKt);
+                    else if (r.ubicacion && r.ubicacion.vientoKt) v = Number(r.ubicacion.vientoKt);
+                    else if (typeof localStorage !== 'undefined') {
+                        try {
+                            const cached = localStorage.getItem('ps_telemetry_' + r.id);
+                            if (cached) {
+                                const parsed = JSON.parse(cached);
+                                if (parsed && parsed.vientoKt) v = Number(parsed.vientoKt);
+                            }
+                        } catch (e) {}
+                    }
+                    if (v > maxViento) maxViento = v;
+                });
+            }
+            return {
+                unlocked: maxViento >= 12,
+                progressPct: Math.min(100, Math.round((maxViento / 12) * 100)),
+                progressText: `${maxViento} / 12 kt`
+            };
+        }
+    },
+    {
+        id: 'centurion_100k',
+        nombre: 'Centurión 100K',
+        icono: '🌍',
+        descripcion: 'Acumula 100 km totales remados',
+        target: 100,
+        evaluar: (stats, perfil) => {
+            const kmTot = Number(stats?.totales?.kmTotales || perfil?.total_distance_km || perfil?.km_totales || 0);
+            return {
+                unlocked: kmTot >= 100,
+                progressPct: Math.min(100, Math.round((kmTot / 100) * 100)),
+                progressText: `${kmTot.toFixed(1)} / 100 km`
+            };
+        }
+    },
+    {
+        id: 'rey_constancia',
+        nombre: 'Constancia Pro',
+        icono: '🔥',
+        descripcion: 'Acumula 10 salidas registradas en el agua',
+        target: 10,
+        evaluar: (stats) => {
+            const salidas = stats?.totales?.totalSalidas || 0;
+            return {
+                unlocked: salidas >= 10,
+                progressPct: Math.min(100, Math.round((salidas / 10) * 100)),
+                progressText: `${salidas} / 10 salidas`
+            };
+        }
+    },
+    {
+        id: 'estratega_spots',
+        nombre: 'Estratega Local',
+        icono: '⭐',
+        descripcion: 'Guarda 3 o más playas en Mis Spots',
+        target: 3,
+        evaluar: (stats, perfil) => {
+            let spotsGuardados = 0;
+            if (typeof localStorage !== 'undefined') {
+                try {
+                    const saved = localStorage.getItem('ps_saved_spots');
+                    if (saved) spotsGuardados = JSON.parse(saved).length;
+                } catch (e) {}
+            }
+            if (Array.isArray(perfil?.saved_spots)) {
+                spotsGuardados = Math.max(spotsGuardados, perfil.saved_spots.length);
+            }
+            return {
+                unlocked: spotsGuardados >= 3,
+                progressPct: Math.min(100, Math.round((spotsGuardados / 3) * 100)),
+                progressText: `${spotsGuardados} / 3 spots`
+            };
+        }
+    }
+];
+
+/**
+ * Normaliza rutas de `rutas` y `user_routes` y calcula los Récords Personales (PRs)
+ * y métricas de carrera (totales, racha, volumen de las últimas 8 semanas).
+ * 
+ * @param {Array} rutasLista 
+ * @returns {Object} { recordDistancia, recordVelocidad, recordDuracion, recordKcal, totales }
+ */
+export function calcularRecordsYEstadisticasPerfil(rutasLista = []) {
+    const rutasRaw = Array.isArray(rutasLista) ? rutasLista : [];
+    
+    // 1. Normalizar estructura de cada sesión
+    const rutas = rutasRaw.map(r => {
+        const id = String(r.id || '');
+        const titulo = r.title || r.titulo || 'Travesía SUP';
+        const distKm = Number(Number(r.distance_km || r.distancia_km || 0).toFixed(2));
+        
+        let durMin = 0;
+        if (r.duration_seconds !== undefined && r.duration_seconds !== null) {
+            durMin = Math.max(0, Math.round(Number(r.duration_seconds) / 60));
+        } else if (r.tiempo_minutos !== undefined && r.tiempo_minutos !== null) {
+            durMin = Math.max(0, Math.round(Number(r.tiempo_minutos)));
+        } else if (distKm > 0 && Number(r.avg_speed || r.avg_speed_kmh || 0) > 0) {
+            durMin = Math.round((distKm / Number(r.avg_speed || r.avg_speed_kmh)) * 60);
+        }
+
+        let velMedia = 0;
+        if (r.avg_speed !== undefined && r.avg_speed !== null) {
+            velMedia = Number(Number(r.avg_speed).toFixed(2));
+        } else if (r.avg_speed_kmh !== undefined && r.avg_speed_kmh !== null) {
+            velMedia = Number(Number(r.avg_speed_kmh).toFixed(2));
+        } else if (distKm > 0 && durMin > 0) {
+            velMedia = Number((distKm / (durMin / 60)).toFixed(2));
+        }
+
+        const fecha = r.created_at || r.fecha || r.date || new Date().toISOString();
+
+        let kcal = 0;
+        if (r.kcal) {
+            kcal = Math.round(Number(r.kcal));
+        } else if (typeof window !== 'undefined' && typeof window.calcularBiometriaSup === 'function') {
+            try {
+                const bio = window.calcularBiometriaSup({ duracionMin: durMin, distKm, velKmh: velMedia });
+                kcal = bio?.kcal || Math.round((6.0 + (velMedia > 5 ? 1.5 : 0)) * 75 * (durMin / 60));
+            } catch {
+                kcal = Math.round((6.0 + (velMedia > 5 ? 1.5 : 0)) * 75 * (durMin / 60));
+            }
+        } else {
+            kcal = Math.round((6.0 + (velMedia > 5 ? 1.5 : 0)) * 75 * (durMin / 60));
+        }
+
+        return { id, titulo, distKm, durMin, velMedia, fecha, kcal, raw: r };
+    });
+
+    // 2. Récord de Distancia (Máxima distancia alcanzada en una sesión)
+    let bestDist = { distKm: 0, rutaId: null, fecha: null, titulo: '--' };
+    let bestVel = { velMedia: 0, rutaId: null, fecha: null, titulo: '--' };
+    let bestDur = { durMin: 0, rutaId: null, fecha: null, titulo: '--' };
+    let bestKcal = { kcal: 0, rutaId: null, fecha: null, titulo: '--' };
+
+    let sumDist = 0;
+    let sumDurMin = 0;
+    let sumKcal = 0;
+    let kmMesActual = 0;
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    rutas.forEach(r => {
+        sumDist += r.distKm;
+        sumDurMin += r.durMin;
+        sumKcal += r.kcal;
+
+        const d = new Date(r.fecha);
+        if (!isNaN(d.getTime()) && d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
+            kmMesActual += r.distKm;
+        }
+
+        if (r.distKm > bestDist.distKm) {
+            bestDist = { distKm: r.distKm, rutaId: r.id, fecha: r.fecha, titulo: r.titulo };
+        }
+
+        // Récord de Velocidad: rutas de al menos 1.5 km y velocidad media <= 18 km/h para excluir errores GPS
+        if (r.distKm >= 1.5 && r.velMedia <= 18 && r.velMedia > bestVel.velMedia) {
+            bestVel = { velMedia: r.velMedia, rutaId: r.id, fecha: r.fecha, titulo: r.titulo };
+        }
+
+        if (r.durMin > bestDur.durMin) {
+            bestDur = { durMin: r.durMin, rutaId: r.id, fecha: r.fecha, titulo: r.titulo };
+        }
+
+        if (r.kcal > bestKcal.kcal) {
+            bestKcal = { kcal: r.kcal, rutaId: r.id, fecha: r.fecha, titulo: r.titulo };
+        }
+    });
+
+    // Si no hubo rutas de >= 1.5 km, fallback de mejor velocidad < 18
+    if (bestVel.velMedia === 0 && rutas.length > 0) {
+        rutas.forEach(r => {
+            if (r.velMedia <= 18 && r.velMedia > bestVel.velMedia) {
+                bestVel = { velMedia: r.velMedia, rutaId: r.id, fecha: r.fecha, titulo: r.titulo };
+            }
+        });
+    }
+
+    // 3. Cálculo de Racha de Semanas consecutivas y Volumen de las últimas 8 semanas
+    const startOfThisWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const day = startOfThisWeek.getDay(); // 0 Dom, 1 Lun...
+    const diffToMonday = (day === 0 ? -6 : 1) - day;
+    startOfThisWeek.setDate(startOfThisWeek.getDate() + diffToMonday);
+    startOfThisWeek.setHours(0, 0, 0, 0);
+
+    const activeWeeks = new Set();
+    rutas.forEach(r => {
+        const d = new Date(r.fecha);
+        if (!isNaN(d.getTime())) {
+            const weekOffset = Math.floor((startOfThisWeek.getTime() + (7 * 86400000) - 1 - d.getTime()) / (7 * 86400000));
+            if (weekOffset >= 0) activeWeeks.add(weekOffset);
+        }
+    });
+
+    let streak = 0;
+    let checkIdx = activeWeeks.has(0) ? 0 : (activeWeeks.has(1) ? 1 : null);
+    if (checkIdx !== null) {
+        while (activeWeeks.has(checkIdx)) {
+            streak++;
+            checkIdx++;
+        }
+    }
+
+    // Volumen 8 semanas (de más antigua S-7 a actual S-0)
+    const volumen8Semanas = [];
+    for (let i = 7; i >= 0; i--) {
+        const wStart = new Date(startOfThisWeek.getTime() - i * 7 * 86400000);
+        const wEnd = new Date(wStart.getTime() + 7 * 86400000);
+        let label = `S-${i}`;
+        if (i === 0) label = 'Esta sem';
+        else if (i === 1) label = 'Sem -1';
+
+        let kmSemana = 0;
+        let salidasSemana = 0;
+
+        rutas.forEach(r => {
+            const t = new Date(r.fecha).getTime();
+            if (!isNaN(t) && t >= wStart.getTime() && t < wEnd.getTime()) {
+                kmSemana += r.distKm;
+                salidasSemana++;
+            }
+        });
+
+        volumen8Semanas.push({
+            label,
+            km: Number(kmSemana.toFixed(1)),
+            salidas: salidasSemana,
+            inicio: wStart.toISOString(),
+            fin: wEnd.toISOString()
+        });
+    }
+
+    return {
+        recordDistancia: bestDist,
+        recordVelocidad: bestVel,
+        recordDuracion: bestDur,
+        recordKcal: bestKcal,
+        totales: {
+            totalSalidas: rutas.length,
+            kmTotales: Number(sumDist.toFixed(2)),
+            totalHoras: Number((sumDurMin / 60).toFixed(1)),
+            totalKcal: sumKcal,
+            kmMesActual: Number(kmMesActual.toFixed(2)),
+            semanasRacha: streak,
+            volumen8Semanas
+        }
+    };
+}
+
+/**
+ * Evalúa los logros del usuario a partir del catálogo ISA y sincroniza
+ * de forma atómica con Supabase `perfiles.insignias` manteniendo compatibilidad.
+ * 
+ * @param {Object} perfil 
+ * @param {Object} stats 
+ * @param {Array} rutas 
+ * @returns {Array} Array de insignias evaluadas con status unlocked y progreso
+ */
+export function evaluarLogrosUsuario(perfil, stats, rutas = []) {
+    const statsCalc = stats || calcularRecordsYEstadisticasPerfil(rutas);
+    const userProfile = perfil || (typeof window !== 'undefined' && window.appState?.perfilUsuario ? window.appState.perfilUsuario : {});
+
+    const insigniasEvaluadas = CATALOGO_LOGROS_MERITO.map(badge => {
+        const evalRes = badge.evaluar(statsCalc, userProfile, rutas);
+        return {
+            id: badge.id,
+            nombre: badge.nombre,
+            icono: badge.icono,
+            descripcion: badge.descripcion,
+            target: badge.target,
+            unlocked: Boolean(evalRes.unlocked),
+            progressPct: Math.min(100, Math.max(0, Number(evalRes.progressPct) || 0)),
+            progressText: evalRes.progressText || ''
+        };
+    });
+
+    // Sincronizar insignias desbloqueadas en Supabase (perfiles.insignias) de forma no bloqueante
+    if (userProfile && userProfile.id && userProfile.id !== 'invitado' && supabaseClient && typeof supabaseClient.from === 'function') {
+        const insigniasExistentes = Array.isArray(userProfile.insignias) ? [...userProfile.insignias] : [];
+        let huboNuevas = false;
+
+        insigniasEvaluadas.forEach(logro => {
+            if (logro.unlocked) {
+                const yaExiste = insigniasExistentes.some(item => {
+                    if (typeof item === 'string') return item === logro.id;
+                    if (item && typeof item === 'object') return item.id === logro.id || item.nombre === logro.nombre;
+                    return false;
+                });
+                if (!yaExiste) {
+                    insigniasExistentes.push({
+                        id: logro.id,
+                        nombre: logro.nombre,
+                        icono: logro.icono,
+                        descripcion: logro.descripcion,
+                        fecha_desbloqueo: new Date().toISOString()
+                    });
+                    huboNuevas = true;
+                }
+            }
+        });
+
+        if (huboNuevas) {
+            userProfile.insignias = insigniasExistentes;
+            if (typeof window !== 'undefined' && window.appState?.perfilUsuario && window.appState.perfilUsuario.id === userProfile.id) {
+                window.appState.perfilUsuario.insignias = insigniasExistentes;
+            }
+            supabaseClient
+                .from('perfiles')
+                .update({ insignias: insigniasExistentes })
+                .eq('id', userProfile.id)
+                .then(({ error }) => {
+                    if (error) console.warn('[gamification] Aviso al persistir insignias:', error.message);
+                })
+                .catch(e => console.warn('[gamification] Error no crítico actualizando insignias:', e));
+        }
+    }
+
+    return insigniasEvaluadas;
+}
+
+/**
+ * Motor Multicategoría y Ámbitos de Ranking con Filtros Anti-Cheat (Batch #11).
+ * Normaliza y agrega travesías de public.user_routes y public.rutas,
+ * filtrando por periodo, ámbito y categoría deportiva.
+ */
+export function calcularDatosRankingMulticategoria({
+    periodo = 'historico',
+    scope = 'global',
+    category = 'km_total',
+    rutasData = [],
+    perfilesData = [],
+    clubsData = [],
+    membershipsData = [],
+    friendshipsData = [],
+    currentUserId = null
+}) {
+    const now = new Date();
+    let minTimestamp = 0;
+
+    if (periodo === 'diario') {
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        minTimestamp = today.getTime();
+    } else if (periodo === 'semanal') {
+        minTimestamp = now.getTime() - (7 * 24 * 60 * 60 * 1000);
+    } else if (periodo === 'mensual') {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+        minTimestamp = Math.min(startOfMonth, now.getTime() - (30 * 24 * 60 * 60 * 1000));
+    } else if (periodo === 'anual') {
+        minTimestamp = new Date(now.getFullYear(), 0, 1).getTime();
+    }
+
+    // 1. Filtrar rutas por ventana de tiempo
+    const rutasPeriodo = (rutasData || []).filter(r => {
+        if (!r) return false;
+        if (minTimestamp === 0) return true;
+        const dateStr = r.created_at || r.fecha || r.date;
+        if (!dateStr) return true;
+        const t = new Date(dateStr).getTime();
+        return !isNaN(t) && t >= minTimestamp;
+    });
+
+    // 2. Si el ámbito es 'liga_clubes', agrupar y clasificar por clubes
+    if (scope === 'liga_clubes') {
+        const clubesMap = new Map();
+
+        (clubsData || []).forEach(c => {
+            if (!c || !c.id) return;
+            clubesMap.set(String(c.id), {
+                id: c.id,
+                nombre: c.nombre || c.name || 'Club de Paddle Surf',
+                logo_url: c.logo_url || c.logo || '',
+                descripcion: c.descripcion || '',
+                nivel: c.nivel || 1,
+                miembros_ids: new Set(),
+                active_paddlers_set: new Set(),
+                km_total: 0,
+                xp_total: 0,
+                total_rutas: 0
+            });
+        });
+
+        // Mapear miembros de clubs
+        (membershipsData || []).forEach(m => {
+            if (!m || !m.club_id || !m.user_id) return;
+            const club = clubesMap.get(String(m.club_id));
+            if (club) club.miembros_ids.add(String(m.user_id));
+        });
+
+        // Asignar rutas del periodo al club correspondiente
+        rutasPeriodo.forEach(r => {
+            const rClubId = r.club_id ? String(r.club_id) : null;
+            const rUserId = r.user_id ? String(r.user_id) : null;
+            const dist = Number(r.distance_km || r.distancia_km || 0);
+            const durSec = Number(r.duration_seconds || (r.tiempo_minutos ? r.tiempo_minutos * 60 : 0));
+            const xp = Number(r.xp_earned || r.points_earned || (Math.round(dist * 10) + Math.round(durSec / 60)));
+
+            clubesMap.forEach(club => {
+                const belongs = (rClubId && rClubId === club.id) || (rUserId && club.miembros_ids.has(rUserId));
+                if (belongs) {
+                    club.km_total += dist;
+                    club.xp_total += xp;
+                    club.total_rutas += 1;
+                    if (rUserId) club.active_paddlers_set.add(rUserId);
+                }
+            });
+        });
+
+        const rankingClubs = Array.from(clubesMap.values()).map(c => {
+            const activeCount = c.active_paddlers_set.size || c.miembros_ids.size || 0;
+            const metricVal = category === 'xp_total' ? Math.round(c.xp_total) : Number(c.km_total.toFixed(2));
+            const metricLbl = category === 'xp_total' ? `${metricVal.toLocaleString()} XP` : `${metricVal} km`;
+
+            return {
+                id: c.id,
+                club_id: c.id,
+                nombre: c.nombre,
+                logo_url: c.logo_url,
+                paddlersCount: activeCount,
+                km_total: Number(c.km_total.toFixed(2)),
+                xp_total: Math.round(c.xp_total),
+                total_rutas: c.total_rutas,
+                metric: metricVal,
+                metricLabel: metricLbl
+            };
+        });
+
+        rankingClubs.sort((a, b) => b.metric - a.metric);
+        rankingClubs.forEach((c, idx) => { c.rank = idx + 1; });
+
+        return {
+            ranking: rankingClubs,
+            currentUserRank: null,
+            periodo,
+            scope,
+            category
+        };
+    }
+
+    // 3. Ámbitos de usuarios: 'global', 'mi_club', 'amigos'
+    let allowedUserIds = null;
+
+    if (scope === 'mi_club' && currentUserId) {
+        allowedUserIds = new Set([String(currentUserId)]);
+        const myClubIds = new Set();
+        (membershipsData || []).forEach(m => {
+            if (m && String(m.user_id) === String(currentUserId) && m.club_id) {
+                myClubIds.add(String(m.club_id));
+            }
+        });
+        (membershipsData || []).forEach(m => {
+            if (m && m.club_id && myClubIds.has(String(m.club_id)) && m.user_id) {
+                allowedUserIds.add(String(m.user_id));
+            }
+        });
+    } else if (scope === 'amigos' && currentUserId) {
+        allowedUserIds = new Set([String(currentUserId)]);
+        (friendshipsData || []).forEach(f => {
+            if (!f) return;
+            const isAccepted = (f.estado === 'aceptada' || f.status === 'accepted');
+            if (!isAccepted) return;
+            const uId = String(f.usuario_id || f.user_id || '');
+            const aId = String(f.amigo_id || f.friend_id || '');
+            if (uId === String(currentUserId) && aId) allowedUserIds.add(aId);
+            else if (aId === String(currentUserId) && uId) allowedUserIds.add(uId);
+        });
+    }
+
+    // Indexar perfiles
+    const perfilesMap = new Map();
+    (perfilesData || []).forEach(p => {
+        if (!p || !p.id) return;
+        const pId = String(p.id);
+        if (allowedUserIds && !allowedUserIds.has(pId)) return;
+        // Respetar perfiles privados si es ranking global (excepto el propio usuario)
+        if (scope === 'global' && p.is_private && String(currentUserId) !== pId) return;
+
+        perfilesMap.set(pId, {
+            user_id: p.id,
+            id: p.id,
+            nombre: p.nombre || p.user_nombre || p.email || 'Paddler',
+            avatar_url: p.avatar_url || '',
+            nivel: p.nivel || 1,
+            titulo: p.titulo_paddler || p.titulo || `Nivel ${p.nivel || 1}`,
+            distancia_total: 0,
+            max_route_km: 0,
+            best_route_id: null,
+            best_route_name: '',
+            best_route: null,
+            best_speed_kmh: 0,
+            best_speed_route_id: null,
+            best_speed_route_name: '',
+            best_speed_route: null,
+            xp_total: 0,
+            total_rutas: 0,
+            perfil_original: p
+        });
+    });
+
+    // Asegurar que el usuario actual existe en el mapa si está autenticado
+    if (currentUserId && !perfilesMap.has(String(currentUserId))) {
+        perfilesMap.set(String(currentUserId), {
+            user_id: currentUserId,
+            id: currentUserId,
+            nombre: 'Tú',
+            avatar_url: '',
+            nivel: 1,
+            titulo: 'Paddler',
+            distancia_total: 0,
+            max_route_km: 0,
+            best_route_id: null,
+            best_route_name: '',
+            best_route: null,
+            best_speed_kmh: 0,
+            best_speed_route_id: null,
+            best_speed_route_name: '',
+            best_speed_route: null,
+            xp_total: 0,
+            total_rutas: 0,
+            perfil_original: null
+        });
+    }
+
+    // 4. Agregar métricas de rutas por usuario
+    rutasPeriodo.forEach(r => {
+        const uId = String(r.user_id || '');
+        if (!uId || !perfilesMap.has(uId)) return;
+
+        const userStat = perfilesMap.get(uId);
+        const distKm = Number(r.distance_km || r.distancia_km || 0);
+        const durSec = Number(r.duration_seconds || (r.tiempo_minutos ? r.tiempo_minutos * 60 : 0));
+        const durHoras = durSec > 0 ? (durSec / 3600) : 0;
+        const velMedia = Number(r.avg_speed || r.avg_speed_kmh || (durHoras > 0 ? (distKm / durHoras) : 0));
+        const xp = Number(r.xp_earned || r.points_earned || (Math.round(distKm * 10) + Math.round(durSec / 60)));
+
+        userStat.distancia_total += distKm;
+        userStat.xp_total += xp;
+        userStat.total_rutas += 1;
+
+        // Mayor travesía
+        if (distKm > userStat.max_route_km) {
+            userStat.max_route_km = distKm;
+            userStat.best_route_id = r.id;
+            userStat.best_route_name = r.title || 'Travesía GPS';
+            userStat.best_route = r;
+        }
+
+        // Mejor velocidad media con FILTRO ANTI-CHEAT ESTRICTO:
+        // Solo rutas con distKm >= 2.0 km Y velMedia <= 16.0 km/h (bloquea saltos GPS y registros en vehículo)
+        if (distKm >= 2.0 && velMedia <= 16.0) {
+            if (velMedia > userStat.best_speed_kmh) {
+                userStat.best_speed_kmh = velMedia;
+                userStat.best_speed_route_id = r.id;
+                userStat.best_speed_route_name = r.title || 'Travesía Rápida';
+                userStat.best_speed_route = r;
+            }
+        }
+    });
+
+    // 5. Fallbacks para 'historico' cuando el perfil tiene acumulados pero no rutas desglosadas
+    if (periodo === 'historico') {
+        perfilesMap.forEach(userStat => {
+            const orig = userStat.perfil_original;
+            if (orig) {
+                if (userStat.distancia_total === 0 && orig.distancia_total_km) {
+                    userStat.distancia_total = Number(orig.distancia_total_km || 0);
+                }
+                if (userStat.xp_total === 0 && (orig.puntos || orig.experiencia)) {
+                    userStat.xp_total = Number(orig.puntos || orig.experiencia || 0);
+                }
+            }
+        });
+    }
+
+    // 6. Asignar métrica principal según categoría
+    const candidatas = Array.from(perfilesMap.values()).map(u => {
+        let metric = 0;
+        let metricLabel = '';
+        let routeId = null;
+        let route = null;
+        let routeName = '';
+
+        if (category === 'km_total') {
+            metric = Number(u.distancia_total.toFixed(2));
+            metricLabel = `${metric} km`;
+        } else if (category === 'max_route') {
+            metric = Number(u.max_route_km.toFixed(2));
+            metricLabel = `${metric} km`;
+            routeId = u.best_route_id;
+            route = u.best_route;
+            routeName = u.best_route_name;
+        } else if (category === 'best_speed') {
+            metric = Number(u.best_speed_kmh.toFixed(1));
+            metricLabel = `${metric} km/h`;
+            routeId = u.best_speed_route_id;
+            route = u.best_speed_route;
+            routeName = u.best_speed_route_name;
+        } else if (category === 'xp_total') {
+            metric = Math.round(u.xp_total);
+            metricLabel = `${metric.toLocaleString()} XP`;
+        }
+
+        return {
+            id: u.id,
+            user_id: u.user_id,
+            nombre: u.nombre,
+            avatar_url: u.avatar_url,
+            nivel: u.nivel,
+            titulo: u.titulo,
+            distancia_total: Number(u.distancia_total.toFixed(2)),
+            max_route_km: Number(u.max_route_km.toFixed(2)),
+            best_speed_kmh: Number(u.best_speed_kmh.toFixed(1)),
+            xp_total: Math.round(u.xp_total),
+            total_rutas: u.total_rutas,
+            metric,
+            metricLabel,
+            routeId,
+            route,
+            routeName
+        };
+    });
+
+    // Ordenar descendente por métrica
+    candidatas.sort((a, b) => b.metric - a.metric);
+
+    // Filtrar candidatos con métrica > 0 (manteniendo al usuario actual para poder calcular su gap si existe)
+    const rankingFiltrado = candidatas.filter(c => c.metric > 0 || (currentUserId && String(c.id) === String(currentUserId)));
+
+    rankingFiltrado.forEach((item, index) => {
+        item.rank = index + 1;
+    });
+
+    // 7. Calcular gap motivacional para el usuario actual
+    let currentUserRank = null;
+    if (currentUserId) {
+        const myIndex = rankingFiltrado.findIndex(c => String(c.id) === String(currentUserId));
+        if (myIndex !== -1) {
+            const me = rankingFiltrado[myIndex];
+            let gapMessage = '';
+
+            if (myIndex === 0) {
+                gapMessage = '👑 ¡Lideras esta categoría!';
+            } else {
+                const rival = rankingFiltrado[myIndex - 1];
+                const diff = rival.metric - me.metric;
+
+                if (category === 'best_speed') {
+                    gapMessage = `🔥 A solo ${diff.toFixed(1)} km/h de superar a @${rival.nombre} (#${myIndex})`;
+                } else if (category === 'xp_total') {
+                    gapMessage = `🔥 A solo ${Math.round(diff).toLocaleString()} XP de superar a @${rival.nombre} (#${myIndex})`;
+                } else {
+                    gapMessage = `🔥 A solo ${diff.toFixed(1)} km de superar a @${rival.nombre} (#${myIndex})`;
+                }
+            }
+
+            currentUserRank = {
+                ...me,
+                rank: myIndex + 1,
+                totalParticipantes: rankingFiltrado.length,
+                gapMessage
+            };
+        }
+    }
+
+    return {
+        ranking: rankingFiltrado,
+        currentUserRank,
+        periodo,
+        scope,
+        category
+    };
+}
+
+// ====================================================
+// PLANTILLAS Y MOTOR DE RETOS MENSUALES DE CLUB (BATCH #12)
+// ====================================================
+
+export const PLANTILLAS_RETOS_CLUB = [
+    {
+        id: 'colectivo_300k',
+        titulo: '🌊 Expedición de Flota 300K',
+        descripcion: 'Objetivo de club: sumar entre todos los miembros 300 km en el agua este mes.',
+        tipo: 'colectivo_km',
+        meta_valor: 300,
+        xp_recompensa: 250,
+        icono: '🌊'
+    },
+    {
+        id: 'individual_50k',
+        titulo: '🔥 Desafío Finisher 50K',
+        descripcion: 'Reto personal: completa al menos 50 km durante este mes.',
+        tipo: 'individual_km',
+        meta_valor: 50,
+        xp_recompensa: 300,
+        icono: '🔥'
+    },
+    {
+        id: 'constancia_8',
+        titulo: '🧭 Constancia: 8 Salidas',
+        descripcion: 'Sal al agua un mínimo de 8 sesiones este mes para mantener la quilla activa.',
+        tipo: 'individual_salidas',
+        meta_valor: 8,
+        xp_recompensa: 200,
+        icono: '🧭'
+    },
+    {
+        id: 'sprint_5k',
+        titulo: '⚡ Rey del Cabo (Sprint >= 3km)',
+        descripcion: 'Compite por la mejor velocidad media en travesías de al menos 3.0 km.',
+        tipo: 'mejor_ritmo',
+        meta_valor: 5.5,
+        xp_recompensa: 250,
+        icono: '⚡'
+    }
+];
+
+/**
+ * Calcula el progreso de un reto mensual de club considerando sus participantes y rutas en el periodo.
+ */
+export function calcularProgresoRetoClub(reto, rutasMiembros = [], participantesIds = [], currentUserId = null) {
+    if (!reto) return null;
+
+    const metaValor = Number(reto.meta_valor || 100);
+    const tipo = reto.tipo || 'colectivo_km';
+
+    // 1. Fechas del reto
+    const now = Date.now();
+    const inicio = reto.fecha_inicio ? new Date(reto.fecha_inicio).getTime() : new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+    const fin = reto.fecha_fin ? new Date(reto.fecha_fin).getTime() : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).getTime();
+
+    const diffMs = fin - now;
+    const diasRestantes = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+
+    // 2. Participantes asignados
+    const partSet = new Set((participantesIds || []).map(String));
+
+    // 3. Filtrar rutas en rango cronológico y pertenecientes a participantes (en colectivo_km suman todos los miembros)
+    const rutasValidas = (rutasMiembros || []).filter(r => {
+        if (!r) return false;
+        const uId = String(r.user_id || '');
+        if (tipo !== 'colectivo_km' && partSet.size > 0 && !partSet.has(uId)) return false;
+
+        const dateStr = r.created_at || r.fecha;
+        if (!dateStr) return true;
+        const t = new Date(dateStr).getTime();
+        return !isNaN(t) && t >= inicio && t <= fin;
+    });
+
+    // Mapeo por usuario de sus métricas personales
+    const allUserIds = new Set([
+        ...partSet,
+        ...(currentUserId ? [String(currentUserId)] : []),
+        ...rutasValidas.map(r => String(r.user_id || '')).filter(Boolean)
+    ]);
+    const userStatsMap = new Map();
+
+    allUserIds.forEach(uId => {
+        userStatsMap.set(uId, {
+            userId: uId,
+            user_id: uId,
+            nombre: 'Paddler',
+            avatarUrl: '',
+            km: 0,
+            salidas: 0,
+            maxVelocidadMedia: 0,
+            aportePct: 0,
+            isFinisher: false
+        });
+    });
+
+    rutasValidas.forEach(r => {
+        const uId = String(r.user_id || '');
+        if (!userStatsMap.has(uId)) return;
+        const stat = userStatsMap.get(uId);
+
+        const dist = Number(r.distance_km || r.distancia_km || 0);
+        const durSec = Number(r.duration_seconds || (r.tiempo_minutos ? r.tiempo_minutos * 60 : 0));
+        const durH = durSec > 0 ? (durSec / 3600) : 0;
+        const vel = Number(r.avg_speed || r.avg_speed_kmh || (durH > 0 ? (dist / durH) : 0));
+
+        stat.km += dist;
+        stat.salidas += 1;
+
+        // Filtro estricto para 'mejor_ritmo': dist >= 3.0 km y vel <= 16.0 km/h (anti-cheat)
+        if (dist >= 3.0 && vel <= 16.0) {
+            if (vel > stat.maxVelocidadMedia) {
+                stat.maxVelocidadMedia = vel;
+            }
+        }
+    });
+
+    let totalProgreso = 0;
+    let progressPct = 0;
+    let completadoGlobal = false;
+    const rankingParticipantes = [];
+
+    if (tipo === 'colectivo_km') {
+        userStatsMap.forEach(s => {
+            s.km = Number(s.km.toFixed(2));
+            totalProgreso += s.km;
+        });
+        totalProgreso = Number(totalProgreso.toFixed(2));
+        progressPct = Math.min(100, Math.round((totalProgreso / metaValor) * 100));
+        completadoGlobal = totalProgreso >= metaValor;
+
+        userStatsMap.forEach(s => {
+            s.aportePct = totalProgreso > 0 ? Math.round((s.km / totalProgreso) * 100) : 0;
+            s.valor = s.km;
+            s.valorLabel = `${s.km} km`;
+            s.progressPct = progressPct;
+            s.isFinisher = completadoGlobal;
+            rankingParticipantes.push(s);
+        });
+
+        rankingParticipantes.sort((a, b) => b.km - a.km);
+
+    } else if (tipo === 'individual_km') {
+        userStatsMap.forEach(s => {
+            s.km = Number(s.km.toFixed(2));
+            totalProgreso += s.km;
+            s.valor = s.km;
+            s.valorLabel = `${s.km} km`;
+            s.progressPct = Math.min(100, Math.round((s.km / metaValor) * 100));
+            s.isFinisher = s.km >= metaValor;
+            rankingParticipantes.push(s);
+        });
+        totalProgreso = Number(totalProgreso.toFixed(2));
+        rankingParticipantes.sort((a, b) => b.km - a.km);
+        progressPct = rankingParticipantes.length > 0 ? rankingParticipantes[0].progressPct : 0;
+        completadoGlobal = rankingParticipantes.some(p => p.isFinisher);
+
+    } else if (tipo === 'individual_salidas') {
+        userStatsMap.forEach(s => {
+            totalProgreso += s.salidas;
+            s.valor = s.salidas;
+            s.valorLabel = `${s.salidas} salidas`;
+            s.progressPct = Math.min(100, Math.round((s.salidas / metaValor) * 100));
+            s.isFinisher = s.salidas >= metaValor;
+            rankingParticipantes.push(s);
+        });
+        rankingParticipantes.sort((a, b) => b.salidas - a.salidas);
+        progressPct = rankingParticipantes.length > 0 ? rankingParticipantes[0].progressPct : 0;
+        completadoGlobal = rankingParticipantes.some(p => p.isFinisher);
+
+    } else if (tipo === 'mejor_ritmo') {
+        userStatsMap.forEach(s => {
+            s.maxVelocidadMedia = Number(s.maxVelocidadMedia.toFixed(1));
+            s.valor = s.maxVelocidadMedia;
+            s.valorLabel = `${s.maxVelocidadMedia} km/h`;
+            s.progressPct = Math.min(100, Math.round((s.maxVelocidadMedia / metaValor) * 100));
+            s.isFinisher = s.maxVelocidadMedia >= metaValor;
+            rankingParticipantes.push(s);
+        });
+        rankingParticipantes.sort((a, b) => b.maxVelocidadMedia - a.maxVelocidadMedia);
+        totalProgreso = rankingParticipantes.length > 0 ? rankingParticipantes[0].maxVelocidadMedia : 0;
+        progressPct = rankingParticipantes.length > 0 ? rankingParticipantes[0].progressPct : 0;
+        completadoGlobal = rankingParticipantes.some(p => p.isFinisher);
+    }
+
+    rankingParticipantes.forEach((p, idx) => {
+        p.rank = idx + 1;
+    });
+
+    let progresoTotalLabel = `${totalProgreso} km`;
+    if (tipo === 'individual_salidas') progresoTotalLabel = `${totalProgreso} salidas`;
+    else if (tipo === 'mejor_ritmo') progresoTotalLabel = `${totalProgreso} km/h`;
+
+    const targetUserId = currentUserId ? String(currentUserId) : (participantesIds && participantesIds.length > 0 ? String(participantesIds[0]) : null);
+    const myStat = (targetUserId && userStatsMap.get(targetUserId)) || (rankingParticipantes.length > 0 ? rankingParticipantes[0] : null);
+    const userOrGlobalPct = (currentUserId && myStat) ? myStat.progressPct : progressPct;
+
+    return {
+        totalProgreso,
+        progresoTotal: totalProgreso,
+        progresoTotalLabel,
+        metaValor,
+        progressPct: userOrGlobalPct,
+        porcentaje: userOrGlobalPct,
+        completadoGlobal,
+        isCompletado: completadoGlobal,
+        diasRestantes,
+        rankingParticipantes,
+        participantes: rankingParticipantes,
+        miProgreso: myStat
+    };
+}
+
 // Exponer en window para acceso global si fuese necesario
 if (typeof window !== 'undefined') {
     window.calcularNivelYProgreso = calcularNivelYProgreso;
@@ -370,5 +1345,12 @@ if (typeof window !== 'undefined') {
     window.sincronizarProgresionRuta = sincronizarProgresion;
     window.obtenerPosicionRanking = obtenerPosicionRanking;
     window.guardarRutaDeportivaConGamificacion = guardarRutaDeportivaConGamificacion;
+    window.CATALOGO_LOGROS_MERITO = CATALOGO_LOGROS_MERITO;
+    window.calcularRecordsYEstadisticasPerfil = calcularRecordsYEstadisticasPerfil;
+    window.evaluarLogrosUsuario = evaluarLogrosUsuario;
+    window.calcularDatosRankingMulticategoria = calcularDatosRankingMulticategoria;
+    window.PLANTILLAS_RETOS_CLUB = PLANTILLAS_RETOS_CLUB;
+    window.calcularProgresoRetoClub = calcularProgresoRetoClub;
 }
+
 

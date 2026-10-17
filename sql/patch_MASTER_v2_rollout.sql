@@ -207,5 +207,119 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_spot_reports_created_at ON public.spot_reports(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_spot_reports_coords ON public.spot_reports(lat, lon);
 
+-- ------------------------------------------------------------------------------
+-- 4. PATCH #12: CLUB MONTHLY CHALLENGES & COMPETITIVE EVENTS (club_retos)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.club_retos (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    club_id uuid NOT NULL REFERENCES public.clubs(id) ON DELETE CASCADE,
+    creador_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+    titulo text NOT NULL,
+    descripcion text,
+    tipo text NOT NULL DEFAULT 'colectivo_km',
+    meta_valor numeric(8,2) NOT NULL DEFAULT 100,
+    xp_recompensa integer DEFAULT 250,
+    fecha_inicio timestamptz NOT NULL DEFAULT date_trunc('month', now()),
+    fecha_fin timestamptz NOT NULL DEFAULT (date_trunc('month', now()) + interval '1 month - 1 second'),
+    created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.club_retos_participantes (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    reto_id uuid NOT NULL REFERENCES public.club_retos(id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    joined_at timestamptz DEFAULT now(),
+    completado boolean DEFAULT false,
+    UNIQUE(reto_id, user_id)
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE public.club_retos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_retos_participantes ENABLE ROW LEVEL SECURITY;
+
+-- Idempotent RLS Policies
+DO $$
+BEGIN
+    -- SELECT club_retos: para miembros del club o cualquier usuario si el club es público
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos' AND policyname = 'club_retos_select_members'
+    ) THEN
+        CREATE POLICY club_retos_select_members ON public.club_retos
+            FOR SELECT USING (
+                EXISTS (
+                    SELECT 1 FROM public.clubs_usuarios cu
+                    WHERE cu.club_id = club_retos.club_id AND cu.user_id = auth.uid()
+                ) OR EXISTS (
+                    SELECT 1 FROM public.clubs c
+                    WHERE c.id = club_retos.club_id AND (c.es_privado IS NOT TRUE)
+                ) OR auth.uid() IS NOT NULL
+            );
+    END IF;
+
+    -- INSERT/UPDATE club_retos: creador o administrador del club
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos' AND policyname = 'club_retos_insert_admin'
+    ) THEN
+        CREATE POLICY club_retos_insert_admin ON public.club_retos
+            FOR INSERT WITH CHECK (
+                auth.uid() = creador_id OR
+                EXISTS (
+                    SELECT 1 FROM public.clubs_usuarios cu
+                    WHERE cu.club_id = club_retos.club_id AND cu.user_id = auth.uid() AND cu.rol IN ('admin', 'creador')
+                )
+            );
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos' AND policyname = 'club_retos_update_admin'
+    ) THEN
+        CREATE POLICY club_retos_update_admin ON public.club_retos
+            FOR UPDATE USING (
+                auth.uid() = creador_id OR
+                EXISTS (
+                    SELECT 1 FROM public.clubs_usuarios cu
+                    WHERE cu.club_id = club_retos.club_id AND cu.user_id = auth.uid() AND cu.rol IN ('admin', 'creador')
+                )
+            );
+    END IF;
+
+    -- SELECT club_retos_participantes: lectura pública o miembros
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos_participantes' AND policyname = 'club_retos_part_select'
+    ) THEN
+        CREATE POLICY club_retos_part_select ON public.club_retos_participantes
+            FOR SELECT USING (true);
+    END IF;
+
+    -- INSERT club_retos_participantes: auth.uid() = user_id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos_participantes' AND policyname = 'club_retos_part_insert'
+    ) THEN
+        CREATE POLICY club_retos_part_insert ON public.club_retos_participantes
+            FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
+
+    -- UPDATE club_retos_participantes: auth.uid() = user_id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos_participantes' AND policyname = 'club_retos_part_update'
+    ) THEN
+        CREATE POLICY club_retos_part_update ON public.club_retos_participantes
+            FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
+
+    -- DELETE club_retos_participantes: auth.uid() = user_id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos_participantes' AND policyname = 'club_retos_part_delete'
+    ) THEN
+        CREATE POLICY club_retos_part_delete ON public.club_retos_participantes
+            FOR DELETE USING (auth.uid() = user_id);
+    END IF;
+END $$;
+
+-- Índices de consulta rápida
+CREATE INDEX IF NOT EXISTS idx_club_retos_club ON public.club_retos(club_id, fecha_inicio, fecha_fin);
+CREATE INDEX IF NOT EXISTS idx_club_retos_part_reto ON public.club_retos_participantes(reto_id, user_id);
+
 COMMIT;
 
