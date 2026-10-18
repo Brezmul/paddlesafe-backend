@@ -352,6 +352,7 @@ BEGIN
         CREATE POLICY club_retos_part_delete ON public.club_retos_participantes
             FOR DELETE USING (auth.uid() = user_id);
     END IF;
+END $$;
 -- ------------------------------------------------------------------------------
 -- 7. PATCH #07: GESTIÓN DEFINITIVA DE CLUBES, RLS, DEDUPLICACIÓN Y HELPERS
 -- ------------------------------------------------------------------------------
@@ -721,6 +722,9 @@ AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION public.obtener_clubs_usuario(uuid) TO authenticated;
+
+-- Recargar caché de schema en PostgREST inmediatamente
+NOTIFY pgrst, 'reload schema';
 
 COMMIT;
 

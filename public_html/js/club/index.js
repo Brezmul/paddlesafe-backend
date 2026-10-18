@@ -484,7 +484,19 @@ const ClubFacade = {
             if (publicModal && !publicModal.classList.contains('hidden') && window.ClubPublic) {
                 if (typeof window.ClubPublic.cambiarTab === 'function') {
                     await window.ClubPublic.cambiarTab('solicitudes');
+                    await window.ClubPublic.cambiarTab('miembros');
+                    const reqCont = document.getElementById('cpvRequestsContainer');
+                    if (reqCont && !reqCont.classList.contains('hidden')) {
+                        await window.ClubPublic.cambiarTab('solicitudes');
+                    }
                 }
+            }
+
+            // 3. Si modal flotante #clubAdminRequestsModal está abierto, refrescar solicitudes
+            const adminReqModal = document.getElementById('clubAdminRequestsModal');
+            if (adminReqModal && !adminReqModal.classList.contains('hidden') && typeof window.abrirPanelSolicitudes === 'function') {
+                const activeCId = ClubState.activeId || ClubState.publicId;
+                if (activeCId) await window.abrirPanelSolicitudes(activeCId);
             }
         } catch (err) {
             console.error('[club] procesarSolicitud error:', err);
@@ -615,6 +627,18 @@ const ClubFacade = {
     },
     toggleDesplegarParticipantesReto(retoId) {
         toggleDesplegarParticipantesReto(retoId);
+    },
+
+    // 8. Solicitudes de Club
+    abrirPanelSolicitudes(clubId) {
+        if (typeof window.abrirPanelSolicitudes === 'function') {
+            window.abrirPanelSolicitudes(clubId);
+        }
+    },
+    cerrarPanelSolicitudes() {
+        if (typeof window.cerrarPanelSolicitudes === 'function') {
+            window.cerrarPanelSolicitudes();
+        }
     }
 };
 

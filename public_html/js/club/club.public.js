@@ -387,6 +387,12 @@ export const ClubPublic = {
 
     async enviarMensaje(clubId) {
         await ClubChat.enviarMensaje(clubId);
+    },
+
+    async solicitarUnirseClub(clubId) {
+        if (window.Club && typeof window.Club.solicitarUnirseClub === 'function') {
+            return await window.Club.solicitarUnirseClub(clubId);
+        }
     }
 };
 
