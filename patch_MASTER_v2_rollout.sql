@@ -1342,5 +1342,263 @@ NOTIFY pgrst, 'reload schema';
 
 COMMIT;
 
+-- ==============================================================================
+-- 11. PATCH #11: POLYMORPHIC ROUTE FK FIX, INVITATIONS RPC & EVENT DEDUP
+-- ==============================================================================
+
+BEGIN;
+
+-- A) DROP RESTRICTIVE SINGLE-TABLE FK ON ruta_id (club_rutas, rutas_likes, rutas_comentarios)
+ALTER TABLE public.club_rutas DROP CONSTRAINT IF EXISTS club_rutas_ruta_id_fkey;
+ALTER TABLE public.rutas_likes DROP CONSTRAINT IF EXISTS rutas_likes_ruta_id_fkey;
+ALTER TABLE public.rutas_comentarios DROP CONSTRAINT IF EXISTS rutas_comentarios_ruta_id_fkey;
+
+-- B) VALIDATION TRIGGER FOR POLYMORPHIC ROUTES (rutas OR user_routes)
+CREATE OR REPLACE FUNCTION public.fn_validar_ruta_existe_en_rutas_o_user_routes()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.rutas WHERE id = NEW.ruta_id)
+     AND NOT EXISTS (SELECT 1 FROM public.user_routes WHERE id = NEW.ruta_id) THEN
+    RAISE EXCEPTION 'La ruta con ID % no existe ni en rutas ni en user_routes', NEW.ruta_id USING ERRCODE = '23503';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_val_ruta_club_rutas ON public.club_rutas;
+CREATE TRIGGER trg_val_ruta_club_rutas
+BEFORE INSERT OR UPDATE OF ruta_id ON public.club_rutas
+FOR EACH ROW EXECUTE FUNCTION public.fn_validar_ruta_existe_en_rutas_o_user_routes();
+
+DROP TRIGGER IF EXISTS trg_val_ruta_rutas_likes ON public.rutas_likes;
+CREATE TRIGGER trg_val_ruta_rutas_likes
+BEFORE INSERT OR UPDATE OF ruta_id ON public.rutas_likes
+FOR EACH ROW EXECUTE FUNCTION public.fn_validar_ruta_existe_en_rutas_o_user_routes();
+
+DROP TRIGGER IF EXISTS trg_val_ruta_rutas_comentarios ON public.rutas_comentarios;
+CREATE TRIGGER trg_val_ruta_rutas_comentarios
+BEFORE INSERT OR UPDATE OF ruta_id ON public.rutas_comentarios
+FOR EACH ROW EXECUTE FUNCTION public.fn_validar_ruta_existe_en_rutas_o_user_routes();
+
+-- CASCADE DELETE POLYMORPHIC TRIGGER (rutas & user_routes)
+CREATE OR REPLACE FUNCTION public.fn_cascade_delete_ruta_polymorphic()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.rutas WHERE id = OLD.id)
+     AND NOT EXISTS (SELECT 1 FROM public.user_routes WHERE id = OLD.id) THEN
+    DELETE FROM public.club_rutas WHERE ruta_id = OLD.id;
+    DELETE FROM public.rutas_likes WHERE ruta_id = OLD.id;
+    DELETE FROM public.rutas_comentarios WHERE ruta_id = OLD.id;
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_cascade_del_rutas ON public.rutas;
+CREATE TRIGGER trg_cascade_del_rutas
+AFTER DELETE ON public.rutas
+FOR EACH ROW EXECUTE FUNCTION public.fn_cascade_delete_ruta_polymorphic();
+
+DROP TRIGGER IF EXISTS trg_cascade_del_user_routes ON public.user_routes;
+CREATE TRIGGER trg_cascade_del_user_routes
+AFTER DELETE ON public.user_routes
+FOR EACH ROW EXECUTE FUNCTION public.fn_cascade_delete_ruta_polymorphic();
+
+-- C) DUAL COLUMNS AND UNIQUE INDEXES ON rutas_likes
+ALTER TABLE public.rutas_likes ADD COLUMN IF NOT EXISTS usuario_id uuid;
+
+UPDATE public.rutas_likes 
+  SET usuario_id = user_id 
+  WHERE usuario_id IS NULL AND user_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rutas_likes_unique ON public.rutas_likes (ruta_id, user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rutas_likes_usuario ON public.rutas_likes (ruta_id, usuario_id);
+
+CREATE OR REPLACE FUNCTION public.fn_sync_rutas_likes_user_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.user_id IS NOT NULL AND NEW.usuario_id IS NULL THEN
+    NEW.usuario_id := NEW.user_id;
+  ELSIF NEW.usuario_id IS NOT NULL AND NEW.user_id IS NULL THEN
+    NEW.user_id := NEW.usuario_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_rutas_likes_user ON public.rutas_likes;
+CREATE TRIGGER trg_sync_rutas_likes_user
+BEFORE INSERT OR UPDATE ON public.rutas_likes
+FOR EACH ROW EXECUTE FUNCTION public.fn_sync_rutas_likes_user_columns();
+
+-- D) DUAL COLUMNS ON rutas_comentarios
+ALTER TABLE public.rutas_comentarios 
+  ADD COLUMN IF NOT EXISTS usuario_id uuid,
+  ADD COLUMN IF NOT EXISTS texto text,
+  ADD COLUMN IF NOT EXISTS contenido text,
+  ADD COLUMN IF NOT EXISTS autor_nombre text,
+  ADD COLUMN IF NOT EXISTS autor_avatar text;
+
+UPDATE public.rutas_comentarios
+  SET usuario_id = user_id
+  WHERE usuario_id IS NULL AND user_id IS NOT NULL;
+
+UPDATE public.rutas_comentarios
+  SET texto = comentario
+  WHERE texto IS NULL AND comentario IS NOT NULL;
+
+UPDATE public.rutas_comentarios
+  SET contenido = comentario
+  WHERE contenido IS NULL AND comentario IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.fn_sync_rutas_comentarios_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- user_id <-> usuario_id
+  IF NEW.user_id IS NOT NULL AND NEW.usuario_id IS NULL THEN
+    NEW.usuario_id := NEW.user_id;
+  ELSIF NEW.usuario_id IS NOT NULL AND NEW.user_id IS NULL THEN
+    NEW.user_id := NEW.usuario_id;
+  END IF;
+
+  -- comentario <-> texto <-> contenido
+  IF NEW.comentario IS NOT NULL AND NEW.comentario <> '' THEN
+    NEW.texto := COALESCE(NEW.texto, NEW.comentario);
+    NEW.contenido := COALESCE(NEW.contenido, NEW.comentario);
+  ELSIF NEW.texto IS NOT NULL AND NEW.texto <> '' THEN
+    NEW.comentario := NEW.texto;
+    NEW.contenido := COALESCE(NEW.contenido, NEW.texto);
+  ELSIF NEW.contenido IS NOT NULL AND NEW.contenido <> '' THEN
+    NEW.comentario := NEW.contenido;
+    NEW.texto := NEW.contenido;
+  END IF;
+
+  -- Auto-completar autor_nombre y autor_avatar si vienen nulos
+  IF (NEW.autor_nombre IS NULL OR NEW.autor_avatar IS NULL) AND NEW.user_id IS NOT NULL THEN
+    SELECT COALESCE(NEW.autor_nombre, p.nombre), COALESCE(NEW.autor_avatar, p.avatar_url)
+    INTO NEW.autor_nombre, NEW.autor_avatar
+    FROM public.perfiles p
+    WHERE p.id = NEW.user_id;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_rutas_comentarios ON public.rutas_comentarios;
+CREATE TRIGGER trg_sync_rutas_comentarios
+BEFORE INSERT OR UPDATE ON public.rutas_comentarios
+FOR EACH ROW EXECUTE FUNCTION public.fn_sync_rutas_comentarios_columns();
+
+-- E) CLUBS_USUARIOS INSERT RLS: PERMITIR AUTO-INSERT CON INVITACIÓN PENDIENTE O ACEPTADA
+DROP POLICY IF EXISTS clubs_usuarios_insert ON public.clubs_usuarios;
+CREATE POLICY clubs_usuarios_insert ON public.clubs_usuarios
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    (
+      auth.uid() = user_id
+      AND (
+        -- Club público
+        NOT EXISTS (
+          SELECT 1 FROM public.clubs c 
+          WHERE c.id = clubs_usuarios.club_id 
+            AND (COALESCE(c.es_privado, false) = true OR COALESCE(c.is_private, false) = true)
+        )
+        -- O creador del club
+        OR EXISTS (
+          SELECT 1 FROM public.clubs c
+          WHERE c.id = clubs_usuarios.club_id
+            AND c.creador_id = auth.uid()
+        )
+        -- O tiene una invitación pendiente o aceptada para este club
+        OR EXISTS (
+          SELECT 1 FROM public.clubs_invitaciones ci
+          WHERE ci.club_id = clubs_usuarios.club_id
+            AND ci.user_id = auth.uid()
+            AND LOWER(ci.estado) IN ('pendiente', 'aceptada')
+        )
+      )
+    )
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
+-- F) RPC PROCESAR INVITACIÓN CLUB ATÓMICA
+CREATE OR REPLACE FUNCTION public.procesar_invitacion_club(p_invitacion_id uuid, p_accion text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_inv record;
+  v_accion text := lower(trim(p_accion));
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Usuario no autenticado' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_inv
+  FROM public.clubs_invitaciones
+  WHERE id = p_invitacion_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Invitación no encontrada' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF v_inv.user_id <> auth.uid() AND NOT public.es_admin_o_creador_club(v_inv.club_id, auth.uid()) THEN
+    RAISE EXCEPTION 'Permiso denegado para procesar esta invitación' USING ERRCODE = '42501';
+  END IF;
+
+  IF v_accion = 'aceptar' THEN
+    INSERT INTO public.clubs_usuarios (club_id, user_id, rol)
+    VALUES (v_inv.club_id, v_inv.user_id, 'miembro')
+    ON CONFLICT (club_id, user_id) DO UPDATE SET rol = EXCLUDED.rol;
+
+    UPDATE public.clubs_invitaciones
+    SET estado = 'aceptada'
+    WHERE id = p_invitacion_id;
+
+    RETURN jsonb_build_object('success', true, 'accion', 'aceptada', 'club_id', v_inv.club_id);
+  ELSIF v_accion IN ('rechazar', 'cancelar', 'eliminar') THEN
+    UPDATE public.clubs_invitaciones
+    SET estado = 'rechazada'
+    WHERE id = p_invitacion_id;
+
+    RETURN jsonb_build_object('success', true, 'accion', 'rechazada', 'club_id', v_inv.club_id);
+  ELSE
+    RAISE EXCEPTION 'Acción inválida: %', p_accion USING ERRCODE = '22023';
+  END IF;
+END;
+$$;
+
+-- G) CLUB_EVENTOS_ASISTENTES DEDUP & UNIQUE INDEX
+DELETE FROM public.club_eventos_asistentes a
+WHERE a.ctid <> (
+  SELECT min(b.ctid)
+  FROM public.club_eventos_asistentes b
+  WHERE b.evento_id = a.evento_id AND b.user_id = a.user_id
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_club_eventos_asistentes_evento_user 
+  ON public.club_eventos_asistentes (evento_id, user_id);
+
+-- Recargar caché PostgREST
+NOTIFY pgrst, 'reload schema';
+
+COMMIT;
+
+
 
 

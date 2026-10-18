@@ -1,5 +1,5 @@
 import { ClubAPI } from './api.js';
-import { validarImagen } from '../utils.js';
+import { validarImagen, comprimirImagenCliente } from '../utils.js';
 import { ClubRender } from './club.render.js';
 import { ClubState } from './state.js';
 
@@ -19,7 +19,15 @@ export const ClubPhotos = {
         if (previewEl && isLogo) previewEl.style.opacity = '0.5';
 
         try {
-            const url = await ClubAPI.uploadImage(filePath, file, file.type || 'image/jpeg');
+            const maxW = isLogo ? 600 : 1600;
+            let fileToUpload = file;
+            try {
+                fileToUpload = await comprimirImagenCliente(file, maxW, 0.84);
+            } catch (eCompress) {
+                console.warn('[club.photos] Error en compresión, usando original:', eCompress);
+            }
+
+            const url = await ClubAPI.uploadImage(filePath, fileToUpload, fileToUpload.type || 'image/jpeg');
             const urlConCacheBuster = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`; // Fuerza render saltando el Service Worker
             
             const payload = isLogo 

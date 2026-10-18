@@ -563,13 +563,15 @@ const ClubFacade = {
         if (!appState.sesionActual || appState.esInvitado) return alert("Debes iniciar sesión.");
         const myId = appState.sesionActual.user.id;
         try {
+            let invId = null;
             try {
-                await supabaseClient.from('clubs_invitaciones').insert([{
+                const { data: invRow } = await supabaseClient.from('clubs_invitaciones').insert([{
                     club_id: clubId,
                     user_id: userId,
                     invitado_por: myId,
                     estado: 'pendiente'
-                }]);
+                }]).select().single();
+                invId = invRow?.id;
             } catch (_) {}
 
             const activeClub = ClubState.myClubs?.find(c => c.club_id === clubId);
@@ -578,6 +580,7 @@ const ClubFacade = {
                 user_id: userId,
                 tipo: 'invitacion_club',
                 contenido: `Has recibido una invitación para unirte a ${clubNom}.`,
+                data: { invitacion_id: invId, club_id: clubId },
                 leida: false
             }]);
             alert("¡Invitación enviada con éxito!");
@@ -642,6 +645,38 @@ const ClubFacade = {
         if (typeof window.cerrarPanelSolicitudes === 'function') {
             window.cerrarPanelSolicitudes();
         }
+    },
+
+    // 9. Procesamiento de Invitaciones
+    async procesarInvitacion(invitacionId, accion) {
+        if (!invitacionId) return;
+        if (!appState.sesionActual || appState.esInvitado) {
+            if (typeof window.abrirModalAuth === 'function') window.abrirModalAuth();
+            else alert("Debes iniciar sesión.");
+            return;
+        }
+
+        try {
+            const { data, error } = await supabaseClient.rpc('procesar_invitacion_club', {
+                p_invitacion_id: invitacionId,
+                p_accion: accion
+            });
+            if (error) throw error;
+
+            if (accion === 'aceptar') {
+                await ClubRender.renderTabMiClub();
+                alert("¡Te has unido al club con éxito!");
+            } else {
+                alert("Invitación rechazada.");
+            }
+
+            if (window.socialNotifications && typeof window.socialNotifications.cargarNotificaciones === 'function') {
+                window.socialNotifications.cargarNotificaciones();
+            }
+        } catch (err) {
+            console.error('[club] procesarInvitacion error:', err);
+            alert("Error al procesar invitación: " + (err.message || err));
+        }
     }
 };
 
@@ -660,6 +695,7 @@ window.cambiarTabClubs = (tab) => ClubFacade.cambiarTabClubs(tab);
 window.abrirModalClubs = () => ClubFacade.abrirModal();
 window.cerrarModalClubs = () => ClubFacade.cerrarModal();
 window.cambiarClubActivo = (clubId) => ClubFacade.onSelectActive(clubId);
+window.procesarInvitacionClub = (id, accion) => ClubFacade.procesarInvitacion(id, accion);
 
 // Perfil público del club y sub-pestañas
 window.openClubProfile = (id) => ClubFacade.openClubProfile(id);

@@ -3,7 +3,7 @@
 // ====================================================
 
 import { supabaseClient, appState, BACKEND_API_URL } from './config.js';
-import { esc, safeUrl, validarImagen, calcularRangoMaritimo, IMG_FALLBACK, fetchConTimeout } from './utils.js';
+import { esc, safeUrl, validarImagen, comprimirImagenCliente, calcularRangoMaritimo, IMG_FALLBACK, fetchConTimeout } from './utils.js';
 import { parseGPX } from './gpxParser.js';
 import {
     calcularNivelYProgreso,
@@ -541,7 +541,15 @@ export async function subirAvatar(event) {
     const filePath = `avatars/${appState.sesionActual.user.id}.jpg`;
     
     try {
-        const { error: uploadError } = await supabaseClient.storage.from('paddlesafe').upload(filePath, file, { upsert: true, contentType: mime });
+        let fileToUpload = file;
+        try {
+            fileToUpload = await comprimirImagenCliente(file, 600, 0.84);
+        } catch (eCompress) {
+            console.warn('[subirAvatar] Error en compresión, usando original:', eCompress);
+        }
+        const mime = fileToUpload.type || 'image/jpeg';
+
+        const { error: uploadError } = await supabaseClient.storage.from('paddlesafe').upload(filePath, fileToUpload, { upsert: true, contentType: mime });
         if (uploadError) throw uploadError;
         
         const { data } = supabaseClient.storage.from('paddlesafe').getPublicUrl(filePath);

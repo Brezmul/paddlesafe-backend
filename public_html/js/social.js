@@ -240,10 +240,20 @@ export function renderTarjetaRutaSocial(ruta, clubNombre = null) {
                         </button>
                     ` : ''}
                 </div>
-                <div class="flex items-center gap-1">
-                    <button type="button" onclick="toggleLikeRutaSocial('${rutaId}')" id="btnLikeSocial-${rutaId}" class="px-2 py-1 text-slate-500 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 font-bold text-xs rounded-lg flex items-center gap-1 transition-colors cursor-pointer">
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="toggleLikeRutaSocial('${rutaId}')" id="btnLikeSocial-${rutaId}" class="px-2 py-1 text-slate-500 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 font-bold text-xs rounded-lg flex items-center gap-1 transition-colors cursor-pointer" title="Me gusta">
                         <span>❤️</span><span id="likeCountSocial-${rutaId}">0</span>
                     </button>
+                    <button type="button" onclick="toggleComentariosRutaSocial('${rutaId}')" id="btnCommentSocial-${rutaId}" class="px-2 py-1 text-slate-500 hover:text-sky-500 dark:text-slate-400 dark:hover:text-sky-400 font-bold text-xs rounded-lg flex items-center gap-1 transition-colors cursor-pointer" title="Comentarios">
+                        <span>💬</span><span id="commentCountSocial-${rutaId}">0</span>
+                    </button>
+                </div>
+            </div>
+            <div id="comentarios-seccion-${rutaId}" class="hidden pt-3 mt-2 border-t border-slate-100 dark:border-slate-700/60">
+                <div id="comentarios-lista-${rutaId}" class="space-y-2 mb-3 max-h-48 overflow-y-auto pr-1"></div>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="comentario-input-${rutaId}" placeholder="Escribe un comentario..." class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-marine dark:text-white focus:outline-none focus:border-water" onkeydown="if(event.key==='Enter') agregarComentarioRuta('${rutaId}')">
+                    <button type="button" onclick="agregarComentarioRuta('${rutaId}')" class="px-3 py-1.5 bg-water hover:bg-sky-600 text-white font-bold text-xs rounded-xl shadow active:scale-95 transition-all cursor-pointer">Enviar</button>
                 </div>
             </div>
         `;
@@ -540,15 +550,17 @@ export async function eliminarRutaSocial(rutaId) {
 
 
 /**
- * Toggle like local/interactivo en una tarjeta de travesía social
+ * Toggle like local y en Supabase (public.rutas_likes)
  */
-export function toggleLikeRutaSocial(rutaId) {
+export async function toggleLikeRutaSocial(rutaId) {
+    if (!rutaId) return;
     const key = 'ps_like_' + rutaId;
     const isLiked = localStorage.getItem(key) === 'true';
     const countEl = document.getElementById(`likeCountSocial-${rutaId}`);
     const btnEl = document.getElementById(`btnLikeSocial-${rutaId}`);
     let currentCount = parseInt(countEl?.textContent || '0', 10);
 
+    // Actualización optimista de UI
     if (isLiked) {
         localStorage.removeItem(key);
         currentCount = Math.max(0, currentCount - 1);
@@ -559,6 +571,152 @@ export function toggleLikeRutaSocial(rutaId) {
         if (btnEl) btnEl.classList.add('text-red-500', 'dark:text-red-400');
     }
     if (countEl) countEl.textContent = currentCount;
+
+    // Persistencia asíncrona en Supabase si hay sesión activa
+    const userId = appState.sesionActual?.user?.id;
+    if (userId) {
+        try {
+            if (isLiked) {
+                await supabaseClient.from('rutas_likes').delete().eq('ruta_id', rutaId).eq('user_id', userId);
+            } else {
+                await supabaseClient.from('rutas_likes').insert([{ ruta_id: rutaId, user_id: userId }]);
+            }
+        } catch (err) {
+            console.warn('[toggleLikeRutaSocial] Aviso persistencia Supabase:', err);
+        }
+    }
+}
+
+/**
+ * Muestra/oculta y carga comentarios de una travesía
+ */
+export async function toggleComentariosRutaSocial(rutaId) {
+    if (!rutaId) return;
+    const sec = document.getElementById(`comentarios-seccion-${rutaId}`);
+    if (!sec) return;
+    const isHidden = sec.classList.contains('hidden');
+    sec.classList.toggle('hidden');
+    if (isHidden) {
+        await cargarComentariosRuta(rutaId);
+    }
+}
+
+/**
+ * Consulta y renderiza comentarios de public.rutas_comentarios
+ */
+export async function cargarComentariosRuta(rutaId) {
+    const listEl = document.getElementById(`comentarios-lista-${rutaId}`);
+    const countEl = document.getElementById(`commentCountSocial-${rutaId}`);
+    if (!listEl) return;
+
+    listEl.innerHTML = '<p class="text-[10px] text-slate-400 animate-pulse text-center py-2">Cargando comentarios...</p>';
+
+    try {
+        const { data: coms, error } = await supabaseClient
+            .from('rutas_comentarios')
+            .select('*')
+            .eq('ruta_id', rutaId)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        const count = coms ? coms.length : 0;
+        if (countEl) countEl.textContent = count;
+
+        if (!coms || coms.length === 0) {
+            listEl.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-2">Sé el primero en comentar esta travesía.</p>';
+            return;
+        }
+
+        const myId = appState.sesionActual?.user?.id;
+        listEl.innerHTML = coms.map(c => {
+            const autor = c.autor_nombre || 'Paddler';
+            const avatar = safeUrl(c.autor_avatar, IMG_FALLBACK);
+            const fecha = c.created_at ? new Date(c.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+            const esMio = myId && c.user_id === myId;
+            const comTexto = c.comentario || c.texto || c.contenido || '';
+
+            return `
+                <div class="flex items-start gap-2 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 text-left">
+                    <img src="${esc(avatar)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between gap-1">
+                            <span class="text-[11px] font-bold text-marine dark:text-white truncate">${esc(autor)}</span>
+                            <span class="text-[9px] text-slate-400 shrink-0">${esc(fecha)}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-700 dark:text-slate-300 break-words mt-0.5">${esc(comTexto)}</p>
+                    </div>
+                    ${esMio ? `
+                        <button type="button" onclick="eliminarComentarioRuta('${esc(c.id)}', '${esc(rutaId)}')" class="text-slate-400 hover:text-red-500 text-[10px] p-0.5 shrink-0 transition-colors cursor-pointer" title="Borrar comentario">🗑️</button>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        console.warn('[cargarComentariosRuta] Error:', err);
+        listEl.innerHTML = '<p class="text-[10px] text-red-500 text-center py-2">Error al cargar comentarios.</p>';
+    }
+}
+
+/**
+ * Agrega un nuevo comentario a public.rutas_comentarios
+ */
+export async function agregarComentarioRuta(rutaId) {
+    if (!rutaId) return;
+    if (!appState.sesionActual || appState.esInvitado) {
+        if (typeof window.abrirModalAuth === 'function') window.abrirModalAuth();
+        else alert("Debes iniciar sesión para comentar.");
+        return;
+    }
+
+    const input = document.getElementById(`comentario-input-${rutaId}`);
+    const texto = input ? input.value.trim() : '';
+    if (!texto) return;
+
+    const user = appState.sesionActual.user;
+    const autorNombre = appState.perfilUsuario?.nombre || 'Paddler';
+    const autorAvatar = appState.perfilUsuario?.avatar_url || null;
+
+    try {
+        const { error } = await supabaseClient.from('rutas_comentarios').insert([{
+            ruta_id: rutaId,
+            user_id: user.id,
+            comentario: texto,
+            texto: texto,
+            contenido: texto,
+            autor_nombre: autorNombre,
+            autor_avatar: autorAvatar
+        }]);
+
+        if (error) throw error;
+        if (input) input.value = '';
+        await cargarComentariosRuta(rutaId);
+    } catch (err) {
+        console.error('[agregarComentarioRuta] Error:', err);
+        alert("Error al enviar comentario: " + (err.message || err));
+    }
+}
+
+/**
+ * Elimina un comentario propio de public.rutas_comentarios
+ */
+export async function eliminarComentarioRuta(comentarioId, rutaId) {
+    if (!comentarioId) return;
+    if (!confirm("¿Deseas eliminar este comentario?")) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from('rutas_comentarios')
+            .delete()
+            .eq('id', comentarioId)
+            .eq('user_id', appState.sesionActual?.user?.id);
+
+        if (error) throw error;
+        if (rutaId) await cargarComentariosRuta(rutaId);
+    } catch (err) {
+        console.error('[eliminarComentarioRuta] Error:', err);
+        alert("Error al eliminar comentario: " + (err.message || err));
+    }
 }
 
 // ====================================================
@@ -630,15 +788,27 @@ export const socialNotifications = {
             }
             
             c.innerHTML = data.map(n => {
-                const icon = n.tipo === 'solicitud_club' || n.tipo === 'resolucion_club' ? '⚓' : n.tipo === 'mensaje_chat' ? '💬' : '🔔';
+                const icon = n.tipo === 'invitacion_club' ? '✉️' : (n.tipo === 'solicitud_club' || n.tipo === 'resolucion_club' ? '⚓' : n.tipo === 'mensaje_chat' ? '💬' : '🔔');
                 const estilo = n.leida ? 'bg-white dark:bg-slate-800 opacity-75 border-slate-200 dark:border-slate-700' : 'bg-sky-50 dark:bg-sky-900/20 shadow-sm border-sky-100 dark:border-sky-800/50';
                 const btnLeida = !n.leida ? `<button onclick="socialNotifications.marcarLeida('${n.id}')" class="text-[9px] bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-2 py-1 btn-marcar dark:text-white transition-colors">Leída</button>` : '';
+                
+                let accionesHTML = btnLeida;
+                if (n.tipo === 'invitacion_club' && !n.leida && n.data?.invitacion_id) {
+                    accionesHTML = `
+                        <div class="flex gap-2 items-center">
+                            <button onclick="if(window.Club?.procesarInvitacion) window.Club.procesarInvitacion('${esc(n.data.invitacion_id)}', 'aceptar'); socialNotifications.marcarLeida('${n.id}');" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold active:scale-95 cursor-pointer">Aceptar</button>
+                            <button onclick="if(window.Club?.procesarInvitacion) window.Club.procesarInvitacion('${esc(n.data.invitacion_id)}', 'rechazar'); socialNotifications.marcarLeida('${n.id}');" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold active:scale-95 cursor-pointer">Rechazar</button>
+                            ${btnLeida}
+                        </div>
+                    `;
+                }
+
                 return `
                     <div id="notif-${n.id}" class="flex gap-3 p-3 border rounded-xl mb-2 transition-colors ${estilo}">
                         <div class="text-2xl">${icon}</div>
                         <div class="flex-1">
                             <p class="text-xs font-bold text-marine dark:text-white leading-tight mb-1">${esc(n.contenido)}</p>
-                            <div class="flex justify-end">${btnLeida}</div>
+                            <div class="flex justify-end">${accionesHTML}</div>
                         </div>
                     </div>`;
             }).join('');
@@ -1403,3 +1573,7 @@ window.descargarGpxRutaSocial = descargarGpxRutaSocial;
 window.compartirRutaEnMiClub = compartirRutaEnMiClub;
 window.eliminarRutaSocial = eliminarRutaSocial;
 window.toggleLikeRutaSocial = toggleLikeRutaSocial;
+window.toggleComentariosRutaSocial = toggleComentariosRutaSocial;
+window.cargarComentariosRuta = cargarComentariosRuta;
+window.agregarComentarioRuta = agregarComentarioRuta;
+window.eliminarComentarioRuta = eliminarComentarioRuta;

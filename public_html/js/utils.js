@@ -40,6 +40,92 @@ export function validarImagen(file, maxMB = 5) {
     return null;
 }
 
+/**
+ * Comprime y escala proporcionalmente una imagen en el cliente usando un canvas HTML5
+ * @param {File|Blob} file - Archivo o Blob de imagen a comprimir
+ * @param {number} maxWidth - Ancho o alto máximo permitido (default 1600)
+ * @param {number} quality - Calidad de compresión JPEG (0.1 a 1.0, default 0.84)
+ * @returns {Promise<File|Blob>} - Archivo o Blob comprimido en formato image/jpeg
+ */
+export async function comprimirImagenCliente(file, maxWidth = 1600, quality = 0.84) {
+    if (!file) return file;
+    // Si no estamos en entorno navegador con canvas, fallback inmediato
+    if (typeof document === 'undefined' || typeof Image === 'undefined') {
+        return file;
+    }
+
+    return new Promise((resolve) => {
+        try {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        let { width, height } = img;
+                        if (!width || !height) return resolve(file);
+
+                        // Si ya está por debajo del límite y pesa menos de 400KB, no tocar
+                        if (width <= maxWidth && height <= maxWidth && file.size && file.size < 400 * 1024) {
+                            return resolve(file);
+                        }
+
+                        // Escalar proporcionalmente respetando ratio de aspecto
+                        if (width > maxWidth || height > maxWidth) {
+                            if (width > height) {
+                                height = Math.round((height * maxWidth) / width);
+                                width = maxWidth;
+                            } else {
+                                width = Math.round((width * maxWidth) / height);
+                                height = maxWidth;
+                            }
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        if (!ctx) return resolve(file);
+
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        if (typeof canvas.toBlob === 'function') {
+                            canvas.toBlob(
+                                (blob) => {
+                                    if (!blob) return resolve(file);
+                                    try {
+                                        const originalName = file.name ? file.name.replace(/\.[^/.]+$/, '.jpg') : 'compressed.jpg';
+                                        const compressedFile = new File([blob], originalName, {
+                                            type: 'image/jpeg',
+                                            lastModified: Date.now()
+                                        });
+                                        resolve(compressedFile);
+                                    } catch (_) {
+                                        resolve(blob);
+                                    }
+                                },
+                                'image/jpeg',
+                                quality
+                            );
+                        } else {
+                            resolve(file);
+                        }
+                    } catch (err) {
+                        console.warn('[comprimirImagenCliente] Fallo en compresión, usando archivo original:', err);
+                        resolve(file);
+                    }
+                };
+                img.onerror = () => resolve(file);
+                img.src = e.target.result;
+            };
+            reader.onerror = () => resolve(file);
+            reader.readAsDataURL(file);
+        } catch (err) {
+            console.warn('[comprimirImagenCliente] Error iniciando compresión:', err);
+            resolve(file);
+        }
+    });
+}
+
 export function formatearTiempo(minutos) {
     const m = Math.round(minutos);
     if (m < 60) return `${m} min`;
@@ -491,4 +577,5 @@ export function actualizarUIPresencia() {
 if (typeof window !== 'undefined') {
     window.calcularSolYCrepusculo = calcularSolYCrepusculo;
     window.actualizarUIPresencia = actualizarUIPresencia;
+    window.comprimirImagenCliente = comprimirImagenCliente;
 }

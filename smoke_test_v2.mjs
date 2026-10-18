@@ -124,7 +124,7 @@ const swContent = fs.readFileSync(swPath, 'utf8');
 const versionMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
 const expectedSwVersion = versionMatch ? versionMatch[1] : null;
 
-assert(expectedSwVersion === 'paddlesafe-v59', `sw.js version must be paddlesafe-v59, got: ${expectedSwVersion}`);
+assert(expectedSwVersion === 'paddlesafe-v60', `sw.js version must be paddlesafe-v60, got: ${expectedSwVersion}`);
 
 if (fs.existsSync(versionJsonPath)) {
     let vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
@@ -738,6 +738,39 @@ assert(clubIndexContent.includes('cambiarClubActivo'), 'club/index.js must defin
 
 assert(indexHtml.includes('tailwind.min.css'), 'index.html must link compiled tailwind.min.css');
 assert(fs.existsSync('public_html/css/tailwind.min.css'), 'public_html/css/tailwind.min.css must exist');
+
+// 4.9 Final Stabilization v60 Audit (Polymorphic FKs, Invitations, Image Compression)
+assert(sqlContentRoot.includes('fn_validar_ruta_existe_en_rutas_o_user_routes'), 'SQL must define fn_validar_ruta_existe_en_rutas_o_user_routes polymorphic function');
+assert(sqlContentRoot.includes('procesar_invitacion_club'), 'SQL must define procesar_invitacion_club RPC');
+assert(sqlContentRoot.includes('fn_cascade_delete_ruta_polymorphic'), 'SQL must define fn_cascade_delete_ruta_polymorphic trigger function');
+assert(sqlContentRoot.includes('uq_club_eventos_asistentes_evento_user'), 'SQL must define uq_club_eventos_asistentes_evento_user unique index');
+
+assert(sqlContentBackend.includes('fn_validar_ruta_existe_en_rutas_o_user_routes'), 'Backend SQL must define fn_validar_ruta_existe_en_rutas_o_user_routes');
+assert(sqlContentBackend.includes('procesar_invitacion_club'), 'Backend SQL must define procesar_invitacion_club');
+
+const utilsJsContent = fs.readFileSync('public_html/js/utils.js', 'utf8');
+assert(utilsJsContent.includes('comprimirImagenCliente'), 'utils.js must define and export comprimirImagenCliente');
+assert(utilsJsContent.includes('window.comprimirImagenCliente = comprimirImagenCliente'), 'utils.js must bind comprimirImagenCliente to window');
+
+const authJsCode = fs.readFileSync('public_html/js/auth.js', 'utf8');
+assert(authJsCode.includes('comprimirImagenCliente'), 'auth.js must import and use comprimirImagenCliente for avatars');
+
+const clubPhotosCode = fs.readFileSync('public_html/js/club/club.photos.js', 'utf8');
+assert(clubPhotosCode.includes('comprimirImagenCliente'), 'club.photos.js must import and use comprimirImagenCliente for covers/logos');
+
+assert(socialJsCode.includes('toggleComentariosRutaSocial'), 'social.js must define toggleComentariosRutaSocial');
+assert(socialJsCode.includes('cargarComentariosRuta'), 'social.js must define cargarComentariosRuta');
+assert(socialJsCode.includes('agregarComentarioRuta'), 'social.js must define agregarComentarioRuta');
+assert(socialJsCode.includes('eliminarComentarioRuta'), 'social.js must define eliminarComentarioRuta');
+assert(socialJsCode.includes('window.toggleComentariosRutaSocial = toggleComentariosRutaSocial'), 'social.js must bind comments functions to window');
+
+const clubIndexLatest = fs.readFileSync('public_html/js/club/index.js', 'utf8');
+assert(clubIndexLatest.includes('procesarInvitacion'), 'club/index.js must define procesarInvitacion');
+assert(clubIndexLatest.includes('window.procesarInvitacionClub ='), 'club/index.js must expose window.procesarInvitacionClub');
+
+const clubEventsLatest = fs.readFileSync('public_html/js/club/club.events.js', 'utf8');
+assert(clubEventsLatest.includes('evento-count-'), 'club.events.js must bind dynamic counter ID');
+assert(clubEventsLatest.includes('btn-asistir-'), 'club.events.js must bind dynamic button ID');
 
 
 // ------------------------------------------------------------------------------
