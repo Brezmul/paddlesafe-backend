@@ -122,7 +122,7 @@ export function togglePanelPro(forceState) {
 }
 window.togglePanelPro = togglePanelPro;
 
-// Navegación Ergonómica Móvil (Design System 3.0)
+// Navegación Ergonómica Móvil (Design System 4.0)
 export function activarItemBottomNav(tabId) {
     const navItems = {
         parte: document.getElementById('btnNavParte'),
@@ -134,12 +134,22 @@ export function activarItemBottomNav(tabId) {
 
     Object.entries(navItems).forEach(([key, btn]) => {
         if (!btn) return;
+        const indicator = btn.querySelector('.nav-indicator');
         if (key === tabId) {
             btn.classList.add('text-sky-400');
             btn.classList.remove('text-slate-400');
+            btn.classList.add('scale-105');
+            if (indicator) {
+                indicator.classList.remove('opacity-0');
+                indicator.classList.add('opacity-100');
+            }
         } else {
-            btn.classList.remove('text-sky-400');
+            btn.classList.remove('text-sky-400', 'scale-105');
             btn.classList.add('text-slate-400');
+            if (indicator) {
+                indicator.classList.add('opacity-0');
+                indicator.classList.remove('opacity-100');
+            }
         }
     });
 

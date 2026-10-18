@@ -1760,6 +1760,20 @@ function renderizarAvisoSuperior(motor) {
     });
 }
 
+export function aplicarGlowVerdictBento(el, score) {
+    if (!el) return;
+    el.classList.remove('ps-glass-glow-emerald', 'ps-glass-glow-amber', 'ps-glass-glow-rose');
+    if (score === null || score === undefined || isNaN(Number(score))) return;
+    const num = Number(score);
+    if (num >= 80) {
+        el.classList.add('ps-glass-glow-emerald');
+    } else if (num >= 50) {
+        el.classList.add('ps-glass-glow-amber');
+    } else {
+        el.classList.add('ps-glass-glow-rose');
+    }
+}
+
 function renderizarResumenExperto(motor, prefijo = 'basic') {
     const contenedor = document.getElementById(`${prefijo}ExpertSummary`);
     if (!contenedor) return;
@@ -1948,6 +1962,14 @@ function renderizarResumenExperto(motor, prefijo = 'basic') {
             ...(motor.factoresCriticos || [])
         ]);
         insights.innerHTML = puntos.map(insight => `<li>${esc(insight)}</li>`).join('');
+    }
+
+    const scoreVal = motor?.seguridad?.score;
+    if (prefijo === 'pro') {
+        aplicarGlowVerdictBento(document.getElementById('proDashboardResumen'), scoreVal);
+    } else {
+        aplicarGlowVerdictBento(document.getElementById('spotIntelligenceBento'), scoreVal);
+        aplicarGlowVerdictBento(document.getElementById('fullDaySpotTimeline'), scoreVal);
     }
 
     contenedor.classList.remove('hidden');
@@ -6625,6 +6647,9 @@ export function renderizarTimelineJornadaCompleta(spot, pronostico, userLevel = 
     }
 
     timelineEl.classList.remove('hidden');
+    const ventanasCalc = pronostico.ventanasOptimas || detectarVentanasOptimas(pronostico.horasDiurnas, userLevel);
+    const scoreTimeline = ventanasCalc?.mejorVentana?.score ?? pronostico?.score ?? 80;
+    aplicarGlowVerdictBento(timelineEl, scoreTimeline);
     renderizarInteligenciaYDiarioSpot(spot, pronostico);
 }
 
@@ -7117,13 +7142,19 @@ export function seleccionarBiasLogbook(bias) {
 }
 
 export function setLogbookRating(rating) {
-    ratingSeleccionadoLogbook = Number(rating) || 5;
+    ratingSeleccionadoLogbook = Math.max(1, Math.min(5, Number(rating) || 5));
     const group = document.getElementById('spotRatingStarsGroup');
     if (group) {
         const stars = group.querySelectorAll('button');
         stars.forEach((star, i) => {
-            star.textContent = (i < ratingSeleccionadoLogbook) ? '⭐' : '☆';
-            star.style.opacity = (i < ratingSeleccionadoLogbook) ? '1' : '0.4';
+            const active = (i < ratingSeleccionadoLogbook);
+            star.textContent = active ? '⭐' : '☆';
+            star.style.opacity = active ? '1' : '0.35';
+            if (active) {
+                star.classList.add('scale-110');
+            } else {
+                star.classList.remove('scale-110');
+            }
         });
         const label = document.getElementById('spotLogbookRatingLabel');
         if (label) label.textContent = `${ratingSeleccionadoLogbook}/5`;
@@ -7407,24 +7438,27 @@ export function renderizarInteligenciaYDiarioSpot(spot, pronosticoActual) {
             `;
         } else {
             const biasLabels = {
-                'exacto': '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">🎯 Exacto</span>',
-                'mas_viento': '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">💨 +Térmico</span>',
-                'menos_viento': '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">🌊 +Calmado</span>'
+                'exacto': '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm flex items-center gap-1">🎯 Exacto</span>',
+                'mas_viento': '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm flex items-center gap-1">💨 +Térmico</span>',
+                'menos_viento': '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm flex items-center gap-1">🌊 +Calmado</span>'
             };
             logList.innerHTML = spotEntries.slice(0, 10).map(e => `
-                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-1 text-xs">
-                    <div class="flex items-center justify-between text-slate-400 text-[10px]">
-                        <div class="flex items-center gap-1.5 font-bold">
-                            <span>📅 ${esc(e.fecha || 'Reciente')}</span>
-                            <span class="text-amber-400">${'⭐'.repeat(e.rating || 5)}</span>
+                <div class="ps-bento-card p-3 flex flex-col gap-1.5 text-xs hover:border-slate-600/60 transition-all">
+                    <div class="flex items-center justify-between text-slate-400 text-[10px] border-b border-slate-800/60 pb-1.5">
+                        <div class="flex items-center gap-2 font-bold">
+                            <span class="text-slate-300">📅 ${esc(e.fecha || 'Reciente')}</span>
+                            <span class="text-amber-400 tracking-wider">${'⭐'.repeat(e.rating || 5)}</span>
                         </div>
                         ${biasLabels[e.viento_real_bias] || ''}
                     </div>
-                    ${e.notas ? `<p class="text-slate-200 mt-0.5 leading-snug">"${esc(e.notas)}"</p>` : ''}
+                    ${e.notas ? `<p class="text-slate-200 mt-0.5 leading-snug italic font-medium">"${esc(e.notas)}"</p>` : ''}
                 </div>
             `).join('');
         }
     }
+
+    const scoreSpot = pronosticoActual?.score ?? Number(document.getElementById('basicScoreNumber')?.textContent) ?? 80;
+    aplicarGlowVerdictBento(bento, scoreSpot);
 
     bento.classList.remove('hidden');
     bento.classList.add('flex');
@@ -7443,6 +7477,7 @@ window.abrirModalNotasTacticasSpot = abrirModalNotasTacticasSpot;
 window.cerrarModalNotasTacticasSpot = cerrarModalNotasTacticasSpot;
 window.confirmarGuardarNotasTacticas = confirmarGuardarNotasTacticas;
 window.renderizarInteligenciaYDiarioSpot = renderizarInteligenciaYDiarioSpot;
+window.aplicarGlowVerdictBento = aplicarGlowVerdictBento;
 window.importarRutaGPXPro = importarRutaGPXPro;
 window.centrarTramoMapa = centrarTramoMapa;
 window.generarGraficoSvgPerfilRuta = generarGraficoSvgPerfilRuta;

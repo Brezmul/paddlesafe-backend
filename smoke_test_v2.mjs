@@ -124,7 +124,7 @@ const swContent = fs.readFileSync(swPath, 'utf8');
 const versionMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
 const expectedSwVersion = versionMatch ? versionMatch[1] : null;
 
-assert(expectedSwVersion === 'paddlesafe-v62', `sw.js version must be paddlesafe-v62, got: ${expectedSwVersion}`);
+assert(expectedSwVersion === 'paddlesafe-v63', `sw.js version must be paddlesafe-v63, got: ${expectedSwVersion}`);
 
 if (fs.existsSync(versionJsonPath)) {
     let vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
@@ -138,12 +138,18 @@ if (fs.existsSync(versionJsonPath)) {
     assert(vJson.hash === expectedSwVersion, 'version.json hash must match sw.js VERSION');
 }
 
-// 1.3 Design System 3.0 CSS tokens in compiled tailwind.min.css
+// 1.3 Design System 3.0 & 4.0 CSS tokens in compiled tailwind.min.css
 const tailwindCssPath = 'public_html/css/tailwind.min.css';
 assert(fs.existsSync(tailwindCssPath), 'public_html/css/tailwind.min.css must exist');
 const tailwindCss = fs.readFileSync(tailwindCssPath, 'utf8');
 assert(tailwindCss.includes('.ps-bento-card'), '.ps-bento-card must exist in compiled tailwind.min.css');
 assert(tailwindCss.includes('.ps-tabular'), '.ps-tabular must exist in compiled tailwind.min.css');
+assert(tailwindCss.includes('.ps-glass-glow-emerald'), '.ps-glass-glow-emerald must exist in compiled tailwind.min.css');
+assert(tailwindCss.includes('.ps-glass-glow-amber'), '.ps-glass-glow-amber must exist in compiled tailwind.min.css');
+assert(tailwindCss.includes('.ps-glass-glow-rose'), '.ps-glass-glow-rose must exist in compiled tailwind.min.css');
+assert(tailwindCss.includes('.ps-shimmer'), '.ps-shimmer must exist in compiled tailwind.min.css');
+assert(tailwindCss.includes('.ps-modal-backdrop'), '.ps-modal-backdrop must exist in compiled tailwind.min.css');
+assert(tailwindCss.includes('.ps-pill-tab'), '.ps-pill-tab must exist in compiled tailwind.min.css');
 
 // ------------------------------------------------------------------------------
 // TASK 2: DOM & WINDOW BINDING AUDIT
@@ -247,6 +253,9 @@ for (const fn of inlineFunctions) {
 const mainJsCode = fs.readFileSync('public_html/js/main.js', 'utf8');
 assert(mainJsCode.includes('activarItemBottomNav') && (mainJsCode.includes('window.activarItemBottomNav') || indexHtml.includes('window.activarItemBottomNav')), 'window.activarItemBottomNav must exist');
 assert(indexHtml.includes('id="mobileBottomNav"'), '#mobileBottomNav element must exist in index.html');
+assert(indexHtml.includes('nav-indicator'), '#mobileBottomNav buttons must include nav-indicator');
+assert(indexHtml.includes('ps-modal-backdrop'), 'Modals must use ps-modal-backdrop');
+assert(indexHtml.includes('ps-modal-close-btn'), 'Modals must use ps-modal-close-btn');
 
 // ------------------------------------------------------------------------------
 // TASK 3: ENGINE & MATH RUNTIME TESTS
@@ -393,6 +402,27 @@ const sesgo = calcularSesgoTermicoSpot('Dénia', 38.83, 0.145, mockLogEntries);
 assert(sesgo.hasThermalBias === true, 'Should detect thermal bias when >= 2 entries report mas_viento');
 assert(sesgo.masVientoCount === 2, `masVientoCount must be 2, got: ${sesgo.masVientoCount}`);
 assert(typeof sesgo.msg === 'string' && sesgo.msg.includes('Inteligencia Local'), 'Thermal bias should provide informative message');
+
+// Test 4: Dynamic Bento Glow Application (Batch #18 Design System 4.0)
+const { aplicarGlowVerdictBento } = mapMod;
+assert(typeof aplicarGlowVerdictBento === 'function', 'aplicarGlowVerdictBento must be exported from map.js');
+
+const mockBento = {
+    classList: {
+        classes: new Set(),
+        add(...c) { c.forEach(x => this.classes.add(x)); },
+        remove(...c) { c.forEach(x => this.classes.delete(x)); },
+        contains(c) { return this.classes.has(c); }
+    }
+};
+
+aplicarGlowVerdictBento(mockBento, 85);
+assert(mockBento.classList.contains('ps-glass-glow-emerald'), 'Score 85 must apply ps-glass-glow-emerald');
+aplicarGlowVerdictBento(mockBento, 65);
+assert(mockBento.classList.contains('ps-glass-glow-amber'), 'Score 65 must apply ps-glass-glow-amber');
+assert(!mockBento.classList.contains('ps-glass-glow-emerald'), 'Must clear previous glow class');
+aplicarGlowVerdictBento(mockBento, 40);
+assert(mockBento.classList.contains('ps-glass-glow-rose'), 'Score 40 must apply ps-glass-glow-rose');
 
 // 3.5 Personal Records (PRs) & ISA Merit Badges Engine (Batch #10)
 const gamifMod = await import(pathToFileURL(path.resolve('public_html/js/gamification.js')).href);

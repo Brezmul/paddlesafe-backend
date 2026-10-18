@@ -74,3 +74,127 @@
   scroll-snap-align: start;
   flex-shrink: 0;
 }
+
+/* ==========================================================================
+   PADDLESAFE DESIGN SYSTEM 4.0: NEXT-GEN POLISH & MICRO-INTERACTIONS
+   ========================================================================== */
+
+/* Dynamic Ambient Glow States for Verdict & Bento Cards */
+.ps-glass-glow-emerald {
+  box-shadow: 0 0 35px -5px rgba(16, 185, 129, 0.22), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4) !important;
+}
+
+.ps-glass-glow-amber {
+  box-shadow: 0 0 35px -5px rgba(245, 158, 11, 0.22), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4) !important;
+}
+
+.ps-glass-glow-rose {
+  box-shadow: 0 0 35px -5px rgba(244, 63, 94, 0.22), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.4) !important;
+}
+
+/* Shimmer animation for loading states & micro-interactions */
+@keyframes psShimmer {
+  0% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.65;
+  }
+}
+
+.ps-shimmer {
+  animation: psShimmer 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Deep Modal Backdrop Blur */
+.ps-modal-backdrop {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(2, 6, 23, 0.82);
+}
+
+/* Modern Segmented Control / Pill Tabs */
+.ps-pill-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  padding: 0.375rem 0.875rem;
+  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.ps-pill-tab:hover {
+  background: rgba(51, 65, 85, 0.7);
+  color: #f1f5f9;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.ps-pill-tab:active {
+  transform: scale(0.96);
+}
+
+.ps-pill-tab-active,
+.ps-pill-tab.active {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(2, 132, 199, 0.35) 100%);
+  border-color: rgba(56, 189, 248, 0.6);
+  color: #38bdf8;
+  box-shadow: 0 0 14px -2px rgba(14, 165, 233, 0.45);
+}
+
+/* Sleek Modal Close Button with Scale Bounce */
+.ps-modal-close-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  color: #94a3b8;
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ps-modal-close-btn:hover {
+  background: rgba(51, 65, 85, 0.9);
+  color: #ffffff;
+  border-color: rgba(148, 163, 184, 0.4);
+  transform: scale(1.1);
+}
+
+.ps-modal-close-btn:active {
+  transform: scale(0.9);
+}
+
+/* Ambient Radial Glow Lighting for Atmospheric Depth */
+.ps-ambient-radial {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: 0.45;
+  z-index: 0;
+  transition: all 0.5s ease;
+}
