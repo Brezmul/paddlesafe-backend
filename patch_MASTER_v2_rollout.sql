@@ -883,8 +883,195 @@ CREATE POLICY club_chat_delete ON public.club_chat
     OR public.es_admin_o_creador_club(club_id, auth.uid())
   );
 
+-- ------------------------------------------------------------------------------
+-- 9. PATCH #09: CLUB COVER PERSISTENCE, RPC EXPANSION & STORAGE RLS AUDIT
+-- ------------------------------------------------------------------------------
+
+-- A) COLUMNS EN public.clubs
+ALTER TABLE public.clubs 
+  ADD COLUMN IF NOT EXISTS portada_url text,
+  ADD COLUMN IF NOT EXISTS banner_url text,
+  ADD COLUMN IF NOT EXISTS es_privado boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS is_private boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS normas text,
+  ADD COLUMN IF NOT EXISTS ubicacion text;
+
+UPDATE public.clubs 
+  SET portada_url = banner_url 
+  WHERE portada_url IS NULL AND banner_url IS NOT NULL;
+
+UPDATE public.clubs 
+  SET banner_url = portada_url 
+  WHERE banner_url IS NULL AND portada_url IS NOT NULL;
+
+-- B) RLS EN public.clubs PARA UPDATE SEGURO DE ADMINS Y CREADORES
+ALTER TABLE public.clubs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Actualizar club" ON public.clubs;
+DROP POLICY IF EXISTS "Admins pueden actualizar el club" ON public.clubs;
+DROP POLICY IF EXISTS clubs_update_admin_or_creator ON public.clubs;
+
+CREATE POLICY clubs_update_admin_or_creator ON public.clubs
+  FOR UPDATE TO authenticated
+  USING (public.es_admin_o_creador_club(id, auth.uid()))
+  WITH CHECK (public.es_admin_o_creador_club(id, auth.uid()));
+
+-- C) RPC obtener_clubs_usuario CON TODAS LAS COLUMNAS (portada_url, banner_url, etc.)
+DROP FUNCTION IF EXISTS public.obtener_clubs_usuario(uuid);
+
+CREATE OR REPLACE FUNCTION public.obtener_clubs_usuario(p_user_id uuid)
+RETURNS TABLE(
+  club_id uuid,
+  id uuid,
+  nombre text,
+  descripcion text,
+  logo_url text,
+  portada_url text,
+  banner_url text,
+  ubicacion text,
+  normas text,
+  creador_id uuid,
+  es_privado boolean,
+  nivel integer,
+  puntos bigint,
+  club_rol text,
+  fecha_union timestamptz,
+  created_at timestamptz
+)
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  SELECT 
+    c.id AS club_id,
+    c.id AS id,
+    c.nombre,
+    c.descripcion,
+    c.logo_url,
+    COALESCE(c.portada_url, c.banner_url) AS portada_url,
+    COALESCE(c.banner_url, c.portada_url) AS banner_url,
+    c.ubicacion,
+    c.normas,
+    c.creador_id,
+    COALESCE(c.es_privado, c.is_private, false) AS es_privado,
+    COALESCE(c.nivel, 1)::integer AS nivel,
+    COALESCE(c.puntos, 0)::bigint AS puntos,
+    COALESCE(cu.rol, CASE WHEN c.creador_id = p_user_id THEN 'creador' ELSE 'miembro' END) AS club_rol,
+    COALESCE(cu.joined_at, cu.created_at, c.created_at) AS fecha_union,
+    c.created_at
+  FROM public.clubs c
+  LEFT JOIN public.clubs_usuarios cu ON cu.club_id = c.id AND cu.user_id = p_user_id
+  WHERE cu.user_id = p_user_id OR c.creador_id = p_user_id
+  ORDER BY fecha_union DESC;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.obtener_clubs_usuario(uuid) TO authenticated, anon;
+
+-- D) STORAGE BUCKETS Y POLICIES EN storage.objects
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('paddlesafe', 'paddlesafe', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN 
+    SELECT policyname 
+    FROM pg_policies 
+    WHERE schemaname = 'storage' 
+      AND tablename = 'objects' 
+      AND (policyname LIKE '%paddlesafe%' OR policyname LIKE '%public read%' OR policyname LIKE '%authenticated%')
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON storage.objects', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY paddlesafe_storage_select ON storage.objects
+  FOR SELECT TO public
+  USING (bucket_id = 'paddlesafe');
+
+CREATE POLICY paddlesafe_storage_insert ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'paddlesafe');
+
+CREATE POLICY paddlesafe_storage_update ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'paddlesafe')
+  WITH CHECK (bucket_id = 'paddlesafe');
+
+CREATE POLICY paddlesafe_storage_delete ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'paddlesafe');
+
+-- E) RLS EN club_eventos Y club_eventos_asistentes SIN RECURSIÓN
+ALTER TABLE public.club_eventos ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'club_eventos' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.club_eventos', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY club_eventos_select ON public.club_eventos
+  FOR SELECT TO authenticated
+  USING (public.es_miembro_club(club_id, auth.uid()));
+
+CREATE POLICY club_eventos_insert ON public.club_eventos
+  FOR INSERT TO authenticated
+  WITH CHECK (creador_id = auth.uid() AND public.es_miembro_club(club_id, auth.uid()));
+
+CREATE POLICY club_eventos_delete ON public.club_eventos
+  FOR DELETE TO authenticated
+  USING (creador_id = auth.uid() OR public.es_admin_o_creador_club(club_id, auth.uid()));
+
+ALTER TABLE public.club_eventos_asistentes ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'club_eventos_asistentes' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.club_eventos_asistentes', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY club_eventos_asistentes_select ON public.club_eventos_asistentes
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.club_eventos ce
+      WHERE ce.id = club_eventos_asistentes.evento_id
+        AND public.es_miembro_club(ce.club_id, auth.uid())
+    )
+  );
+
+CREATE POLICY club_eventos_asistentes_insert ON public.club_eventos_asistentes
+  FOR INSERT TO authenticated
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY club_eventos_asistentes_delete ON public.club_eventos_asistentes
+  FOR DELETE TO authenticated
+  USING (user_id = auth.uid());
+
+-- F) RLS UPDATE Y DELETE EN public.rutas
+DROP POLICY IF EXISTS rutas_update_own ON public.rutas;
+CREATE POLICY rutas_update_own ON public.rutas
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS rutas_delete_own ON public.rutas;
+CREATE POLICY rutas_delete_own ON public.rutas
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
+
 -- Recargar caché de schema en PostgREST inmediatamente
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;
+
 

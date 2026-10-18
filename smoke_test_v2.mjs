@@ -124,7 +124,7 @@ const swContent = fs.readFileSync(swPath, 'utf8');
 const versionMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
 const expectedSwVersion = versionMatch ? versionMatch[1] : null;
 
-assert(expectedSwVersion === 'paddlesafe-v57', `sw.js version must be paddlesafe-v57, got: ${expectedSwVersion}`);
+assert(expectedSwVersion === 'paddlesafe-v58', `sw.js version must be paddlesafe-v58, got: ${expectedSwVersion}`);
 
 if (fs.existsSync(versionJsonPath)) {
     let vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
@@ -696,6 +696,25 @@ assert(clubIndexContent.includes('procesar_solicitud_club'), 'procesarSolicitud 
 assert(clubIndexContent.includes('cambiarTab'), 'procesarSolicitud must refresh dual UI in ClubPublic');
 assert(clubIndexContent.includes('rolNorm === \'creador\''), 'expulsarMiembro must protect club creator');
 assert(clubIndexContent.includes('.select()'), 'Miembro mutations must use .select() verification');
+
+// 4.7 Club Cover Persistence & RPC Audit
+assert(sqlContentRoot.includes('portada_url'), 'SQL must define or include portada_url');
+assert(sqlContentRoot.includes('clubs_update_admin_or_creator'), 'SQL must define clubs_update_admin_or_creator policy');
+assert(sqlContentRoot.includes('paddlesafe_storage_update'), 'SQL must define paddlesafe_storage_update policy');
+assert(sqlContentBackend.includes('portada_url'), 'Backend SQL must define or include portada_url');
+assert(sqlContentBackend.includes('clubs_update_admin_or_creator'), 'Backend SQL must define clubs_update_admin_or_creator policy');
+
+const clubPhotosPath = 'public_html/js/club/club.photos.js';
+assert(fs.existsSync(clubPhotosPath), `${clubPhotosPath} must exist`);
+const clubPhotosContent = fs.readFileSync(clubPhotosPath, 'utf8');
+assert(clubPhotosContent.includes('urlConCacheBuster'), 'club.photos.js must generate cache buster');
+assert(clubPhotosContent.includes('portada_url') && clubPhotosContent.includes('banner_url'), 'club.photos.js must update both portada_url and banner_url');
+assert(clubPhotosContent.includes('ClubState.myClubs'), 'club.photos.js must sync in-memory ClubState.myClubs');
+
+const clubApiPath = 'public_html/js/club/api.js';
+assert(fs.existsSync(clubApiPath), `${clubApiPath} must exist`);
+const clubApiContent = fs.readFileSync(clubApiPath, 'utf8');
+assert(clubApiContent.includes('.select()'), 'ClubAPI.updateField must use .select() verification');
 
 
 // ------------------------------------------------------------------------------

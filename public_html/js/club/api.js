@@ -9,7 +9,16 @@ export const ClubAPI = {
     },
     async updateField(clubId, payload) {
         // payload = { nombre: "Nuevo nombre" }
-        return await supabaseClient.from('clubs').update(payload).eq('id', clubId);
+        const { data, error } = await supabaseClient
+            .from('clubs')
+            .update(payload)
+            .eq('id', clubId)
+            .select();
+        if (error) throw error;
+        if (!data || data.length === 0) {
+            throw new Error("No tienes permisos suficientes de administración para modificar este club.");
+        }
+        return { data, error: null };
     },
     async uploadImage(path, file, mime) {
         const { error } = await supabaseClient.storage.from('paddlesafe').upload(path, file, { upsert: true, contentType: mime });
