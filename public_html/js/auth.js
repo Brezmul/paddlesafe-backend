@@ -29,12 +29,21 @@ export function initAuthListeners() {
             setTimeout(async () => {
                 if (session) {
                     await cargarPerfilUsuarioActivo();
+                    inicializarPresenciaRealtime(session.user);
                     if (event === 'SIGNED_IN') {
                         window.sincronizarRutasPendientes?.();
                         window.cargarSpotsGuardadosUsuario?.();
                     }
                 }
                 else { 
+                    if (presenceChannel) {
+                        try {
+                            presenceChannel.untrack();
+                            presenceChannel.unsubscribe();
+                        } catch (_) {}
+                        presenceChannel = null;
+                        currentPresenceUser = null;
+                    }
                     appState.perfilUsuario = null; 
                     actualizarBotonCabecera(); 
                     window.cargarSpotsGuardadosUsuario?.();
@@ -45,6 +54,118 @@ export function initAuthListeners() {
             }, 0);
         });
     }
+}
+
+// ====================================================
+// REALTIME PRESENCE ENGINE (Global Channel)
+// ====================================================
+let presenceChannel = null;
+let currentPresenceUser = null;
+let currentPresenceStatus = 'online';
+
+export function inicializarPresenciaRealtime(user) {
+    if (!user || !user.id || !supabaseClient || typeof supabaseClient.channel !== 'function') return;
+    
+    // Si ya está suscrito con el mismo usuario, solo actualizar estado
+    if (presenceChannel && currentPresenceUser?.id === user.id) {
+        actualizarMiEstadoPresencia('online');
+        return;
+    }
+
+    // Limpieza de canal previo si existiera
+    if (presenceChannel) {
+        try {
+            presenceChannel.untrack();
+            presenceChannel.unsubscribe();
+        } catch (_) {}
+        presenceChannel = null;
+    }
+
+    currentPresenceUser = user;
+    currentPresenceStatus = 'online';
+
+    try {
+        presenceChannel = supabaseClient.channel('presence:paddlesafe_global', {
+            config: {
+                presence: {
+                    key: user.id
+                }
+            }
+        });
+
+        presenceChannel.on('presence', { event: 'sync' }, () => {
+            try {
+                const state = presenceChannel.presenceState();
+                const flattened = {};
+                Object.values(state).forEach(presences => {
+                    if (Array.isArray(presences)) {
+                        presences.forEach(p => {
+                            if (p && p.user_id) {
+                                flattened[p.user_id] = {
+                                    status: p.status || 'online',
+                                    updatedAt: p.updated_at || new Date().toISOString()
+                                };
+                            }
+                        });
+                    }
+                });
+                appState.onlineUsers = flattened;
+                if (typeof window !== 'undefined' && typeof window.actualizarUIPresencia === 'function') {
+                    window.actualizarUIPresencia();
+                }
+            } catch (syncErr) {
+                console.warn('[presence] sync error:', syncErr);
+            }
+        });
+
+        presenceChannel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                try {
+                    await presenceChannel.track({
+                        user_id: user.id,
+                        status: currentPresenceStatus || 'online',
+                        updated_at: new Date().toISOString()
+                    });
+                } catch (trErr) {
+                    // Degradar silenciosamente si se excede la cuota de sockets
+                    console.warn('[presence] track error:', trErr);
+                }
+            }
+        });
+    } catch (chanErr) {
+        console.warn('[presence] channel initialization error:', chanErr);
+    }
+}
+
+export async function actualizarMiEstadoPresencia(status = 'online') {
+    if (!presenceChannel || !currentPresenceUser) return;
+    currentPresenceStatus = status;
+    try {
+        await presenceChannel.track({
+            user_id: currentPresenceUser.id,
+            status: status,
+            updated_at: new Date().toISOString()
+        });
+    } catch (e) {
+        console.warn('[presence] actualizarMiEstadoPresencia error:', e);
+    }
+}
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+        if (!presenceChannel || !currentPresenceUser) return;
+        if (document.visibilityState === 'hidden') {
+            if (window.isTracking !== true) {
+                actualizarMiEstadoPresencia('away');
+            }
+        } else if (document.visibilityState === 'visible') {
+            if (window.isTracking === true) {
+                actualizarMiEstadoPresencia('in_water');
+            } else {
+                actualizarMiEstadoPresencia('online');
+            }
+        }
+    });
 }
 
 export async function cargarPerfilUsuarioActivo() {
@@ -525,6 +646,15 @@ export async function procesarAuth() {
 }
 
 export async function cerrarSesion() {
+    if (presenceChannel) {
+        try {
+            await presenceChannel.untrack();
+            await presenceChannel.unsubscribe();
+        } catch (_) {}
+        presenceChannel = null;
+        currentPresenceUser = null;
+    }
+
     if (appState.esInvitado) { 
         appState.esInvitado = false; 
         appState.perfilUsuario = null; 
@@ -1557,3 +1687,5 @@ window.renderizarWidgetMetaMensual = renderizarWidgetMetaMensual;
 window.renderizarGraficoVolumen8Semanas = renderizarGraficoVolumen8Semanas;
 window.renderizarVitrinaLogrosMerito = renderizarVitrinaLogrosMerito;
 window.cambiarMetaMensual = cambiarMetaMensual;
+window.inicializarPresenciaRealtime = inicializarPresenciaRealtime;
+window.actualizarMiEstadoPresencia = actualizarMiEstadoPresencia;

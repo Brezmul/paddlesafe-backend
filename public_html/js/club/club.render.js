@@ -333,7 +333,10 @@ export const ClubRender = {
                 return `
                     <div class="flex items-center justify-between p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm gap-3 hover:shadow-md transition-shadow">
                         <div class="flex items-center gap-3 min-w-0">
-                            <img src="${esc(avatar)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover bg-slate-100 shrink-0 border border-slate-100 dark:border-slate-700">
+                            <div class="relative shrink-0">
+                                <img src="${esc(avatar)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover bg-slate-100 border border-slate-100 dark:border-slate-700">
+                                <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 transition-colors duration-300" data-user-presence-id="${esc(p.id)}"></div>
+                            </div>
                             <div class="min-w-0">
                                 <h4 class="font-bold text-sm text-marine dark:text-white truncate">${esc(p.nombre || 'Paddler Anónimo')} ${vipTag}</h4>
                                 <p class="text-[10px] text-slate-400 font-bold truncate">Nivel ${p.nivel || 1} • ${p.puntos || 0} pts • ${Number(p.km_totales || 0).toFixed(1)} km</p>
@@ -342,6 +345,9 @@ export const ClubRender = {
                         <button type="button" onclick="if(window.navigateSPA) window.navigateSPA('/user/${esc(p.id)}'); else if(window.abrirPerfilPublicoSPA) window.abrirPerfilPublicoSPA('${esc(p.id)}'); if(window.Club) window.Club.cerrarModal();" class="px-3.5 py-1.5 bg-water hover:bg-sky-600 text-white rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform shrink-0 cursor-pointer">Ver Perfil</button>
                     </div>`;
             }).join('');
+            if (typeof window !== 'undefined' && typeof window.actualizarUIPresencia === 'function') {
+                window.actualizarUIPresencia();
+            }
         } catch (e) {
             console.error('[paddlers] error cargarListaPaddlers:', e);
             lista.innerHTML = `<div class="text-center py-6 text-red-500 text-xs font-bold">Error de conexión al buscar paddlers.</div>`;

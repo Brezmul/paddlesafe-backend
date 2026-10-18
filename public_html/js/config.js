@@ -33,7 +33,8 @@ const state = {
     perfilUsuario: null,
     esInvitado: false,
     invitadoId: 'guest_' + Math.floor(Math.random() * 100000),
-    spaCurrentUser: null
+    spaCurrentUser: null,
+    onlineUsers: {}
 };
 
 export const appState = new Proxy(state, {
@@ -43,6 +44,10 @@ export const appState = new Proxy(state, {
         return true;
     }
 });
+
+if (typeof window !== 'undefined') {
+    window.appState = appState;
+}
 
 export const mapState = {
     map: null,

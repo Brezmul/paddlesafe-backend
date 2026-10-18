@@ -795,7 +795,10 @@ export async function cargarTabAmigosSPA() {
         if (!amigo) return '';
         return `
             <div role="button" tabindex="0" onclick="if(window.navigateSPA) window.navigateSPA('/user/${amigo.id}')" class="bg-white dark:bg-slate-800 p-4 border border-slate-200 dark:border-slate-700 rounded-[20px] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-water dark:hover:border-sky-500 cursor-pointer transition-all duration-300 flex items-center gap-4 group">
-                <div class="relative"><img src="${esc(safeUrl(amigo.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-14 h-14 rounded-full object-cover border-4 border-slate-50 dark:border-slate-700 shadow-md group-hover:border-water dark:group-hover:border-sky-500 transition-colors duration-300"></div>
+                <div class="relative shrink-0">
+                    <img src="${esc(safeUrl(amigo.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-14 h-14 rounded-full object-cover border-4 border-slate-50 dark:border-slate-700 shadow-md group-hover:border-water dark:group-hover:border-sky-500 transition-colors duration-300">
+                    <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 transition-colors duration-300" data-user-presence-id="${esc(amigo.id)}"></div>
+                </div>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-black text-marine dark:text-white truncate group-hover:text-water dark:group-hover:text-sky-400 transition-colors">${esc(amigo.nombre)}</p>
                     <div class="flex items-center gap-1.5 mt-0.5"><span class="w-1.5 h-1.5 rounded-full bg-water dark:bg-sky-400"></span><p class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest truncate">Paddler</p></div>
@@ -804,6 +807,7 @@ export async function cargarTabAmigosSPA() {
             </div>`;
     }).join('');
     content.innerHTML = html + '</div>';
+    window.actualizarUIPresencia?.();
 }
 
 export function abrirPanelMisAmigos() {
@@ -843,7 +847,10 @@ export async function cambiarTabAmistades(tab) {
             if(!amigo) return '';
             return `
                 <div role="button" tabindex="0" onclick="cerrarPanelMisAmigos(); setTimeout(()=>{ if(window.navigateSPA) window.navigateSPA('/user/${amigo.id}') }, 350);" class="bg-white dark:bg-slate-800 p-4 border border-slate-200 dark:border-slate-700 rounded-[20px] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-water dark:hover:border-sky-500 cursor-pointer transition-all duration-300 flex items-center gap-4 group">
-                    <div class="relative"><img src="${esc(safeUrl(amigo.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-14 h-14 rounded-full object-cover border-4 border-slate-50 dark:border-slate-700 shadow-md group-hover:border-water dark:group-hover:border-sky-500 transition-colors duration-300"></div>
+                    <div class="relative shrink-0">
+                        <img src="${esc(safeUrl(amigo.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-14 h-14 rounded-full object-cover border-4 border-slate-50 dark:border-slate-700 shadow-md group-hover:border-water dark:group-hover:border-sky-500 transition-colors duration-300">
+                        <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 transition-colors duration-300" data-user-presence-id="${esc(amigo.id)}"></div>
+                    </div>
                     <div class="flex-1 min-w-0">
                         <p class="text-sm font-black text-marine dark:text-white truncate group-hover:text-water dark:group-hover:text-sky-400 transition-colors">${esc(amigo.nombre)}</p>
                         <div class="flex items-center gap-1.5 mt-0.5"><span class="w-1.5 h-1.5 rounded-full bg-water dark:bg-sky-400"></span><p class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest truncate">Paddler</p></div>
@@ -852,6 +859,7 @@ export async function cambiarTabAmistades(tab) {
                 </div>`;
         }).join('');
         c.innerHTML = html + '</div>';
+        window.actualizarUIPresencia?.();
     } else {
         btnSol.className = "h-10 px-2 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-lg shadow flex-1 cursor-pointer transition-colors relative";
         btnLista.className = "h-10 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors";

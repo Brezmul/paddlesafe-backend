@@ -197,6 +197,9 @@ async function inicializarAplicacion() {
                 appState.sesionActual = session;
                 appState.esInvitado = false;
                 await Auth.cargarPerfilUsuarioActivo();
+                if (typeof Auth.inicializarPresenciaRealtime === 'function') {
+                    Auth.inicializarPresenciaRealtime(session.user);
+                }
                 Social.inicializarBotonesSociales();
 
                 // Sincronización offline de rutas al detectar sesión iniciada

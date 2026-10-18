@@ -4568,6 +4568,8 @@ export async function iniciarTravesia() {
     if(watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
     
     isTracking = true; 
+    window.isTracking = true;
+    window.actualizarMiEstadoPresencia?.('in_water');
     trackDistanceKm = 0; 
     trackCoords = []; 
     ultimoPuntoCrudoGPS = null; 
@@ -4755,6 +4757,8 @@ export async function finalizarTravesia() {
     if (!isTracking || isSavingRoute) return;
     isSavingRoute = true;
     isTracking = false; 
+    window.isTracking = false;
+    window.actualizarMiEstadoPresencia?.('online');
     await liberarWakeLock();
     if(cronometroInterval) { clearInterval(cronometroInterval); cronometroInterval = null; }
     if(watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
@@ -5148,6 +5152,8 @@ export async function sincronizarRutasPendientes() {
 export function restaurarTracker() {
     isSavingRoute = false;
     isTracking = false;
+    window.isTracking = false;
+    window.actualizarMiEstadoPresencia?.('online');
     modoSolTrackerActivo = false;
     liberarWakeLock().catch(() => {});
     const pnl = document.getElementById('liveTrackingPanel');

@@ -9,3 +9,4 @@ scratch/
 hostinger_public_html_ready.zip
 paddlesafe-backend-main/
 Paddlesafe_frontend/
+.env*

@@ -124,7 +124,7 @@ const swContent = fs.readFileSync(swPath, 'utf8');
 const versionMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
 const expectedSwVersion = versionMatch ? versionMatch[1] : null;
 
-assert(expectedSwVersion === 'paddlesafe-v52', `sw.js version must be paddlesafe-v52, got: ${expectedSwVersion}`);
+assert(expectedSwVersion === 'paddlesafe-v57', `sw.js version must be paddlesafe-v57, got: ${expectedSwVersion}`);
 
 if (fs.existsSync(versionJsonPath)) {
     let vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
@@ -537,6 +537,89 @@ const m3Entry = resRitmo.participantes.find(p => p.userId === 'm3');
 assert(m2Entry?.valor === 0, 'Short sprint route (<3km) must be filtered out for mejor_ritmo');
 assert(m3Entry?.valor === 0, 'High-speed route (>16km/h) must be filtered out by anti-cheat');
 
+// 3.10 Realtime Presence Engine & Badges Audit
+console.log('--- [TASK 3.10] Realtime Presence Engine & Badges Audit ---');
+const configMod = await import(pathToFileURL(path.resolve('public_html/js/config.js')).href);
+assert(configMod.appState && typeof configMod.appState.onlineUsers === 'object', 'appState.onlineUsers must be defined as an object in config.js');
+
+const authJsContent = fs.readFileSync('public_html/js/auth.js', 'utf8');
+assert(authJsContent.includes('inicializarPresenciaRealtime'), 'auth.js must export inicializarPresenciaRealtime');
+assert(authJsContent.includes('actualizarMiEstadoPresencia'), 'auth.js must export actualizarMiEstadoPresencia');
+assert(authJsContent.includes('presence:paddlesafe_global'), 'auth.js must use global presence channel presence:paddlesafe_global');
+assert(authJsContent.includes('window.inicializarPresenciaRealtime = inicializarPresenciaRealtime'), 'auth.js must bind window.inicializarPresenciaRealtime');
+assert(authJsContent.includes('window.actualizarMiEstadoPresencia = actualizarMiEstadoPresencia'), 'auth.js must bind window.actualizarMiEstadoPresencia');
+
+const mapJsContent = fs.readFileSync('public_html/js/map.js', 'utf8');
+assert(mapJsContent.includes("actualizarMiEstadoPresencia?.('in_water')"), 'map.js must update presence to in_water on iniciarTravesia');
+assert(mapJsContent.includes("actualizarMiEstadoPresencia?.('online')"), 'map.js must restore presence to online on finalizarTravesia');
+
+// Presence badge markup in community views
+const socialJsContent = fs.readFileSync('public_html/js/social.js', 'utf8');
+const clubRenderContent = fs.readFileSync('public_html/js/club/club.render.js', 'utf8');
+const clubPublicContent = fs.readFileSync('public_html/js/club/club.public.js', 'utf8');
+const clubIndexContentForPresence = fs.readFileSync('public_html/js/club/index.js', 'utf8');
+
+assert(socialJsContent.includes('data-user-presence-id'), 'social.js must include data-user-presence-id badges in friends list');
+assert(clubRenderContent.includes('data-user-presence-id'), 'club.render.js must include data-user-presence-id badges in paddlers list');
+assert(clubPublicContent.includes('data-user-presence-id'), 'club.public.js must include data-user-presence-id badges in member list');
+assert(clubIndexContentForPresence.includes('data-user-presence-id'), 'club/index.js must include data-user-presence-id badges in crew list');
+
+// Test UI presence update logic
+const { actualizarUIPresencia } = utilsMod;
+assert(typeof actualizarUIPresencia === 'function', 'utils.js must export actualizarUIPresencia');
+
+const mockBadges = [
+    {
+        attrs: { 'data-user-presence-id': 'u_online' },
+        getAttribute: function(k) { return this.attrs[k]; },
+        setAttribute: function(k, v) { this.attrs[k] = v; },
+        className: '',
+        innerHTML: ''
+    },
+    {
+        attrs: { 'data-user-presence-id': 'u_water' },
+        getAttribute: function(k) { return this.attrs[k]; },
+        setAttribute: function(k, v) { this.attrs[k] = v; },
+        className: '',
+        innerHTML: ''
+    },
+    {
+        attrs: { 'data-user-presence-id': 'u_away' },
+        getAttribute: function(k) { return this.attrs[k]; },
+        setAttribute: function(k, v) { this.attrs[k] = v; },
+        className: '',
+        innerHTML: ''
+    },
+    {
+        attrs: { 'data-user-presence-id': 'u_offline' },
+        getAttribute: function(k) { return this.attrs[k]; },
+        setAttribute: function(k, v) { this.attrs[k] = v; },
+        className: '',
+        innerHTML: ''
+    }
+];
+
+const origQSA = globalThis.document.querySelectorAll;
+globalThis.document.querySelectorAll = (sel) => {
+    if (sel === '[data-user-presence-id]') return mockBadges;
+    return [];
+};
+globalThis.window.appState = {
+    onlineUsers: {
+        'u_online': { status: 'online' },
+        'u_water': { status: 'in_water' },
+        'u_away': { status: 'away' }
+    }
+};
+
+actualizarUIPresencia();
+globalThis.document.querySelectorAll = origQSA;
+
+assert(mockBadges[0].className.includes('bg-emerald-500'), 'Online badge must have bg-emerald-500');
+assert(mockBadges[1].className.includes('bg-sky-500') && mockBadges[1].innerHTML === '🌊', 'In water badge must have bg-sky-500 and wave emoji');
+assert(mockBadges[2].className.includes('bg-amber-400'), 'Away badge must have bg-amber-400');
+assert(mockBadges[3].className.includes('bg-slate-500/70'), 'Offline badge must have bg-slate-500/70');
+
 // ------------------------------------------------------------------------------
 // TASK 4: BACKEND & SQL AUDIT
 // ------------------------------------------------------------------------------
@@ -581,17 +664,39 @@ const topBeginRoot = (sqlContentRoot.match(/^\s*BEGIN\s*;/gm) || []).length;
 const topCommitRoot = (sqlContentRoot.match(/^\s*COMMIT\s*;/gm) || []).length;
 assert(topBeginRoot === 1 && topCommitRoot === 1, 'patch_MASTER_v2_rollout.sql in root must contain balanced BEGIN; and COMMIT;');
 
-assert(sqlContentRoot.includes('trg_actualizar_gamificacion_desde_rutas'), 'SQL must define trg_actualizar_gamificacion_desde_rutas');
-assert(sqlContentRoot.includes('user_spots'), 'SQL must define public.user_spots');
-assert(sqlContentRoot.includes('spot_reports'), 'SQL must define public.spot_reports');
-assert(sqlContentRoot.includes('club_retos'), 'SQL must define public.club_retos');
-assert(sqlContentRoot.includes('club_retos_participantes'), 'SQL must define public.club_retos_participantes');
+assert(sqlContentRoot.includes('es_admin_o_creador_club'), 'SQL must define es_admin_o_creador_club');
+assert(sqlContentRoot.includes('idx_clubs_usuarios_unique_pair'), 'SQL must define idx_clubs_usuarios_unique_pair');
+assert(sqlContentRoot.includes('idx_clubs_solicitudes_pendiente'), 'SQL must define idx_clubs_solicitudes_pendiente');
+assert(sqlContentRoot.includes('obtener_solicitudes_club'), 'SQL must define obtener_solicitudes_club');
+assert(sqlContentRoot.includes('procesar_solicitud_club'), 'SQL must define procesar_solicitud_club');
 
-assert(sqlContentBackend.includes('trg_actualizar_gamificacion_desde_rutas'), 'Backend SQL must define trg_actualizar_gamificacion_desde_rutas');
-assert(sqlContentBackend.includes('user_spots'), 'Backend SQL must define public.user_spots');
-assert(sqlContentBackend.includes('spot_reports'), 'Backend SQL must define public.spot_reports');
-assert(sqlContentBackend.includes('club_retos'), 'Backend SQL must define public.club_retos');
-assert(sqlContentBackend.includes('club_retos_participantes'), 'Backend SQL must define public.club_retos_participantes');
+assert(sqlContentBackend.includes('es_admin_o_creador_club'), 'Backend SQL must define es_admin_o_creador_club');
+assert(sqlContentBackend.includes('idx_clubs_usuarios_unique_pair'), 'Backend SQL must define idx_clubs_usuarios_unique_pair');
+assert(sqlContentBackend.includes('idx_clubs_solicitudes_pendiente'), 'Backend SQL must define idx_clubs_solicitudes_pendiente');
+assert(sqlContentBackend.includes('obtener_solicitudes_club'), 'Backend SQL must define obtener_solicitudes_club');
+assert(sqlContentBackend.includes('procesar_solicitud_club'), 'Backend SQL must define procesar_solicitud_club');
+
+// 4.5 Standalone Patch #07 Check
+const patch07Path = 'patch_07_definitive_clubs_and_db_fix.sql';
+assert(fs.existsSync(patch07Path), `${patch07Path} must exist at root`);
+const patch07Content = fs.readFileSync(patch07Path, 'utf8');
+assert(patch07Content.includes('BEGIN;') && patch07Content.includes('COMMIT;'), 'patch_07 must have balanced transaction');
+assert(patch07Content.includes('fn_auto_registrar_creador_club'), 'patch_07 must define fn_auto_registrar_creador_club');
+assert(patch07Content.includes('es_admin_o_creador_club'), 'patch_07 must define es_admin_o_creador_club');
+
+// 4.6 Club Frontend JS Resilience Audit
+const clubIndexPath = 'public_html/js/club/index.js';
+assert(fs.existsSync(clubIndexPath), `${clubIndexPath} must exist`);
+const clubIndexContent = fs.readFileSync(clubIndexPath, 'utf8');
+
+assert(clubIndexContent.includes('23505'), 'solicitarUnirseClub must handle code 23505 gracefully');
+assert(clubIndexContent.includes('cpvJoinBtn'), 'solicitarUnirseClub must reactively update #cpvJoinBtn');
+assert(clubIndexContent.includes('data-solicitud-id'), 'Club cards must include data-solicitud-id');
+assert(clubIndexContent.includes('procesar_solicitud_club'), 'procesarSolicitud must invoke RPC procesar_solicitud_club');
+assert(clubIndexContent.includes('cambiarTab'), 'procesarSolicitud must refresh dual UI in ClubPublic');
+assert(clubIndexContent.includes('rolNorm === \'creador\''), 'expulsarMiembro must protect club creator');
+assert(clubIndexContent.includes('.select()'), 'Miembro mutations must use .select() verification');
+
 
 // ------------------------------------------------------------------------------
 // FINAL RESULT SUMMARY

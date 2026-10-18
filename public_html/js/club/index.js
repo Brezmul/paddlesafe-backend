@@ -90,24 +90,83 @@ const ClubFacade = {
             if (window.abrirModalAuth) window.abrirModalAuth();
             return;
         }
+
+        const helperActualizarBotonPublico = (texto, estilo, disabled = true) => {
+            const joinBtn = document.getElementById('cpvJoinBtn');
+            if (joinBtn) {
+                joinBtn.textContent = texto;
+                joinBtn.className = estilo;
+                joinBtn.disabled = disabled;
+                if (disabled) joinBtn.onclick = null;
+            }
+        };
+
         try {
             const userId = appState.sesionActual.user.id;
+
+            // 1. Comprobación previa: ¿ya es miembro en el estado local o en la BD?
+            const esMiembroLocal = ClubState.myClubs?.some(c => c.club_id === clubId);
+            if (esMiembroLocal) {
+                alert("Ya eres miembro de este club.");
+                helperActualizarBotonPublico('✅ Ya eres Miembro', "w-full h-11 bg-emerald-600 text-white font-bold rounded-xl shadow-md uppercase tracking-widest text-[11px] cursor-default flex items-center justify-center");
+                return;
+            }
+
+            const { data: cu } = await supabaseClient
+                .from('clubs_usuarios')
+                .select('rol')
+                .eq('club_id', clubId)
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            if (cu) {
+                alert("Ya eres miembro de este club.");
+                helperActualizarBotonPublico('✅ Ya eres Miembro', "w-full h-11 bg-emerald-600 text-white font-bold rounded-xl shadow-md uppercase tracking-widest text-[11px] cursor-default flex items-center justify-center");
+                return;
+            }
+
+            // 2. Comprobación previa: ¿ya tiene una solicitud pendiente?
+            const { data: solExistente } = await supabaseClient
+                .from('clubs_solicitudes')
+                .select('id')
+                .eq('club_id', clubId)
+                .eq('user_id', userId)
+                .eq('estado', 'pendiente')
+                .maybeSingle();
+
+            if (solExistente) {
+                alert("⏳ Ya tienes una solicitud pendiente en este club.");
+                helperActualizarBotonPublico('⏳ Solicitud Pendiente', "w-full h-11 bg-amber-500 text-white font-bold rounded-xl shadow-md uppercase tracking-widest text-[11px] cursor-default flex items-center justify-center");
+                return;
+            }
+
+            // 3. Enviar solicitud
             const { error } = await supabaseClient.from('clubs_solicitudes').insert([{
                 club_id: clubId,
                 user_id: userId,
                 estado: 'pendiente'
             }]);
+
             if (error) {
-                if (error.code === '23505') {
-                    alert("Ya tienes una solicitud pendiente para este club.");
+                if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
+                    alert("⏳ Ya tienes una solicitud pendiente en este club.");
+                    helperActualizarBotonPublico('⏳ Solicitud Pendiente', "w-full h-11 bg-amber-500 text-white font-bold rounded-xl shadow-md uppercase tracking-widest text-[11px] cursor-default flex items-center justify-center");
                 } else {
                     throw error;
                 }
             } else {
                 alert("Solicitud enviada al club correctamente.");
+                helperActualizarBotonPublico('⏳ Solicitud Pendiente', "w-full h-11 bg-amber-500 text-white font-bold rounded-xl shadow-md uppercase tracking-widest text-[11px] cursor-default flex items-center justify-center");
             }
+
+            // Actualizar lista en buscador de clubes
             const input = document.getElementById('buscadorClubs');
             await ClubRender.cargarListaClubs(input ? input.value : '');
+
+            // Actualizar estado en vista de club público si coincide
+            if (window.ClubPublic && ClubState.publicId === clubId && ClubState.currentClubData) {
+                ClubState.currentClubData.tieneSolicitud = true;
+            }
         } catch (err) {
             console.error('[club] solicitarUnirseClub error:', err);
             alert("Error al solicitar unirse al club: " + (err.message || err));
@@ -214,7 +273,7 @@ const ClubFacade = {
                             const sNombre = s.nombre || s.user_nombre || s.email || 'Paddler';
                             const sAvatar = safeUrl(s.avatar_url, IMG_FALLBACK);
                             return `
-                                <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <div data-solicitud-id="${esc(sId)}" class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
                                     <div class="flex items-center gap-3 min-w-0">
                                         <img src="${esc(sAvatar)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-10 h-10 rounded-full object-cover bg-white">
                                         <div class="min-w-0">
@@ -284,7 +343,7 @@ const ClubFacade = {
                                     botones.push(`<button onclick="window.Club.degradarMiembro('${esc(mUserId)}')" class="px-2.5 py-1 bg-slate-500 hover:bg-slate-600 text-white rounded-md text-[10px] font-bold active:scale-95 transition-transform" title="Degradar a Miembro">⬇️ Degradar</button>`);
                                 }
                                 if (soyCreador || (soyAdmin && mRol === 'miembro')) {
-                                    botones.push(`<button onclick="window.Club.expulsarMiembro('${esc(mUserId)}')" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-[10px] font-bold active:scale-95 transition-transform" title="Expulsar del club">🚫 Expulsar</button>`);
+                                    botones.push(`<button onclick="window.Club.expulsarMiembro('${esc(mUserId)}', '${esc(mRol)}')" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-[10px] font-bold active:scale-95 transition-transform" title="Expulsar del club">🚫 Expulsar</button>`);
                                 }
                                 if (botones.length) {
                                     accionesHTML = `<div class="flex items-center gap-1.5 flex-wrap justify-end">${botones.join('')}</div>`;
@@ -294,7 +353,10 @@ const ClubFacade = {
                             return `
                                 <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 gap-3">
                                     <div class="flex items-center gap-3 min-w-0">
-                                        <img src="${esc(mAvatar)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-10 h-10 rounded-full object-cover bg-white shrink-0">
+                                        <div class="relative shrink-0">
+                                            <img src="${esc(mAvatar)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-10 h-10 rounded-full object-cover bg-white shrink-0">
+                                            <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 transition-colors duration-300" data-user-presence-id="${esc(mUserId)}"></div>
+                                        </div>
                                         <div class="min-w-0">
                                             <p class="font-bold text-sm text-slate-800 dark:text-white truncate">${esc(mNombre)}</p>
                                             <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold ${badgeColor}">${badgeTexto}</span>
@@ -304,6 +366,7 @@ const ClubFacade = {
                                 </div>`;
                         }).join('')}
                     </div>`;
+                window.actualizarUIPresencia?.();
             } catch (e) {
                 console.error('[club] tripulacion error:', e);
                 contenedor.innerHTML = `<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar tripulación.</p>`;
@@ -315,14 +378,23 @@ const ClubFacade = {
     async ascenderMiembro(userId) {
         if (!confirm("¿Deseas ascender a este usuario a Administrador?")) return;
         try {
-            const { error } = await supabaseClient
+            const { data, error } = await supabaseClient
                 .from('clubs_usuarios')
                 .update({ rol: 'admin' })
                 .eq('club_id', ClubState.activeId)
-                .eq('user_id', userId);
+                .eq('user_id', userId)
+                .select();
             if (error) throw error;
+            if (!data || data.length === 0) {
+                throw new Error("No se pudo actualizar el rol. Comprueba tus permisos de administrador.");
+            }
+            alert("Miembro ascendido a Administrador correctamente.");
             await this.cambiarVistaInterna('tripulacion');
+            if (window.ClubPublic && ClubState.publicId === ClubState.activeId && typeof window.ClubPublic.cambiarTab === 'function') {
+                await window.ClubPublic.cambiarTab('miembros');
+            }
         } catch (err) {
+            console.error('[club] ascenderMiembro error:', err);
             alert("Error al ascender miembro: " + (err.message || err));
         }
     },
@@ -330,35 +402,68 @@ const ClubFacade = {
     async degradarMiembro(userId) {
         if (!confirm("¿Deseas degradar a este administrador a Miembro?")) return;
         try {
-            const { error } = await supabaseClient
+            const { data, error } = await supabaseClient
                 .from('clubs_usuarios')
                 .update({ rol: 'miembro' })
                 .eq('club_id', ClubState.activeId)
-                .eq('user_id', userId);
+                .eq('user_id', userId)
+                .select();
             if (error) throw error;
+            if (!data || data.length === 0) {
+                throw new Error("No se pudo actualizar el rol. Comprueba tus permisos de administrador.");
+            }
+            alert("Administrador degradado a Miembro correctamente.");
             await this.cambiarVistaInterna('tripulacion');
+            if (window.ClubPublic && ClubState.publicId === ClubState.activeId && typeof window.ClubPublic.cambiarTab === 'function') {
+                await window.ClubPublic.cambiarTab('miembros');
+            }
         } catch (err) {
+            console.error('[club] degradarMiembro error:', err);
             alert("Error al degradar miembro: " + (err.message || err));
         }
     },
 
-    async expulsarMiembro(userId) {
+    async expulsarMiembro(userId, userRol) {
+        const rolNorm = (userRol || '').toLowerCase();
+        if (rolNorm === 'creador') {
+            alert("No es posible expulsar al creador del club.");
+            return;
+        }
         if (!confirm("¿Estás seguro de que deseas expulsar a este miembro del club?")) return;
         try {
-            const { error } = await supabaseClient
+            const { data, error } = await supabaseClient
                 .from('clubs_usuarios')
                 .delete()
                 .eq('club_id', ClubState.activeId)
-                .eq('user_id', userId);
+                .eq('user_id', userId)
+                .select();
             if (error) throw error;
+            if (!data || data.length === 0) {
+                throw new Error("No se pudo expulsar al miembro. Comprueba tus permisos.");
+            }
+            alert("Miembro expulsado del club correctamente.");
             await this.cambiarVistaInterna('tripulacion');
+            if (window.ClubPublic && ClubState.publicId === ClubState.activeId && typeof window.ClubPublic.cambiarTab === 'function') {
+                await window.ClubPublic.cambiarTab('miembros');
+            }
         } catch (err) {
+            console.error('[club] expulsarMiembro error:', err);
             alert("Error al expulsar miembro: " + (err.message || err));
         }
     },
 
     async procesarSolicitud(solicitudId, aprobar, userId) {
         try {
+            // Eliminar o desvanecer inmediatamente la tarjeta en el DOM para feedback instantáneo
+            const cardInDom = document.querySelector(`[data-solicitud-id="${solicitudId}"]`) 
+                || document.querySelector(`button[onclick*="'${solicitudId}'"]`)?.closest('.flex.items-center.justify-between');
+            if (cardInDom) {
+                cardInDom.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+                cardInDom.style.opacity = '0';
+                cardInDom.style.transform = 'scale(0.95)';
+                setTimeout(() => cardInDom.remove(), 250);
+            }
+
             // Firma canónica exacta según RPC public.procesar_solicitud_club(p_solicitud, p_accion)
             const { error } = await supabaseClient.rpc('procesar_solicitud_club', {
                 p_solicitud: solicitudId,
@@ -367,7 +472,20 @@ const ClubFacade = {
 
             if (error) throw error;
             alert(aprobar ? "Solicitud aceptada correctamente." : "Solicitud rechazada.");
-            await this.cambiarVistaInterna('gestion');
+
+            // 1. Refrescar vista interna de gestión si está en #clubsModal
+            const vistaContent = document.getElementById('vistaClubContent');
+            if (vistaContent && ClubState.activeId) {
+                await this.cambiarVistaInterna('gestion');
+            }
+
+            // 2. Si #clubProfileViewModal está abierto, refrescar tab 'solicitudes' y 'miembros'
+            const publicModal = document.getElementById('clubProfileViewModal') || document.getElementById('clubPublicViewModal');
+            if (publicModal && !publicModal.classList.contains('hidden') && window.ClubPublic) {
+                if (typeof window.ClubPublic.cambiarTab === 'function') {
+                    await window.ClubPublic.cambiarTab('solicitudes');
+                }
+            }
         } catch (err) {
             console.error('[club] procesarSolicitud error:', err);
             alert("Error al procesar solicitud: " + (err.message || err));
@@ -521,6 +639,52 @@ window.cerrarClubProfileView = () => ClubFacade.cerrarClubProfileView();
 window.cambiarTabClub = (tab) => ClubFacade.cambiarTabClub(tab);
 
 // Panel de administración de solicitudes de club
+window.abrirPanelSolicitudes = async (clubId) => {
+    const cId = clubId || ClubState.activeId;
+    const m = document.getElementById('clubAdminRequestsModal');
+    if (!m) return;
+    m.classList.remove('hidden');
+    setTimeout(() => {
+        m.classList.remove('opacity-0');
+        const box = m.querySelector('div');
+        if (box) box.classList.remove('scale-95');
+    }, 10);
+
+    const cont = document.getElementById('adminRequestsContainer');
+    if (cont && cId) {
+        cont.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando solicitudes...</p>';
+        try {
+            const { data: solicitudes, error } = await supabaseClient.rpc('obtener_solicitudes_club', { p_club_id: cId });
+            if (error || !solicitudes || solicitudes.length === 0) {
+                cont.innerHTML = '<div class="text-center py-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700"><p class="text-slate-400 text-xs font-bold">No hay solicitudes pendientes.</p></div>';
+            } else {
+                cont.innerHTML = solicitudes.map(s => {
+                    const sId = s.id || s.solicitud_id || s.user_id;
+                    const uId = s.user_id || s.id;
+                    const sNom = s.nombre || 'Paddler';
+                    const sAva = safeUrl(s.avatar_url, IMG_FALLBACK);
+                    return `
+                        <div data-solicitud-id="${esc(sId)}" class="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <img src="${esc(sAva)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-10 h-10 rounded-full object-cover shrink-0">
+                                <div class="min-w-0">
+                                    <p class="font-bold text-sm text-marine dark:text-white truncate">${esc(sNom)}</p>
+                                    <p class="text-[10px] text-slate-400">Solicitud pendiente</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 shrink-0">
+                                <button onclick="window.Club.procesarSolicitud('${esc(sId)}', true, '${esc(uId)}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold active:scale-95 cursor-pointer">Aceptar</button>
+                                <button onclick="window.Club.procesarSolicitud('${esc(sId)}', false, '${esc(uId)}')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold active:scale-95 cursor-pointer">Rechazar</button>
+                            </div>
+                        </div>`;
+                }).join('');
+            }
+        } catch (e) {
+            cont.innerHTML = '<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar solicitudes.</p>';
+        }
+    }
+};
+
 window.cerrarPanelSolicitudes = () => {
     const m = document.getElementById('clubAdminRequestsModal');
     if (m) {

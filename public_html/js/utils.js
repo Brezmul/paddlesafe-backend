@@ -456,6 +456,39 @@ export function calcularSolYCrepusculo(lat, lon, fechaStr) {
     return result;
 }
 
+export function actualizarUIPresencia() {
+    if (typeof document === 'undefined') return;
+    const elements = document.querySelectorAll('[data-user-presence-id]');
+    const onlineMap = (typeof window !== 'undefined' && window.appState?.onlineUsers) || {};
+    
+    elements.forEach(el => {
+        const uid = el.getAttribute('data-user-presence-id');
+        if (!uid) return;
+        const presence = onlineMap[uid];
+        const status = presence ? presence.status : null;
+
+        // Reset base classes
+        el.className = "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 transition-colors duration-300 z-10";
+        el.innerHTML = '';
+
+        if (status === 'in_water') {
+            el.className = "absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-slate-900 bg-sky-500 animate-pulse transition-colors duration-300 z-10 flex items-center justify-center text-[7px]";
+            el.innerHTML = '🌊';
+            el.setAttribute('title', 'Navegando en el agua');
+        } else if (status === 'online') {
+            el.className = "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 bg-emerald-500 transition-colors duration-300 z-10";
+            el.setAttribute('title', 'En línea');
+        } else if (status === 'away') {
+            el.className = "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 bg-amber-400 transition-colors duration-300 z-10";
+            el.setAttribute('title', 'Ausente');
+        } else {
+            el.className = "absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-slate-900 bg-slate-500/70 transition-colors duration-300 z-10";
+            el.setAttribute('title', 'Desconectado');
+        }
+    });
+}
+
 if (typeof window !== 'undefined') {
     window.calcularSolYCrepusculo = calcularSolYCrepusculo;
+    window.actualizarUIPresencia = actualizarUIPresencia;
 }
