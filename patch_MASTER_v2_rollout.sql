@@ -1074,4 +1074,273 @@ NOTIFY pgrst, 'reload schema';
 
 COMMIT;
 
+-- ==============================================================================
+-- 10. PATCH #10: TOTAL BUG PURGE - DUAL COLUMN AUTO-SYNC TRIGGERS,
+--     MISSING RLS POLICIES, CLUBS INVITACIONES, RUTAS LIKES & COMENTARIOS
+-- ==============================================================================
+
+BEGIN;
+
+-- A) AUTO-SYNC TRIGGER PARA COLUMNAS DUALES EN public.clubs
+ALTER TABLE public.clubs 
+  ADD COLUMN IF NOT EXISTS portada_url text,
+  ADD COLUMN IF NOT EXISTS banner_url text,
+  ADD COLUMN IF NOT EXISTS es_privado boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS is_private boolean DEFAULT false;
+
+CREATE OR REPLACE FUNCTION public.fn_sync_clubs_dual_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- 1) Sincronizar portada_url <-> banner_url
+  IF NEW.portada_url IS DISTINCT FROM OLD.portada_url AND NEW.portada_url IS NOT NULL THEN
+    NEW.banner_url := NEW.portada_url;
+  ELSIF NEW.banner_url IS DISTINCT FROM OLD.banner_url AND NEW.banner_url IS NOT NULL THEN
+    NEW.portada_url := NEW.banner_url;
+  ELSIF NEW.portada_url IS NOT NULL AND NEW.banner_url IS NULL THEN
+    NEW.banner_url := NEW.portada_url;
+  ELSIF NEW.banner_url IS NOT NULL AND NEW.portada_url IS NULL THEN
+    NEW.portada_url := NEW.banner_url;
+  END IF;
+
+  -- 2) Sincronizar es_privado <-> is_private
+  IF NEW.es_privado IS DISTINCT FROM OLD.es_privado AND NEW.es_privado IS NOT NULL THEN
+    NEW.is_private := NEW.es_privado;
+  ELSIF NEW.is_private IS DISTINCT FROM OLD.is_private AND NEW.is_private IS NOT NULL THEN
+    NEW.es_privado := NEW.is_private;
+  ELSIF NEW.es_privado IS NOT NULL AND NEW.is_private IS NULL THEN
+    NEW.is_private := NEW.es_privado;
+  ELSIF NEW.is_private IS NOT NULL AND NEW.es_privado IS NULL THEN
+    NEW.es_privado := NEW.is_private;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_clubs_dual_columns ON public.clubs;
+CREATE TRIGGER trg_sync_clubs_dual_columns
+BEFORE INSERT OR UPDATE ON public.clubs
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_sync_clubs_dual_columns();
+
+-- B) AUTO-SYNC TRIGGER PARA COLUMNAS DUALES EN public.perfiles
+ALTER TABLE public.perfiles 
+  ADD COLUMN IF NOT EXISTS es_privado boolean;
+
+UPDATE public.perfiles 
+  SET es_privado = is_private 
+  WHERE es_privado IS NULL AND is_private IS NOT NULL;
+
+UPDATE public.perfiles 
+  SET is_private = es_privado 
+  WHERE is_private IS NULL AND es_privado IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.fn_sync_perfiles_dual_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.es_privado IS DISTINCT FROM OLD.es_privado AND NEW.es_privado IS NOT NULL THEN
+    NEW.is_private := NEW.es_privado;
+  ELSIF NEW.is_private IS DISTINCT FROM OLD.is_private AND NEW.is_private IS NOT NULL THEN
+    NEW.es_privado := NEW.is_private;
+  ELSIF NEW.es_privado IS NOT NULL AND NEW.is_private IS NULL THEN
+    NEW.is_private := NEW.es_privado;
+  ELSIF NEW.is_private IS NOT NULL AND NEW.es_privado IS NULL THEN
+    NEW.es_privado := NEW.is_private;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_perfiles_dual_columns ON public.perfiles;
+CREATE TRIGGER trg_sync_perfiles_dual_columns
+BEFORE INSERT OR UPDATE ON public.perfiles
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_sync_perfiles_dual_columns();
+
+-- C) TABLA public.rutas_likes Y RLS
+CREATE TABLE IF NOT EXISTS public.rutas_likes (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  ruta_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (ruta_id, user_id)
+);
+
+ALTER TABLE public.rutas_likes ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rutas_likes' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.rutas_likes', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY rutas_likes_select ON public.rutas_likes
+  FOR SELECT TO public
+  USING (true);
+
+CREATE POLICY rutas_likes_insert ON public.rutas_likes
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY rutas_likes_delete ON public.rutas_likes
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
+
+-- D) TABLA public.rutas_comentarios Y RLS
+CREATE TABLE IF NOT EXISTS public.rutas_comentarios (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  ruta_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  comentario text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.rutas_comentarios ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rutas_comentarios' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.rutas_comentarios', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY rutas_comentarios_select ON public.rutas_comentarios
+  FOR SELECT TO public
+  USING (true);
+
+CREATE POLICY rutas_comentarios_insert ON public.rutas_comentarios
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY rutas_comentarios_update ON public.rutas_comentarios
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY rutas_comentarios_delete ON public.rutas_comentarios
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
+
+-- E) COMPLETAR RLS EN spot_reports (UPDATE, DELETE)
+ALTER TABLE public.spot_reports ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS spot_reports_update_own ON public.spot_reports;
+CREATE POLICY spot_reports_update_own ON public.spot_reports
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS spot_reports_delete_own ON public.spot_reports;
+CREATE POLICY spot_reports_delete_own ON public.spot_reports
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
+
+-- F) COMPLETAR RLS EN club_eventos_asistentes (UPDATE)
+ALTER TABLE public.club_eventos_asistentes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS club_eventos_asistentes_update ON public.club_eventos_asistentes;
+CREATE POLICY club_eventos_asistentes_update ON public.club_eventos_asistentes
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- G) COMPLETAR RLS EN club_eventos (UPDATE)
+ALTER TABLE public.club_eventos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS club_eventos_update ON public.club_eventos;
+CREATE POLICY club_eventos_update ON public.club_eventos
+  FOR UPDATE TO authenticated
+  USING (creador_id = auth.uid() OR public.es_admin_o_creador_club(club_id, auth.uid()))
+  WITH CHECK (creador_id = auth.uid() OR public.es_admin_o_creador_club(club_id, auth.uid()));
+
+-- H) COMPLETAR RLS EN club_rutas (DELETE POR ADMIN/CREADOR O DUEÑO DE RUTA)
+ALTER TABLE public.club_rutas ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS club_rutas_delete ON public.club_rutas;
+CREATE POLICY club_rutas_delete ON public.club_rutas
+  FOR DELETE TO authenticated
+  USING (
+    public.es_admin_o_creador_club(club_id, auth.uid())
+    OR EXISTS (
+      SELECT 1 FROM public.rutas r WHERE r.id = club_rutas.ruta_id AND r.user_id = auth.uid()
+    )
+  );
+
+-- I) COMPLETAR RLS EN club_retos (DELETE POR CREADOR O ADMIN DEL CLUB)
+ALTER TABLE public.club_retos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS club_retos_delete ON public.club_retos;
+CREATE POLICY club_retos_delete ON public.club_retos
+  FOR DELETE TO authenticated
+  USING (
+    creador_id = auth.uid()
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
+-- J) ACTIVAR RLS COMPLETO EN clubs_invitaciones
+ALTER TABLE public.clubs_invitaciones ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'clubs_invitaciones' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.clubs_invitaciones', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY clubs_invitaciones_select ON public.clubs_invitaciones
+  FOR SELECT TO authenticated
+  USING (
+    auth.uid() = user_id
+    OR auth.uid() = invitado_por
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+    OR public.es_miembro_club(club_id, auth.uid())
+  );
+
+CREATE POLICY clubs_invitaciones_insert ON public.clubs_invitaciones
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    auth.uid() = invitado_por
+    AND (public.es_miembro_club(club_id, auth.uid()) OR public.es_admin_o_creador_club(club_id, auth.uid()))
+  );
+
+CREATE POLICY clubs_invitaciones_update ON public.clubs_invitaciones
+  FOR UPDATE TO authenticated
+  USING (
+    auth.uid() = user_id
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  )
+  WITH CHECK (
+    auth.uid() = user_id
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
+CREATE POLICY clubs_invitaciones_delete ON public.clubs_invitaciones
+  FOR DELETE TO authenticated
+  USING (
+    auth.uid() = user_id
+    OR auth.uid() = invitado_por
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
+-- K) COMPLETAR RLS EN perfiles (DELETE PROPIO)
+DROP POLICY IF EXISTS perfiles_delete_own ON public.perfiles;
+CREATE POLICY perfiles_delete_own ON public.perfiles
+  FOR DELETE TO authenticated
+  USING (auth.uid() = id);
+
+-- Recargar caché PostgREST
+NOTIFY pgrst, 'reload schema';
+
+COMMIT;
+
+
 

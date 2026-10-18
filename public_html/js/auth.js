@@ -549,11 +549,17 @@ export async function subirAvatar(event) {
         // Cache-Buster para forzar al navegador a renderizar la nueva imagen
         const urlConCacheBuster = `${data.publicUrl}?t=${Date.now()}`;
         
-        await supabaseClient.from('perfiles').upsert({ id: appState.sesionActual.user.id, avatar_url: urlConCacheBuster });
+        const { error: dbError } = await supabaseClient
+            .from('perfiles')
+            .upsert({ id: appState.sesionActual.user.id, avatar_url: urlConCacheBuster })
+            .select();
+        if (dbError) throw dbError;
         
         if (!appState.perfilUsuario) appState.perfilUsuario = {};
         appState.perfilUsuario.avatar_url = urlConCacheBuster;
         if (preview) preview.src = urlConCacheBuster;
+        const modalAvatar = document.querySelector('#avatarPreview');
+        if (modalAvatar) modalAvatar.src = urlConCacheBuster;
         actualizarBotonCabecera();
     } catch (error) {
         console.warn('Aviso al subir imagen:', error);
@@ -574,15 +580,29 @@ export async function guardarPerfil() {
     
     btn.disabled = true; btn.textContent = "Guardando...";
     
-    const { error } = await supabaseClient.from('perfiles').update({ nombre: nuevoNombre, is_private: esPrivado }).eq('id', appState.sesionActual.user.id);
+    const { data: updatedProfile, error } = await supabaseClient
+        .from('perfiles')
+        .update({ 
+            nombre: nuevoNombre, 
+            is_private: esPrivado,
+            es_privado: esPrivado 
+        })
+        .eq('id', appState.sesionActual.user.id)
+        .select();
+        
     if (error) {
         alert("❌ Error al guardar: " + error.message);
+        btn.textContent = "Guardar";
+        btn.disabled = false;
+    } else if (!updatedProfile || updatedProfile.length === 0) {
+        alert("❌ No se pudo guardar el perfil. Intenta de nuevo.");
         btn.textContent = "Guardar";
         btn.disabled = false;
     } else {
         if (!appState.perfilUsuario) appState.perfilUsuario = {};
         appState.perfilUsuario.nombre = nuevoNombre;
         appState.perfilUsuario.is_private = esPrivado;
+        appState.perfilUsuario.es_privado = esPrivado;
         actualizarBotonCabecera();
         btn.textContent = "✅ Guardado!";
         setTimeout(() => { btn.textContent = "Guardar"; btn.disabled = false; }, 2000);

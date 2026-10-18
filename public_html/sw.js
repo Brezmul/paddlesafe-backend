@@ -12,7 +12,7 @@
 // OTA: sube VERSION en cada despliegue (junto con version.json). Al activarse,
 // el SW borra TODAS las cachés de versiones anteriores.
 // ==============================================================================
-const VERSION = 'paddlesafe-v58';
+const VERSION = 'paddlesafe-v59';
 const SHELL   = `${VERSION}-shell`;   // HTML + JS propio
 const STATIC  = `${VERSION}-static`;  // iconos, css, fuentes, manifest
 const IMGS    = `${VERSION}-img`;     // avatares, logos, marcadores (inmutables)
@@ -43,14 +43,19 @@ function isLive(url, req) {
     LIVE_HOSTS.some(d => hostIs(h, d)) && !isPublicStorage(url) ||
     url.pathname.endsWith('/version.json') ||     // el OTA lo pide con cache:'no-store'
     url.pathname.endsWith('/sw.js') ||
+    url.pathname.includes('/rest/v1/') ||
+    url.pathname.includes('/rpc/') ||
+    url.pathname.includes('/auth/v1/') ||
+    url.pathname.includes('/realtime/v1/') ||
+    url.searchParams.has('t') ||
     req.cache === 'no-store' ||
     req.headers.has('authorization') ||
     req.headers.has('range')
   );
 }
-// Objetos PÚBLICOS de Storage: su nombre lleva Date.now() → inmutables → cacheables.
+// Objetos PÚBLICOS de Storage: cacheables SOLO SI NO tienen cache-buster ?t=
 const isPublicStorage = url =>
-  hostIs(url.hostname, 'supabase.co') && url.pathname.startsWith('/storage/v1/object/public/');
+  hostIs(url.hostname, 'supabase.co') && url.pathname.startsWith('/storage/v1/object/public/') && !url.searchParams.has('t');
 
 const isTile = url => TILE_HOSTS.some(d => hostIs(url.hostname, d));
 const isLib  = url => LIB_HOSTS.some(d => hostIs(url.hostname, d));

@@ -124,7 +124,7 @@ const swContent = fs.readFileSync(swPath, 'utf8');
 const versionMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
 const expectedSwVersion = versionMatch ? versionMatch[1] : null;
 
-assert(expectedSwVersion === 'paddlesafe-v58', `sw.js version must be paddlesafe-v58, got: ${expectedSwVersion}`);
+assert(expectedSwVersion === 'paddlesafe-v59', `sw.js version must be paddlesafe-v59, got: ${expectedSwVersion}`);
 
 if (fs.existsSync(versionJsonPath)) {
     let vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
@@ -662,7 +662,7 @@ const sqlContentBackend = fs.readFileSync(sqlBackendPath, 'utf8');
 
 const topBeginRoot = (sqlContentRoot.match(/^\s*BEGIN\s*;/gm) || []).length;
 const topCommitRoot = (sqlContentRoot.match(/^\s*COMMIT\s*;/gm) || []).length;
-assert(topBeginRoot === 1 && topCommitRoot === 1, 'patch_MASTER_v2_rollout.sql in root must contain balanced BEGIN; and COMMIT;');
+assert(topBeginRoot >= 1 && topBeginRoot === topCommitRoot, 'patch_MASTER_v2_rollout.sql in root must contain balanced BEGIN; and COMMIT;');
 
 assert(sqlContentRoot.includes('es_admin_o_creador_club'), 'SQL must define es_admin_o_creador_club');
 assert(sqlContentRoot.includes('idx_clubs_usuarios_unique_pair'), 'SQL must define idx_clubs_usuarios_unique_pair');
@@ -715,6 +715,29 @@ const clubApiPath = 'public_html/js/club/api.js';
 assert(fs.existsSync(clubApiPath), `${clubApiPath} must exist`);
 const clubApiContent = fs.readFileSync(clubApiPath, 'utf8');
 assert(clubApiContent.includes('.select()'), 'ClubAPI.updateField must use .select() verification');
+
+// 4.8 Bug Purge & Dual-Column Triggers Audit
+assert(sqlContentRoot.includes('fn_sync_clubs_dual_columns'), 'SQL must define fn_sync_clubs_dual_columns trigger function');
+assert(sqlContentRoot.includes('fn_sync_perfiles_dual_columns'), 'SQL must define fn_sync_perfiles_dual_columns trigger function');
+assert(sqlContentRoot.includes('rutas_likes'), 'SQL must define rutas_likes table and RLS');
+assert(sqlContentRoot.includes('rutas_comentarios'), 'SQL must define rutas_comentarios table and RLS');
+assert(sqlContentRoot.includes('clubs_invitaciones_select'), 'SQL must define clubs_invitaciones RLS policies');
+
+assert(sqlContentBackend.includes('fn_sync_clubs_dual_columns'), 'Backend SQL must define fn_sync_clubs_dual_columns');
+assert(sqlContentBackend.includes('fn_sync_perfiles_dual_columns'), 'Backend SQL must define fn_sync_perfiles_dual_columns');
+
+const mainJsContent = fs.readFileSync('public_html/js/main.js', 'utf8');
+assert(mainJsContent.includes('eliminarRutaUsuario'), 'main.js must define and export eliminarRutaUsuario');
+assert(mainJsContent.includes('window.eliminarRutaUsuario = eliminarRutaUsuario'), 'main.js must bind eliminarRutaUsuario to window');
+
+const socialJsCode = fs.readFileSync('public_html/js/social.js', 'utf8');
+assert(socialJsCode.includes('eliminarRutaSocial'), 'social.js must define and export eliminarRutaSocial');
+assert(socialJsCode.includes('window.eliminarRutaSocial = eliminarRutaSocial'), 'social.js must bind eliminarRutaSocial to window');
+
+assert(clubIndexContent.includes('cambiarClubActivo'), 'club/index.js must define and export cambiarClubActivo');
+
+assert(indexHtml.includes('tailwind.min.css'), 'index.html must link compiled tailwind.min.css');
+assert(fs.existsSync('public_html/css/tailwind.min.css'), 'public_html/css/tailwind.min.css must exist');
 
 
 // ------------------------------------------------------------------------------

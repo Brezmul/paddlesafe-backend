@@ -782,6 +782,11 @@ export async function cambiarTabPerfilSPA(tab) {
                         <button type="button" onclick="event.stopPropagation(); if(window.abrirModalDetallesRuta) window.abrirModalDetallesRuta('${rutaIdEsc}');" class="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
                             <span>🧠</span><span>Coach</span>
                         </button>
+                        ${isMe ? `
+                        <button type="button" onclick="event.stopPropagation(); if(window.eliminarRutaUsuario) window.eliminarRutaUsuario('${rutaIdEsc}');" class="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Eliminar ruta">
+                            <span>🗑️</span><span>Eliminar</span>
+                        </button>
+                        ` : ''}
                     </div>
                     <div class="flex items-center gap-1.5">
                         <span class="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-black rounded-lg border border-amber-200 dark:border-amber-700/50">🔥 ~${kcal} kcal</span>
@@ -1372,12 +1377,69 @@ export async function actualizarRankingCompleto() {
     }
 }
 
+/**
+ * Elimina una ruta deportiva propia con confirmación y purga de caché
+ */
+export async function eliminarRutaUsuario(rutaId) {
+    if (!rutaId) return;
+    if (!appState.sesionActual || appState.esInvitado) {
+        if (typeof window.abrirModalAuth === 'function') window.abrirModalAuth();
+        else alert("Debes iniciar sesión para realizar esta acción.");
+        return;
+    }
+
+    if (!confirm("¿Estás seguro de que deseas eliminar esta ruta deportiva? Esta acción no se puede deshacer.")) {
+        return;
+    }
+
+    const userId = appState.sesionActual.user.id;
+
+    try {
+        const { error: err1 } = await supabaseClient
+            .from('rutas')
+            .delete()
+            .eq('id', rutaId)
+            .eq('user_id', userId);
+        if (err1) throw err1;
+
+        try {
+            await supabaseClient
+                .from('user_routes')
+                .delete()
+                .eq('id', rutaId)
+                .eq('user_id', userId);
+        } catch (_) {}
+
+        // Limpiar cachés de memoria
+        if (window.__rutasUsuarioCache) {
+            window.__rutasUsuarioCache.delete(String(rutaId));
+        }
+        if (window.socialRoutesCache) {
+            delete window.socialRoutesCache[String(rutaId)];
+        }
+
+        // Refrescar lista de rutas o eliminar tarjeta
+        if (typeof window.cambiarTabPerfilSPA === 'function') {
+            window.cambiarTabPerfilSPA('rutas');
+        } else {
+            const card = document.querySelector(`[data-ruta-id="${rutaId}"]`);
+            if (card) card.remove();
+        }
+
+        alert("✅ Ruta eliminada correctamente.");
+    } catch (err) {
+        console.error("Error al eliminar ruta de usuario:", err);
+        alert("❌ Error al eliminar la ruta: " + (err.message || err));
+    }
+}
+
 // Bindings globales a window
 window.navigateSPA = navigateSPA;
 window.goBackSPA = goBackSPA;
 window.handleSPA = handleSPA;
 window.abrirPerfilPublicoSPA = abrirPerfilPublicoSPA;
 window.cambiarTabPerfilSPA = cambiarTabPerfilSPA;
+window.eliminarRutaUsuario = eliminarRutaUsuario;
 window.abrirModalRanking = abrirModalRanking;
 window.cerrarModalRanking = cerrarModalRanking;
 window.cargarTopPaddlers = cargarTopPaddlers;

@@ -235,6 +235,9 @@ export function renderTarjetaRutaSocial(ruta, clubNombre = null) {
                         <button type="button" onclick="compartirRutaEnMiClub('${rutaId}')" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Compartir en el muro de mi club">
                             <span>📣</span><span>Club</span>
                         </button>
+                        <button type="button" onclick="eliminarRutaSocial('${rutaId}')" class="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Eliminar ruta">
+                            <span>🗑️</span><span>Eliminar</span>
+                        </button>
                     ` : ''}
                 </div>
                 <div class="flex items-center gap-1">
@@ -476,6 +479,65 @@ export async function compartirRutaEnMiClub(rutaId) {
         setTimeout(() => toast.remove(), 400);
     }, 3000);
 }
+
+/**
+ * Elimina una travesía propia con confirmación y purga de caché
+ */
+export async function eliminarRutaSocial(rutaId) {
+    if (!rutaId) return;
+    if (!appState.sesionActual || appState.esInvitado) {
+        if (typeof window.abrirModalAuth === 'function') window.abrirModalAuth();
+        else alert("Inicia sesión para eliminar travesías.");
+        return;
+    }
+
+    if (!confirm("¿Estás seguro de que deseas eliminar esta travesía? Esta acción es irreversible.")) {
+        return;
+    }
+
+    const userId = appState.sesionActual.user.id;
+
+    try {
+        // Eliminar de public.rutas
+        const { error: err1 } = await supabaseClient
+            .from('rutas')
+            .delete()
+            .eq('id', rutaId)
+            .eq('user_id', userId);
+        if (err1) throw err1;
+
+        // Intentar eliminar también de user_routes por si es legacy
+        try {
+            await supabaseClient
+                .from('user_routes')
+                .delete()
+                .eq('id', rutaId)
+                .eq('user_id', userId);
+        } catch (_) {}
+
+        // Limpiar memoria caché
+        if (socialRoutesCache) {
+            delete socialRoutesCache[String(rutaId)];
+        }
+        if (window.__rutasUsuarioCache) {
+            window.__rutasUsuarioCache.delete(String(rutaId));
+        }
+
+        // Eliminar elemento del DOM si existe
+        const domEl = document.getElementById(`tarjeta-ruta-${rutaId}`) || document.querySelector(`[data-ruta-id="${rutaId}"]`);
+        if (domEl) {
+            domEl.remove();
+        } else if (window.socialFeed && typeof window.socialFeed.cargarActividad === 'function') {
+            window.socialFeed.cargarActividad();
+        }
+
+        alert("✅ Travesía eliminada correctamente.");
+    } catch (err) {
+        console.error("Error al eliminar ruta social:", err);
+        alert("❌ Error al eliminar la ruta: " + (err.message || err));
+    }
+}
+
 
 /**
  * Toggle like local/interactivo en una tarjeta de travesía social
@@ -1339,4 +1401,5 @@ window.compartirPosterFinisher = compartirPosterFinisher;
 window.abrirRutaSocialEnMapa = abrirRutaSocialEnMapa;
 window.descargarGpxRutaSocial = descargarGpxRutaSocial;
 window.compartirRutaEnMiClub = compartirRutaEnMiClub;
+window.eliminarRutaSocial = eliminarRutaSocial;
 window.toggleLikeRutaSocial = toggleLikeRutaSocial;

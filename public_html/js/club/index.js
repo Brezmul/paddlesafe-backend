@@ -176,6 +176,9 @@ const ClubFacade = {
         ClubState.activeId = clubId;
         ClubRender.renderTabMiClub();
     },
+    cambiarClubActivo(clubId) {
+        return this.onSelectActive(clubId);
+    },
     async cambiarVistaInterna(vista) {
         const contenedor = document.querySelector('#clubsModal #vistaClubContent') || document.getElementById('vistaClubContent');
         if (!contenedor) return;
@@ -656,6 +659,7 @@ window.toggleDesplegarParticipantesReto = toggleDesplegarParticipantesReto;
 window.cambiarTabClubs = (tab) => ClubFacade.cambiarTabClubs(tab);
 window.abrirModalClubs = () => ClubFacade.abrirModal();
 window.cerrarModalClubs = () => ClubFacade.cerrarModal();
+window.cambiarClubActivo = (clubId) => ClubFacade.onSelectActive(clubId);
 
 // Perfil público del club y sub-pestañas
 window.openClubProfile = (id) => ClubFacade.openClubProfile(id);
