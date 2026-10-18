@@ -40,6 +40,12 @@ export const ESTADOS_VEREDICTO = {
         badgeCls: 'bg-red-950 text-white border-red-600 animate-pulse',
         cardBorder: 'border-red-600 bg-red-950/40'
     },
+    RIESGO_METEOROLOGICO_ESTIMADO: {
+        titulo: 'Riesgo meteorológico estimado',
+        icono: '⚠️',
+        badgeCls: 'bg-amber-950/90 text-amber-200 border-amber-500/50',
+        cardBorder: 'border-amber-500/40 bg-amber-950/20'
+    },
     ALERTA_EMERGENCIA: {
         titulo: 'Prohibido salir por emergencia',
         icono: '⛔',
@@ -54,6 +60,7 @@ export const CLASES_RIESGO = {
     'Condiciones exigentes': 'text-orange-600 bg-orange-50 border border-orange-200 rounded-lg',
     'No recomendado': 'text-red-700 bg-red-100 border border-red-400 rounded-lg',
     'Tormenta eléctrica': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg',
+    'Riesgo meteorológico estimado': 'text-amber-500 bg-amber-950/80 border border-amber-500 rounded-lg',
     'Prohibido salir por emergencia': 'text-red-500 font-black animate-pulse bg-red-950/80 border border-red-600 rounded-lg',
     // Compatibilidad legacy
     'SEGURO': 'text-emerald-500 bg-emerald-50 border border-emerald-200 rounded-lg',
@@ -70,6 +77,7 @@ export const ICONOS_SEGURIDAD = {
     'Condiciones exigentes': '🟠',
     'No recomendado': '🔴',
     'Tormenta eléctrica': '⛔',
+    'Riesgo meteorológico estimado': '⚠️',
     'Prohibido salir por emergencia': '⛔',
     'SEGURO': '🟢',
     'PRECAUCIÓN': '🟡',
@@ -266,18 +274,25 @@ export function generarVeredictoNextGen(params = {}) {
     const gfsDirDeg = params.gfsDirDeg ?? null;
     const iconDirDeg = params.iconDirDeg ?? null;
 
-    // 1. REGLA ABSOLUTA: Tormenta eléctrica (Veto Infranqueable)
+    // 1. REGLA ABSOLUTA: Tormenta eléctrica OFICIAL (AEMET o Protección Civil activo para la fecha consultada)
     const code = Number(weatherCode ?? 0);
-    const textoAlerta = `${alertasArray.map(a => `${a?.tipo || ''} ${a?.descripcion || ''}`).join(' ')} ${alertaOficial?.tipo || ''} ${alertaOficial?.descripcion || ''}`.toLowerCase();
-    const esTormentaElectrica = Boolean(tormentaElectricaDetectada)
-        || [95, 96, 99].includes(code)
-        || /tormenta\s*electrica|actividad\s*electrica|descarga\s*electrica|rayos?|lightning|relampagos?/.test(textoAlerta);
+    const alertasArrayActivas = alertasArray.filter(a => a?.esVigente !== false && a?.estadoTemporal !== 'EXPIRADA' && a?.estadoTemporal !== 'FUTURA_PREVENTIVA');
+    const textoAlertaActiva = `${alertasArrayActivas.map(a => `${a?.tipo || ''} ${a?.descripcion || ''}`).join(' ')} ${alertaOficial?.activa && alertaOficial?.esVigente !== false ? `${alertaOficial?.tipo || ''} ${alertaOficial?.descripcion || ''}` : ''}`.toLowerCase();
+    
+    const aemetTormentaOficial = Boolean(
+        params.alertaTormentaOficialActiva ||
+        params.tormentaElectricaOficial ||
+        ((alertaOficial?.activa && alertaOficial?.esVigente !== false) &&
+         /tormenta|thunderstorm|lightning|descarga\s*electrica|actividad\s*electrica|rayos?/.test(textoAlertaActiva))
+    );
 
-    if (esTormentaElectrica) {
+    if (aemetTormentaOficial) {
         const confEstado = ESTADOS_VEREDICTO.TORMENTA_ELECTRICA;
+        const explicacionHumana = params.explicacionAvisoAemet || alertaOficial?.explicacionHumana
+            || 'Aviso Oficial AEMET por tormenta eléctrica activo en la zona. La práctica del paddle surf queda terminantemente desaconsejada por peligro vital de descargas eléctricas y cambios súbitos de viento.';
         const factoresCriticos = [
-            'Riesgo crítico de tormenta eléctrica: actividad desaconsejada por peligro vital.',
-            'Peligro de descargas eléctricas en superficie plana y ráfagas súbitas de viento.'
+            `Aviso Oficial: ${explicacionHumana}`,
+            'Peligro severo de descargas eléctricas en superficie plana y ráfagas súbitas de viento.'
         ];
         const resultadoTormenta = {
             estado: confEstado.titulo,
@@ -289,24 +304,26 @@ export function generarVeredictoNextGen(params = {}) {
             seguridad: { nivel: confEstado.titulo, score: 0 },
             respuestaDirecta: '⛔ NO SALIR AL AGUA',
             recomendacion: 'NO RECOMENDADO',
-            justificacion: 'Riesgo confirmado de tormenta eléctrica en la zona. La práctica de cualquier deporte acuático queda estrictamente desaconsejada por peligro vital de descargas eléctricas y cambios súbitos de viento.',
-            mensaje: 'Riesgo confirmado de tormenta eléctrica en la zona. La práctica de cualquier deporte acuático queda estrictamente desaconsejada por peligro vital de descargas eléctricas y cambios súbitos de viento.',
-            explicacionNautica: 'Riesgo confirmado de tormenta eléctrica en la zona. Suspende o pospón la actividad y mantente bajo techo en tierra firme.',
+            justificacion: explicacionHumana,
+            mensaje: explicacionHumana,
+            explicacionNautica: explicacionHumana,
             factoresCriticos,
             analysisConfidence: 95,
             confianzaAnalisis: 95,
             tormentaElectrica: true,
-            alertaEmergenciaActiva: false,
-            aemet: alertaOficial || { activa: false, disponible: false },
+            tormentaElectricaOficial: true,
+            alertaOficialActiva: true,
+            alertaEmergenciaActiva: ['NARANJA', 'ROJA'].includes(String(alertaOficial?.nivel || '').toUpperCase()),
+            aemet: alertaOficial || { activa: true, disponible: true },
             vientoNudos: vientoKt ?? 0,
             detallesTecnicos: {
                 vientoKt,
                 rachasKt,
                 oleajeM,
-                alerta: 'Tormenta eléctrica activa'
+                alerta: 'Aviso Oficial AEMET: Tormentas'
             },
-            beginnerIndex: { nivel: 'No Recomendado', motivo: 'Peligro por tormenta eléctrica' },
-            deporte: { deporte: deporteKey, estado: 'No Recomendado', motivo: 'Tormenta eléctrica activa' },
+            beginnerIndex: { nivel: 'No Recomendado', motivo: 'Aviso Oficial AEMET por tormenta eléctrica' },
+            deporte: { deporte: deporteKey, estado: 'No Recomendado', motivo: 'Aviso Oficial AEMET por tormenta eléctrica' },
             ventanas: null,
             ventanaRecomendada: null,
             consenso: null,
@@ -318,6 +335,82 @@ export function generarVeredictoNextGen(params = {}) {
         };
         resultadoTormenta.nextGen = resultadoTormenta;
         return resultadoTormenta;
+    }
+
+    // 1.1 SISTEMA A: Estimación de riesgo convectivo / inestabilidad por modelo de pronóstico (Regla 1 & Regla 6)
+    const cape = Number(params.cape ?? params.convective_available_potential_energy ?? params.convection ?? 0);
+    const lightningProb = Number(params.lightningProb ?? params.probabilidad_rayos ?? 0);
+    const esRiesgoModeloConvectivo = !aemetTormentaOficial && (
+        params.riesgoModeloConvectivo === true ||
+        params.riesgoMeteorologicoEstimado === true ||
+        cape >= 1000 ||
+        [95, 96, 99].includes(code) ||
+        lightningProb >= 40
+    );
+
+    if (esRiesgoModeloConvectivo) {
+        const confEstado = ESTADOS_VEREDICTO.RIESGO_METEOROLOGICO_ESTIMADO || {
+            titulo: 'Riesgo meteorológico estimado',
+            icono: '⚠️',
+            badgeCls: 'bg-amber-950/90 text-amber-200 border-amber-500/50',
+            cardBorder: 'border-amber-500/40 bg-amber-950/20'
+        };
+        const scoreEstimado = (cape >= 1500 || [96, 99].includes(code)) ? 25 : 45;
+        const recomendacionTexto = cape >= 1500 ? 'NO RECOMENDADO' : 'PRECAUCIÓN';
+        const mensajeModelo = cape >= 1000
+            ? '⚠️ Condiciones favorables para desarrollo tormentoso.'
+            : '⚠️ Posible inestabilidad atmosférica.';
+        const justificacionModelo = `${mensajeModelo} Los modelos numéricos señalan inestabilidad atmosférica${cape > 0 ? ` (CAPE: ${Math.round(cape)} J/kg)` : ''}. No existe aviso oficial de AEMET activo.`;
+
+        const resultadoRiesgoModelo = {
+            estado: confEstado.titulo,
+            icono: confEstado.icono,
+            claseUI: confEstado,
+            cls: CLASES_RIESGO[confEstado.titulo] || 'text-amber-500 bg-amber-950/80 border border-amber-500 rounded-lg',
+            scoreSeguridad: scoreEstimado,
+            score: scoreEstimado,
+            seguridad: { nivel: confEstado.titulo, score: scoreEstimado },
+            respuestaDirecta: cape >= 1500 ? '⚠️ CONDICIONES DESACONSEJADAS' : '⚠️ PRECAUCIÓN',
+            recomendacion: recomendacionTexto,
+            justificacion: justificacionModelo,
+            mensaje: mensajeModelo,
+            explicacionNautica: justificacionModelo,
+            factoresCriticos: [
+                justificacionModelo,
+                'Vigila la evolución de las nubes en el horizonte y regresa de inmediato si arrecian rachas o el cielo se oscurece.'
+            ],
+            analysisConfidence: 80,
+            confianzaAnalisis: 80,
+            tormentaElectrica: false,
+            tormentaElectricaOficial: false,
+            riesgoMeteorologicoEstimado: true,
+            riesgoModeloConvectivo: true,
+            etiquetaRiesgoModelo: '⚠️ Riesgo Meteorológico Estimado',
+            mensajeRiesgoModelo: mensajeModelo,
+            alertaOficialActiva: false,
+            alertaEmergenciaActiva: false,
+            aemet: alertaOficial || { activa: false, disponible: true },
+            vientoNudos: vientoKt ?? 0,
+            detallesTecnicos: {
+                vientoKt,
+                rachasKt,
+                oleajeM,
+                cape,
+                alerta: '⚠️ Riesgo Meteorológico Estimado'
+            },
+            beginnerIndex: { nivel: 'Precaución', motivo: 'Inestabilidad meteorológica estimada' },
+            deporte: { deporte: deporteKey, estado: recomendacionTexto, motivo: 'Riesgo meteorológico estimado' },
+            ventanas: null,
+            ventanaRecomendada: null,
+            consenso: null,
+            deriva: null,
+            riesgoDeriva: { nivel: 'MODERADO', score: 50, descripcion: 'Posible alteración del viento por inestabilidad.' },
+            derivaCostera: null,
+            componenteCostera: { componente: 'desconocida', anguloIncidencia: 0 },
+            entorno: 'costa'
+        };
+        resultadoRiesgoModelo.nextGen = resultadoRiesgoModelo;
+        return resultadoRiesgoModelo;
     }
 
     // 2. REGLA ABSOLUTA: Alerta Oficial de Emergencias (112 / Protección Civil / AEMET Naranja o Roja) - PROHIBIDO SALIR A REMAR

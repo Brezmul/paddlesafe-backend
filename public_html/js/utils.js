@@ -174,6 +174,7 @@ export const CLASES_RIESGO = {
     'Condiciones exigentes': 'text-orange-600 bg-orange-50 border border-orange-200 rounded-lg',
     'No recomendado': 'text-red-700 bg-red-100 border border-red-400 rounded-lg',
     'Tormenta eléctrica': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg',
+    'Riesgo meteorológico estimado': 'text-amber-500 bg-amber-950/80 border border-amber-500 rounded-lg',
     'SEGURO':     'text-emerald-500 bg-emerald-50 border border-emerald-200 rounded-lg',
     'PRECAUCIÓN': 'text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-lg',
     'RIESGO ELEVADO': 'text-orange-600 bg-orange-50 border border-orange-200 rounded-lg',

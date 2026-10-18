@@ -33,7 +33,9 @@ import {
 import {
     solicitarPronostico, solicitarPronosticoOpenMeteo, evaluarAlertasGlobales,
     obtenerMotorExperto, renderizarAvisoSuperior, guardarForecastSnapshot,
-    recuperarForecastSnapshot, obtenerAutoridadEmergencias112
+    recuperarForecastSnapshot, obtenerAutoridadEmergencias112,
+    validarVigenciaAlerta, generarExplicacionAvisoAemet, registrarDiagnosticoAemet,
+    limpiarAvisosMeteorologicos
 } from './map/map.weather.js';
 
 import {
@@ -113,6 +115,8 @@ if (typeof window !== 'undefined') {
         solicitarPronostico, solicitarPronosticoOpenMeteo, evaluarAlertasGlobales,
         obtenerMotorExperto, renderizarAvisoSuperior, guardarForecastSnapshot,
         recuperarForecastSnapshot, obtenerAutoridadEmergencias112,
+        validarVigenciaAlerta, generarExplicacionAvisoAemet, registrarDiagnosticoAemet,
+        limpiarAvisosMeteorologicos,
         aplicarGlowVerdictBento, renderizarResumenExperto, consultarBasico,
         consultarPuntoProInstantaneo, consultarRutaPro, renderizarDashboardPro,
         cargarPrevisionHorariaExacta, volverPlanificadorPro,

@@ -130,6 +130,12 @@ export function renderizarResumenExperto(motor, prefijo = 'basic') {
         if (motor.alertaEmergenciaActiva) {
             nivel.className = `text-sm font-black text-center w-full px-2 py-1.5 bg-red-600 text-white rounded-lg shadow-md animate-pulse`;
             nivel.textContent = `🚨 PROHIBIDO SALIR A REMAR · 0/100 · ALERTA 112 ACTIVA`;
+        } else if (motor.tormentaElectricaOficial || (motor.tormentaElectrica && motor.aemet?.activa)) {
+            nivel.className = `text-sm font-black text-center w-full px-2 py-1.5 bg-red-600 text-white rounded-lg shadow-md animate-pulse`;
+            nivel.textContent = `🚨 NO RECOMENDADO · 0/100 · AVISO AEMET TORMENTAS`;
+        } else if (motor.riesgoMeteorologicoEstimado) {
+            nivel.className = `text-sm font-black text-center w-full px-2 py-1 bg-amber-950/80 text-amber-300 border border-amber-600/60 rounded-lg shadow-sm`;
+            nivel.textContent = `⚠️ RIESGO METEOROLÓGICO ESTIMADO · ${motor.seguridad?.score ?? 40}/100 · ${motor.recomendacion || 'PRECAUCIÓN'}`;
         } else {
             nivel.className = `text-sm font-black text-center w-full px-2 py-1 ${motor.cls || ''}`;
             nivel.textContent = `${icono} ${motor.seguridad.nivel} · ${motor.seguridad.score}/100 · ${motor.recomendacion}`;
@@ -218,7 +224,17 @@ export function renderizarResumenExperto(motor, prefijo = 'basic') {
                 ⛔ SALIDA PROHIBIDA POR EMERGENCIA OFICIAL
             </span>`);
         } else {
-            // 0. Píldora de Aviso Preventivo 112 en seguimiento (si existe aviso futuro)
+            // 0a. Píldora de Riesgo Meteorológico Estimado por Modelo Numérico (Regla 1 & Regla 6)
+            if (motor.riesgoMeteorologicoEstimado) {
+                const rCls = isDark
+                    ? 'bg-amber-950/80 text-amber-300 border-amber-600/60'
+                    : 'bg-amber-50 text-amber-800 border-amber-300';
+                badges.push(`<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${rCls}">
+                    ⚠️ Riesgo Meteorológico Estimado
+                </span>`);
+            }
+
+            // 0b. Píldora de Aviso Preventivo 112 en seguimiento (si existe aviso futuro)
             if (motor.avisoPreventivoActivo || motor.avisoPreventivo) {
                 const prev = motor.avisoPreventivo;
                 const pCls = isDark

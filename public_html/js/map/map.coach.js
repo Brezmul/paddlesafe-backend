@@ -473,14 +473,14 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
         return;
     }
 
-    // 1. PRIORIDAD MÁXIMA: Veto por tormenta eléctrica
-    if (motor?.tormentaElectrica) {
+    // 1. PRIORIDAD MÁXIMA: Veto por tormenta eléctrica OFICIAL (AEMET / 112)
+    if (motor?.tormentaElectricaOficial || (motor?.tormentaElectrica && motor?.aemet?.activa && motor?.aemet?.esVigente !== false)) {
         const body = document.getElementById('proCoachBody');
         if (body) {
             body.innerHTML = generarTarjetaVetoCoach({
                 icono: '⛈️',
                 titulo: '⛔ NO RECOMENDADO SALIR A REMAR',
-                descripcion: 'Existe riesgo confirmado de tormenta eléctrica en la zona. Aunque otros parámetros puedan parecer favorables, las descargas eléctricas y los cambios bruscos del viento convierten la actividad en una situación de riesgo vital inaceptable.',
+                descripcion: motor?.justificacion || 'Existe un aviso oficial por tormenta eléctrica en la zona. Aunque otros parámetros puedan parecer favorables, las descargas eléctricas y los cambios bruscos del viento convierten la actividad en una situación de riesgo vital inaceptable.',
                 tipoConsejo: 'Consejo del Instructor',
                 consejo: 'Cancela la salida de inmediato y permanece bajo techo en tierra firme.',
                 nivelAlerta: 'tormenta'

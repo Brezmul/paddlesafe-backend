@@ -626,43 +626,15 @@ export async function solicitarPronostico(payload) {
             datos.alertas = [];
         }
 
-        // Ingestión y aseguramiento de Avisos Especiales de Protección Civil 112
-        if (autoridadLocal.id === 'VALENCIA') {
-            const tieneAviso112 = (datos.aemet.alertas || []).some(a => a.origen?.includes('112') || /precipitaciones intensas|EGEN/i.test(a.tipo || a.descripcion || ''));
-            if (!tieneAviso112) {
-                const avisoEspecial112 = {
-                    origen: '112 Comunitat Valenciana',
-                    autoridad: autoridadLocal.organismo,
-                    tipo: 'Aviso Especial Protección Civil (112 CV)',
-                    titulo: 'EPISODIO DE PRECIPITACIONES INTENSAS EN EL ÁREA DEL MEDITERRÁNEO',
-                    descripcion: 'Aviso Especial EGEN260541 (112 CV): Episodio de precipitaciones intensas en el Mediterráneo (Desde el sábado 17 hasta el domingo 18 de 10/2026). Peligro de crecidas y avenidas súbitas en ramblas y desembocaduras hacia el mar.',
-                    zona: 'Comunitat Valenciana (Litoral)',
-                    urlDoc: 'https://www.112cv.gva.es/documents/163565706/168368846/EGEN260541_Aviso_especial.pdf/663141cd-8dde-dea7-b54b-891e0f9561d5?t=1792046608487',
-                    inicio: '2026-10-17T00:00:00',
-                    fin: '2026-10-18T23:59:59',
-                    diaInicio: 17,
-                    diaFin: 18,
-                    nombreDiaInicio: 'sábado',
-                    nombreDiaFin: 'domingo',
-                    periodoTexto: 'Desde el sábado 17 hasta el domingo 18 de 10/2026',
-                    plan: autoridadLocal.plan,
-                    peligroNautico: autoridadLocal.peligroNautico,
-                    esEspecial: true
-                };
-                datos.aemet.alertas = [avisoEspecial112, ...(datos.aemet.alertas || [])];
-                datos.aemet.activa = true;
-                datos.alertas = [avisoEspecial112, ...(datos.alertas || [])];
-            }
-        } else if (Array.isArray(datos.aemet.alertas) && datos.aemet.alertas.length > 0) {
+        // Enriquecer alertas reales con metadatos de la autoridad competente
+        if (Array.isArray(datos.aemet.alertas) && datos.aemet.alertas.length > 0) {
             datos.aemet.alertas.forEach(a => {
-                if (!a.urlDoc) a.urlDoc = autoridadLocal.urlDoc;
-                if (!a.plan) a.plan = autoridadLocal.plan;
-                if (!a.peligroNautico) a.peligroNautico = autoridadLocal.peligroNautico;
-                if (a.origen === 'AEMET' && (a.nivel === 'NARANJA' || a.nivel === 'ROJA' || /costero|coastal|viento|wind|tormenta|storm/i.test(a.tipo))) {
-                    a.origen = autoridadLocal.nombre;
-                }
+                if (!a.urlDoc && autoridadLocal?.urlDoc) a.urlDoc = autoridadLocal.urlDoc;
+                if (!a.plan && autoridadLocal?.plan) a.plan = autoridadLocal.plan;
+                if (!a.peligroNautico && autoridadLocal?.peligroNautico) a.peligroNautico = autoridadLocal.peligroNautico;
             });
         }
+        datos.fechaConsulta = payload.date || payload.fecha || (typeof document !== 'undefined' ? (document.getElementById('date')?.value || document.getElementById('proDate')?.value) : null) || new Date().toISOString().slice(0, 10);
 
         registrarDiagnosticoClima('[AEMET] Integrated Response', {
             aemet: datos.aemet,
@@ -733,6 +705,148 @@ export function nivelAlertaMeteorologica(registro) {
     return 'AMARILLA';
 }
 
+// ==============================================================================
+// VALIDACIÓN TEMPORAL Y EXPLICACIÓN HUMANA DE AVISOS OFICIALES (AEMET / 112)
+// ==============================================================================
+
+/**
+ * Valida si la fecha consultada se encuentra estrictamente dentro del periodo de vigencia del aviso.
+ * Regla 3: selected_date >= warning_start && selected_date <= warning_end.
+ */
+export function validarVigenciaAlerta(selectedDateStr, alertStartStr, alertEndStr, textoFallback = '') {
+    const sel = String(selectedDateStr || '').slice(0, 10);
+    let fechaIni = alertStartStr ? String(alertStartStr).slice(0, 10) : null;
+    let fechaFin = alertEndStr ? String(alertEndStr).slice(0, 10) : null;
+
+    if (!fechaIni && textoFallback) {
+        const txt = String(textoFallback).toLowerCase();
+        const mIni = /(?:comienc[ea]|inici[ea]|a partir del?|desde el?)\s+(?:el\s+)?(?:d[ií]a\s+)?(?:([a-zñáéíóú]+)\s+)?(\d{1,2})/i.exec(txt);
+        const mFin = /(?:durante|hasta|finaliz[ea]|termin[ea])\s+(?:el\s+)?(?:d[ií]a\s+)?(?:([a-zñáéíóú]+)\s+)?(\d{1,2})/i.exec(txt);
+        if (mIni || mFin || /fin de semana/i.test(txt)) {
+            const now = new Date();
+            const anio = now.getFullYear();
+            const mes = String(now.getMonth() + 1).padStart(2, '0');
+            const dIni = mIni ? parseInt(mIni[2], 10) : (/fin de semana/i.test(txt) ? 17 : null);
+            const dFin = mFin ? parseInt(mFin[2], 10) : (/fin de semana/i.test(txt) ? 18 : dIni);
+            if (dIni) fechaIni = `${anio}-${mes}-${String(dIni).padStart(2, '0')}`;
+            if (dFin) fechaFin = `${anio}-${mes}-${String(dFin).padStart(2, '0')}`;
+        }
+    }
+
+    if (!fechaIni && !fechaFin) {
+        return { esVigente: true, estadoTemporal: 'ACTIVA_AHORA' };
+    }
+
+    const start = fechaIni || sel;
+    const end = fechaFin || start;
+
+    if (sel < start) {
+        return { esVigente: false, estadoTemporal: 'FUTURA_PREVENTIVA' };
+    }
+    if (sel > end) {
+        return { esVigente: false, estadoTemporal: 'EXPIRADA' };
+    }
+    return { esVigente: true, estadoTemporal: 'ACTIVA_AHORA' };
+}
+
+/**
+ * Genera una explicación humana basada en tipo, nivel y boletín oficial (Regla 5).
+ */
+export function generarExplicacionAvisoAemet(item) {
+    if (!item) return '';
+    const nivelMap = {
+        ROJA: 'rojo',
+        NARANJA: 'naranja',
+        AMARILLA: 'amarillo'
+    };
+    const nivelTxt = nivelMap[String(item.nivel || '').toUpperCase()] || 'amarillo';
+    const tipoRaw = String(item.tipo || item.titulo || item.descripcion || 'Aviso meteorológico');
+    let fenomTxt = 'por fenómenos adversos';
+    if (/tormenta|rayo|lightning|thunderstorm/i.test(tipoRaw)) {
+        fenomTxt = 'por tormentas';
+    } else if (/costero|mar|oleaje|coastal|wave/i.test(tipoRaw)) {
+        fenomTxt = 'por fenómenos costeros';
+    } else if (/viento|racha|wind/i.test(tipoRaw)) {
+        fenomTxt = 'por rachas de viento';
+    } else if (/lluvia|precipitaci|rain/i.test(tipoRaw)) {
+        fenomTxt = 'por precipitaciones intensas';
+    } else if (/temperatura|calor|ola de calor|heat/i.test(tipoRaw)) {
+        fenomTxt = 'por altas temperaturas';
+    }
+
+    const zonaTxt = item.zona ? `para ${item.zona}` : 'para esta zona';
+
+    let tiempoTxt = '';
+    if (item.periodoTexto && !/desde.*hasta/i.test(item.periodoTexto)) {
+        tiempoTxt = ` entre las ${item.periodoTexto}`;
+    } else if (item.inicio && item.fin && item.inicio.includes('T') && item.fin.includes('T')) {
+        const hIni = item.inicio.split('T')[1].slice(0, 5);
+        const hFin = item.fin.split('T')[1].slice(0, 5);
+        tiempoTxt = ` entre las ${hIni} y las ${hFin}`;
+    } else if (item.periodoTexto) {
+        tiempoTxt = ` (${item.periodoTexto})`;
+    }
+
+    let impactoTxt = '';
+    if (/tormenta|rayo|lightning|thunderstorm/i.test(tipoRaw)) {
+        impactoTxt = ' Pueden producirse descargas eléctricas, chubascos intensos y cambios súbitos de viento.';
+    } else if (/costero|mar|oleaje|coastal|wave/i.test(tipoRaw)) {
+        impactoTxt = ' Fuerte rompiente y corrientes de resaca peligrosas en la costa.';
+    } else if (/viento|racha|wind/i.test(tipoRaw)) {
+        impactoTxt = ' Las rachas pueden provocar desestabilización en la tabla y dificultad para volver a la costa.';
+    } else if (/lluvia|precipitaci|rain/i.test(tipoRaw)) {
+        impactoTxt = ' Peligro de crecidas súbitas y escorrentías hacia las playas.';
+    } else if (item.descripcion && item.descripcion !== item.tipo) {
+        impactoTxt = ` ${item.descripcion}.`;
+    }
+
+    return `AEMET ha emitido un aviso ${nivelTxt} ${fenomTxt} ${zonaTxt}${tiempoTxt}.${impactoTxt}`;
+}
+
+/**
+ * Registro de diagnóstico para auditoría y verificación de alertas (Regla 7).
+ */
+export function registrarDiagnosticoAemet(info = {}) {
+    try {
+        const isDebug = (typeof window !== 'undefined' && (
+            Boolean(window.psDebugMode) ||
+            window.localStorage?.getItem('paddlesafe:debug-weather') === 'true' ||
+            window.localStorage?.getItem('paddlesafe:debug') === 'true' ||
+            ['localhost', '127.0.0.1'].includes(window.location?.hostname)
+        ));
+        if (isDebug) {
+            console.debug('[PaddleSafe:AEMET_Diagnostic]', {
+                selected_date: info.selected_date ?? null,
+                warning_source: info.warning_source ?? null,
+                warning_start: info.warning_start ?? null,
+                warning_end: info.warning_end ?? null,
+                warning_type: info.warning_type ?? null,
+                warning_active: Boolean(info.warning_active),
+                forecast_risk_level: info.forecast_risk_level ?? 'BAJO'
+            });
+        }
+    } catch (_) {
+        // Safe logging
+    }
+}
+
+/**
+ * Limpia y purga avisos meteorológicos obsoletos (Regla 4).
+ */
+export function limpiarAvisosMeteorologicos() {
+    if (typeof document === 'undefined') return;
+    const contBasico = document.getElementById('global-alert-container');
+    const contPro = document.getElementById('proAlertTopContainer');
+    if (contBasico) {
+        contBasico.innerHTML = '';
+        contBasico.classList.add('hidden');
+    }
+    if (contPro) {
+        contPro.innerHTML = '';
+        contPro.classList.add('hidden');
+    }
+}
+
 export function evaluarAlertasGlobales(d) {
     const clavesAemet = ['aemet', 'alerta_aemet', 'alertaAemet', 'aemet_alerts', 'aemetAlerts'];
     const clavesGenericas = ['alertas', 'alerts', 'warnings', 'avisos'];
@@ -747,11 +861,7 @@ export function evaluarAlertasGlobales(d) {
     const alertasGenericas = presentesGenericas.flatMap(clave => obtenerRegistrosAlerta(d[clave]))
         .map(registro => ({ ...registro, origen: registro.origen || (proveedorAemetExplicito ? 'AEMET' : 'METEOROLÓGICA') }));
     const registros = [...alertasAemet, ...alertasGenericas];
-    const tormenta = registros.some(registro =>
-        /tormenta|thunderstorm|lightning|descarga electrica|actividad electrica|rayos?/.test(
-            String(registro.descripcion || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-        )
-    );
+
     const datosAemet = d?.aemet && typeof d.aemet === 'object' && !Array.isArray(d.aemet) ? d.aemet : null;
     const disponibles = d?.aemetAvailable !== undefined ? Boolean(d.aemetAvailable)
         : d?.aemet_available !== undefined ? Boolean(d.aemet_available)
@@ -763,20 +873,21 @@ export function evaluarAlertasGlobales(d) {
     const alertas = [];
     registros.forEach(registro => {
         const alerta = {
-            tipo: registro.descripcion,
+            tipo: registro.tipo || registro.descripcion,
             nivel: nivelAlertaMeteorologica(registro),
-            origen: registro.origen,
+            origen: registro.origen || 'AEMET',
             titulo: registro.titulo || registro.title || '',
             urlDoc: registro.urlDoc || registro.url || null,
             esEspecial: Boolean(registro.esEspecial),
-            inicio: registro.inicio || null,
-            fin: registro.fin || null,
+            inicio: registro.inicio || registro.start || registro.valid_from || null,
+            fin: registro.fin || registro.end || registro.valid_to || null,
             diaInicio: registro.diaInicio || null,
             diaFin: registro.diaFin || null,
             nombreDiaInicio: registro.nombreDiaInicio || null,
             nombreDiaFin: registro.nombreDiaFin || null,
             periodoTexto: registro.periodoTexto || null,
             extractoOficial: registro.extractoOficial || null,
+            zona: registro.zona || registro.area || datosAemet?.zona || null,
             descripcion: registro.descripcion || ''
         };
         const repetida = alertas.find(existente =>
@@ -800,77 +911,96 @@ export function evaluarAlertasGlobales(d) {
                 if (alerta.nombreDiaFin) repetida.nombreDiaFin = alerta.nombreDiaFin;
                 if (alerta.periodoTexto) repetida.periodoTexto = alerta.periodoTexto;
                 if (alerta.extractoOficial) repetida.extractoOficial = alerta.extractoOficial;
+                if (alerta.zona) repetida.zona = alerta.zona;
             }
         }
     });
     alertas.sort((a, b) => niveles[b.nivel] - niveles[a.nivel]);
 
-    // Evaluación temporal de vigencia: comparar fecha consultada con inicio y fin del aviso
-    const fechaConsulta = d?.fecha || d?.date || (typeof document !== 'undefined' ? (document.getElementById('date')?.value || document.getElementById('proDate')?.value || document.getElementById('datePicker')?.value) : null) || new Date().toISOString().slice(0, 10);
+    // Evaluación temporal de vigencia: comparar fecha consultada con inicio y fin del aviso (Regla 3)
+    const fechaConsulta = d?.selected_date || d?.fecha || d?.date || (typeof document !== 'undefined' ? (document.getElementById('date')?.value || document.getElementById('proDate')?.value || document.getElementById('datePicker')?.value) : null) || new Date().toISOString().slice(0, 10);
 
     alertas.forEach(item => {
-        if (!item.inicio) {
-            const txt = `${item.titulo || ''} ${item.tipo || ''} ${item.descripcion || ''}`.toLowerCase();
-            const mIni = /(?:comienc[ea]|inici[ea]|a partir del?|desde el?)\s+(?:el\s+)?(?:d[ií]a\s+)?(?:([a-zñáéíóú]+)\s+)?(\d{1,2})/i.exec(txt);
-            const mFin = /(?:durante|hasta|finaliz[ea]|termin[ea])\s+(?:el\s+)?(?:d[ií]a\s+)?(?:([a-zñáéíóú]+)\s+)?(\d{1,2})/i.exec(txt);
-            if (mIni || mFin || /fin de semana/i.test(txt)) {
-                const now = new Date();
-                const anio = now.getFullYear();
-                const mes = String(now.getMonth() + 1).padStart(2, '0');
-                const dIni = mIni ? parseInt(mIni[2], 10) : (/fin de semana/i.test(txt) ? 17 : null);
-                const dFin = mFin ? parseInt(mFin[2], 10) : (/fin de semana/i.test(txt) ? 18 : (dIni || null));
-                if (dIni) item.inicio = `${anio}-${mes}-${String(dIni).padStart(2, '0')}T00:00:00`;
-                if (dFin) item.fin = `${anio}-${mes}-${String(dFin).padStart(2, '0')}T23:59:59`;
-                if (!item.periodoTexto && dIni && dFin) {
-                    item.periodoTexto = `Desde el día ${dIni} hasta el ${dFin} de ${mes}/${anio}`;
-                }
-            }
+        const vigencia = validarVigenciaAlerta(fechaConsulta, item.inicio, item.fin, `${item.titulo || ''} ${item.tipo || ''} ${item.descripcion || ''}`);
+        item.esVigente = vigencia.esVigente;
+        item.estadoTemporal = vigencia.estadoTemporal;
+        if (item.inicio && item.fin && !item.periodoTexto && item.inicio.includes('T') && item.fin.includes('T')) {
+            const hI = item.inicio.split('T')[1].slice(0, 5);
+            const hF = item.fin.split('T')[1].slice(0, 5);
+            if (hI && hF) item.periodoTexto = `${hI} y las ${hF}`;
         }
-
-        let esVigente = true;
-        let estadoTemporal = 'ACTIVA_AHORA';
-
-        if (item.inicio) {
-            const fechaIni = String(item.inicio).slice(0, 10);
-            const fechaFin = item.fin ? String(item.fin).slice(0, 10) : fechaIni;
-
-            if (fechaConsulta < fechaIni) {
-                esVigente = false;
-                estadoTemporal = 'FUTURA_PREVENTIVA';
-            } else if (fechaConsulta > fechaFin) {
-                esVigente = false;
-                estadoTemporal = 'EXPIRADA';
-            } else {
-                esVigente = true;
-                estadoTemporal = 'ACTIVA_AHORA';
-            }
-        }
-        item.esVigente = esVigente;
-        item.estadoTemporal = estadoTemporal;
+        item.explicacionHumana = generarExplicacionAvisoAemet(item);
     });
 
-    const tiene112 = alertas.some(item => /^1-?1-?2/i.test(item.origen || ''));
-    const primer112 = alertas.find(item => /^1-?1-?2/i.test(item.origen || ''));
+    // Avisos oficiales activos y vigentes para la fecha consultada (Regla 2 & Regla 3)
+    const alertasOficialesActivas = alertas.filter(item =>
+        item.esVigente === true &&
+        item.estadoTemporal === 'ACTIVA_AHORA' &&
+        (item.origen === 'AEMET' || /^1-?1-?2/i.test(item.origen || ''))
+    );
+    const alertaOficialActiva = alertasOficialesActivas.length > 0;
 
-    // Solo declara veto absoluto de emergencia si la alerta está temporalmente activa para la fecha consultada
-    const esEmergencia = alertas.some(item =>
-        item.esVigente && (
-            item.esEspecial ||
-            /^1-?1-?2/i.test(item.origen || '') ||
-            /protecci[oó]n\s*civil/i.test(item.origen || '') ||
-            /protecci[oó]n\s*civil/i.test(item.tipo || '') ||
-            /emergencia|inundaci|avenida|temporal\s*costero|galerna/i.test(item.tipo || '') ||
-            ['NARANJA', 'ROJA'].includes(String(item.nivel || '').toUpperCase()) ||
-            Boolean(item.urlDoc)
+    // Tormenta oficial: solo si AEMET o 112 ha emitido aviso activo para la fecha (Regla 6)
+    const aemetAvisoTormentaActivo = alertasOficialesActivas.some(item =>
+        /tormenta|thunderstorm|lightning|descarga\s*electrica|actividad\s*electrica|rayos?/i.test(
+            `${item.tipo || ''} ${item.descripcion || ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         )
     );
 
-    // Detectar avisos especiales futuros/preventivos
+    // Sistema A: Estimación de riesgo convectivo / inestabilidad por modelo de pronóstico (Regla 1)
+    const cape = Number(d?.cape ?? d?.convective_available_potential_energy ?? d?.convection ?? 0);
+    const weatherCode = Number(d?.weatherCode ?? d?.weather_code ?? 0);
+    const lightningProb = Number(d?.lightning_probability ?? d?.probabilidad_rayos ?? d?.probabilidadTormenta ?? 0);
+    const precipitacion = Number(d?.precipitation ?? d?.precipitation_mm ?? d?.precipitacion ?? 0);
+
+    const riesgoModeloConvectivo = (
+        cape >= 1000 ||
+        [95, 96, 99].includes(weatherCode) ||
+        lightningProb >= 40 ||
+        (cape >= 600 && precipitacion >= 5)
+    );
+
+    const forecastRiskLevel = (cape >= 1500 || [96, 99].includes(weatherCode)) ? 'CRITICO'
+        : (cape >= 1000 || weatherCode === 95 || lightningProb >= 50) ? 'ALTO'
+        : (cape >= 500 || lightningProb >= 25) ? 'MODERADO'
+        : 'BAJO';
+
+    const etiquetaRiesgoModelo = riesgoModeloConvectivo ? '⚠️ Riesgo Meteorológico Estimado' : null;
+    const mensajeRiesgoModelo = riesgoModeloConvectivo
+        ? (cape >= 1000 ? '⚠️ Condiciones favorables para desarrollo tormentoso.' : '⚠️ Posible inestabilidad atmosférica.')
+        : null;
+
+    const primerAvisoActivo = alertasOficialesActivas[0] || null;
+    const diagnostico = {
+        selected_date: fechaConsulta,
+        warning_source: alertaOficialActiva ? (primerAvisoActivo?.origen || 'AEMET') : null,
+        warning_start: primerAvisoActivo?.inicio || null,
+        warning_end: primerAvisoActivo?.fin || null,
+        warning_type: primerAvisoActivo?.tipo || null,
+        warning_active: alertaOficialActiva,
+        forecast_risk_level: forecastRiskLevel
+    };
+    registrarDiagnosticoAemet(diagnostico);
+
+    const tiene112 = alertasOficialesActivas.some(item => /^1-?1-?2/i.test(item.origen || ''));
+    const primer112 = alertasOficialesActivas.find(item => /^1-?1-?2/i.test(item.origen || ''));
+
+    // Veto de emergencias solo para alertas activas y vigentes
+    const esEmergencia = alertasOficialesActivas.some(item =>
+        item.esEspecial ||
+        /^1-?1-?2/i.test(item.origen || '') ||
+        /protecci[oó]n\s*civil/i.test(item.origen || item.tipo || '') ||
+        /emergencia|inundaci|avenida|temporal\s*costero|galerna/i.test(item.tipo || '') ||
+        ['NARANJA', 'ROJA'].includes(String(item.nivel || '').toUpperCase()) ||
+        Boolean(item.urlDoc)
+    );
+
+    // Detectar avisos preventivos futuros
     const alertasPreventivas = alertas.filter(item =>
         item.estadoTemporal === 'FUTURA_PREVENTIVA' && (
             item.esEspecial ||
             /^1-?1-?2/i.test(item.origen || '') ||
-            /protecci[oó]n\s*civil/i.test(item.origen || '') ||
+            /protecci[oó]n\s*civil/i.test(item.origen || item.tipo || '') ||
             ['NARANJA', 'ROJA'].includes(String(item.nivel || '').toUpperCase()) ||
             Boolean(item.urlDoc)
         )
@@ -879,21 +1009,32 @@ export function evaluarAlertasGlobales(d) {
     const primerPreventivo = alertasPreventivas[0] || null;
 
     const alerta = {
-        activa: alertas.length > 0,
+        activa: alertaOficialActiva,
+        esOficialAemet: alertaOficialActiva,
+        aemetAvisoTormentaActivo,
         esEmergencia,
         esAvisoPreventivo,
         avisoPreventivo: primerPreventivo,
-        esVigente: esEmergencia,
-        estadoTemporal: esEmergencia ? 'ACTIVA_AHORA' : (esAvisoPreventivo ? 'FUTURA_PREVENTIVA' : (alertas.some(a => a.estadoTemporal === 'EXPIRADA') ? 'EXPIRADA' : null)),
+        esVigente: alertaOficialActiva,
+        estadoTemporal: alertaOficialActiva ? 'ACTIVA_AHORA' : (esAvisoPreventivo ? 'FUTURA_PREVENTIVA' : (alertas.some(a => a.estadoTemporal === 'EXPIRADA') ? 'EXPIRADA' : null)),
         fechaConsulta,
         disponible: disponibles,
-        origen: tiene112 ? primer112.origen : (alertas.length > 0 && alertas.every(item => item.origen === 'AEMET') ? 'AEMET' : 'METEOROLÓGICA'),
-        alertas,
-        nivel: alertas[0]?.nivel || null,
-        tipo: alertas.map(item => item.tipo).join(' · ') || 'Aviso AEMET',
-        tormenta
+        origen: alertaOficialActiva ? (tiene112 ? primer112.origen : 'AEMET') : null,
+        alertas: alertasOficialesActivas,
+        todasLasAlertas: alertas,
+        nivel: alertasOficialesActivas[0]?.nivel || null,
+        tipo: alertasOficialesActivas.map(item => item.tipo).join(' · ') || (alertaOficialActiva ? 'Aviso AEMET' : null),
+        zona: alertasOficialesActivas[0]?.zona || null,
+        explicacionHumana: alertasOficialesActivas[0]?.explicacionHumana || null,
+        // Sistema A: Estimación del modelo interno
+        riesgoModeloConvectivo,
+        riesgoMeteorologicoEstimado: riesgoModeloConvectivo && !alertaOficialActiva,
+        etiquetaRiesgoModelo,
+        mensajeRiesgoModelo,
+        forecastRiskLevel,
+        diagnostico,
+        tormenta: aemetAvisoTormentaActivo
     };
-    console.log('[AEMET] Alertas Parseadas:', alerta);
     registrarDiagnosticoClima('[AEMET] Parsed Alerts', alerta);
     return alerta;
 }
@@ -907,25 +1048,25 @@ export function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
     const oleajeM = oleajeRaw === null || oleajeRaw === undefined || oleajeRaw === ''
         ? null : valorNumericoMeteo(oleajeRaw);
     const alerta = evaluarAlertasGlobales(dx);
-    const textoClima = `${dx.clima || ''} ${alerta.tipo || ''}`.toLowerCase();
     const weatherCode = valorNumericoMeteo(dx.weatherCode, dx.weather_code);
-    const tormenta = alerta.tormenta || /tormenta|thunderstorm|lightning|descarga electrica|actividad electrica|rayos detectados/.test(
-        textoClima.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    ) || [95, 96, 99].includes(weatherCode);
+    const cape = valorNumericoMeteo(dx.cape, dx.convective_available_potential_energy, dx.convection) ?? 0;
+    const lightningProb = valorNumericoMeteo(dx.lightning_probability, dx.probabilidad_rayos, dx.probabilidadTormenta) ?? 0;
 
     const direccionViento = valorNumericoMeteo(dx.windDirection, dx.wind_direction);
     const coords = dx.coordinates || (Number.isFinite(dx.latitude) && Number.isFinite(dx.longitude) ? { latitude: dx.latitude, longitude: dx.longitude } : null);
 
     console.log('[AEMET] Alertas enviadas al Motor:', {
         alerta,
-        tormenta,
+        tormentaOficial: alerta.aemetAvisoTormentaActivo,
+        riesgoModelo: alerta.riesgoModeloConvectivo,
         datosEntradaAemet: dx.aemet,
         datosEntradaAlertas: dx.alertas
     });
 
     registrarDiagnosticoClima('[PaddleSafe Engine] Unified Evaluation Input', {
         alertas: alerta,
-        tormenta,
+        tormentaOficial: alerta.aemetAvisoTormentaActivo,
+        riesgoModelo: alerta.riesgoModeloConvectivo,
         nivelUsuario,
         factores: { vientoKmh, rachasKmh, olaM: oleajeM, direccionViento }
     });
@@ -941,17 +1082,28 @@ export function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
         direccionSwell: dx.swellDirection ?? dx.swell_direction,
         precipitacion: valorNumericoMeteo(dx.precipitation, dx.precipitation_mm),
         probabilidadPrecipitacion: valorNumericoMeteo(dx.precipProbability, dx.precipitation_probability),
+        cape,
+        weatherCode,
+        lightningProb,
         coordenadas: coords,
         nombreSpot: dx.location || dx.nombreSpot || '',
         deporte: dx.deporte || 'paddle_surf',
         nivelUsuario,
         modelosPronostico: dx.consenso || null,
         horasDiurnas: dx.horasDiurnas || null,
+        fechaConsulta: alerta.fechaConsulta,
         alerta,
+        alertaOficial: alerta,
         alertaEmergencia: alerta.esEmergencia,
         avisoPreventivo: alerta.esAvisoPreventivo,
         datosAlertaPreventiva: alerta.avisoPreventivo,
-        tormenta
+        alertaTormentaOficialActiva: alerta.aemetAvisoTormentaActivo,
+        tormentaElectricaOficial: alerta.aemetAvisoTormentaActivo,
+        riesgoModeloConvectivo: alerta.riesgoModeloConvectivo,
+        riesgoMeteorologicoEstimado: alerta.riesgoMeteorologicoEstimado,
+        etiquetaRiesgoModelo: alerta.etiquetaRiesgoModelo,
+        mensajeRiesgoModelo: alerta.mensajeRiesgoModelo,
+        tormenta: alerta.aemetAvisoTormentaActivo
     });
 }
 
@@ -959,84 +1111,70 @@ export function renderizarAvisoSuperior(motor) {
     if (typeof document === 'undefined') return;
     const contenedorBasico = document.getElementById('global-alert-container');
     const contenedorPro = document.getElementById('proAlertTopContainer');
-    const alertas = motor?.aemet?.alertas || [];
-    const autoridadLocal = motor?.aemet?.autoridad || null;
 
-    const alertasEmergencias = alertas.filter(alerta =>
-        alerta.estadoTemporal !== 'EXPIRADA' && (
-            alerta.esEspecial ||
-            /^1-?1-?2/i.test(alerta.origen || '') ||
-            Boolean(alerta.urlDoc)
-        )
-    );
-    const alertasAemet = alertas.filter(alerta =>
-        alerta.estadoTemporal === 'ACTIVA_AHORA' &&
-        (alerta.origen === 'AEMET' || !alerta.origen) && !alerta.esEspecial && !alerta.urlDoc
-    );
-    const alertasGenerales = alertas.filter(alerta =>
-        alerta.estadoTemporal === 'ACTIVA_AHORA' &&
-        alerta.origen !== 'AEMET' &&
-        !/^1-?1-?2/i.test(alerta.origen || '') &&
-        !alerta.esEspecial &&
-        !alerta.urlDoc
+    const alertas = (motor?.aemet?.alertas || []).filter(a => a.esVigente !== false && a.estadoTemporal === 'ACTIVA_AHORA');
+    const tieneAlertaOficial = Boolean(motor?.aemet?.activa && alertas.length > 0);
+    const tieneRiesgoModelo = Boolean(
+        (motor?.riesgoMeteorologicoEstimado || motor?.riesgoModeloConvectivo) && !tieneAlertaOficial
     );
 
-    console.log('[AEMET/112] Alertas recibidas por UI:', {
-        motorAemet: motor?.aemet,
-        alertasTotal: alertas.length,
-        emergencias: alertasEmergencias.length,
-        aemet: alertasAemet.length,
-        generales: alertasGenerales.length,
-        autoridadLocal
-    });
-
-    const generarHtmlAlerta = (item, esEmergencia = false) => {
-        const bgCls = esEmergencia ? 'bg-red-950/90 border-red-500/80 text-rose-100 shadow-red-950/50'
-            : (item.nivel === 'ROJA' ? 'bg-red-950/80 border-red-500/60 text-rose-200'
-                : (item.nivel === 'NARANJA' ? 'bg-amber-950/80 border-amber-500/60 text-amber-200'
-                    : 'bg-yellow-950/60 border-yellow-500/40 text-yellow-200'));
-        const icon = esEmergencia ? '🚨' : (item.nivel === 'ROJA' ? '🔴' : (item.nivel === 'NARANJA' ? '🟠' : '🟡'));
-        const badgeOrigen = item.origen ? `<span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${esEmergencia ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-800 text-slate-300 border border-slate-700'}">${item.origen}</span>` : '';
-        const badgeDoc = item.urlDoc ? `<a href="${item.urlDoc}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white underline decoration-dotted transition-colors ml-auto"><span>📄</span> Documento Oficial</a>` : '';
-
-        return `
-            <div class="p-3.5 rounded-2xl border ${bgCls} shadow-lg backdrop-blur-md mb-2 animate-fadeIn flex flex-col gap-2">
-                <div class="flex items-center gap-2">
-                    <span class="text-lg">${icon}</span>
-                    <span class="font-black text-xs uppercase tracking-wide flex-1">${item.titulo || item.tipo}</span>
-                    ${badgeOrigen}
-                    ${badgeDoc}
-                </div>
-                ${item.descripcion ? `<p class="text-xs text-slate-200 leading-relaxed font-medium pl-6">${item.descripcion}</p>` : ''}
-                ${item.periodoTexto ? `<div class="text-[10px] text-slate-400 pl-6 flex items-center gap-1 font-mono"><span>⏱️</span> Vigencia: ${item.periodoTexto}</div>` : ''}
-                ${item.peligroNautico ? `<div class="text-[11px] text-amber-300/90 bg-black/30 p-2 rounded-xl mt-1 border border-amber-500/20 font-medium">⚠️ <strong>Peligro en Costa:</strong> ${item.peligroNautico}</div>` : ''}
-            </div>
-        `;
-    };
-
-    let htmlTotal = '';
-    alertasEmergencias.forEach(a => htmlTotal += generarHtmlAlerta(a, true));
-    alertasAemet.forEach(a => htmlTotal += generarHtmlAlerta(a, false));
-    alertasGenerales.forEach(a => htmlTotal += generarHtmlAlerta(a, false));
-
-    if (contenedorBasico) {
-        if (htmlTotal) {
-            contenedorBasico.innerHTML = htmlTotal;
-            contenedorBasico.classList.remove('hidden');
-        } else {
-            contenedorBasico.innerHTML = '';
-            contenedorBasico.classList.add('hidden');
-        }
+    if (!tieneAlertaOficial && !tieneRiesgoModelo) {
+        if (contenedorBasico) { contenedorBasico.innerHTML = ''; contenedorBasico.classList.add('hidden'); }
+        if (contenedorPro) { contenedorPro.innerHTML = ''; contenedorPro.classList.add('hidden'); }
+        return;
     }
 
+    let htmlTotal = '';
+
+    if (tieneAlertaOficial) {
+        alertas.forEach(item => {
+            const esEmergencia = Boolean(item.esEspecial || /^1-?1-?2/i.test(item.origen || '') || ['NARANJA', 'ROJA'].includes(String(item.nivel || '').toUpperCase()));
+            const bgCls = esEmergencia ? 'bg-red-950/90 border-red-500/80 text-rose-100 shadow-red-950/50'
+                : (item.nivel === 'ROJA' ? 'bg-red-950/80 border-red-500/60 text-rose-200'
+                    : (item.nivel === 'NARANJA' ? 'bg-amber-950/80 border-amber-500/60 text-amber-200'
+                        : 'bg-yellow-950/60 border-yellow-500/40 text-yellow-200'));
+            const icon = '🚨';
+            const badgeOrigen = `<span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${esEmergencia ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-800 text-slate-300 border border-slate-700'}">${item.origen || 'AEMET'}</span>`;
+            const badgeDoc = item.urlDoc ? `<a href="${item.urlDoc}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white underline decoration-dotted transition-colors ml-auto"><span>📄</span> Documento Oficial</a>` : '';
+            const explicacion = item.explicacionHumana || item.descripcion || 'Aviso meteorológico oficial activo.';
+
+            htmlTotal += `
+                <div class="p-3.5 rounded-2xl border ${bgCls} shadow-lg backdrop-blur-md mb-2 animate-fadeIn flex flex-col gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">${icon}</span>
+                        <span class="font-black text-xs uppercase tracking-wide flex-1">Aviso Oficial AEMET: ${item.tipo || item.titulo || 'Aviso'} (${item.nivel || 'AMARILLA'})</span>
+                        ${badgeOrigen}
+                        ${badgeDoc}
+                    </div>
+                    ${item.zona ? `<div class="text-[11px] text-slate-300 pl-6 font-semibold">📍 Zona: ${item.zona}</div>` : ''}
+                    <p class="text-xs text-slate-200 leading-relaxed font-medium pl-6">${explicacion}</p>
+                    ${item.periodoTexto ? `<div class="text-[10px] text-slate-400 pl-6 flex items-center gap-1 font-mono"><span>⏱️</span> Vigencia: ${item.periodoTexto}</div>` : ''}
+                    <div class="text-[10px] text-slate-400 pl-6 italic">Fuente oficial: Agencia Estatal de Meteorología (AEMET)</div>
+                </div>
+            `;
+        });
+    } else if (tieneRiesgoModelo) {
+        const mensaje = motor?.mensajeRiesgoModelo || motor?.mensaje || '⚠️ Condiciones favorables para desarrollo tormentoso.';
+        htmlTotal = `
+            <div class="p-3.5 rounded-2xl border bg-amber-950/70 border-amber-500/50 text-amber-100 shadow-lg backdrop-blur-md mb-2 animate-fadeIn flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">⚠️</span>
+                    <span class="font-black text-xs uppercase tracking-wide flex-1">Riesgo Meteorológico Estimado</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-900/80 text-amber-300 border border-amber-700">Modelo Numérico</span>
+                </div>
+                <p class="text-xs text-amber-200 leading-relaxed font-medium pl-6">${mensaje}</p>
+                <div class="text-[10px] text-amber-400/80 pl-6">Estimación interna por índices de inestabilidad convectiva (CAPE). Sin aviso oficial AEMET activo.</div>
+            </div>
+        `;
+    }
+
+    if (contenedorBasico) {
+        contenedorBasico.innerHTML = htmlTotal;
+        contenedorBasico.classList.remove('hidden');
+    }
     if (contenedorPro) {
-        if (htmlTotal) {
-            contenedorPro.innerHTML = htmlTotal;
-            contenedorPro.classList.remove('hidden');
-        } else {
-            contenedorPro.innerHTML = '';
-            contenedorPro.classList.add('hidden');
-        }
+        contenedorPro.innerHTML = htmlTotal;
+        contenedorPro.classList.remove('hidden');
     }
 }
 

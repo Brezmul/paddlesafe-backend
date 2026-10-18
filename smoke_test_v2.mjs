@@ -464,6 +464,10 @@ assert(typeof mapWeatherMod.obtenerMotorExperto === 'function', 'map.weather.js 
 assert(typeof mapWeatherMod.renderizarAvisoSuperior === 'function', 'map.weather.js must export renderizarAvisoSuperior');
 assert(typeof mapWeatherMod.extraerDatosHoraPronostico === 'function', 'map.weather.js must export extraerDatosHoraPronostico');
 assert(typeof mapWeatherMod.evaluarAlertasGlobales === 'function', 'map.weather.js must export evaluarAlertasGlobales');
+assert(typeof mapWeatherMod.validarVigenciaAlerta === 'function', 'map.weather.js must export validarVigenciaAlerta');
+assert(typeof mapWeatherMod.generarExplicacionAvisoAemet === 'function', 'map.weather.js must export generarExplicacionAvisoAemet');
+assert(typeof mapWeatherMod.registrarDiagnosticoAemet === 'function', 'map.weather.js must export registrarDiagnosticoAemet');
+assert(typeof mapWeatherMod.limpiarAvisosMeteorologicos === 'function', 'map.weather.js must export limpiarAvisosMeteorologicos');
 
 const authVal = mapWeatherMod.obtenerAutoridadEmergencias112(38.83, 0.14, 'Dénia');
 assert(authVal && (authVal.id === 'VALENCIA' || authVal.telefono === '112'), 'obtenerAutoridadEmergencias112 should identify 112 Comunitat Valenciana for Dénia');
@@ -477,6 +481,98 @@ const testHoraData = mapWeatherMod.extraerDatosHoraPronostico({
     wave_period: [6]
 }, 0);
 assert(testHoraData && testHoraData.windSpeedMs === 14.2, 'extraerDatosHoraPronostico must correctly extract windSpeedMs');
+
+// ==============================================================================
+// 3.4.2b PADDLESAFE_AEMET_ALERT_ENGINE_FIX_V1 - VALIDATION SUITE (Tests 1 - 4)
+// ==============================================================================
+
+// Test 1: No AEMET warning -> No official alert displayed
+const test1Input = {
+    selected_date: '2026-10-19',
+    vientoKmh: 12,
+    olaM: 0.3,
+    aemet: { disponible: true, alertas: [] }
+};
+const test1Alert = mapWeatherMod.evaluarAlertasGlobales(test1Input);
+assert(test1Alert.activa === false, 'Test 1: No AEMET warning -> activa must be false');
+assert(test1Alert.esOficialAemet === false, 'Test 1: No AEMET warning -> esOficialAemet must be false');
+assert(test1Alert.alertas.length === 0, 'Test 1: No AEMET warning -> alertas array must be empty');
+assert(test1Alert.tormenta === false, 'Test 1: No AEMET warning -> tormenta must be false');
+
+// Test 2: AEMET yellow thunderstorm warning -> Official alert displayed
+const test2Input = {
+    selected_date: '2026-10-19',
+    vientoKmh: 14,
+    olaM: 0.4,
+    aemet: {
+        disponible: true,
+        zonaDetectada: 'Litoral norte de Valencia',
+        alertas: [{
+            origen: 'AEMET',
+            tipo: 'Tormentas',
+            nivel: 'AMARILLA',
+            inicio: '2026-10-19T14:00:00',
+            fin: '2026-10-19T22:00:00',
+            zona: 'Litoral norte de Valencia',
+            descripcion: 'Posibilidad de tormentas con aparato eléctrico y chubascos fuertes.'
+        }]
+    }
+};
+const test2Alert = mapWeatherMod.evaluarAlertasGlobales(test2Input);
+assert(test2Alert.activa === true, 'Test 2: AEMET yellow thunderstorm warning -> activa must be true');
+assert(test2Alert.esOficialAemet === true, 'Test 2: AEMET yellow thunderstorm warning -> esOficialAemet must be true');
+assert(test2Alert.aemetAvisoTormentaActivo === true, 'Test 2: aemetAvisoTormentaActivo must be true');
+assert(test2Alert.nivel === 'AMARILLA', 'Test 2: Alert level must be AMARILLA');
+assert(test2Alert.explicacionHumana && test2Alert.explicacionHumana.includes('AEMET ha emitido un aviso amarillo por tormentas'), 'Test 2: Explanation must be human readable and mention AEMET');
+
+// Test 3: Forecast date outside warning window -> No official alert displayed
+const test3Input = {
+    selected_date: '2026-10-25', // Outside warning window of 2026-10-19
+    vientoKmh: 14,
+    olaM: 0.4,
+    aemet: {
+        disponible: true,
+        zonaDetectada: 'Litoral norte de Valencia',
+        alertas: [{
+            origen: 'AEMET',
+            tipo: 'Tormentas',
+            nivel: 'AMARILLA',
+            inicio: '2026-10-19T14:00:00',
+            fin: '2026-10-19T22:00:00',
+            zona: 'Litoral norte de Valencia',
+            descripcion: 'Tormentas con aparato eléctrico.'
+        }]
+    }
+};
+const test3Alert = mapWeatherMod.evaluarAlertasGlobales(test3Input);
+assert(test3Alert.activa === false, 'Test 3: Forecast date outside warning window -> activa must be false');
+assert(test3Alert.esOficialAemet === false, 'Test 3: Outside date window -> esOficialAemet must be false');
+assert(test3Alert.alertas.length === 0, 'Test 3: Outside date window -> alertas array must be empty');
+assert(test3Alert.aemetAvisoTormentaActivo === false, 'Test 3: Outside date window -> aemetAvisoTormentaActivo must be false');
+
+// Test 4: High CAPE but no AEMET bulletin -> Display only ⚠️ Riesgo Meteorológico Estimado
+const test4Input = {
+    selected_date: '2026-10-19',
+    cape: 1800,
+    precipitation: 4,
+    vientoKmh: 10,
+    olaM: 0.3,
+    aemet: { disponible: true, alertas: [] }
+};
+const test4Alert = mapWeatherMod.evaluarAlertasGlobales(test4Input);
+assert(test4Alert.activa === false, 'Test 4: High CAPE without AEMET -> activa must be false (no official alert)');
+assert(test4Alert.esOficialAemet === false, 'Test 4: esOficialAemet must be false');
+assert(test4Alert.aemetAvisoTormentaActivo === false, 'Test 4: aemetAvisoTormentaActivo must be false');
+assert(test4Alert.riesgoModeloConvectivo === true, 'Test 4: riesgoModeloConvectivo must be true for CAPE 1800');
+assert(test4Alert.etiquetaRiesgoModelo === '⚠️ Riesgo Meteorológico Estimado', 'Test 4: Must label as ⚠️ Riesgo Meteorológico Estimado');
+assert(!/PELIGRO|ALERTA OFICIAL|AVISO AEMET/i.test(test4Alert.etiquetaRiesgoModelo), 'Test 4: Must NEVER label as PELIGRO, ALERTA OFICIAL or AVISO AEMET');
+
+const test4Verdict = generarVeredictoNextGen(test4Input);
+assert(test4Verdict.alertaOficialActiva === false, 'Test 4 verdict: alertaOficialActiva must be false');
+assert(test4Verdict.tormentaElectricaOficial === false, 'Test 4 verdict: tormentaElectricaOficial must be false');
+assert(test4Verdict.riesgoMeteorologicoEstimado === true, 'Test 4 verdict: riesgoMeteorologicoEstimado must be true');
+assert(test4Verdict.etiquetaRiesgoModelo === '⚠️ Riesgo Meteorológico Estimado', 'Test 4 verdict: etiquetaRiesgoModelo must be ⚠️ Riesgo Meteorológico Estimado');
+assert(!/PELIGRO|ALERTA OFICIAL|AVISO AEMET/i.test(test4Verdict.justificacion), 'Test 4 verdict: Justification must not claim official AEMET alert');
 
 // Assert map.spots.js exports
 assert(typeof mapSpotsMod.cargarSpotsGuardadosUsuario === 'function', 'map.spots.js must export cargarSpotsGuardadosUsuario');
@@ -504,6 +600,10 @@ assert(geoDist > 0 && geoDist < 5, 'calcularDistanciaGeodesicaKm must return val
 assert(typeof mapMod.solicitarPronostico === 'function', 'map.js must re-export solicitarPronostico');
 assert(typeof mapMod.obtenerMotorExperto === 'function', 'map.js must re-export obtenerMotorExperto');
 assert(typeof mapMod.renderizarAvisoSuperior === 'function', 'map.js must re-export renderizarAvisoSuperior');
+assert(typeof mapMod.validarVigenciaAlerta === 'function', 'map.js must re-export validarVigenciaAlerta');
+assert(typeof mapMod.generarExplicacionAvisoAemet === 'function', 'map.js must re-export generarExplicacionAvisoAemet');
+assert(typeof mapMod.registrarDiagnosticoAemet === 'function', 'map.js must re-export registrarDiagnosticoAemet');
+assert(typeof mapMod.limpiarAvisosMeteorologicos === 'function', 'map.js must re-export limpiarAvisosMeteorologicos');
 assert(typeof mapMod.cargarSpotsGuardadosUsuario === 'function', 'map.js must re-export cargarSpotsGuardadosUsuario');
 assert(typeof mapMod.compararSpotsGuardados === 'function', 'map.js must re-export compararSpotsGuardados');
 assert(typeof mapMod.renderizarTimelineJornadaCompleta === 'function', 'map.js must re-export renderizarTimelineJornadaCompleta');

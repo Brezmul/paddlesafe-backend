@@ -26,19 +26,18 @@ export function generarConsejoCoach({
 }) {
     const nivel = normalizarNivel(userLevel);
 
-    // 1. PRIORIDAD ABSOLUTA: Tormentas eléctricas (Veto Infranqueable)
-    const esTormenta = Boolean(
-        motor?.tormentaElectrica
-        || motor?.nextGen?.estado === 'Tormenta eléctrica'
-        || [95, 96, 99].includes(Number(condiciones.weatherCode ?? condiciones.weather_code ?? 0))
-        || /tormenta|rayos|lightning|descarga electrica/i.test(String(condiciones.clima || ''))
+    // 1. PRIORIDAD ABSOLUTA: Tormenta eléctrica OFICIAL (AEMET o Protección Civil activo)
+    const esTormentaOficial = Boolean(
+        motor?.tormentaElectricaOficial
+        || motor?.aemetAvisoTormentaActivo
+        || (motor?.tormentaElectrica && motor?.aemet?.activa && motor?.aemet?.esVigente !== false)
     );
 
-    if (esTormenta) {
+    if (esTormentaOficial) {
         return {
             score: 0,
             veredicto: "⛔ NO RECOMENDADO SALIR A REMAR",
-            resumen: "Existe riesgo de tormenta eléctrica en la zona. Aunque otros parámetros puedan parecer favorables, las descargas eléctricas y los cambios bruscos del viento convierten la actividad en una situación de riesgo vital. Cancela o pospón la salida y busca refugio seguro en tierra firme.",
+            resumen: "Existe un aviso oficial por tormenta eléctrica en la zona. Aunque otros parámetros puedan parecer favorables, las descargas eléctricas y los cambios bruscos del viento convierten la actividad en una situación de riesgo vital. Cancela o pospón la salida y busca refugio seguro en tierra firme.",
             dureza_ruta: {
                 nivel: "Salida Desaconsejada",
                 descripcion: "Peligro severo e impredecible: el agua es conductora de electricidad y la pala de carbono o aluminio actúa como un pararrayos en superficie plana."
@@ -61,6 +60,37 @@ export function generarConsejoCoach({
             tecnica_postura: ["No aplica."],
             material_recomendado: ["Ropa seca y estancia protegida en tierra."],
             regla_oro: "En el mar no hay refugio frente a un rayo. Un buen paddler sabe cuándo no entrar al agua."
+        };
+    }
+
+    // 1.1 SISTEMA A: Riesgo Meteorológico Estimado por Modelo Numérico (Regla 1 & Regla 6)
+    if (motor?.riesgoMeteorologicoEstimado) {
+        return {
+            score: motor.score || 40,
+            veredicto: "⚠️ RIESGO METEOROLÓGICO ESTIMADO",
+            resumen: "Los modelos numéricos detectan inestabilidad atmosférica o condiciones favorables para desarrollo convectivo en la zona. No hay aviso oficial AEMET activo, pero se aconseja máxima vigilancia de la evolución nubosa y mantenerse cerca de la orilla.",
+            dureza_ruta: {
+                nivel: "Precaución por Inestabilidad",
+                descripcion: "Riesgo de rachas súbitas o giros bruscos de viento asociados a nubes de desarrollo."
+            },
+            estrategia_viento: {
+                tramo_facil: "Navegación costera pegada a la orilla.",
+                tramo_exigente: "Ráfagas imprevistas si evoluciona la convección.",
+                consejo_pacing: "No te alejes mar adentro y ten siempre prevista una ruta rápida de regreso a la playa."
+            },
+            analisis_deriva: "Atención a turbonadas locales que puedan alterar la brisa de fondo.",
+            consejos_nivel: [
+                "Mantén contacto visual continuo con el cielo y la orilla.",
+                "Si observas engrosamiento rápido de nubes oscuras o notas viento frío descendente, sal del agua de inmediato."
+            ],
+            consejo_instructor: "Con inestabilidad estimada en los modelos, rema siempre paralelo a la costa con salida rápida garantizada.",
+            seguridad_estrategia: [
+                "Comprobación visual de nubes cada 10-15 minutos.",
+                "Chaleco salvavidas (50N) y leash obligatorios."
+            ],
+            tecnica_postura: ["Posición base estable, flexión de rodillas para absorber rachas inesperadas."],
+            material_recomendado: ["Chaleco 50N, leash espiral, funda impermeable con teléfono."],
+            regla_oro: "La inestabilidad no avisa con antelación: el mejor paddler siempre tiene su salida a la arena asegurada."
         };
     }
 
