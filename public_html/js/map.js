@@ -1802,6 +1802,50 @@ function renderizarResumenExperto(motor, prefijo = 'basic') {
         }
     }
 
+    if (prefijo === 'basic') {
+        const scoreNum = document.getElementById('basicScoreNumber');
+        if (scoreNum && motor?.seguridad?.score !== undefined) {
+            scoreNum.textContent = motor.seguridad.score;
+        }
+        const scoreBadge = document.getElementById('basicVerdictScoreBadge');
+        if (scoreBadge && motor?.seguridad?.score !== undefined) {
+            const sc = motor.seguridad.score;
+            if (sc >= 75) {
+                scoreBadge.className = "w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/30 border border-emerald-500/50 flex flex-col items-center justify-center shrink-0 shadow-inner";
+                if (scoreNum) scoreNum.className = "text-base font-black text-emerald-300 ps-tabular";
+            } else if (sc >= 45) {
+                scoreBadge.className = "w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/30 border border-amber-500/50 flex flex-col items-center justify-center shrink-0 shadow-inner";
+                if (scoreNum) scoreNum.className = "text-base font-black text-amber-300 ps-tabular";
+            } else {
+                scoreBadge.className = "w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500/20 to-red-500/30 border border-rose-500/50 flex flex-col items-center justify-center shrink-0 shadow-inner";
+                if (scoreNum) scoreNum.className = "text-base font-black text-rose-300 ps-tabular";
+            }
+        }
+        const orientPill = document.getElementById('basicOrientationPill');
+        const dInfoBasic = motor.derivaCostera || motor.riesgoDeriva;
+        if (orientPill) {
+            const orient = dInfoBasic?.orientacion || dInfoBasic?.tipoCostero || motor?.detallesTecnicos?.orientacionCostera;
+            if (orient) {
+                orientPill.textContent = orient;
+                orientPill.classList.remove('hidden');
+            } else {
+                orientPill.classList.add('hidden');
+            }
+        }
+        const driftScoreEl = document.getElementById('basicDriftScore');
+        const driftTextEl = document.getElementById('basicDriftText');
+        const driftBarEl = document.getElementById('basicDriftBar');
+        if (driftScoreEl) {
+            const dScore = dInfoBasic?.score ?? 10;
+            driftScoreEl.textContent = dScore;
+            if (driftTextEl) driftTextEl.textContent = dInfoBasic?.nivel ? `Deriva ${dInfoBasic.nivel}` : 'Índice Deriva';
+            if (driftBarEl) {
+                driftBarEl.style.width = `${Math.min(100, Math.max(5, dScore))}%`;
+                driftBarEl.className = dScore <= 35 ? 'bg-gradient-to-r from-emerald-500 to-teal-400 h-full transition-all duration-500' : (dScore <= 65 ? 'bg-gradient-to-r from-amber-500 to-yellow-400 h-full transition-all duration-500' : 'bg-gradient-to-r from-rose-500 to-red-600 h-full transition-all duration-500');
+            }
+        }
+    }
+
     if (confianza) {
         confianza.textContent = `Confianza del análisis: ${motor.analysisConfidence}%`;
     }
@@ -2043,6 +2087,29 @@ export async function consultarBasico() {
             const hayDireccion = direccion !== null;
             const idir = hayDireccion ? Math.round((((direccion % 360) + 360) % 360) / 45) % 8 : null;
             document.getElementById("basicWindDir").innerHTML = `<div class="wind-arrow text-emerald-500 drop-shadow-sm w-4 h-4" style="transform: rotate(${hayDireccion ? direccion : 0}deg);"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.25a.75.75 0 0 1 .75.75v16.19l4.72-4.72a.75.75 0 1 1 1.06 1.06l-6 6a.75.75 0 0 1-1.06 0l-6-6a.75.75 0 1 1 1.06-1.06l4.72 4.72V3a.75.75 0 0 1 .75-.75Z" /></svg></div> ${hayDireccion ? `${cardD[idir]} (${Math.round(direccion)}°)` : 'Dirección N/D'}`;
+
+            // Actualización de barras de intensidad Bento y horas solares (DS 3.0)
+            const windBar = document.getElementById('basicWindBar');
+            if (windBar) {
+                const wPct = vientoNudos !== null ? Math.min(100, Math.round((vientoNudos / 25) * 100)) : 0;
+                windBar.style.width = `${wPct}%`;
+            }
+            const waveBar = document.getElementById('basicWaveBar');
+            if (waveBar) {
+                const wavePct = wv !== null ? Math.min(100, Math.round((wv / 2.0) * 100)) : 0;
+                waveBar.style.width = `${wavePct}%`;
+            }
+            const solarTimesEl = document.getElementById('basicSolarTimes');
+            if (solarTimesEl) {
+                try {
+                    const latVal = Number(latitudActual) || 39.5;
+                    const lonVal = Number(longitudActual) || 0.0;
+                    const solar = calcularSolYCrepusculo(latVal, lonVal, d || new Date().toISOString().slice(0, 10));
+                    if (solar && solar.sunriseStr && solar.sunsetStr) {
+                        solarTimesEl.innerHTML = `🌅 ${solar.sunriseStr} · 🌇 ${solar.sunsetStr}`;
+                    }
+                } catch (_) {}
+            }
             
             const motor = obtenerMotorExperto(dx, u);
             renderizarAvisoSuperior(motor);
@@ -2537,7 +2604,11 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
                 minutos: Math.round(tSeg),
                 eta_hora: horaPasoStr,
                 viento_kt: spdKtTramo,
-                viento_dir: dirVientoTramo
+                viento_dir: dirVientoTramo,
+                velEfectiva: Number((Math.max(1.5, obtenerVelocidadCruceroUsuario() + iV.modVelocidad)).toFixed(1)),
+                p1: rutArray[i],
+                p2: rutArray[i+1],
+                color: iV.hexLineColor
             });
             
             arrayHtmlTramos.push(`
@@ -2577,7 +2648,29 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
         document.getElementById('proSalidaHora').textContent = horaSalida;
         document.getElementById('proLlegadaHora').textContent = `${etaHH}:${etaMM}`;
         document.getElementById('proContainerNavegacion').classList.remove('hidden'); document.getElementById('proContainerNavegacion').classList.add('flex');
+
+        // Komoot/Windy-style Interactive SVG Route Profile Chart
+        window._tramosRutaActuales = tramosParaCoach;
+        const chartContainer = document.getElementById('proRouteWindChartContainer');
+        const chartTarget = document.getElementById('proRouteWindChart');
+        if (chartTarget && tramosParaCoach.length >= 1) {
+            chartTarget.innerHTML = generarGraficoSvgPerfilRuta(tramosParaCoach, dt);
+            if (chartContainer) {
+                chartContainer.classList.remove('hidden');
+                chartContainer.classList.add('flex');
+            }
+        }
     } else {
+        window._tramosRutaActuales = [];
+        const chartContainer = document.getElementById('proRouteWindChartContainer');
+        const chartTarget = document.getElementById('proRouteWindChart');
+        if (chartContainer) {
+            chartContainer.classList.add('hidden');
+            chartContainer.classList.remove('flex');
+        }
+        if (chartTarget) {
+            chartTarget.innerHTML = '';
+        }
         document.getElementById('proContainerNavegacion').classList.add('hidden'); document.getElementById('proContainerNavegacion').classList.remove('flex');
         document.getElementById('proTituloTramos').textContent = "Punto de Exploración";
         document.getElementById('proDashTramosContainer').innerHTML = `
@@ -6665,7 +6758,158 @@ export function abrirSpotActualEnPlanificadorPro() {
     }
 }
 
+export async function importarRutaGPXPro(event) {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+    try {
+        const text = await file.text();
+        const parsed = parseGPX(text);
+        if (parsed && Array.isArray(parsed.points) && parsed.points.length >= 2) {
+            const nombre = parsed.name || (file.name ? file.name.replace(/\.gpx$/i, '') : 'Ruta GPX Importada');
+            cargarRutaEnMapaGrande(parsed.points, nombre);
+            if (event.target) event.target.value = '';
+        } else {
+            alert('⚠️ El archivo GPX no contiene suficientes trackpoints o waypoints para trazar la ruta.');
+        }
+    } catch (err) {
+        console.error('Error al importar GPX Pro:', err);
+        alert('❌ Error al procesar el archivo GPX: ' + (err?.message || 'Archivo corrupto'));
+    }
+}
+
+export function centrarTramoMapa(tramoIndex) {
+    if (!map) return;
+    const tramos = window._tramosRutaActuales;
+    if (Array.isArray(tramos) && tramos[tramoIndex]) {
+        const tr = tramos[tramoIndex];
+        if (tr.p1 && tr.p2) {
+            const bounds = L.latLngBounds([tr.p1, tr.p2]);
+            map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
+            if (lineasMultiPunto && lineasMultiPunto[tramoIndex]) {
+                const line = lineasMultiPunto[tramoIndex];
+                const originalWeight = line.options?.weight || 5;
+                line.setStyle({ weight: 9, opacity: 1 });
+                setTimeout(() => {
+                    line.setStyle({ weight: originalWeight, opacity: 0.9 });
+                }, 1500);
+            }
+        }
+    }
+}
+
+export function generarGraficoSvgPerfilRuta(tramos, dt) {
+    if (!Array.isArray(tramos) || tramos.length === 0) return '';
+    const totalDistKm = dt > 0 ? (dt / 1000) : tramos.reduce((acc, t) => acc + (t.distancia_km || 0), 0);
+    const safeTotalDist = totalDistKm > 0 ? totalDistKm : 1;
+    
+    const W = 620;
+    const H = 150;
+    const padL = 40;
+    const padR = 25;
+    const padT = 25;
+    const padB = 30;
+    const chartW = W - padL - padR;
+    const chartH = H - padT - padB;
+    
+    const nodes = [];
+    let cumDist = 0;
+    nodes.push({
+        km: 0,
+        x: padL,
+        viento_kt: tramos[0].viento_kt ?? 0,
+        tramoIndex: 0,
+        label: 'A'
+    });
+    
+    const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    tramos.forEach((tr, i) => {
+        cumDist += (tr.distancia_km || 0);
+        const xPos = padL + (cumDist / safeTotalDist) * chartW;
+        nodes.push({
+            km: cumDist,
+            x: Math.round(xPos * 10) / 10,
+            viento_kt: tr.viento_kt ?? (nodes[i].viento_kt || 0),
+            tramoIndex: i,
+            label: letras[i + 1] || `${i + 1}`,
+            velEfectiva: tr.velEfectiva || (tr.modVelocidad !== undefined ? Math.max(1.5, obtenerVelocidadCruceroUsuario() + tr.modVelocidad).toFixed(1) : '4.5'),
+            nombre: tr.nombre || `Tramo ${i + 1}`,
+            relativo: tr.viento_relativo || 'Viento',
+            eta: tr.eta_hora || '--:--'
+        });
+    });
+
+    const maxWind = Math.max(15, ...nodes.map(n => n.viento_kt), 1);
+    nodes.forEach(n => {
+        n.y = Math.round((padT + chartH - ((n.viento_kt / maxWind) * chartH)) * 10) / 10;
+    });
+
+    const baselineY = padT + chartH;
+    const linePathD = nodes.map((n, i) => `${i === 0 ? 'M' : 'L'} ${n.x} ${n.y}`).join(' ');
+    const areaPathD = `${linePathD} L ${nodes[nodes.length - 1].x} ${baselineY} L ${nodes[0].x} ${baselineY} Z`;
+
+    let segmentsSvg = '';
+    for (let i = 0; i < tramos.length; i++) {
+        const n1 = nodes[i];
+        const n2 = nodes[i + 1];
+        const tr = tramos[i];
+        const segColor = tr.color || (tr.viento_relativo?.includes('FAVOR') ? '#10b981' : (tr.viento_relativo?.includes('CONTRA') ? '#ef4444' : '#f59e0b'));
+        const segMidX = (n1.x + n2.x) / 2;
+        const segMidY = (n1.y + n2.y) / 2;
+        const velEf = tr.velEfectiva || (tr.modVelocidad !== undefined ? Math.max(1.5, obtenerVelocidadCruceroUsuario() + tr.modVelocidad).toFixed(1) : '4.5');
+
+        segmentsSvg += `
+            <line x1="${n1.x}" y1="${n1.y}" x2="${n2.x}" y2="${n2.y}" stroke="${segColor}" stroke-width="3" stroke-linecap="round" />
+            <g transform="translate(${segMidX}, ${Math.max(padT + 12, segMidY - 14)})" cursor="pointer" onclick="window.centrarTramoMapa(${i})">
+                <rect x="-32" y="-9" width="64" height="18" rx="9" fill="rgba(15, 23, 42, 0.85)" stroke="${segColor}" stroke-width="1" />
+                <text x="0" y="3.5" fill="#f8fafc" font-size="9" font-weight="bold" font-family="monospace" text-anchor="middle" class="ps-tabular">🏄 ${velEf}k/h</text>
+            </g>
+        `;
+    }
+
+    let nodesSvg = '';
+    nodes.forEach((n, idx) => {
+        const isFirst = idx === 0;
+        const tramoIdx = isFirst ? 0 : idx - 1;
+        const tr = tramos[tramoIdx] || tramos[0];
+        const circleColor = isFirst ? '#10b981' : (idx === nodes.length - 1 ? '#ef4444' : '#38bdf8');
+        const tooltip = `${tr.nombre || 'Punto'}: Viento ${n.viento_kt?.toFixed(1) || 0} kt · ETA: ${tr.eta_hora || '--'}`;
+
+        nodesSvg += `
+            <g class="cursor-pointer group" onclick="window.centrarTramoMapa(${tramoIdx})">
+                <title>${tooltip}</title>
+                <circle cx="${n.x}" cy="${n.y}" r="5" fill="${circleColor}" stroke="#0f172a" stroke-width="2" />
+                <circle cx="${n.x}" cy="${baselineY}" r="2" fill="#64748b" />
+                <text x="${n.x}" y="${baselineY + 14}" fill="#94a3b8" font-size="9" font-family="monospace" text-anchor="middle" class="ps-tabular">${n.label} (${n.km.toFixed(1)}k)</text>
+                <text x="${n.x}" y="${n.y - 8}" fill="#e2e8f0" font-size="9" font-weight="bold" font-family="monospace" text-anchor="middle" class="ps-tabular">${n.viento_kt?.toFixed(1)}kt</text>
+            </g>
+        `;
+    });
+
+    return `
+        <svg viewBox="0 0 ${W} ${H}" class="w-full h-auto select-none" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="routeWindGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35" />
+                    <stop offset="100%" stop-color="#0369a1" stop-opacity="0.02" />
+                </linearGradient>
+            </defs>
+            <line x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}" stroke="rgba(148, 163, 184, 0.12)" stroke-dasharray="3,3" />
+            <line x1="${padL}" y1="${padT + chartH / 2}" x2="${W - padR}" y2="${padT + chartH / 2}" stroke="rgba(148, 163, 184, 0.12)" stroke-dasharray="3,3" />
+            <line x1="${padL}" y1="${baselineY}" x2="${W - padR}" y2="${baselineY}" stroke="rgba(148, 163, 184, 0.25)" />
+            <text x="${padL - 6}" y="${padT + 4}" fill="#64748b" font-size="8" font-family="monospace" text-anchor="end" class="ps-tabular">${Math.round(maxWind)}kt</text>
+            <text x="${padL - 6}" y="${padT + chartH / 2 + 3}" fill="#64748b" font-size="8" font-family="monospace" text-anchor="end" class="ps-tabular">${Math.round(maxWind / 2)}kt</text>
+            <text x="${padL - 6}" y="${baselineY + 3}" fill="#64748b" font-size="8" font-family="monospace" text-anchor="end" class="ps-tabular">0kt</text>
+            <path d="${areaPathD}" fill="url(#routeWindGrad)" />
+            ${segmentsSvg}
+            ${nodesSvg}
+        </svg>
+    `;
+}
+
 window.buscarYCentrarMapa = buscarYCentrarMapa;
+window.importarRutaGPXPro = importarRutaGPXPro;
+window.centrarTramoMapa = centrarTramoMapa;
+window.generarGraficoSvgPerfilRuta = generarGraficoSvgPerfilRuta;
 window.obtenerUbicacion = obtenerUbicacion;
 window.toggleModoTravesia = toggleModoTravesia;
 window.toggleRutaLibre = toggleRutaLibre;

@@ -124,7 +124,7 @@ const swContent = fs.readFileSync(swPath, 'utf8');
 const versionMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
 const expectedSwVersion = versionMatch ? versionMatch[1] : null;
 
-assert(expectedSwVersion === 'paddlesafe-v60', `sw.js version must be paddlesafe-v60, got: ${expectedSwVersion}`);
+assert(expectedSwVersion === 'paddlesafe-v61', `sw.js version must be paddlesafe-v61, got: ${expectedSwVersion}`);
 
 if (fs.existsSync(versionJsonPath)) {
     let vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
@@ -137,6 +137,13 @@ if (fs.existsSync(versionJsonPath)) {
     vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
     assert(vJson.hash === expectedSwVersion, 'version.json hash must match sw.js VERSION');
 }
+
+// 1.3 Design System 3.0 CSS tokens in compiled tailwind.min.css
+const tailwindCssPath = 'public_html/css/tailwind.min.css';
+assert(fs.existsSync(tailwindCssPath), 'public_html/css/tailwind.min.css must exist');
+const tailwindCss = fs.readFileSync(tailwindCssPath, 'utf8');
+assert(tailwindCss.includes('.ps-bento-card'), '.ps-bento-card must exist in compiled tailwind.min.css');
+assert(tailwindCss.includes('.ps-tabular'), '.ps-tabular must exist in compiled tailwind.min.css');
 
 // ------------------------------------------------------------------------------
 // TASK 2: DOM & WINDOW BINDING AUDIT
@@ -164,6 +171,8 @@ const criticalDomIds = [
     'spotLiveReportsContainer',
     'mapWindWaveHud',
     'proBiometricsBar',
+    'proRouteWindChart',
+    'mobileBottomNav',
     'posterFinisherLightbox',
     'profileWeeklyChart',
     'rankingScopeTabs',
@@ -231,6 +240,11 @@ for (const fn of inlineFunctions) {
     }
     assert(bound, `Inline handler function '${fn}' must be explicitly bound to window`);
 }
+
+// 2.3 Mobile Bottom Dock and Navigation Active Item Verification
+const mainJsCode = fs.readFileSync('public_html/js/main.js', 'utf8');
+assert(mainJsCode.includes('activarItemBottomNav') && (mainJsCode.includes('window.activarItemBottomNav') || indexHtml.includes('window.activarItemBottomNav')), 'window.activarItemBottomNav must exist');
+assert(indexHtml.includes('id="mobileBottomNav"'), '#mobileBottomNav element must exist in index.html');
 
 // ------------------------------------------------------------------------------
 // TASK 3: ENGINE & MATH RUNTIME TESTS
@@ -318,6 +332,18 @@ const bioRes = calcularBiometriaSup({
 assert(bioRes.kcal > 400, `Biometrics kcal must be > 400, got: ${bioRes.kcal}`);
 const hidrMl = bioRes.hidratacionMl !== undefined ? bioRes.hidratacionMl : bioRes.mlTotal;
 assert(hidrMl >= 800, `Biometrics hidratacionMl must be >= 800, got: ${hidrMl}`);
+
+// 3.4b Design System 3.0 Interactive Route Profile SVG Chart
+const { generarGraficoSvgPerfilRuta } = mapMod;
+assert(typeof generarGraficoSvgPerfilRuta === 'function', 'generarGraficoSvgPerfilRuta must be exported from map.js');
+const mockChartTramos = [
+    { nombre: 'TRAMO A ➔ B', distancia_km: 2.5, rumbo: 45, viento_relativo: 'VIENTO A FAVOR', modVelocidad: 0.8, minutos: 28, eta_hora: '10:28', viento_kt: 8.5, viento_dir: 45 },
+    { nombre: 'TRAMO B ➔ C', distancia_km: 3.2, rumbo: 135, viento_relativo: 'VIENTO EN CONTRA', modVelocidad: -1.2, minutos: 46, eta_hora: '11:14', viento_kt: 12.0, viento_dir: 130 }
+];
+const svgChart = generarGraficoSvgPerfilRuta(mockChartTramos, 5700);
+assert(typeof svgChart === 'string' && svgChart.includes('<svg') && svgChart.includes('</svg>'), '#proRouteWindChart must receive valid <svg> markup when route segments exist');
+assert(svgChart.includes('ps-tabular'), 'Route SVG chart must include ps-tabular classes');
+assert(svgChart.includes('centrarTramoMapa'), 'Route SVG chart must include centrarTramoMapa waypoint handlers');
 
 // 3.5 Personal Records (PRs) & ISA Merit Badges Engine (Batch #10)
 const gamifMod = await import(pathToFileURL(path.resolve('public_html/js/gamification.js')).href);

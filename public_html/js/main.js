@@ -122,6 +122,57 @@ export function togglePanelPro(forceState) {
 }
 window.togglePanelPro = togglePanelPro;
 
+// Navegación Ergonómica Móvil (Design System 3.0)
+export function activarItemBottomNav(tabId) {
+    const navItems = {
+        parte: document.getElementById('btnNavParte'),
+        pro: document.getElementById('btnNavPro'),
+        muro: document.getElementById('btnNavMuro'),
+        clubes: document.getElementById('btnNavClubes'),
+        ranking: document.getElementById('btnNavRanking')
+    };
+
+    Object.entries(navItems).forEach(([key, btn]) => {
+        if (!btn) return;
+        if (key === tabId) {
+            btn.classList.add('text-sky-400');
+            btn.classList.remove('text-slate-400');
+        } else {
+            btn.classList.remove('text-sky-400');
+            btn.classList.add('text-slate-400');
+        }
+    });
+
+    if (tabId === 'parte') {
+        const basico = document.getElementById('tab-basico') || document.getElementById('savedSpotsBar');
+        if (basico) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    } else if (tabId === 'pro') {
+        if (typeof window.togglePanelPro === 'function') {
+            window.togglePanelPro(true);
+        }
+        const mapa = document.getElementById('mapaInteractivo') || document.getElementById('panelPro') || document.getElementById('tab-pro');
+        if (mapa) {
+            mapa.scrollIntoView({ behavior: 'smooth' });
+        }
+    } else if (tabId === 'muro') {
+        if (typeof window.abrirModalFeed === 'function') {
+            window.abrirModalFeed();
+        }
+    } else if (tabId === 'clubes') {
+        if (typeof window.abrirModalClubs === 'function') {
+            window.abrirModalClubs();
+        }
+    } else if (tabId === 'ranking') {
+        if (typeof window.abrirModalRanking === 'function') {
+            window.abrirModalRanking();
+        }
+    }
+}
+window.activarItemBottomNav = activarItemBottomNav;
+window._activarItemBottomNavImpl = activarItemBottomNav;
+
 // 2. INICIALIZACIÓN PRINCIPAL (Lifecycle Seguro)
 // ====================================================
 let appInicializada = false;
