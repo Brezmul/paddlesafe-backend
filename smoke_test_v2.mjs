@@ -124,7 +124,7 @@ const swContent = fs.readFileSync(swPath, 'utf8');
 const versionMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
 const expectedSwVersion = versionMatch ? versionMatch[1] : null;
 
-assert(expectedSwVersion === 'paddlesafe-v63', `sw.js version must be paddlesafe-v63, got: ${expectedSwVersion}`);
+assert(expectedSwVersion === 'paddlesafe-v64', `sw.js version must be paddlesafe-v64, got: ${expectedSwVersion}`);
 
 if (fs.existsSync(versionJsonPath)) {
     let vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
@@ -423,6 +423,231 @@ assert(mockBento.classList.contains('ps-glass-glow-amber'), 'Score 65 must apply
 assert(!mockBento.classList.contains('ps-glass-glow-emerald'), 'Must clear previous glow class');
 aplicarGlowVerdictBento(mockBento, 40);
 assert(mockBento.classList.contains('ps-glass-glow-rose'), 'Score 40 must apply ps-glass-glow-rose');
+
+// 3.4d Strangler Fig Map Modularization (Phase 1: map.state.js, map.poster.js, map.coach.js)
+const mapStateMod = await import(pathToFileURL(path.resolve('public_html/js/map/map.state.js')).href);
+const mapPosterMod = await import(pathToFileURL(path.resolve('public_html/js/map/map.poster.js')).href);
+const mapCoachMod = await import(pathToFileURL(path.resolve('public_html/js/map/map.coach.js')).href);
+
+assert(typeof mapStateMod.mapRuntime === 'object' && mapStateMod.mapRuntime !== null, 'map.state.js must export mapRuntime');
+assert(typeof mapStateMod.resetTrackingRuntime === 'function', 'map.state.js must export resetTrackingRuntime');
+assert(typeof mapPosterMod.estamparPosterFinisherCanvas === 'function', 'map.poster.js must export estamparPosterFinisherCanvas');
+assert(typeof mapPosterMod.formatearDuracionPoster === 'function', 'map.poster.js must export formatearDuracionPoster');
+assert(typeof mapCoachMod.solicitarCoachIAPro === 'function', 'map.coach.js must export solicitarCoachIAPro');
+assert(typeof mapCoachMod.solicitarCoachIABasico === 'function', 'map.coach.js must export solicitarCoachIABasico');
+assert(typeof mapCoachMod.renderizarCoachProCard === 'function', 'map.coach.js must export renderizarCoachProCard');
+assert(typeof mapCoachMod.renderizarCoachProFallbackLocal === 'function', 'map.coach.js must export renderizarCoachProFallbackLocal');
+assert(typeof mapCoachMod.solicitarAnalisisIARutaDeportiva === 'function', 'map.coach.js must export solicitarAnalisisIARutaDeportiva');
+assert(typeof mapCoachMod.normalizarUnidadesCoach === 'function', 'map.coach.js must export normalizarUnidadesCoach');
+
+// Test re-exports from Facade map.js
+assert(typeof mapMod.mapRuntime === 'object', 'map.js must re-export mapRuntime');
+assert(typeof mapMod.estamparPosterFinisherCanvas === 'function', 'map.js must re-export estamparPosterFinisherCanvas');
+assert(typeof mapMod.solicitarCoachIAPro === 'function', 'map.js must re-export solicitarCoachIAPro');
+assert(typeof mapMod.solicitarAnalisisIARutaDeportiva === 'function', 'map.js must re-export solicitarAnalisisIARutaDeportiva');
+
+// Test normalizarUnidadesCoach
+const normStr = mapCoachMod.normalizarUnidadesCoach('Viento de 18 km/h a 25 km/h');
+assert(normStr.includes('kt'), 'normalizarUnidadesCoach must convert km/h to kt');
+
+// 3.4.2 Strangler Fig Architecture - Phase 2 (map.weather.js & map.spots.js)
+const mapWeatherMod = await import(pathToFileURL(path.resolve('public_html/js/map/map.weather.js')).href);
+const mapSpotsMod = await import(pathToFileURL(path.resolve('public_html/js/map/map.spots.js')).href);
+
+// Assert map.weather.js exports
+assert(typeof mapWeatherMod.AUTORIDADES_112_ES === 'object', 'map.weather.js must export AUTORIDADES_112_ES');
+assert(Array.isArray(mapWeatherMod.ZONAS_ESPANA_112), 'map.weather.js must export ZONAS_ESPANA_112');
+assert(typeof mapWeatherMod.obtenerAutoridadEmergencias112 === 'function', 'map.weather.js must export obtenerAutoridadEmergencias112');
+assert(typeof mapWeatherMod.solicitarPronostico === 'function', 'map.weather.js must export solicitarPronostico');
+assert(typeof mapWeatherMod.solicitarPronosticoOpenMeteo === 'function', 'map.weather.js must export solicitarPronosticoOpenMeteo');
+assert(typeof mapWeatherMod.obtenerMotorExperto === 'function', 'map.weather.js must export obtenerMotorExperto');
+assert(typeof mapWeatherMod.renderizarAvisoSuperior === 'function', 'map.weather.js must export renderizarAvisoSuperior');
+assert(typeof mapWeatherMod.extraerDatosHoraPronostico === 'function', 'map.weather.js must export extraerDatosHoraPronostico');
+assert(typeof mapWeatherMod.evaluarAlertasGlobales === 'function', 'map.weather.js must export evaluarAlertasGlobales');
+
+const authVal = mapWeatherMod.obtenerAutoridadEmergencias112(38.83, 0.14, 'Dénia');
+assert(authVal && (authVal.id === 'VALENCIA' || authVal.telefono === '112'), 'obtenerAutoridadEmergencias112 should identify 112 Comunitat Valenciana for Dénia');
+
+const testHoraData = mapWeatherMod.extraerDatosHoraPronostico({
+    time: ['2026-10-18T10:00:00Z'],
+    wind_speed_10m: [14.2],
+    wind_gusts_10m: [19.5],
+    wind_direction_10m: [90],
+    wave_height: [0.6],
+    wave_period: [6]
+}, 0);
+assert(testHoraData && testHoraData.windSpeedMs === 14.2, 'extraerDatosHoraPronostico must correctly extract windSpeedMs');
+
+// Assert map.spots.js exports
+assert(typeof mapSpotsMod.cargarSpotsGuardadosUsuario === 'function', 'map.spots.js must export cargarSpotsGuardadosUsuario');
+assert(typeof mapSpotsMod.guardarSpotActual === 'function', 'map.spots.js must export guardarSpotActual');
+assert(typeof mapSpotsMod.eliminarSpotGuardado === 'function', 'map.spots.js must export eliminarSpotGuardado');
+assert(typeof mapSpotsMod.seleccionarSpotGuardado === 'function', 'map.spots.js must export seleccionarSpotGuardado');
+assert(typeof mapSpotsMod.compararSpotsGuardados === 'function', 'map.spots.js must export compararSpotsGuardados');
+assert(typeof mapSpotsMod.abrirModalComparadorSpots === 'function', 'map.spots.js must export abrirModalComparadorSpots');
+assert(typeof mapSpotsMod.cargarJornadaCompletaSpot === 'function', 'map.spots.js must export cargarJornadaCompletaSpot');
+assert(typeof mapSpotsMod.renderizarTimelineJornadaCompleta === 'function', 'map.spots.js must export renderizarTimelineJornadaCompleta');
+assert(typeof mapSpotsMod.seleccionarHoraTimeline === 'function', 'map.spots.js must export seleccionarHoraTimeline');
+assert(typeof mapSpotsMod.reproducirTimeline24hSpot === 'function', 'map.spots.js must export reproducirTimeline24hSpot');
+assert(typeof mapSpotsMod.pausarTimeline24hSpot === 'function', 'map.spots.js must export pausarTimeline24hSpot');
+assert(typeof mapSpotsMod.alternarPlayTimeline24hSpot === 'function', 'map.spots.js must export alternarPlayTimeline24hSpot');
+assert(typeof mapSpotsMod.analizarHistorialYSmartMatchSpot === 'function', 'map.spots.js must export analizarHistorialYSmartMatchSpot');
+assert(typeof mapSpotsMod.calcularSesgoTermicoSpot === 'function', 'map.spots.js must export calcularSesgoTermicoSpot');
+assert(typeof mapSpotsMod.guardarEntradaBitacoraSpot === 'function', 'map.spots.js must export guardarEntradaBitacoraSpot');
+assert(typeof mapSpotsMod.guardarNotasTacticasSpot === 'function', 'map.spots.js must export guardarNotasTacticasSpot');
+assert(typeof mapSpotsMod.calcularDistanciaGeodesicaKm === 'function', 'map.spots.js must export calcularDistanciaGeodesicaKm');
+
+const geoDist = mapSpotsMod.calcularDistanciaGeodesicaKm(38.83, 0.14, 38.84, 0.15);
+assert(geoDist > 0 && geoDist < 5, 'calcularDistanciaGeodesicaKm must return valid geodesic distance (~1.4km)');
+
+// Assert Facade map.js re-exports Phase 2 modules
+assert(typeof mapMod.solicitarPronostico === 'function', 'map.js must re-export solicitarPronostico');
+assert(typeof mapMod.obtenerMotorExperto === 'function', 'map.js must re-export obtenerMotorExperto');
+assert(typeof mapMod.renderizarAvisoSuperior === 'function', 'map.js must re-export renderizarAvisoSuperior');
+assert(typeof mapMod.cargarSpotsGuardadosUsuario === 'function', 'map.js must re-export cargarSpotsGuardadosUsuario');
+assert(typeof mapMod.compararSpotsGuardados === 'function', 'map.js must re-export compararSpotsGuardados');
+assert(typeof mapMod.renderizarTimelineJornadaCompleta === 'function', 'map.js must re-export renderizarTimelineJornadaCompleta');
+assert(typeof mapMod.reproducirTimeline24hSpot === 'function', 'map.js must re-export reproducirTimeline24hSpot');
+assert(typeof mapMod.cargarReportesSpot === 'function', 'map.js must re-export cargarReportesSpot');
+assert(typeof mapMod.enviarReporteSpot === 'function', 'map.js must re-export enviarReporteSpot');
+
+// 3.4.3 Map Refactor Phase 3: GPS Tracker & Routes Engine (map.tracker.js & map.routes.js)
+const mapTrackerMod = await import(pathToFileURL(path.resolve('public_html/js/map/map.tracker.js')).href);
+const mapRoutesMod = await import(pathToFileURL(path.resolve('public_html/js/map/map.routes.js')).href);
+
+// Assert map.tracker.js exports
+assert(typeof mapTrackerMod.iniciarTravesia === 'function', 'map.tracker.js must export iniciarTravesia');
+assert(typeof mapTrackerMod.finalizarTravesia === 'function', 'map.tracker.js must export finalizarTravesia');
+assert(typeof mapTrackerMod.normalizarYLimitarRutaGPS === 'function', 'map.tracker.js must export normalizarYLimitarRutaGPS');
+assert(typeof mapTrackerMod.calcularBiometriaSup === 'function', 'map.tracker.js must export calcularBiometriaSup');
+assert(typeof mapTrackerMod.construirPayloadRutaSupabase === 'function', 'map.tracker.js must export construirPayloadRutaSupabase');
+assert(typeof mapTrackerMod.toggleModoTravesia === 'function', 'map.tracker.js must export toggleModoTravesia');
+
+// Test normalizarYLimitarRutaGPS algorithm
+const samplePts = mapTrackerMod.normalizarYLimitarRutaGPS([[38.8012345, 0.1812345], [38.8023456, 0.1823456]]);
+assert(samplePts.length === 2, 'normalizarYLimitarRutaGPS must preserve valid points');
+assert(samplePts[0][0] === 38.801234, 'normalizarYLimitarRutaGPS must round coordinates to 6 decimals');
+
+
+// Test construirPayloadRutaSupabase deduplication helper
+const samplePayload = mapTrackerMod.construirPayloadRutaSupabase({
+    userId: '00000000-0000-0000-0000-000000000001',
+    distanciaKm: 2.5,
+    tiempoMinutos: 30,
+    coords: [[38.8, 0.18], [38.81, 0.19]],
+    vientoKt: 8,
+    olasM: 0.3
+});
+assert(samplePayload.user_id === '00000000-0000-0000-0000-000000000001', 'construirPayloadRutaSupabase must set user_id');
+assert(samplePayload.distancia_km === 2.5, 'construirPayloadRutaSupabase must set distancia_km');
+assert(samplePayload.tiempo_minutos === 30, 'construirPayloadRutaSupabase must set tiempo_minutos');
+assert(samplePayload.wind_speed_kt === 8, 'construirPayloadRutaSupabase must set wind_speed_kt');
+assert(samplePayload.wave_height_m === 0.3, 'construirPayloadRutaSupabase must set wave_height_m');
+assert(Array.isArray(samplePayload.ruta_json) && samplePayload.ruta_json.length === 2, 'construirPayloadRutaSupabase must set normalized ruta_json');
+
+
+// Assert map.routes.js exports
+assert(typeof mapRoutesMod.toggleRutaLibre === 'function', 'map.routes.js must export toggleRutaLibre');
+assert(typeof mapRoutesMod.limpiarRuta === 'function', 'map.routes.js must export limpiarRuta');
+assert(typeof mapRoutesMod.cerrarIdaYVueltaMultipunto === 'function', 'map.routes.js must export cerrarIdaYVueltaMultipunto');
+assert(typeof mapRoutesMod.cargarRutaDeportivaEnMapa === 'function', 'map.routes.js must export cargarRutaDeportivaEnMapa');
+assert(typeof mapRoutesMod.exportarRutaPlanificadaGPX === 'function', 'map.routes.js must export exportarRutaPlanificadaGPX');
+assert(typeof mapRoutesMod.iniciarCreacionQuedadaClub === 'function', 'map.routes.js must export iniciarCreacionQuedadaClub');
+assert(typeof mapRoutesMod.analizarVientoRutaClub === 'function', 'map.routes.js must export analizarVientoRutaClub');
+assert(typeof mapRoutesMod.generarGraficoSvgPerfilRuta === 'function', 'map.routes.js must export generarGraficoSvgPerfilRuta');
+assert(typeof mapRoutesMod.evaluarVientoRelativoInfo === 'function', 'map.routes.js must export evaluarVientoRelativoInfo');
+
+// Test evaluarVientoRelativoInfo
+const vContra = mapRoutesMod.evaluarVientoRelativoInfo(0, 0);
+assert(vContra.texto.includes('CONTRA'), 'evaluarVientoRelativoInfo: 0 deg vs 0 deg should be wind against');
+const vFavor = mapRoutesMod.evaluarVientoRelativoInfo(0, 180);
+assert(vFavor.texto.includes('FAVOR'), 'evaluarVientoRelativoInfo: 0 deg vs 180 deg should be wind in favor');
+
+// Test generarGraficoSvgPerfilRuta
+const svgOutput = mapRoutesMod.generarGraficoSvgPerfilRuta([{ distancia_km: 2, viento_kt: 8, nombre: 'Tramo 1' }], 2000);
+assert(svgOutput.includes('<svg') && svgOutput.includes('routeWindGrad'), 'generarGraficoSvgPerfilRuta must produce valid SVG');
+
+// Assert Facade map.js re-exports Phase 3 modules
+assert(typeof mapMod.iniciarTravesia === 'function', 'map.js must re-export iniciarTravesia');
+assert(typeof mapMod.finalizarTravesia === 'function', 'map.js must re-export finalizarTravesia');
+assert(typeof mapMod.normalizarYLimitarRutaGPS === 'function', 'map.js must re-export normalizarYLimitarRutaGPS');
+assert(typeof mapMod.calcularBiometriaSup === 'function', 'map.js must re-export calcularBiometriaSup');
+assert(typeof mapMod.construirPayloadRutaSupabase === 'function', 'map.js must re-export construirPayloadRutaSupabase');
+assert(typeof mapMod.toggleModoTravesia === 'function', 'map.js must re-export toggleModoTravesia');
+assert(typeof mapMod.toggleRutaLibre === 'function', 'map.js must re-export toggleRutaLibre');
+assert(typeof mapMod.limpiarRuta === 'function', 'map.js must re-export limpiarRuta');
+assert(typeof mapMod.cerrarIdaYVueltaMultipunto === 'function', 'map.js must re-export cerrarIdaYVueltaMultipunto');
+assert(typeof mapMod.cargarRutaDeportivaEnMapa === 'function', 'map.js must re-export cargarRutaDeportivaEnMapa');
+assert(typeof mapMod.exportarRutaPlanificadaGPX === 'function', 'map.js must re-export exportarRutaPlanificadaGPX');
+assert(typeof mapMod.iniciarCreacionQuedadaClub === 'function', 'map.js must re-export iniciarCreacionQuedadaClub');
+assert(typeof mapMod.analizarVientoRutaClub === 'function', 'map.js must re-export analizarVientoRutaClub');
+
+// 3.4.4 Map Refactor Phase 4 (Final): Core GIS, Bento Cockpit, Pure Facade & Offline Precache
+const mapCoreMod = await import(pathToFileURL(path.resolve('public_html/js/map/map.core.js')).href);
+const mapBentoMod = await import(pathToFileURL(path.resolve('public_html/js/map/map.bento.js')).href);
+
+// Assert map.core.js exports
+assert(typeof mapCoreMod.TABLAS_SUP_CONFIG === 'object', 'map.core.js must export TABLAS_SUP_CONFIG');
+assert(typeof mapCoreMod.inicializarMapa === 'function', 'map.core.js must export inicializarMapa');
+assert(typeof mapCoreMod.actualizarMapa === 'function', 'map.core.js must export actualizarMapa');
+assert(typeof mapCoreMod.buscarYCentrarMapa === 'function', 'map.core.js must export buscarYCentrarMapa');
+assert(typeof mapCoreMod.obtenerUbicacion === 'function', 'map.core.js must export obtenerUbicacion');
+assert(typeof mapCoreMod.recuperarEquipoUsuario === 'function', 'map.core.js must export recuperarEquipoUsuario');
+assert(typeof mapCoreMod.guardarEquipoUsuario === 'function', 'map.core.js must export guardarEquipoUsuario');
+assert(typeof mapCoreMod.obtenerVelocidadCruceroUsuario === 'function', 'map.core.js must export obtenerVelocidadCruceroUsuario');
+assert(typeof mapCoreMod.obtenerModificadorDerivaUsuario === 'function', 'map.core.js must export obtenerModificadorDerivaUsuario');
+assert(typeof mapCoreMod.autoCalibrarRitmoDesdeRutas === 'function', 'map.core.js must export autoCalibrarRitmoDesdeRutas');
+assert(typeof mapCoreMod.descargarZonaMapaOffline === 'function', 'map.core.js must export descargarZonaMapaOffline');
+assert(typeof mapCoreMod.calcularTilesBoundingBox === 'function', 'map.core.js must export calcularTilesBoundingBox');
+
+// Assert map.bento.js exports
+assert(typeof mapBentoMod.aplicarGlowVerdictBento === 'function', 'map.bento.js must export aplicarGlowVerdictBento');
+assert(typeof mapBentoMod.renderizarResumenExperto === 'function', 'map.bento.js must export renderizarResumenExperto');
+assert(typeof mapBentoMod.activarSkeletonCargaSpot === 'function', 'map.bento.js must export activarSkeletonCargaSpot');
+assert(typeof mapBentoMod.desactivarSkeletonCargaSpot === 'function', 'map.bento.js must export desactivarSkeletonCargaSpot');
+assert(typeof mapBentoMod.consultarBasico === 'function', 'map.bento.js must export consultarBasico');
+assert(typeof mapBentoMod.consultarPuntoProInstantaneo === 'function', 'map.bento.js must export consultarPuntoProInstantaneo');
+assert(typeof mapBentoMod.consultarRutaPro === 'function', 'map.bento.js must export consultarRutaPro');
+assert(typeof mapBentoMod.renderizarDashboardPro === 'function', 'map.bento.js must export renderizarDashboardPro');
+assert(typeof mapBentoMod.cargarPrevisionHorariaExacta === 'function', 'map.bento.js must export cargarPrevisionHorariaExacta');
+assert(typeof mapBentoMod.volverPlanificadorPro === 'function', 'map.bento.js must export volverPlanificadorPro');
+assert(typeof mapBentoMod.renderizarRosaVectoresMapa === 'function', 'map.bento.js must export renderizarRosaVectoresMapa');
+assert(typeof mapBentoMod.actualizarHudVectoresMapa === 'function', 'map.bento.js must export actualizarHudVectoresMapa');
+
+// Assert Facade map.js re-exports Phase 4 modules
+assert(typeof mapMod.inicializarMapa === 'function', 'map.js must re-export inicializarMapa');
+assert(typeof mapMod.buscarYCentrarMapa === 'function', 'map.js must re-export buscarYCentrarMapa');
+assert(typeof mapMod.obtenerVelocidadCruceroUsuario === 'function', 'map.js must re-export obtenerVelocidadCruceroUsuario');
+assert(typeof mapMod.descargarZonaMapaOffline === 'function', 'map.js must re-export descargarZonaMapaOffline');
+assert(typeof mapMod.consultarBasico === 'function', 'map.js must re-export consultarBasico');
+assert(typeof mapMod.consultarPuntoProInstantaneo === 'function', 'map.js must re-export consultarPuntoProInstantaneo');
+assert(typeof mapMod.consultarRutaPro === 'function', 'map.js must re-export consultarRutaPro');
+assert(typeof mapMod.renderizarDashboardPro === 'function', 'map.js must re-export renderizarDashboardPro');
+assert(typeof mapMod.renderizarRosaVectoresMapa === 'function', 'map.js must re-export renderizarRosaVectoresMapa');
+assert(typeof mapMod.actualizarHudVectoresMapa === 'function', 'map.js must re-export actualizarHudVectoresMapa');
+
+// Assert All 9 submodules exist in public_html/js/map/ and are precached in sw.js
+const mapRefactorModules = [
+    'map.state.js',
+    'map.core.js',
+    'map.weather.js',
+    'map.bento.js',
+    'map.tracker.js',
+    'map.poster.js',
+    'map.routes.js',
+    'map.coach.js',
+    'map.spots.js'
+];
+for (const modFile of mapRefactorModules) {
+    const fullModPath = path.resolve('public_html/js/map', modFile);
+    assert(fs.existsSync(fullModPath), `Submodule public_html/js/map/${modFile} must exist`);
+    assert(swContent.includes(`js/map/${modFile}`), `sw.js precache must include js/map/${modFile}`);
+}
+
+// Assert map.js pure facade LOC < 200
+const mapFacadeContent = fs.readFileSync('public_html/js/map.js', 'utf8');
+const mapFacadeLines = mapFacadeContent.split('\n').length;
+assert(mapFacadeLines < 200, `map.js must be a clean facade under 200 LOC, got ${mapFacadeLines} LOC`);
 
 // 3.5 Personal Records (PRs) & ISA Merit Badges Engine (Batch #10)
 const gamifMod = await import(pathToFileURL(path.resolve('public_html/js/gamification.js')).href);
@@ -888,6 +1113,17 @@ assert(sqlContentBackend.includes('spot_logbook'), 'Backend SQL must define spot
 assert(sqlContentBackend.includes('notas_tacticas'), 'Backend SQL must extend user_spots with notas_tacticas');
 assert(sqlContentBackend.includes('acceso_parking'), 'Backend SQL must extend user_spots with acceso_parking');
 assert(sqlContentBackend.includes('peligros_locales'), 'Backend SQL must extend user_spots with peligros_locales');
+
+// 4.11 Social Feed Resilience & Decoupled Polymorphic Queries Audit
+const socialJsUpdated = fs.readFileSync('public_html/js/social.js', 'utf8');
+assert(socialJsUpdated.includes('cargarMas()'), 'social.js must implement socialFeed.cargarMas for pagination/infinite scroll');
+assert(socialJsUpdated.includes('parseFechaSegura'), 'social.js must define parseFechaSegura for robust date sorting');
+assert(socialJsUpdated.includes('debugTelemetry'), 'social.js must track debugTelemetry for production monitoring');
+assert(!socialJsUpdated.includes("from('rutas')\n                        .select('id, user_id, ubicacion, distancia_km, tiempo_minutos, velocidad_media"), 'social.js must not select non-existent velocidad_media on rutas');
+
+const clubPublicUpdated = fs.readFileSync('public_html/js/club/club.public.js', 'utf8');
+assert(!clubPublicUpdated.includes("select('created_at, rutas("), 'club.public.js must not attempt PostgREST embedded FK join on club_rutas');
+assert(clubPublicUpdated.includes("from('user_routes')"), 'club.public.js must support polymorphic routes from user_routes');
 
 // ------------------------------------------------------------------------------
 // FINAL RESULT SUMMARY

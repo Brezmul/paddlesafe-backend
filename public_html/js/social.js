@@ -1213,7 +1213,27 @@ export async function comprobarNuevasSolicitudesSilencioso() {
 // ====================================================
 // FEED SOCIAL (socialFeed)
 // ====================================================
+function parseFechaSegura(val) {
+    if (!val) return new Date();
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? new Date() : d;
+}
+
 export const socialFeed = {
+    filtroActual: 'global',
+    pagina: 0,
+    limite: 15,
+    cargando: false,
+    hayMas: true,
+    itemsIds: new Set(),
+    items: [],
+    debugTelemetry: {
+        requestCount: 0,
+        returnedCount: 0,
+        failedCount: 0,
+        lastCursor: null,
+        errors: []
+    },
     async obtenerFiltrosUsuario() {
         if (!appState.sesionActual || appState.esInvitado) return { misClubsIds: [], misAmigosIds: [] };
         const miId = appState.sesionActual.user.id;
@@ -1228,107 +1248,240 @@ export const socialFeed = {
         } catch (e) { console.warn('Aviso no crítico (Filtros feed):', e); }
         return { misClubsIds, misAmigosIds };
     },
-    async cargarActividad(filtro = 'global') {
+    async cargarMas() {
+        if (this.cargando || !this.hayMas) return;
+        this.pagina++;
+        await this.cargarActividad(this.filtroActual, { append: true });
+    },
+    async cargarActividad(filtro = 'global', options = {}) {
+        const append = Boolean(options && options.append);
+        this.filtroActual = filtro;
+        this.cargando = true;
+
         const c = document.getElementById('feedContainerList');
-        if (!c) return;
-        c.innerHTML = `<p class="text-center text-slate-400 dark:text-slate-500 text-[10px] animate-pulse py-10 uppercase font-bold tracking-widest">Buscando actividad...</p>`;
+        if (!c) {
+            this.cargando = false;
+            return;
+        }
+
+        if (!append) {
+            this.pagina = 0;
+            this.hayMas = true;
+            this.itemsIds.clear();
+            this.items = [];
+            c.innerHTML = `<p class="text-center text-slate-400 dark:text-slate-500 text-[10px] animate-pulse py-10 uppercase font-bold tracking-widest">Buscando actividad...</p>`;
+        } else {
+            const btnMas = document.getElementById('btnCargarMasFeed');
+            if (btnMas) {
+                btnMas.disabled = true;
+                btnMas.textContent = 'Cargando más...';
+            }
+        }
+
+        const offset = this.pagina * this.limite;
+        const toRange = offset + this.limite - 1;
+
+        this.debugTelemetry.requestCount++;
+        this.debugTelemetry.lastCursor = offset;
+
         try {
             const { misClubsIds, misAmigosIds } = await this.obtenerFiltrosUsuario();
-            
+
             // 1. Consultar altas de miembros en clubes
             let qMiembros;
-            if ((filtro === 'mis_clubs' && misClubsIds.length === 0) ||
-                (filtro === 'mis_amigos' && misAmigosIds.length === 0)) {
-                qMiembros = Promise.resolve({ data: [] });
+            if (filtro === 'mis_clubs') {
+                if (misClubsIds.length > 0) {
+                    qMiembros = supabaseClient
+                        .from('clubs_usuarios')
+                        .select('joined_at, club_id, user_id, perfiles(nombre, avatar_url), clubs(nombre)')
+                        .in('club_id', misClubsIds)
+                        .order('joined_at', { ascending: false })
+                        .range(offset, toRange);
+                } else {
+                    qMiembros = Promise.resolve({ data: [] });
+                }
+            } else if (filtro === 'mis_amigos') {
+                if (misAmigosIds.length > 0) {
+                    qMiembros = supabaseClient
+                        .from('clubs_usuarios')
+                        .select('joined_at, club_id, user_id, perfiles(nombre, avatar_url), clubs(nombre)')
+                        .in('user_id', misAmigosIds)
+                        .order('joined_at', { ascending: false })
+                        .range(offset, toRange);
+                } else {
+                    qMiembros = Promise.resolve({ data: [] });
+                }
             } else {
                 qMiembros = supabaseClient
                     .from('clubs_usuarios')
-                    .select('joined_at, club_id, user_id, perfiles(nombre, avatar_url), clubs(nombre)');
-                if (filtro === 'mis_clubs') qMiembros = qMiembros.in('club_id', misClubsIds);
-                if (filtro === 'mis_amigos') qMiembros = qMiembros.in('user_id', misAmigosIds);
-                qMiembros = qMiembros.order('joined_at', { ascending: false }).limit(15);
+                    .select('joined_at, club_id, user_id, perfiles(nombre, avatar_url), clubs(nombre)')
+                    .order('joined_at', { ascending: false })
+                    .range(offset, toRange);
             }
 
-            // 2. Consultar rutas registradas por clubes
-            let qRutas;
-            if ((filtro === 'mis_clubs' && misClubsIds.length === 0) ||
-                (filtro === 'mis_amigos' && misAmigosIds.length === 0)) {
-                qRutas = Promise.resolve({ data: [] });
+            // 2. Consultar rutas de clubes (desacoplado sin FK restrictivo para soporte polimórfico)
+            let qClubRutas;
+            if (filtro === 'mis_clubs') {
+                if (misClubsIds.length > 0) {
+                    qClubRutas = supabaseClient
+                        .from('club_rutas')
+                        .select('created_at, club_id, ruta_id, clubs(id, nombre)')
+                        .in('club_id', misClubsIds)
+                        .order('created_at', { ascending: false })
+                        .range(offset, toRange);
+                } else {
+                    qClubRutas = Promise.resolve({ data: [] });
+                }
+            } else if (filtro === 'mis_amigos') {
+                qClubRutas = Promise.resolve({ data: [] });
             } else {
-                qRutas = supabaseClient
+                qClubRutas = supabaseClient
                     .from('club_rutas')
-                    .select('created_at, club_id, ruta_id, rutas(id, user_id, ubicacion, distancia_km, tiempo_minutos, velocidad_media, fecha, created_at, imagen_url, ruta_json, route_coordinates, splits_data, weather_snapshot, wind_speed_kt, wind_gust_kt, wave_height_m, wave_period_s, conditions_score), clubs(id, nombre)');
-                if (filtro === 'mis_clubs') qRutas = qRutas.in('club_id', misClubsIds);
-                if (filtro === 'mis_amigos') qRutas = qRutas.in('rutas.user_id', misAmigosIds);
-                qRutas = qRutas.order('created_at', { ascending: false }).limit(15);
+                    .select('created_at, club_id, ruta_id, clubs(id, nombre)')
+                    .order('created_at', { ascending: false })
+                    .range(offset, toRange);
             }
 
-            // 2b. Consultar rutas directas de usuarios para feed global o amigos
-            let qRutasDirectas;
+            // 3. Consultar rutas directas de usuarios (rutas y user_routes con columnas exactas)
+            const rutasSelect = 'id, user_id, ubicacion, distancia_km, tiempo_minutos, avg_speed_kmh, fecha, created_at, imagen_url, ruta_json, splits_data, weather_snapshot, wind_speed_kt, wind_gust_kt, wave_height_m, wave_period_s, conditions_score';
+            const urSelect = 'id, user_id, title, distance_km, duration_seconds, avg_speed, max_speed, xp_earned, created_at, route_coordinates, splits_data, weather_snapshot, wind_speed_kt, wind_gust_kt, wave_height_m, wave_period_s, conditions_score';
+
+            let qRutasDirectas = Promise.resolve({ data: [] });
+            let qUserRoutesDirectas = Promise.resolve({ data: [] });
+
             if (filtro === 'mis_clubs') {
                 qRutasDirectas = Promise.resolve({ data: [] });
+                qUserRoutesDirectas = Promise.resolve({ data: [] });
             } else if (filtro === 'mis_amigos') {
                 if (misAmigosIds.length > 0) {
                     qRutasDirectas = supabaseClient
                         .from('rutas')
-                        .select('id, user_id, ubicacion, distancia_km, tiempo_minutos, velocidad_media, fecha, created_at, imagen_url, ruta_json, route_coordinates, splits_data, weather_snapshot, wind_speed_kt, wind_gust_kt, wave_height_m, wave_period_s, conditions_score')
+                        .select(rutasSelect)
                         .in('user_id', misAmigosIds)
                         .order('created_at', { ascending: false })
-                        .limit(15);
-                } else {
-                    qRutasDirectas = Promise.resolve({ data: [] });
+                        .range(offset, toRange);
+
+                    qUserRoutesDirectas = supabaseClient
+                        .from('user_routes')
+                        .select(urSelect)
+                        .in('user_id', misAmigosIds)
+                        .order('created_at', { ascending: false })
+                        .range(offset, toRange);
                 }
             } else {
                 qRutasDirectas = supabaseClient
                     .from('rutas')
-                    .select('id, user_id, ubicacion, distancia_km, tiempo_minutos, velocidad_media, fecha, created_at, imagen_url, ruta_json, route_coordinates, splits_data, weather_snapshot, wind_speed_kt, wind_gust_kt, wave_height_m, wave_period_s, conditions_score')
+                    .select(rutasSelect)
                     .order('created_at', { ascending: false })
-                    .limit(15);
+                    .range(offset, toRange);
+
+                qUserRoutesDirectas = supabaseClient
+                    .from('user_routes')
+                    .select(urSelect)
+                    .order('created_at', { ascending: false })
+                    .range(offset, toRange);
             }
 
-            // 3. Consultar chat de clubes:
-            // FILTRO ESTRICTO DE PRIVACIDAD:
-            // Los chats de los clubes son privados de la tripulación (visibility = 'club_only').
-            // Si el usuario no pertenece a ningún club, qChat no consulta la tabla club_chat.
-            // Si pertenece a clubes, se restringe estrictamente por .in('club_id', misClubsIds).
+            // 4. Consultar chat de clubes
             let qChat = Promise.resolve({ data: [] });
             if (Array.isArray(misClubsIds) && misClubsIds.length > 0 &&
                 (filtro !== 'mis_amigos' || misAmigosIds.length > 0)) {
-                qChat = supabaseClient
+                let chatQuery = supabaseClient
                     .from('club_chat')
-                    .select('created_at, club_id, user_id, mensaje, visibility, is_public, perfiles(nombre, avatar_url), clubs(nombre)');
-                qChat = qChat.in('club_id', misClubsIds);
-                if (filtro === 'mis_amigos') qChat = qChat.in('user_id', misAmigosIds);
-                qChat = qChat.order('created_at', { ascending: false }).limit(15);
+                    .select('created_at, club_id, user_id, mensaje, visibility, is_public, perfiles(nombre, avatar_url), clubs(nombre)')
+                    .in('club_id', misClubsIds);
+                if (filtro === 'mis_amigos') chatQuery = chatQuery.in('user_id', misAmigosIds);
+                qChat = chatQuery.order('created_at', { ascending: false }).range(offset, toRange);
             }
-            
-            const [resM, resR, resC, resRD] = await Promise.allSettled([qMiembros, qRutas, qChat, qRutasDirectas]);
-            let acts = [];
 
-            const queryResults = [resM, resR, resC, resRD];
-            const queryErrors = queryResults.flatMap(result => {
-                if (result.status === 'rejected') return [result.reason];
-                return result.value?.error ? [result.value.error] : [];
-            });
-            queryErrors.forEach(error => console.warn('[socialFeed] Error consultando actividad:', error));
+            const [resM, resCR, resRD, resURD, resC] = await Promise.allSettled([
+                qMiembros,
+                qClubRutas,
+                qRutasDirectas,
+                qUserRoutesDirectas,
+                qChat
+            ]);
 
-            const dataM = resM.status === 'fulfilled' && resM.value?.data ? resM.value.data : [];
-            const dataR = resR.status === 'fulfilled' && resR.value?.data ? resR.value.data : [];
-            const dataC = resC.status === 'fulfilled' && resC.value?.data ? resC.value.data : [];
-            const dataRD = resRD?.status === 'fulfilled' && resRD.value?.data ? resRD.value.data : [];
-
-            // Cargar perfiles de las rutas para garantizar nombres y avatares
-            const rutasParaPerfil = [
-                ...dataR.map(i => i.rutas).filter(Boolean),
-                ...dataRD
+            const queryResults = [
+                { name: 'clubs_usuarios', res: resM },
+                { name: 'club_rutas', res: resCR },
+                { name: 'rutas_directas', res: resRD },
+                { name: 'user_routes_directas', res: resURD },
+                { name: 'club_chat', res: resC }
             ];
-            const uids = Array.from(new Set(rutasParaPerfil.map(r => r.user_id).filter(Boolean)));
+
+            const queryErrors = [];
+            queryResults.forEach(({ name, res }) => {
+                if (res.status === 'rejected') {
+                    console.warn(`[socialFeed] Query rechazada (${name}):`, res.reason);
+                    queryErrors.push(res.reason);
+                    this.debugTelemetry.failedCount++;
+                } else if (res.value?.error) {
+                    console.warn(`[socialFeed] Error consultando actividad (${name}):`, res.value.error);
+                    queryErrors.push(res.value.error);
+                    this.debugTelemetry.failedCount++;
+                }
+            });
+
+            const dataM = (resM.status === 'fulfilled' && Array.isArray(resM.value?.data)) ? resM.value.data : [];
+            const dataCR = (resCR.status === 'fulfilled' && Array.isArray(resCR.value?.data)) ? resCR.value.data : [];
+            const dataRD = (resRD.status === 'fulfilled' && Array.isArray(resRD.value?.data)) ? resRD.value.data : [];
+            const dataURD = (resURD.status === 'fulfilled' && Array.isArray(resURD.value?.data)) ? resURD.value.data : [];
+            const dataC = (resC.status === 'fulfilled' && Array.isArray(resC.value?.data)) ? resC.value.data : [];
+
+            // Resolución polimórfica de rutas de clubes (rutas o user_routes)
+            const clubRutaIds = Array.from(new Set(dataCR.map(item => item.ruta_id).filter(Boolean)));
+            const clubRoutesMap = new Map();
+            if (clubRutaIds.length > 0) {
+                try {
+                    const [resLegClub, resUrClub] = await Promise.allSettled([
+                        supabaseClient
+                            .from('rutas')
+                            .select(rutasSelect)
+                            .in('id', clubRutaIds),
+                        supabaseClient
+                            .from('user_routes')
+                            .select(urSelect)
+                            .in('id', clubRutaIds)
+                    ]);
+                    if (resLegClub.status === 'fulfilled' && Array.isArray(resLegClub.value?.data)) {
+                        resLegClub.value.data.forEach(r => clubRoutesMap.set(String(r.id), r));
+                    }
+                    if (resUrClub.status === 'fulfilled' && Array.isArray(resUrClub.value?.data)) {
+                        resUrClub.value.data.forEach(r => {
+                            if (!clubRoutesMap.has(String(r.id))) {
+                                clubRoutesMap.set(String(r.id), r);
+                            }
+                        });
+                    }
+                } catch (eCR) {
+                    console.warn('[socialFeed] Error resolviendo rutas de club_rutas:', eCR);
+                }
+            }
+
+            // Unificar rutas directas (sin duplicar entre rutas y user_routes)
+            const directRoutes = [...dataRD];
+            dataURD.forEach(ur => {
+                if (!directRoutes.some(r => String(r.id) === String(ur.id))) {
+                    directRoutes.push(ur);
+                }
+            });
+
+            // Cargar perfiles de autores para todas las rutas (clubes y directas)
+            const todasLasRutas = [
+                ...Array.from(clubRoutesMap.values()),
+                ...directRoutes
+            ];
+            const uids = Array.from(new Set(todasLasRutas.map(r => r.user_id).filter(Boolean)));
             if (uids.length > 0) {
                 try {
-                    const { data: perfilesData } = await supabaseClient.from('perfiles').select('id, nombre, avatar_url').in('id', uids);
-                    if (perfilesData && perfilesData.length > 0) {
+                    const { data: perfilesData, error: pErr } = await supabaseClient
+                        .from('perfiles')
+                        .select('id, nombre, avatar_url')
+                        .in('id', uids);
+                    if (!pErr && perfilesData && perfilesData.length > 0) {
                         const pMap = new Map(perfilesData.map(p => [p.id, p]));
-                        rutasParaPerfil.forEach(r => {
+                        todasLasRutas.forEach(r => {
                             if (r.user_id && pMap.has(r.user_id)) {
                                 r.perfiles = pMap.get(r.user_id);
                             }
@@ -1339,96 +1492,140 @@ export const socialFeed = {
                 }
             }
 
+            const newActs = [];
+
             // A) Altas en clubes
             dataM.forEach(i => {
-                const esPublico = true;
-                acts.push({
-                    tipo: 'miembro',
-                    date: new Date(i.joined_at),
-                    clubId: i.club_id,
-                    userId: i.user_id,
-                    is_public: esPublico,
-                    html: `<div class="flex items-center gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full border-2 border-emerald-100 dark:border-emerald-800 object-cover shadow-sm shrink-0"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre || 'Paddler')}</strong> se unió a <strong class="text-emerald-600 dark:text-emerald-400 font-bold">${esc(i.clubs?.nombre || 'un club')}</strong>.</p></div>`
-                });
+                const uniqueKey = `m_${i.club_id}_${i.user_id}_${i.joined_at}`;
+                if (this.itemsIds.has(uniqueKey)) return;
+                try {
+                    newActs.push({
+                        idKey: uniqueKey,
+                        tipo: 'miembro',
+                        date: parseFechaSegura(i.joined_at),
+                        clubId: i.club_id,
+                        userId: i.user_id,
+                        is_public: true,
+                        html: `<div class="flex items-center gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full border-2 border-emerald-100 dark:border-emerald-800 object-cover shadow-sm shrink-0"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre || 'Paddler')}</strong> se unió a <strong class="text-emerald-600 dark:text-emerald-400 font-bold">${esc(i.clubs?.nombre || 'un club')}</strong>.</p></div>`
+                    });
+                    this.itemsIds.add(uniqueKey);
+                } catch (errCard) {
+                    console.warn('[socialFeed] Fallo seguro en tarjeta de miembro:', errCard);
+                }
             });
 
             // B) Rutas de clubes
-            dataR.forEach(i => {
-                const r = i.rutas;
+            dataCR.forEach(cr => {
+                const r = clubRoutesMap.get(String(cr.ruta_id));
                 if (!r) return;
-                acts.push({
-                    tipo: 'ruta',
-                    date: new Date(i.created_at || r.fecha || r.created_at || Date.now()),
-                    clubId: i.club_id,
-                    userId: r.user_id || null,
-                    is_public: true,
-                    html: renderTarjetaRutaSocial(r, i.clubs?.nombre || 'Club')
-                });
+                const uniqueKey = `cr_${cr.club_id}_${r.id}`;
+                if (this.itemsIds.has(uniqueKey)) return;
+                try {
+                    newActs.push({
+                        idKey: uniqueKey,
+                        tipo: 'ruta',
+                        date: parseFechaSegura(cr.created_at || r.fecha || r.created_at),
+                        clubId: cr.club_id,
+                        userId: r.user_id || null,
+                        is_public: true,
+                        html: renderTarjetaRutaSocial(r, cr.clubs?.nombre || 'Club')
+                    });
+                    this.itemsIds.add(uniqueKey);
+                } catch (errCard) {
+                    console.warn('[socialFeed] Fallo seguro en tarjeta de ruta de club:', errCard);
+                }
             });
 
             // B2) Rutas directas de la flota (amigos o global)
-            dataRD.forEach(r => {
-                if (dataR.some(cr => String(cr.ruta_id || cr.rutas?.id) === String(r.id))) return;
-                acts.push({
-                    tipo: 'ruta',
-                    date: new Date(r.fecha || r.created_at || Date.now()),
-                    clubId: null,
-                    userId: r.user_id || null,
-                    is_public: true,
-                    html: renderTarjetaRutaSocial(r, null)
-                });
+            directRoutes.forEach(r => {
+                const uniqueKey = `r_${r.id}`;
+                if (this.itemsIds.has(uniqueKey)) return;
+                if (dataCR.some(cr => String(cr.ruta_id) === String(r.id))) return;
+                try {
+                    newActs.push({
+                        idKey: uniqueKey,
+                        tipo: 'ruta',
+                        date: parseFechaSegura(r.fecha || r.created_at),
+                        clubId: null,
+                        userId: r.user_id || null,
+                        is_public: true,
+                        html: renderTarjetaRutaSocial(r, null)
+                    });
+                    this.itemsIds.add(uniqueKey);
+                } catch (errCard) {
+                    console.warn('[socialFeed] Fallo seguro en tarjeta de ruta directa:', errCard);
+                }
             });
 
             // C) Mensajes de chat de clubes (Privados de la tripulación)
             dataC.forEach(i => {
-                // FILTRO DE PRIVACIDAD OBLIGATORIO:
-                // Solo si el usuario es miembro confirmado del club se permite procesar
                 if (!misClubsIds.includes(i.club_id)) return;
-
-                acts.push({
-                    tipo: 'chat',
-                    date: new Date(i.created_at),
-                    clubId: i.club_id,
-                    userId: i.user_id,
-                    visibility: i.visibility || 'club_only',
-                    is_public: i.is_public === true,
-                    html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700 shadow-sm mt-1 shrink-0"><div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap mb-1"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre || 'Paddler')}</strong><span class="text-[9px] bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-sky-200 dark:border-sky-800/50"><span>🔒</span> Chat Tripulación</span></div><p class="text-xs text-slate-500 dark:text-slate-400">En <strong class="text-marine dark:text-white font-bold">${esc(i.clubs?.nombre || 'Club')}</strong></p><div class="mt-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/50 p-3 rounded-2xl rounded-tl-sm text-sm text-slate-700 dark:text-slate-300 italic shadow-sm">"${esc(i.mensaje)}"</div></div></div>`
-                });
+                const uniqueKey = `c_${i.club_id}_${i.created_at}_${i.user_id}`;
+                if (this.itemsIds.has(uniqueKey)) return;
+                try {
+                    newActs.push({
+                        idKey: uniqueKey,
+                        tipo: 'chat',
+                        date: parseFechaSegura(i.created_at),
+                        clubId: i.club_id,
+                        userId: i.user_id,
+                        visibility: i.visibility || 'club_only',
+                        is_public: i.is_public === true,
+                        html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700 shadow-sm mt-1 shrink-0"><div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap mb-1"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre || 'Paddler')}</strong><span class="text-[9px] bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-sky-200 dark:border-sky-800/50"><span>🔒</span> Chat Tripulación</span></div><p class="text-xs text-slate-500 dark:text-slate-400">En <strong class="text-marine dark:text-white font-bold">${esc(i.clubs?.nombre || 'Club')}</strong></p><div class="mt-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/50 p-3 rounded-2xl rounded-tl-sm text-sm text-slate-700 dark:text-slate-300 italic shadow-sm">"${esc(i.mensaje)}"</div></div></div>`
+                    });
+                    this.itemsIds.add(uniqueKey);
+                } catch (errCard) {
+                    console.warn('[socialFeed] Fallo seguro en tarjeta de chat:', errCard);
+                }
             });
-            
-            // ====================================================
-            // FILTRADO ESTRICTO SEGÚN PESTAÑA DEL FEED
-            // ====================================================
+
+            // Filtrado estricto según pestaña del feed
+            let filteredNewActs = newActs;
             if (filtro === 'global') {
-                // FILTRO OBLIGATORIO FEED GLOBAL:
-                // 1. Mostrar publicaciones públicas (is_public = true).
-                // 2. Mostrar contenido de clubes ÚNICAMENTE si el usuario pertenece a ese club
-                //    (club_id IN (SELECT club_id FROM memberships WHERE user_id = $user_id)).
-                // 3. Los mensajes tipo 'chat' tienen visibility = 'club_only' y NUNCA aparecen para usuarios externos.
-                acts = acts.filter(i => {
-                    // Si es mensaje de chat: nunca mostrar a usuarios externos que no pertenecen al club
+                filteredNewActs = newActs.filter(i => {
                     if (i.tipo === 'chat') {
                         return misClubsIds.includes(i.clubId);
                     }
-                    // Si es contenido de un club (rutas, miembros):
                     if (i.clubId) {
-                        // Si el usuario pertenece al club, se muestra
                         if (misClubsIds.includes(i.clubId)) return true;
-                        // Si es usuario externo, solo si la publicación es pública
                         return i.is_public === true;
                     }
-                    // Publicaciones generales: solo públicas
                     return i.is_public === true;
                 });
             } else if (filtro === 'mis_clubs') {
-                acts = misClubsIds.length ? acts.filter(i => misClubsIds.includes(i.clubId)) : [];
+                filteredNewActs = misClubsIds.length ? newActs.filter(i => misClubsIds.includes(i.clubId)) : [];
             } else if (filtro === 'mis_amigos') {
-                acts = misAmigosIds.length ? acts.filter(i => i.userId && misAmigosIds.includes(i.userId)) : [];
+                filteredNewActs = misAmigosIds.length ? newActs.filter(i => i.userId && misAmigosIds.includes(i.userId)) : [];
             }
-            
-            acts.sort((a, b) => b.date - a.date);
-            
-            if (!acts || acts.length === 0) {
+
+            this.debugTelemetry.returnedCount += filteredNewActs.length;
+
+            if (filteredNewActs.length < this.limite) {
+                this.hayMas = false;
+            }
+
+            if (append) {
+                this.items = [...this.items, ...filteredNewActs];
+            } else {
+                this.items = filteredNewActs;
+            }
+
+            this.items.sort((a, b) => b.date - a.date);
+
+            // Registro de telemetría de depuración en desarrollo
+            if (typeof window !== 'undefined' && (window.psDebugMode || (window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')))) {
+                console.debug('[socialFeed:debug]', {
+                    filtro,
+                    pagina: this.pagina,
+                    offset,
+                    returnedInBatch: filteredNewActs.length,
+                    totalItems: this.items.length,
+                    queryErrorsCount: queryErrors.length,
+                    hayMas: this.hayMas
+                });
+            }
+
+            if (!this.items || this.items.length === 0) {
                 if (queryErrors.length > 0) {
                     c.innerHTML = `<p class="text-center text-rose-500 text-xs py-10">No se pudo cargar la actividad. Inténtalo de nuevo más tarde.</p>`;
                     return;
@@ -1447,21 +1644,51 @@ export const socialFeed = {
                     </div>`;
                 return;
             }
-            
+
             let h = '<div class="space-y-4">';
             if (queryErrors.length > 0) {
                 h += `<p class="text-center text-amber-600 dark:text-amber-400 text-xs py-2">No se pudo cargar toda la actividad.</p>`;
             }
-            h += acts.map(i => `<div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 rounded-[24px] shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">${i.html}<div class="mt-4 pt-3 border-t border-slate-50 dark:border-slate-700/50 flex justify-end"><span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-900/50 px-2 py-1 rounded-md">${i.date.toLocaleDateString(undefined, {month:'short', day:'numeric'})} • ${i.date.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})}</span></div></div>`).join('');
-            c.innerHTML = h + '</div>';
-        } catch (e) { 
-            console.warn('Aviso no crítico:', e);
+            h += this.items.map(i => `<div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 rounded-[24px] shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">${i.html}<div class="mt-4 pt-3 border-t border-slate-50 dark:border-slate-700/50 flex justify-end"><span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-900/50 px-2 py-1 rounded-md">${i.date.toLocaleDateString(undefined, {month:'short', day:'numeric'})} • ${i.date.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})}</span></div></div>`).join('');
+
+            if (this.hayMas) {
+                h += `
+                    <div id="feedCargarMasContainer" class="py-3 text-center">
+                        <button type="button" id="btnCargarMasFeed" onclick="socialFeed.cargarMas()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer active:scale-95">
+                            Cargar más actividad
+                        </button>
+                    </div>
+                `;
+            }
+            h += '</div>';
+
+            c.innerHTML = h;
+
+            // Enlazar scroll infinito si el contenedor está en el DOM
+            if (!c._infiniteScrollBound) {
+                c._infiniteScrollBound = true;
+                let scrollTimeout;
+                c.addEventListener('scroll', () => {
+                    clearTimeout(scrollTimeout);
+                    scrollTimeout = setTimeout(() => {
+                        if (c.scrollTop + c.clientHeight >= c.scrollHeight - 60) {
+                            if (!socialFeed.cargando && socialFeed.hayMas) {
+                                socialFeed.cargarMas();
+                            }
+                        }
+                    }, 120);
+                }, { passive: true });
+            }
+        } catch (e) {
+            console.warn('[socialFeed] Aviso no crítico en cargarActividad:', e);
             c.innerHTML = `
                 <div class="flex flex-col items-center justify-center p-8 text-center bg-slate-800/40 rounded-2xl border border-slate-700/50 my-4">
                     <span class="text-3xl mb-2">🌊</span>
                     <p class="text-sm font-bold text-slate-300">No se ha publicado nada</p>
                     <p class="text-xs text-slate-500 mt-1">Cuando tú, tus amigos o tu club registréis nuevas travesías, aparecerán aquí.</p>
                 </div>`;
+        } finally {
+            this.cargando = false;
         }
     },
     abrirModal() {

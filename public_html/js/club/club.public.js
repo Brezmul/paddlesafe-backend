@@ -214,38 +214,69 @@ export const ClubPublic = {
             if (c) {
                 c.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando rutas...</p>';
                 try {
-                    const { data: rutas } = await supabaseClient
+                    const { data: clubRutasData, error: crErr } = await supabaseClient
                         .from('club_rutas')
-                        .select('created_at, rutas(id, user_id, ubicacion, distancia_km, tiempo_minutos, velocidad_media, fecha, created_at, imagen_url, ruta_json, route_coordinates, splits_data, weather_snapshot, wind_speed_kt, wave_height_m, conditions_score)')
+                        .select('created_at, ruta_id')
                         .eq('club_id', clubId)
                         .order('created_at', { ascending: false })
                         .limit(20);
-                    if (!rutas || rutas.length === 0) {
+                    if (crErr) throw crErr;
+
+                    if (!clubRutasData || clubRutasData.length === 0) {
                         c.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold">Sin rutas registradas por el club.</p>';
                     } else {
-                        c.innerHTML = `
-                            <div class="space-y-3">
-                                ${rutas.map(r => {
-                                    const ruta = r.rutas;
-                                    if (!ruta) return '';
-                                    if (typeof window.renderTarjetaRutaSocial === 'function') {
-                                        return `<div class="p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">${window.renderTarjetaRutaSocial(ruta, null)}</div>`;
+                        const rutaIds = Array.from(new Set(clubRutasData.map(cr => cr.ruta_id).filter(Boolean)));
+                        const rutas = [];
+                        if (rutaIds.length > 0) {
+                            const [resLeg, resUr] = await Promise.allSettled([
+                                supabaseClient
+                                    .from('rutas')
+                                    .select('id, user_id, ubicacion, distancia_km, tiempo_minutos, avg_speed_kmh, fecha, created_at, imagen_url, ruta_json, splits_data, weather_snapshot, wind_speed_kt, wave_height_m, conditions_score')
+                                    .in('id', rutaIds),
+                                supabaseClient
+                                    .from('user_routes')
+                                    .select('id, user_id, title, distance_km, duration_seconds, avg_speed, created_at, route_coordinates, splits_data, weather_snapshot, wind_speed_kt, wave_height_m, conditions_score')
+                                    .in('id', rutaIds)
+                            ]);
+                            if (resLeg.status === 'fulfilled' && resLeg.value?.data) {
+                                rutas.push(...resLeg.value.data);
+                            }
+                            if (resUr.status === 'fulfilled' && resUr.value?.data) {
+                                resUr.value.data.forEach(ur => {
+                                    if (!rutas.some(r => String(r.id) === String(ur.id))) {
+                                        rutas.push(ur);
                                     }
-                                    return `
-                                        <div class="flex items-center justify-between p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
-                                            <div class="flex items-center gap-3 min-w-0">
-                                                <div class="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-900/30 flex items-center justify-center text-xl shrink-0">🗺️</div>
-                                                <div class="min-w-0">
-                                                    <p class="font-bold text-sm text-marine dark:text-white truncate">${esc(ruta.ubicacion || 'Travesía GPS')}</p>
-                                                    <p class="text-[10px] text-slate-400">${ruta.fecha ? new Date(ruta.fecha).toLocaleDateString() : ''} • ${ruta.tiempo_minutos || 0} min</p>
+                                });
+                            }
+                        }
+
+                        if (rutas.length === 0) {
+                            c.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold">Sin rutas registradas por el club.</p>';
+                        } else {
+                            c.innerHTML = `
+                                <div class="space-y-3">
+                                    ${rutas.map(ruta => {
+                                        if (!ruta) return '';
+                                        if (typeof window.renderTarjetaRutaSocial === 'function') {
+                                            return `<div class="p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">${window.renderTarjetaRutaSocial(ruta, null)}</div>`;
+                                        }
+                                        return `
+                                            <div class="flex items-center justify-between p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                                                <div class="flex items-center gap-3 min-w-0">
+                                                    <div class="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-900/30 flex items-center justify-center text-xl shrink-0">🗺️</div>
+                                                    <div class="min-w-0">
+                                                        <p class="font-bold text-sm text-marine dark:text-white truncate">${esc(ruta.ubicacion || ruta.title || 'Travesía GPS')}</p>
+                                                        <p class="text-[10px] text-slate-400">${ruta.fecha || ruta.created_at ? new Date(ruta.fecha || ruta.created_at).toLocaleDateString() : ''} • ${ruta.tiempo_minutos || (ruta.duration_seconds ? Math.round(ruta.duration_seconds / 60) : 0)} min</p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <span class="px-2.5 py-1 bg-water/10 text-water dark:bg-sky-500/20 dark:text-sky-400 rounded-lg text-xs font-black shrink-0">${ruta.distancia_km || 0} km</span>
-                                        </div>`;
-                                }).join('')}
-                            </div>`;
+                                                <span class="px-2.5 py-1 bg-water/10 text-water dark:bg-sky-500/20 dark:text-sky-400 rounded-lg text-xs font-black shrink-0">${Number(ruta.distancia_km || ruta.distance_km || 0).toFixed(2)} km</span>
+                                            </div>`;
+                                    }).join('')}
+                                </div>`;
+                        }
                     }
                 } catch (e) {
+                    console.warn('[club.public] Error al cargar rutas del club:', e);
                     c.innerHTML = '<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar rutas.</p>';
                 }
             }
