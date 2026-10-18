@@ -474,7 +474,7 @@ export function renderizarCoachProFallbackLocal(cond, userLvl, tramosData = []) 
     }
 
     // 1. PRIORIDAD MÁXIMA: Veto por tormenta eléctrica OFICIAL (AEMET / 112)
-    if (motor?.tormentaElectricaOficial || (motor?.tormentaElectrica && motor?.aemet?.activa && motor?.aemet?.esVigente !== false)) {
+    if (motor?.tormentaElectricaOficial || (motor?.tormentaElectrica && motor?.aemet?.activa && motor?.aemet?.esVigente === true && motor?.aemet?.estadoTemporal === 'ACTIVA_AHORA')) {
         const body = document.getElementById('proCoachBody');
         if (body) {
             body.innerHTML = generarTarjetaVetoCoach({
@@ -550,7 +550,11 @@ export async function solicitarCoachIAPro(dx, userLvl, distMetros, tiempoMinutos
             ubicacion: `${lat}, ${lon}`,
             tramos_data: tramosData,
             lat,
-            lon
+            lon,
+            date: fechaD,
+            fecha: fechaD,
+            selected_date: fechaD,
+            fechaConsulta: fechaD
         },
         userLevel: userLvl || "Intermedio",
         seguridad: motor?.seguridad,

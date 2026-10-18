@@ -610,7 +610,7 @@ export async function consultarRutaPro() {
 }
 
 export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, lat, lon, fechaD) {
-    mapRuntime.mapRuntime.datosMeteoActuales = dx;
+    mapRuntime.datosMeteoActuales = dx;
     const wkVal = valorNumericoMeteo(dx.windSpeed, dx.wind_speed);
     const windKmh = wkVal === null ? null : wkVal * 3.6;
     const windKnots = kmhANudos(windKmh);
@@ -812,6 +812,8 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
     
     dx.date = fechaD;
     dx.fecha = fechaD;
+    dx.selected_date = fechaD;
+    dx.fechaConsulta = fechaD;
     dx.horaSalida = horaSalida;
     const motor = obtenerMotorExperto(dx, userLvl);
     renderizarAvisoSuperior(motor);

@@ -334,12 +334,14 @@ export function inicializarMapa() {
             const pdate = document.getElementById('proDate');
             const ptime = document.getElementById('proTime');
             if (ploc) ploc.value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-            if (pdate) pdate.value = strDate;
-            if (ptime) ptime.value = strTime;
+            if (pdate && !pdate.value) pdate.value = strDate;
+            if (ptime && !ptime.value) ptime.value = strTime;
 
             const panelPro = document.getElementById("panelPro");
             if (panelPro && panelPro.style.gridTemplateRows !== "0fr" && typeof window.consultarPuntoProInstantaneo === 'function') {
-                window.consultarPuntoProInstantaneo(lat, lon, strDate, strTime);
+                const fechaEfectiva = pdate?.value || strDate;
+                const horaEfectiva = ptime?.value || strTime;
+                window.consultarPuntoProInstantaneo(lat, lon, fechaEfectiva, horaEfectiva);
             }
         }
     });

@@ -574,6 +574,127 @@ assert(test4Verdict.riesgoMeteorologicoEstimado === true, 'Test 4 verdict: riesg
 assert(test4Verdict.etiquetaRiesgoModelo === '⚠️ Riesgo Meteorológico Estimado', 'Test 4 verdict: etiquetaRiesgoModelo must be ⚠️ Riesgo Meteorológico Estimado');
 assert(!/PELIGRO|ALERTA OFICIAL|AVISO AEMET/i.test(test4Verdict.justificacion), 'Test 4 verdict: Justification must not claim official AEMET alert');
 
+// ==============================================================================
+// 3.4.2c PADDLESAFE_THUNDERSTORM_DATE_DESYNC_FIX - REGRESSION SUITE (Tests 5 - 8)
+// Proves alerts active on 2026-10-18 and strictly inactive on 2026-10-30
+// Proves no 'PELIGRO POR TORMENTA ELÉCTRICA' and no 'NO RECOMENDADO SALIR A REMAR' on day 30
+// ==============================================================================
+
+const coachEngineMod = await import(pathToFileURL(path.resolve('public_html/js/engine/coach.js')).href);
+const { generarConsejoCoach } = coachEngineMod;
+
+// Test 5: Real-world AEMET alert active for today (2026-10-18)
+const mockAemetAlertPayload = {
+    disponible: true,
+    zonaDetectada: 'Litoral norte de Valencia',
+    alertas: [{
+        origen: 'AEMET',
+        tipo: 'Tormentas',
+        nivel: 'AMARILLA',
+        inicio: '2026-10-17T10:00:00+00:00',
+        fin: '2026-10-18T21:59:59+00:00',
+        zona: 'Litoral norte de Valencia',
+        descripcion: 'Aviso de tormentas moderadas con aparato eléctrico.'
+    }]
+};
+
+const test5Input_Today = {
+    selected_date: '2026-10-18',
+    fechaConsulta: '2026-10-18',
+    date: '2026-10-18',
+    fecha: '2026-10-18',
+    vientoKmh: 12,
+    olaM: 0.3,
+    aemet: mockAemetAlertPayload
+};
+const test5Alert = mapWeatherMod.evaluarAlertasGlobales(test5Input_Today);
+assert(test5Alert.activa === true, 'Test 5: Alert must be active on 2026-10-18');
+assert(test5Alert.aemetAvisoTormentaActivo === true, 'Test 5: aemetAvisoTormentaActivo must be true on 2026-10-18');
+assert(test5Alert.alertas.length > 0 && test5Alert.alertas[0]?.esVigente === true, 'Test 5: Alert esVigente must be true on 2026-10-18');
+assert(test5Alert.alertas[0]?.estadoTemporal === 'ACTIVA_AHORA', 'Test 5: Alert estadoTemporal must be ACTIVA_AHORA on 2026-10-18');
+
+const test5Verdict = generarVeredictoNextGen({
+    ...test5Input_Today,
+    alertaOficial: test5Alert.alertas[0],
+    alertas: test5Alert.alertas,
+    alertaTormentaOficialActiva: test5Alert.aemetAvisoTormentaActivo,
+    tormentaElectricaOficial: test5Alert.aemetAvisoTormentaActivo
+});
+assert(test5Verdict.tormentaElectricaOficial === true, 'Test 5 verdict: tormentaElectricaOficial must be true on 2026-10-18');
+assert(test5Verdict.score === 0, 'Test 5 verdict: score must be 0 when official storm warning is active');
+assert(test5Verdict.respuestaDirecta.includes('NO SALIR AL AGUA'), 'Test 5 verdict: respuestaDirecta must advise not going into water');
+
+// Test 6: Same alert evaluated on future date (2026-10-30) -> STRICTLY INACTIVE
+const test6Input_Day30 = {
+    selected_date: '2026-10-30',
+    fechaConsulta: '2026-10-30',
+    date: '2026-10-30',
+    fecha: '2026-10-30',
+    vientoKmh: 10,
+    olaM: 0.2,
+    aemet: mockAemetAlertPayload
+};
+const test6Alert = mapWeatherMod.evaluarAlertasGlobales(test6Input_Day30);
+assert(test6Alert.activa === false, 'Test 6: Alert must be INACTIVE on 2026-10-30');
+assert(test6Alert.aemetAvisoTormentaActivo === false, 'Test 6: aemetAvisoTormentaActivo must be false on 2026-10-30');
+assert(test6Alert.tormenta === false, 'Test 6: tormenta must be false on 2026-10-30');
+assert(test6Alert.alertas.length === 0, 'Test 6: Active alerts array must be empty on 2026-10-30');
+
+const test6Verdict = generarVeredictoNextGen({
+    ...test6Input_Day30,
+    alertaOficial: test6Alert.alertas[0] || null,
+    alertas: test6Alert.alertas,
+    alertaTormentaOficialActiva: test6Alert.aemetAvisoTormentaActivo,
+    tormentaElectricaOficial: test6Alert.aemetAvisoTormentaActivo
+});
+assert(test6Verdict.tormentaElectricaOficial === false, 'Test 6 verdict: tormentaElectricaOficial must be false on 2026-10-30');
+assert(test6Verdict.alertaOficialActiva === false, 'Test 6 verdict: alertaOficialActiva must be false on 2026-10-30');
+assert(!/PELIGRO POR TORMENTA EL[EÉ]CTRICA/i.test(test6Verdict.justificacion || ''), 'Test 6 verdict: Justification must NOT contain "PELIGRO POR TORMENTA ELÉCTRICA" on day 30');
+assert(!/NO RECOMENDADO SALIR A REMAR/i.test(test6Verdict.justificacion || ''), 'Test 6 verdict: Justification must NOT contain "NO RECOMENDADO SALIR A REMAR" on day 30');
+assert(!/PELIGRO POR TORMENTA EL[EÉ]CTRICA/i.test(test6Verdict.alerta || ''), 'Test 6 verdict: Alert title must NOT contain "PELIGRO POR TORMENTA ELÉCTRICA" on day 30');
+assert(!/NO RECOMENDADO SALIR A REMAR/i.test(test6Verdict.alerta || ''), 'Test 6 verdict: Alert title must NOT contain "NO RECOMENDADO SALIR A REMAR" on day 30');
+
+// Test 6 Coach: Coach message must not produce thunderstorm veto on day 30
+const test6Coach = generarConsejoCoach({
+    userLevel: 'Intermedio',
+    condiciones: { vientoKmh: 10, olaM: 0.2 },
+    motor: {
+        tormentaElectricaOficial: false,
+        aemetAvisoTormentaActivo: false,
+        tormentaElectrica: false,
+        aemet: test6Alert
+    }
+});
+assert(test6Coach.veredicto !== '⛔ NO RECOMENDADO SALIR A REMAR', 'Test 6 coach: veredicto must NOT be "⛔ NO RECOMENDADO SALIR A REMAR" on day 30');
+assert(!/PELIGRO POR TORMENTA EL[EÉ]CTRICA/i.test(test6Coach.resumen || ''), 'Test 6 coach: resumen must NOT mention thunderstorm danger on day 30');
+assert(!/descargas el[eé]ctricas/i.test(test6Coach.resumen || ''), 'Test 6 coach: resumen must NOT mention descargas eléctricas on day 30');
+
+// Test 7: Date resolution priority in evaluarAlertasGlobales
+// Proves fechaConsulta / selected_date / date / fecha overrides any DOM fallback
+const test7Input_FechaConsulta = {
+    fechaConsulta: '2026-10-30',
+    aemet: mockAemetAlertPayload
+};
+const test7Alert = mapWeatherMod.evaluarAlertasGlobales(test7Input_FechaConsulta);
+assert(test7Alert.activa === false, 'Test 7: fechaConsulta alone must resolve date to 2026-10-30 and reject expired alert');
+assert(test7Alert.aemetAvisoTormentaActivo === false, 'Test 7: aemetAvisoTormentaActivo must be false');
+
+// Test 8: Strict validation in verdict.js - undefined or non-active alerts must never trigger storm veto
+const rawUnvalidatedAlert = {
+    tipo: 'Aviso por Tormentas',
+    descripcion: 'Tormenta con aparato electrico',
+    // esVigente is undefined (not explicitly true)
+    // estadoTemporal is undefined
+};
+const test8Verdict = generarVeredictoNextGen({
+    vientoKt: 8,
+    oleajeM: 0.3,
+    alertaOficial: rawUnvalidatedAlert,
+    alertas: [rawUnvalidatedAlert]
+});
+assert(test8Verdict.tormentaElectricaOficial === false, 'Test 8: Unvalidated alert (esVigente undefined) must NOT trigger tormentaElectricaOficial');
+assert(!/PELIGRO POR TORMENTA EL[EÉ]CTRICA/i.test(test8Verdict.justificacion || ''), 'Test 8: Must NOT render thunderstorm danger when alert is unvalidated');
+
 // Assert map.spots.js exports
 assert(typeof mapSpotsMod.cargarSpotsGuardadosUsuario === 'function', 'map.spots.js must export cargarSpotsGuardadosUsuario');
 assert(typeof mapSpotsMod.guardarSpotActual === 'function', 'map.spots.js must export guardarSpotActual');

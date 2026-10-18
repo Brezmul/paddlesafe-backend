@@ -504,7 +504,11 @@ export async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, 
         aemetAvailable: true,
         source: 'open-meteo',
         coordinates: { latitude: lat, longitude: lon },
-        location: payload.location
+        location: payload.location,
+        date: fechaStr,
+        fecha: fechaStr,
+        selected_date: fechaStr,
+        fechaConsulta: fechaStr
     };
 
     // Almacenar en caché geográfica inteligente
@@ -634,7 +638,11 @@ export async function solicitarPronostico(payload) {
                 if (!a.peligroNautico && autoridadLocal?.peligroNautico) a.peligroNautico = autoridadLocal.peligroNautico;
             });
         }
-        datos.fechaConsulta = payload.date || payload.fecha || (typeof document !== 'undefined' ? (document.getElementById('date')?.value || document.getElementById('proDate')?.value) : null) || new Date().toISOString().slice(0, 10);
+        const fechaResuelta = payload.date || payload.fecha || payload.selected_date || (typeof document !== 'undefined' ? (document.getElementById('proDate')?.value || document.getElementById('quedadaFechaInput')?.value || document.getElementById('date')?.value) : null) || new Date().toISOString().slice(0, 10);
+        datos.date = fechaResuelta;
+        datos.fecha = fechaResuelta;
+        datos.selected_date = fechaResuelta;
+        datos.fechaConsulta = fechaResuelta;
 
         registrarDiagnosticoClima('[AEMET] Integrated Response', {
             aemet: datos.aemet,
@@ -918,7 +926,19 @@ export function evaluarAlertasGlobales(d) {
     alertas.sort((a, b) => niveles[b.nivel] - niveles[a.nivel]);
 
     // Evaluación temporal de vigencia: comparar fecha consultada con inicio y fin del aviso (Regla 3)
-    const fechaConsulta = d?.selected_date || d?.fecha || d?.date || (typeof document !== 'undefined' ? (document.getElementById('date')?.value || document.getElementById('proDate')?.value || document.getElementById('datePicker')?.value) : null) || new Date().toISOString().slice(0, 10);
+    const fechaConsulta = d?.selected_date
+        || d?.fecha
+        || d?.date
+        || d?.fechaConsulta
+        || d?.payload?.date
+        || d?.payload?.fecha
+        || (typeof document !== 'undefined' ? (
+            document.getElementById('proDate')?.value
+            || document.getElementById('quedadaFechaInput')?.value
+            || document.getElementById('date')?.value
+            || document.getElementById('datePicker')?.value
+        ) : null)
+        || new Date().toISOString().slice(0, 10);
 
     alertas.forEach(item => {
         const vigencia = validarVigenciaAlerta(fechaConsulta, item.inicio, item.fin, `${item.titulo || ''} ${item.tipo || ''} ${item.descripcion || ''}`);
@@ -1112,7 +1132,7 @@ export function renderizarAvisoSuperior(motor) {
     const contenedorBasico = document.getElementById('global-alert-container');
     const contenedorPro = document.getElementById('proAlertTopContainer');
 
-    const alertas = (motor?.aemet?.alertas || []).filter(a => a.esVigente !== false && a.estadoTemporal === 'ACTIVA_AHORA');
+    const alertas = (motor?.aemet?.alertas || []).filter(a => a.esVigente === true && a.estadoTemporal === 'ACTIVA_AHORA');
     const tieneAlertaOficial = Boolean(motor?.aemet?.activa && alertas.length > 0);
     const tieneRiesgoModelo = Boolean(
         (motor?.riesgoMeteorologicoEstimado || motor?.riesgoModeloConvectivo) && !tieneAlertaOficial

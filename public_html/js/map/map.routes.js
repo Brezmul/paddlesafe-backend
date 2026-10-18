@@ -440,6 +440,10 @@ export async function evaluarMeteoParaQuedada() {
 
         const p = await solicitarPronostico(payload);
         const dx = p.datos || {};
+        dx.date = fechaVal;
+        dx.fecha = fechaVal;
+        dx.selected_date = fechaVal;
+        dx.fechaConsulta = fechaVal;
 
         const wkVal = valorNumericoMeteo(dx.windSpeed, dx.wind_speed);
         const windKt = wkVal !== null ? kmhANudos(wkVal * 3.6) : null;

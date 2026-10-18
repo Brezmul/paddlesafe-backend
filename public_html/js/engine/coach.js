@@ -30,7 +30,7 @@ export function generarConsejoCoach({
     const esTormentaOficial = Boolean(
         motor?.tormentaElectricaOficial
         || motor?.aemetAvisoTormentaActivo
-        || (motor?.tormentaElectrica && motor?.aemet?.activa && motor?.aemet?.esVigente !== false)
+        || (motor?.tormentaElectrica && motor?.aemet?.activa && motor?.aemet?.esVigente === true && motor?.aemet?.estadoTemporal === 'ACTIVA_AHORA')
     );
 
     if (esTormentaOficial) {
