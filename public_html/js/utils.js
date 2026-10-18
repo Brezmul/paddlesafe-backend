@@ -560,7 +560,7 @@ export function actualizarUIPresencia() {
         if (status === 'in_water') {
             el.className = "absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-slate-900 bg-sky-500 animate-pulse transition-colors duration-300 z-10 flex items-center justify-center text-[7px]";
             el.innerHTML = '🌊';
-            el.setAttribute('title', 'Navegando en el agua');
+            el.setAttribute('title', 'Remando en el agua');
         } else if (status === 'online') {
             el.className = "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 bg-emerald-500 transition-colors duration-300 z-10";
             el.setAttribute('title', 'En línea');

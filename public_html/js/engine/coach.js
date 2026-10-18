@@ -60,7 +60,7 @@ export function generarConsejoCoach({
             ],
             tecnica_postura: ["No aplica."],
             material_recomendado: ["Ropa seca y estancia protegida en tierra."],
-            regla_oro: "En el mar no hay refugio frente a un rayo. Un buen navegante sabe cuándo no salir."
+            regla_oro: "En el mar no hay refugio frente a un rayo. Un buen paddler sabe cuándo no entrar al agua."
         };
     }
 
@@ -99,11 +99,11 @@ export function generarConsejoCoach({
             resumen: `Existe una ALERTA OFICIAL DE EMERGENCIAS ACTIVA emitida por ${aut}. Queda terminantemente prohibido y desaconsejado entrar al agua. Bajo situación de emergencia meteorológica o costera, las condiciones marinas se vuelven impredecibles y el riesgo de ser arrastrado mar adentro por avenidas súbitas o corrientes violentas es extremo. La regla de oro es cancelar la salida y permanecer en tierra firme.`,
             dureza_ruta: {
                 nivel: "Salida Prohibida",
-                descripcion: "Riesgo vital por emergencia costera oficial. Ninguna condición ni técnica compensa el peligro de navegar bajo alerta de Protección Civil."
+                descripcion: "Riesgo vital por emergencia costera oficial. Ninguna condición ni técnica compensa el peligro de entrar al agua bajo alerta de Protección Civil."
             },
             estrategia_viento: {
                 tramo_facil: "No aplica.",
-                tramo_exigente: "Condiciones de emergencia costera incompatibles con la navegación deportiva.",
+                tramo_exigente: "Condiciones de emergencia costera incompatibles con el paddle surf.",
                 consejo_pacing: "Permanece en tierra y respeta las indicaciones de las autoridades de emergencia."
             },
             analisis_deriva: "Riesgo crítico de corrientes de arrastre mar adentro, avenidas de agua en desembocaduras y oleaje súbito.",
@@ -111,7 +111,7 @@ export function generarConsejoCoach({
                 "Bajo alerta oficial de emergencias, ningún nivel de experiencia garantiza tu seguridad en el agua.",
                 "Cancela de inmediato la salida y no te acerques a espigones, rompeolas ni zonas de desembocadura."
             ],
-            consejo_instructor: `🚨 ALERTA OFICIAL DE EMERGENCIAS (${aut}): Prohibido salir al agua. La primera regla de seguridad de un deportista náutico responsable es no entrar al mar cuando Protección Civil decreta alerta.`,
+            consejo_instructor: `🚨 ALERTA OFICIAL DE EMERGENCIAS (${aut}): Prohibido salir al agua. La primera regla de seguridad de un paddler responsable es no entrar al mar cuando Protección Civil decreta alerta.`,
             seguridad_estrategia: [
                 "Salida cancelada por protocolo de Protección Civil y Emergencias.",
                 "Permanece en tierra firme y sigue las indicaciones oficiales del 112."
@@ -130,16 +130,16 @@ export function generarConsejoCoach({
     const esEmbalse = motor?.derivaCostera?.costa?.esEmbalse || motor?.nextGen?.entorno === 'embalse_interior';
     const distKm = Number(condiciones.distanciaKm || 0);
 
-    // 3. Interpretación Náutica de la Deriva (Sin jerga técnica ni datos numéricos crudos)
+    // 3. Interpretación Práctica de la Deriva en SUP (Sin jerga técnica ni datos numéricos crudos)
     let textoDeriva = '';
     if (esEmbalse) {
-        textoDeriva = "Al navegar en aguas interiores (embalse o pantano), no existe riesgo de deriva hacia mar abierto, pero las rachas pueden dificultar el regreso al embarcadero o empujar hacia orillas escarpadas.";
+        textoDeriva = "Al remar en aguas interiores (embalse o pantano), no existe riesgo de deriva hacia mar abierto, pero las rachas pueden dificultar el regreso al punto de entrada o empujar hacia orillas escarpadas.";
     } else if (compCostera === 'offshore') {
         textoDeriva = "Estas condiciones pueden favorecer un alejamiento progresivo de la costa. El mar parece engañosamente plano cerca de la orilla, pero empuja hacia fuera. Mantén una ruta conservadora y revisa frecuentemente tu posición respecto a tierra.";
     } else if (compCostera === 'onshore') {
         textoDeriva = "El viento previsto favorece el retorno hacia tierra, reduciendo notablemente el riesgo de deriva mar adentro. La entrada al agua requerirá sortear el choque del oleaje frontal.";
     } else if (compCostera === 'side-shore') {
-        textoDeriva = "El viento sopla a lo largo de la costa, generando un desplazamiento lateral constante. Conviene remar con mayor frecuencia por el lado expuesto y planificar un punto de desembarque que anticipe esta deriva.";
+        textoDeriva = "El viento sopla a lo largo de la costa, generando un desplazamiento lateral constante. Conviene remar con mayor frecuencia por el lado expuesto y planificar un punto de salida del agua que anticipe esta deriva.";
     } else {
         textoDeriva = "No ha sido posible determinar con precisión si el viento favorece el acercamiento a la costa o un desplazamiento mar adentro. Por prudencia, evita alejarte más de lo necesario y mantén siempre referencias visuales fijas.";
     }
@@ -147,7 +147,7 @@ export function generarConsejoCoach({
     // 4. Análisis del Esfuerzo Físico y Demanda Muscular (Dureza de la Ruta)
     const { nivelDureza, scoreDureza, descDureza } = calcularDemandaFisica(vKt, rKt, oleajeM, distKm, nivel, compCostera);
 
-    // 5. Ventana Óptima de Navegación
+    // 5. Ventana Óptima para Remar
     const ventana = motor?.ventanaRecomendada || motor?.ventanas?.mejorVentana || motor?.nextGen?.ventanas?.mejorVentana;
     let textoVentana = '';
     if (ventana && ventana.inicio && ventana.fin) {
@@ -216,7 +216,7 @@ export function generarConsejoCoach({
         analisis_zona: {
             orografia: esEmbalse ? "Entorno de aguas interiores abrigadas con posibles encajonamientos de viento." : "Costa con exposición al régimen de vientos y oleaje marítimo.",
             peligros_detectados: generarPeligrosZona(compCostera, vKt, oleajeM, esEmbalse, periodoOla, evo),
-            recomendacion_seguridad: esEmbalse ? "Navega con chaleco y mantén distancia de presas y aliviaderos." : "Navega paralelo a la costa y mantén línea de visión despejada hacia la orilla."
+            recomendacion_seguridad: esEmbalse ? "Rema con chaleco y mantén distancia de presas y aliviaderos." : "Rema en paralelo a la costa y mantén línea de visión despejada hacia la orilla."
         },
         ventana_recomendada: textoVentana,
         consejos_nivel: consejosNivelFiltrados.length > 0 ? consejosNivelFiltrados : consejosNivel,
@@ -257,11 +257,11 @@ function generarResumenNautico(vKt, rKt, oleajeM, compCostera, nivel, esEmbalse,
         } else if (vKt >= 15 || oleajeM >= 0.9) {
             estadoHoy = 'Las condiciones de hoy son exigentes por viento y oleaje activo.';
         } else if (compCostera === 'offshore') {
-            estadoHoy = 'Las condiciones de hoy son navegables manteniendo precaución por el viento hacia mar abierto (offshore).';
+            estadoHoy = 'Las condiciones de hoy son aptas para remar manteniendo precaución por el viento hacia mar abierto (offshore).';
         } else {
             estadoHoy = 'Hoy las condiciones marítimas locales permiten una salida provechosa y controlada.';
         }
-        return `${estadoHoy} Atención a los partes: Protección Civil ha emitido un Aviso Especial por temporal para ${perTxt}. Navegación permitida hoy; estrictamente prohibida a partir de ${diaTxt}.`;
+        return `${estadoHoy} Atención a los partes: Protección Civil ha emitido un Aviso Especial por temporal para ${perTxt}. Salidas al agua permitidas hoy; estrictamente prohibidas a partir de ${diaTxt}.`;
     }
 
     if (vKt <= 7 && oleajeM <= 0.35) {
@@ -299,7 +299,7 @@ function generarResumenNautico(vKt, rKt, oleajeM, compCostera, nivel, esEmbalse,
     }
 
     if (nivel === 'Principiante') {
-        return "Las condiciones son navegables pero requerirán atención. Mantente cerca de la orilla para evitar que la deriva o el oleaje aumenten la fatiga antes de tiempo.";
+        return "Las condiciones son aptas para remar pero requerirán atención. Mantente cerca de la orilla para evitar que la deriva o el oleaje aumenten la fatiga antes de tiempo.";
     }
     if (nivel === 'Intermedio') {
         return "Las condiciones permiten una salida cómoda y dinámica, aunque conviene anticipar los cambios de viento previstos conforme avance la jornada.";
@@ -324,7 +324,7 @@ function calcularDemandaFisica(vKt, rKt, oleajeM, distKm, nivel, compCostera) {
     const finalScore = Math.max(1, Math.min(10, Math.round(score * 10) / 10));
 
     let nivelDureza = "Baja / Plácida";
-    let descDureza = "Condiciones suaves que favorecen una navegación relajada con bajo consumo aeróbico. Fatiga muscular mínima.";
+    let descDureza = "Condiciones suaves que favorecen una remada relajada con bajo consumo aeróbico. Fatiga muscular mínima.";
 
     if (finalScore >= 7.0) {
         nivelDureza = "Alta / Exigente";
@@ -353,7 +353,7 @@ function generarEstrategiaViento(cond, compCostera, vKt, tramosData, nivel) {
     let exigente = "";
 
     if (tramoFavor) {
-        facil = `En el tramo "${tramoFavor.nombre}" navegarás con el viento empujando por la popa (downwind), aprovechando la inercia para deslizar la tabla con poco esfuerzo.`;
+        facil = `En el tramo "${tramoFavor.nombre}" remarás con el viento a favor (downwind), aprovechando la inercia para deslizar la tabla con poco esfuerzo.`;
     } else if (compCostera === 'onshore') {
         facil = "La aproximación final a tierra será la más cómoda, ya que el viento empuja de forma natural hacia la orilla.";
     } else {
@@ -384,7 +384,7 @@ function generarConsejosNivel(nivel, vKt, oleajeM, compCostera) {
         return [
             "Mantén la mirada al frente en el horizonte; mirar a la tabla o a los pies desequilibra el centro de gravedad.",
             "Técnica de palada: mantén la mano superior sobre el pomo en línea vertical con la mano inferior para que la tabla avance recta.",
-            "Navega en todo momento a menos de 100 metros de la orilla y ten una referencia visual fija en tierra para controlar tu deriva."
+            "Rema en todo momento a menos de 100 metros de la orilla y ten una referencia visual fija en tierra para controlar tu deriva."
         ];
     }
     if (nivel === 'Intermedio') {
@@ -448,7 +448,7 @@ function generarConsejoInstructor(nivel, compCostera, vKt, oleajeM, distKm, moto
         const p = motor.avisoPreventivo;
         const diaTxt = p?.diaInicio ? `el día ${p.diaInicio}` : 'la entrada del temporal';
         const perTxt = p?.periodoTexto || 'el fin de semana';
-        return `Hoy las condiciones son navegables con normalidad, pero Protección Civil ha emitido un Aviso Especial para ${perTxt}. Planifica tus entrenamientos y ten en cuenta que a partir de ${diaTxt} quedará prohibida la navegación.`;
+        return `Hoy las condiciones son aptas para remar con normalidad, pero Protección Civil ha emitido un Aviso Especial para ${perTxt}. Planifica tus entrenamientos y ten en cuenta que a partir de ${diaTxt} quedarán prohibidas las salidas al agua.`;
     }
     if (motor?.aemet?.activa && motor?.alertaEmergenciaActiva) {
         return "Con aviso oficial de emergencias activo, la prudencia manda: no te confíes de la calma momentánea, respeta las directrices de Protección Civil y aplaza la sesión.";
@@ -463,7 +463,7 @@ function generarConsejoInstructor(nivel, compCostera, vKt, oleajeM, distKm, moto
         return "Ante cualquier duda, racha repentina o desequilibrio: a rodillas, centro de gravedad bajo y regreso en calma a la orilla.";
     }
     if (distKm > 4) {
-        return "Lleva hidratación suficiente y avisa en tierra de tu hora estimada de desembarque antes de entrar al agua.";
+        return "Lleva hidratación suficiente y avisa en tierra de tu hora estimada de regreso antes de entrar al agua.";
     }
     return "Las condiciones actuales son favorables para una sesión provechosa, pero recuerda revisar periódicamente si el viento cambia de intensidad.";
 }
@@ -473,7 +473,7 @@ function generarReglaOro(nivel, compCostera, vKt, motor = null) {
         return "Disfruta de la ventana favorable de hoy, pero no salgas al agua cuando el Aviso Especial de Protección Civil entre en vigor.";
     }
     if (motor?.aemet?.activa && motor?.alertaEmergenciaActiva) {
-        return "Ante un aviso oficial de emergencias, el mejor marinero es el que sabe quedarse en tierra.";
+        return "Ante un aviso oficial de emergencias, el mejor deportista es el que sabe quedarse en tierra.";
     }
     if (compCostera === 'offshore') {
         return "Con viento hacia mar abierto: si la orilla parece alejarse, ponte de rodillas y rema directo a tierra sin vacilar.";
@@ -496,7 +496,7 @@ function generarVeredictoEjecutivo(score, vKt, rKt, oleajeM, compCostera, nivel,
     if (score >= 80 && compCostera !== 'offshore') {
         if (nivel === 'Principiante') return "DÍA EXCELENTE PARA APRENDIZAJE Y SEGURIDAD";
         if (nivel === 'Competición') return "VENTANA ÓPTIMA PARA RITMO DE COMPETICIÓN";
-        return "CONDICIONES FAVORABLES PARA NAVEGACIÓN Y PROGRESIÓN";
+        return "CONDICIONES FAVORABLES PARA REMAR Y PROGRESAR";
     }
     if (compCostera === 'offshore') {
         return "PRECAUCIÓN POR VIENTO HACIA MAR ABIERTO (OFFSHORE)";
@@ -529,7 +529,7 @@ function generarPeligrosZona(compCostera, vKt, oleajeM, esEmbalse, periodoOla = 
         } else if (oleajeM >= 0.5) {
             peligros.push("Mar cruzado y rebote de olas (clapotis) cerca de acantilados o muros de puertos.");
         }
-        peligros.push("Presta atención al calado de la quilla central al embarcar y desembarcar en la rompiente de orilla.");
+        peligros.push("Presta atención al calado de la quilla central al entrar y salir del agua en la rompiente de orilla.");
     }
     return peligros;
 }
@@ -540,7 +540,7 @@ function generarSeguridadEstrategia(nivel, compCostera, vKt, oleajeM, periodoOla
         list.push(`Evolución próxima: programa el fin de la sesión antes del empeoramiento a ${evo.vientoFuturoKt} kt.`);
     }
     if (compCostera === 'offshore') {
-        list.push("Navega siempre en paralelo a la orilla sin superar la distancia que puedas nadar en caso de emergencia.");
+        list.push("Rema siempre en paralelo a la orilla sin superar la distancia que puedas nadar en caso de emergencia.");
         list.push("Fija dos puntos de referencia visuales en tierra y comprueba tu posición cada pocos minutos para detectar deriva involuntaria.");
     } else {
         list.push("Planifica la ruta para realizar el tramo más exigente contra el viento al inicio, reservando la remada a favor para el regreso.");

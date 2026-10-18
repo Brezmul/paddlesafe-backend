@@ -297,13 +297,13 @@ const ClubFacade = {
                 contenedor.innerHTML = `<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar solicitudes.</p>${zonaPeligroHTML}`;
             }
         } else {
-            // Vista Tripulación (miembros)
-            contenedor.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando tripulación...</p>';
+            // Vista Miembros (antes tripulacion)
+            contenedor.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando miembros...</p>';
             try {
                 const { data: miembros, error } = await supabaseClient.rpc('obtener_miembros_club', { p_club_id: clubId });
                 if (error) {
                     console.error('[club] obtener_miembros_club error:', error);
-                    contenedor.innerHTML = `<div class="text-center py-6 text-red-500 text-xs font-bold">Error al cargar tripulación: ${esc(error.message)}</div>`;
+                    contenedor.innerHTML = `<div class="text-center py-6 text-red-500 text-xs font-bold">Error al cargar miembros: ${esc(error.message)}</div>`;
                     return;
                 }
 
@@ -311,14 +311,14 @@ const ClubFacade = {
                     contenedor.innerHTML = `
                         <div class="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
                             <span class="text-3xl block mb-2 opacity-50">👥</span>
-                            <p class="text-slate-400 text-xs font-bold">Sin miembros en la tripulación</p>
+                            <p class="text-slate-400 text-xs font-bold">Sin miembros en el club</p>
                         </div>`;
                     return;
                 }
 
                 contenedor.innerHTML = `
                     <div class="space-y-3">
-                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Tripulación (${miembros.length})</p>
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Miembros (${miembros.length})</p>
                         ${miembros.map(m => {
                             const mUserId = m.user_id || m.id;
                             const mNombre = m.nombre || m.user_nombre || m.email || 'Paddler';
@@ -372,7 +372,7 @@ const ClubFacade = {
                 window.actualizarUIPresencia?.();
             } catch (e) {
                 console.error('[club] tripulacion error:', e);
-                contenedor.innerHTML = `<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar tripulación.</p>`;
+                contenedor.innerHTML = `<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar miembros.</p>`;
             }
         }
     },

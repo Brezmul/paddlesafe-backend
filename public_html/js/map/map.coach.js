@@ -231,7 +231,7 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
         : {
             orografia: typeof coach.analisis_zona === 'string' ? coach.analisis_zona : "Costa abierta con exposición normal al viento.",
             peligros_detectados: rawPeligros.length > 0 ? rawPeligros : ["Atención a posibles ráfagas en salientes y cabos."],
-            recomendacion_seguridad: recSeguridadDuplicada ? "" : "Mantén navegación paralela a la costa."
+            recomendacion_seguridad: recSeguridadDuplicada ? "" : "Mantén una remada paralela a la costa."
         };
 
     let rawConsejosNivel = [];
@@ -334,7 +334,7 @@ export function renderizarCoachProCard(coach, fuente, userLvl, motor = null) {
         <div class="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-3.5 shadow-sm flex items-start gap-3">
             <span class="text-emerald-400 shrink-0 text-lg mt-0.5">⏰</span>
             <div class="flex-1">
-                <span class="text-emerald-300 font-black text-[10px] uppercase tracking-wider block mb-0.5">Ventana Óptima de Navegación</span>
+                <span class="text-emerald-300 font-black text-[10px] uppercase tracking-wider block mb-0.5">Ventana Óptima para Remar</span>
                 <p class="text-xs text-emerald-100 leading-relaxed font-medium">${esc(coach.ventana_recomendada)}</p>
             </div>
         </div>

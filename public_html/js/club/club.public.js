@@ -175,7 +175,7 @@ export const ClubPublic = {
         } else if (tab === 'miembros') {
             const c = containers.miembros;
             if (c) {
-                c.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando tripulación...</p>';
+                c.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando miembros...</p>';
                 try {
                     const { data: miembros } = await supabaseClient.rpc('obtener_miembros_club', { p_club_id: clubId });
                     if (!miembros || miembros.length === 0) {
@@ -206,7 +206,7 @@ export const ClubPublic = {
                         window.actualizarUIPresencia?.();
                     }
                 } catch (e) {
-                    c.innerHTML = '<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar tripulación.</p>';
+                    c.innerHTML = '<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar miembros.</p>';
                 }
             }
         } else if (tab === 'rutas') {

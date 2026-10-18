@@ -148,7 +148,7 @@ export const AUTORIDADES_112_ES = {
         urlDoc: "https://www.aemet.es/es/eltiempo/prediccion/avisos",
         telefono: "112",
         canal: "@ProteccionCivil",
-        peligroNautico: "Condiciones marítimas y meteorológicas adversas. Evita navegar y atiende a las indicaciones oficiales de Protección Civil."
+        peligroNautico: "Condiciones marítimas y meteorológicas adversas. Evita salir al agua y atiende a las indicaciones oficiales de Protección Civil."
     }
 };
 
@@ -1009,7 +1009,7 @@ export function renderizarAvisoSuperior(motor) {
                 </div>
                 ${item.descripcion ? `<p class="text-xs text-slate-200 leading-relaxed font-medium pl-6">${item.descripcion}</p>` : ''}
                 ${item.periodoTexto ? `<div class="text-[10px] text-slate-400 pl-6 flex items-center gap-1 font-mono"><span>⏱️</span> Vigencia: ${item.periodoTexto}</div>` : ''}
-                ${item.peligroNautico ? `<div class="text-[11px] text-amber-300/90 bg-black/30 p-2 rounded-xl mt-1 border border-amber-500/20 font-medium">⚠️ <strong>Impacto Náutico:</strong> ${item.peligroNautico}</div>` : ''}
+                ${item.peligroNautico ? `<div class="text-[11px] text-amber-300/90 bg-black/30 p-2 rounded-xl mt-1 border border-amber-500/20 font-medium">⚠️ <strong>Peligro en Costa:</strong> ${item.peligroNautico}</div>` : ''}
             </div>
         `;
     };

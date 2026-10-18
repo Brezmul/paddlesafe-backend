@@ -50,7 +50,7 @@ export async function obtenerRetosClub(clubId) {
         const defaultReto = {
             id: 'reto_default_' + clubId,
             club_id: clubId,
-            titulo: '🌊 Expedición de Flota 300K',
+            titulo: '🌊 Reto Colectivo 300K',
             descripcion: 'Objetivo de club: sumar entre todos los miembros 300 km en el agua este mes.',
             tipo: 'colectivo_km',
             meta_valor: 300,
@@ -371,9 +371,9 @@ export const ClubRetos = {
                 <div class="bg-gradient-to-r from-marine to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3">
                     <div class="text-center sm:text-left">
                         <h4 class="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5 justify-center sm:justify-start">
-                            <span>🏆</span> Retos del Mes de la Flota
+                            <span>🏆</span> Retos del Mes del Club
                         </h4>
-                        <p class="text-[11px] text-slate-300 mt-0.5">Compite y colabora con tu tripulación para conquistar objetivos marítimos y sumar XP.</p>
+                        <p class="text-[11px] text-slate-300 mt-0.5">Compite y colabora con tu club para conquistar retos en el agua y sumar XP.</p>
                     </div>
                     <button type="button" onclick="abrirCreadorRetoClub()" class="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0">
                         <span>➕</span><span>Nuevo Reto Mensual</span>
@@ -405,12 +405,12 @@ export const ClubRetos = {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div class="sm:col-span-2">
                             <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Título del Reto</label>
-                            <input type="text" id="inputRetoTitulo" placeholder="Ej: Travesía de Flota 300K" class="w-full h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-amber-400">
+                            <input type="text" id="inputRetoTitulo" placeholder="Ej: Reto Colectivo 300K" class="w-full h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-amber-400">
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Tipo de Desafío</label>
                             <select id="selectRetoTipo" class="w-full h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-amber-400">
-                                <option value="colectivo_km">🌊 Colectivo (km de flota)</option>
+                                <option value="colectivo_km">🌊 Colectivo (km de club)</option>
                                 <option value="individual_km">🔥 Individual (km personales)</option>
                                 <option value="individual_salidas">🧭 Individual (número de salidas)</option>
                                 <option value="mejor_ritmo">⚡ Sprint (mejor velocidad media)</option>
@@ -542,7 +542,7 @@ export const ClubRetos = {
                     }
                 }
 
-                let badgeTipo = '🌊 Flota Colectiva';
+                let badgeTipo = '🌊 Club Colectivo';
                 if (reto.tipo === 'individual_km') badgeTipo = '🔥 Reto Individual';
                 else if (reto.tipo === 'individual_salidas') badgeTipo = '🧭 Constancia';
                 else if (reto.tipo === 'mejor_ritmo') badgeTipo = '⚡ Sprint Ritmo';
@@ -597,7 +597,7 @@ export const ClubRetos = {
                         <div class="pt-2 border-t border-slate-100 dark:border-slate-700/60">
                             <button type="button" onclick="toggleDesplegarParticipantesReto('${esc(reto.id)}')" class="text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-water flex items-center justify-between w-full cursor-pointer py-0.5">
                                 <span class="flex items-center gap-1">
-                                    <span>👥 Tripulación participante (${calc.rankingParticipantes.length})</span>
+                                    <span>👥 Remadores participantes (${calc.rankingParticipantes.length})</span>
                                 </span>
                                 <span id="arrowReto-${esc(reto.id)}" class="text-xs">▼</span>
                             </button>

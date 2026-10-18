@@ -832,7 +832,7 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
         proAlertTop.prepend(elOcaso);
     }
 
-    // Biometría táctica SUP, hidratación mínima y checklist de embarque
+    // Biometría táctica SUP, hidratación mínima y checklist de seguridad
     const equipoUsuario = recuperarEquipoUsuario();
     const distRutaKm = dt > 0 ? (dt / 1000) : 0;
     const velPromedioKmh = (duracionMin > 0 && distRutaKm > 0) ? (distRutaKm / (duracionMin / 60)) : obtenerVelocidadCruceroUsuario();
@@ -861,12 +861,12 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
                     </span>
                 </div>
                 <button type="button" onclick="document.getElementById('proChecklistDetalle')?.classList.toggle('hidden')" class="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700/80 text-[11px] font-black flex items-center gap-1.5 cursor-pointer transition-all shadow-sm">
-                    <span>🎒</span> <span>Checklist Embarque</span> <span>▾</span>
+                    <span>🎒</span> <span>Checklist Seguridad</span> <span>▾</span>
                 </button>
             </div>
             <div id="proChecklistDetalle" class="hidden mt-2 p-3.5 bg-slate-900/90 rounded-xl border border-slate-700/80 text-xs">
                 <div class="font-bold text-slate-300 mb-2 flex items-center justify-between">
-                    <span class="uppercase tracking-wider text-[10px] text-slate-400">Equipo imprescindible antes de zarpar</span>
+                    <span class="uppercase tracking-wider text-[10px] text-slate-400">Equipo imprescindible antes de remar</span>
                     <span class="text-[10px] text-emerald-400 font-bold">Seguridad activa</span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-200">

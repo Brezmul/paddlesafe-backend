@@ -1571,7 +1571,7 @@ export const socialFeed = {
                         userId: i.user_id,
                         visibility: i.visibility || 'club_only',
                         is_public: i.is_public === true,
-                        html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700 shadow-sm mt-1 shrink-0"><div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap mb-1"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre || 'Paddler')}</strong><span class="text-[9px] bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-sky-200 dark:border-sky-800/50"><span>🔒</span> Chat Tripulación</span></div><p class="text-xs text-slate-500 dark:text-slate-400">En <strong class="text-marine dark:text-white font-bold">${esc(i.clubs?.nombre || 'Club')}</strong></p><div class="mt-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/50 p-3 rounded-2xl rounded-tl-sm text-sm text-slate-700 dark:text-slate-300 italic shadow-sm">"${esc(i.mensaje)}"</div></div></div>`
+                        html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700 shadow-sm mt-1 shrink-0"><div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap mb-1"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre || 'Paddler')}</strong><span class="text-[9px] bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-sky-200 dark:border-sky-800/50"><span>🔒</span> Chat del Club</span></div><p class="text-xs text-slate-500 dark:text-slate-400">En <strong class="text-marine dark:text-white font-bold">${esc(i.clubs?.nombre || 'Club')}</strong></p><div class="mt-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/50 p-3 rounded-2xl rounded-tl-sm text-sm text-slate-700 dark:text-slate-300 italic shadow-sm">"${esc(i.mensaje)}"</div></div></div>`
                     });
                     this.itemsIds.add(uniqueKey);
                 } catch (errCard) {
@@ -1632,7 +1632,7 @@ export const socialFeed = {
                 }
                 let mensajeVacio = "Cuando tú, tus amigos o tu club registréis nuevas travesías, aparecerán aquí.";
                 if (filtro === 'mis_clubs' && misClubsIds.length === 0) {
-                    mensajeVacio = "Aún no perteneces a ningún club. ¡Únete a un club para ver la actividad interna y el chat de la tripulación!";
+                    mensajeVacio = "Aún no perteneces a ningún club. ¡Únete a un club para ver la actividad interna y el chat del club!";
                 } else if (filtro === 'mis_amigos' && misAmigosIds.length === 0) {
                     mensajeVacio = "Aún no tienes amigos añadidos. Puedes buscar otros paddlers y enviarles solicitudes de amistad.";
                 }

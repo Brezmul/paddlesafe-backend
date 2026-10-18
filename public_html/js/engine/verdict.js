@@ -385,7 +385,7 @@ export function generarVeredictoNextGen(params = {}) {
             recomendacion: 'PROHIBIDO POR EMERGENCIA',
             justificacion: `Existe una ALERTA OFICIAL DE EMERGENCIAS ACTIVA emitida por ${nombreAutoridad}. Queda terminantemente prohibido salir a remar debido al riesgo vital extremo, corrientes de arrastre y condiciones marítimas adversas. Por seguridad, permanece en tierra firme.`,
             mensaje: `Existe una ALERTA OFICIAL DE EMERGENCIAS ACTIVA emitida por ${nombreAutoridad}. Queda terminantemente prohibido salir a remar debido al riesgo vital extremo, corrientes de arrastre y condiciones marítimas adversas. Por seguridad, permanece en tierra firme.`,
-            explicacionNautica: `Alerta oficial de emergencias decretada por ${nombreAutoridad}. Queda prohibida la actividad náutica. Respeta las indicaciones de las autoridades y no te acerques a espigones ni desembocaduras.`,
+            explicacionNautica: `Alerta oficial de emergencias decretada por ${nombreAutoridad}. Queda prohibida la actividad en el agua. Respeta las indicaciones de las autoridades y no te acerques a espigones ni desembocaduras.`,
             factoresCriticos,
             analysisConfidence: 99,
             confianzaAnalisis: 99,
@@ -410,7 +410,7 @@ export function generarVeredictoNextGen(params = {}) {
                 deporte: deporteKey,
                 recomendable: false,
                 estado: 'Prohibido por Emergencia',
-                motivo: `Alerta oficial de emergencias activa (${nombreAutoridad}). Navegación desaconsejada y prohibida por riesgo extremo.`,
+                motivo: `Alerta oficial de emergencias activa (${nombreAutoridad}). Salida al agua desaconsejada y prohibida por riesgo extremo.`,
                 consejo: 'Cancela de inmediato la salida y permanece en tierra firme.'
             },
             ventanas: null,
@@ -607,11 +607,11 @@ export function generarVeredictoNextGen(params = {}) {
     // 11. Justificación Náutica Profesional
     let justificacion = '';
     if (estadoKey === 'FAVORABLE') {
-        justificacion = `Viento suave (${vReal} kt) y mar calmo (${oReal.toFixed(1)} m). Condiciones óptimas para navegar con fluidez y mínimo esfuerzo.`;
+        justificacion = `Viento suave (${vReal} kt) y mar calmo (${oReal.toFixed(1)} m). Condiciones óptimas para remar con fluidez y mínimo esfuerzo.`;
     } else if (estadoKey === 'PRECAUCION') {
         justificacion = compViento.componente === 'offshore'
             ? `Viento de ${vReal} kt con componente hacia mar abierto (offshore). Conviene remar en paralelo a la orilla y vigilar referencias fijas en tierra.`
-            : `Viento de ${vReal} kt y ligera ondulación (${oReal.toFixed(1)} m). Navegación viable gestionando el ritmo.`;
+            : `Viento de ${vReal} kt y ligera ondulación (${oReal.toFixed(1)} m). Sesión viable gestionando el ritmo.`;
     } else if (estadoKey === 'EXIGENTE') {
         justificacion = `Viento activo de ${vReal} kt y oleaje de ${oReal.toFixed(1)} m. Requiere experiencia previa, equilibrio reactivo y buena condición física.`;
     } else {

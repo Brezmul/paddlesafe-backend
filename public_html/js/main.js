@@ -644,7 +644,7 @@ export async function abrirPerfilPublicoSPA(userId) {
             document.getElementById('userProfileContent').innerHTML = `
                 <div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner mt-4">
                     <span class="text-4xl block mb-2 opacity-50">🔒</span>
-                    <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Este usuario ha ocultado su diario de navegación.</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Este usuario ha ocultado su diario de travesías.</p>
                 </div>`;
             
             // Ocultar las pestañas de navegación preservando las clases Flexbox

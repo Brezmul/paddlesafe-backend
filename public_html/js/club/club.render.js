@@ -78,13 +78,13 @@ export const ClubRender = {
         <div class="text-center w-full py-4">
             <span class="text-5xl block mb-2 opacity-40">🏴‍☠️</span>
             <h3 class="font-black text-marine dark:text-white mb-2 text-lg">Sin clubes</h3>
-            <p class="text-xs text-slate-400 mb-4">Aún no perteneces a ningún club náutico. ¡Funda el tuyo o únete a uno existente!</p>
+            <p class="text-xs text-slate-400 mb-4">Aún no perteneces a ningún club. ¡Funda el tuyo o únete a uno existente!</p>
             <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
                 <input type="text" id="newClubName" placeholder="Nombre de tu club" class="w-full h-12 px-4 rounded-xl mb-3 outline-none focus:ring-2 focus:ring-water bg-white dark:bg-slate-800 text-sm">
                 <button type="button" onclick="window.Club.onCreate()" class="w-full h-12 bg-water text-white font-bold rounded-xl active:scale-95 shadow cursor-pointer text-sm">➕ Fundar Club</button>
             </div>
             <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onclick="window.Club.cambiarTabClubs('buscar_club')" class="text-water text-xs font-bold hover:underline cursor-pointer">O busca clubes existentes en la flota →</button>
+                <button type="button" onclick="window.Club.cambiarTabClubs('buscar_club')" class="text-water text-xs font-bold hover:underline cursor-pointer">O busca clubes existentes en la comunidad →</button>
             </div>
         </div>`;
     },
@@ -151,7 +151,7 @@ export const ClubRender = {
                 ${extraFields}
                 ${dangerZoneCard}
                 <div class="flex gap-1.5 mt-5 pt-4 border-t border-slate-100 dark:border-slate-700 overflow-x-auto custom-scrollbar pb-1">
-                    <button type="button" id="btnClubTabTripulacion" onclick="window.Club.cambiarVistaInterna('tripulacion')" class="flex-1 min-w-[90px] px-3 py-2.5 rounded-xl bg-marine text-white font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">👥 Tripulación</button>
+                    <button type="button" id="btnClubTabTripulacion" onclick="window.Club.cambiarVistaInterna('tripulacion')" class="flex-1 min-w-[90px] px-3 py-2.5 rounded-xl bg-marine text-white font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">👥 Miembros</button>
                     <button type="button" id="btnClubTabChat" onclick="window.Club.cambiarVistaInterna('chat')" class="flex-1 min-w-[90px] px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">💬 Chat</button>
                     <button type="button" id="btnClubTabEventos" onclick="window.Club.cambiarVistaInterna('eventos')" class="flex-1 min-w-[90px] px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">📅 Quedadas</button>
                     <button type="button" id="btnClubTabRetos" onclick="window.Club.cambiarVistaInterna('retos')" class="flex-1 min-w-[90px] px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">🏆 Retos</button>
@@ -176,7 +176,7 @@ export const ClubRender = {
                 </div>
             </div>
             <div id="listaBusquedaClubs" class="space-y-3">
-                <p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando flota de clubes...</p>
+                <p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando directorio de clubes...</p>
             </div>`;
 
         await this.cargarListaClubs('');

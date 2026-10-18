@@ -154,7 +154,7 @@ export function evaluarCondicionesDeporte({
         return {
             recomendable: false,
             estado: 'Prohibido por Emergencia',
-            motivo: 'Alerta oficial de emergencias activa (112 / Protección Civil). Navegación desaconsejada y prohibida por riesgo extremo.',
+            motivo: 'Alerta oficial de emergencias activa (112 / Protección Civil). Salida al agua desaconsejada y prohibida por riesgo extremo.',
             consejo: 'Cancela de inmediato la salida y permanece en tierra firme siguiendo las indicaciones de las autoridades.'
         };
     }

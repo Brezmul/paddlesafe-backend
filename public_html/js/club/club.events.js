@@ -34,7 +34,7 @@ export const ClubEvents = {
                 <div class="bg-gradient-to-r from-marine to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3">
                     <div class="text-center sm:text-left">
                         <h4 class="text-xs font-black uppercase tracking-wider text-water flex items-center gap-1.5 justify-center sm:justify-start">
-                            <span>📅</span> Quedadas y Rutas de la Flota
+                            <span>📅</span> Quedadas y Rutas del Club
                         </h4>
                         <p class="text-[11px] text-slate-300 mt-0.5">Organiza salidas con fecha, hora y previsión marina en tiempo real.</p>
                     </div>
@@ -45,7 +45,7 @@ export const ClubEvents = {
 
                 <!-- Lista de Quedadas -->
                 <div id="clubEventsList" class="space-y-4">
-                    <p class="text-center text-slate-400 py-8 text-xs font-bold animate-pulse">Cargando quedadas de la tripulación...</p>
+                    <p class="text-center text-slate-400 py-8 text-xs font-bold animate-pulse">Cargando quedadas del club...</p>
                 </div>
             </div>`;
 
