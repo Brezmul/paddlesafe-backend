@@ -16,7 +16,10 @@ BEGIN;
 -- 1. SCHEMA Y DEDUPLICACIÓN
 -- ------------------------------------------------------------------------------
 
--- Asegurar columnas en 'clubs_solicitudes'
+-- Asegurar columnas en 'clubs' y 'clubs_solicitudes'
+ALTER TABLE public.clubs 
+  ADD COLUMN IF NOT EXISTS es_privado boolean DEFAULT false;
+
 ALTER TABLE public.clubs_solicitudes 
   ADD COLUMN IF NOT EXISTS estado text NOT NULL DEFAULT 'pendiente',
   ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
@@ -284,14 +287,19 @@ GRANT EXECUTE ON FUNCTION public.obtener_solicitudes_club(uuid) TO authenticated
 
 -- RPC: Procesar solicitud (aceptar o rechazar) con notificación segura
 DROP FUNCTION IF EXISTS public.procesar_solicitud_club(uuid, text);
-CREATE OR REPLACE FUNCTION public.procesar_solicitud_club(p_solicitud uuid, p_accion text)
+DROP FUNCTION IF EXISTS public.procesar_solicitud_club(uuid, text, uuid);
+CREATE OR REPLACE FUNCTION public.procesar_solicitud_club(
+  p_solicitud uuid, 
+  p_accion text,
+  p_admin_id uuid DEFAULT NULL
+)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_actor uuid := auth.uid();
+  v_actor uuid := COALESCE(auth.uid(), p_admin_id);
   v_user_id uuid;
   v_club_id uuid;
   v_club_nombre text;
@@ -355,7 +363,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.procesar_solicitud_club(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.procesar_solicitud_club(uuid, text, uuid) TO authenticated, anon;
 
 -- RPC: Obtener clubes del usuario incluyendo los que fundó
 DROP FUNCTION IF EXISTS public.obtener_clubs_usuario(uuid);
@@ -393,6 +401,9 @@ AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION public.obtener_clubs_usuario(uuid) TO authenticated;
+
+-- Recargar caché de schema en PostgREST inmediatamente
+NOTIFY pgrst, 'reload schema';
 
 COMMIT;
 
