@@ -505,8 +505,36 @@ export function toggleLikeRutaSocial(rutaId) {
 export const socialNotifications = {
     async crear(datos) {
         try {
-            const payload = Array.isArray(datos) ? datos : [datos];
-            await supabaseClient.from('notificaciones').insert(payload);
+            const list = Array.isArray(datos) ? datos : [datos];
+            for (const item of list) {
+                const targetUserId = item.user_id || item.userId;
+                if (!targetUserId) continue;
+                const tipo = item.tipo || 'general';
+                const titulo = item.titulo || (tipo === 'solicitud_amistad' ? 'Solicitud de Amistad' : tipo === 'resolucion_amistad' ? 'Respuesta de Amistad' : tipo);
+                const mensaje = item.contenido || item.mensaje || '';
+                const extraData = item.data || {};
+
+                try {
+                    const { error: rpcErr } = await supabaseClient.rpc('enviar_notificacionSegura', {
+                        p_user_id: targetUserId,
+                        p_tipo: tipo,
+                        p_titulo: titulo,
+                        p_mensaje: mensaje,
+                        p_data: extraData
+                    });
+                    if (rpcErr) throw rpcErr;
+                } catch (rpcErr) {
+                    console.warn("enviar_notificacionSegura RPC fallback:", rpcErr);
+                    // Fallback directo a insert en tabla notificaciones
+                    await supabaseClient.from('notificaciones').insert([{
+                        user_id: targetUserId,
+                        tipo: tipo,
+                        contenido: mensaje,
+                        titulo: titulo,
+                        data: extraData
+                    }]);
+                }
+            }
         } catch (err) {
             console.warn("Aviso no crítico (Crear Notificación):", err);
         }
@@ -646,17 +674,31 @@ export async function enviarSolicitudAmistad(amigoId) {
                 if(window.verificarEstadoAmistad) window.verificarEstadoAmistad(amigoId);
                 return;
             } else if (existing.estado === 'pendiente') {
-                alert(existing.usuario_id === myId ? "Ya tienes una solicitud pendiente enviada a este usuario." : "Este usuario ya te envió una solicitud. ¡Puedes aceptarla!");
+                alert("Ya existe una solicitud pendiente con este usuario.");
                 if(window.verificarEstadoAmistad) window.verificarEstadoAmistad(amigoId);
                 return;
             } else {
                 // Si estaba rechazada, la reactivamos como pendiente
                 const { error: updErr } = await supabaseClient.from('amistades').update({ usuario_id: myId, amigo_id: amigoId, estado: 'pendiente' }).eq('id', existing.id);
-                if (updErr) throw updErr;
+                if (updErr) {
+                    if (updErr.code === '23505' || updErr.message?.includes('duplicate key') || updErr.message?.includes('unique')) {
+                        alert("Ya existe una solicitud pendiente con este usuario.");
+                        if(window.verificarEstadoAmistad) window.verificarEstadoAmistad(amigoId);
+                        return;
+                    }
+                    throw updErr;
+                }
             }
         } else {
             const { error: insErr } = await supabaseClient.from('amistades').insert([{ usuario_id: myId, amigo_id: amigoId, estado: 'pendiente' }]);
-            if (insErr) throw insErr;
+            if (insErr) {
+                if (insErr.code === '23505' || insErr.message?.includes('duplicate key') || insErr.message?.includes('unique')) {
+                    alert("Ya existe una solicitud pendiente con este usuario.");
+                    if(window.verificarEstadoAmistad) window.verificarEstadoAmistad(amigoId);
+                    return;
+                }
+                throw insErr;
+            }
         }
 
         alert("¡Solicitud de amistad enviada con éxito!");
@@ -666,10 +708,16 @@ export async function enviarSolicitudAmistad(amigoId) {
             socialNotifications.crear({
                 user_id: amigoId,
                 tipo: 'solicitud_amistad',
-                contenido: `👋 ¡${appState.perfilUsuario.nombre} te envió solicitud de amistad!`
+                titulo: 'Solicitud de Amistad',
+                contenido: `👋 ¡${appState.perfilUsuario.nombre || 'Un palista'} te envió solicitud de amistad!`
             });
         }
     } catch (e) { 
+        if (e && (e.code === '23505' || e.message?.includes('duplicate key') || e.message?.includes('unique') || e.code === '409')) {
+            alert("Ya existe una solicitud pendiente con este usuario.");
+            if(window.verificarEstadoAmistad) window.verificarEstadoAmistad(amigoId);
+            return;
+        }
         console.warn('Aviso no crítico enviando solicitud:', e); 
         alert("Error al enviar solicitud."); 
         if(btn) { btn.disabled = false; btn.textContent = "Añadir Amigo"; } 
@@ -677,25 +725,55 @@ export async function enviarSolicitudAmistad(amigoId) {
 }
 
 export async function responderSolicitudAmistad(amistadId, accion) {
+    // Actualización inmediata en UI local para evitar retardo
+    const rowEl = document.querySelector(`button[onclick*="${amistadId}"]`)?.closest('.bg-white, .dark\\:bg-slate-800');
+    if (rowEl) {
+        rowEl.style.opacity = '0.5';
+        rowEl.style.pointerEvents = 'none';
+        const buttons = rowEl.querySelectorAll('button');
+        buttons.forEach(b => { b.disabled = true; });
+    }
+
     try {
-        const { data: amistadRel } = await supabaseClient.from('amistades').select('usuario_id').eq('id', amistadId).single();
         const est = accion === 'aceptar' ? 'aceptada' : 'rechazada';
-        const { error } = await supabaseClient.from('amistades').update({ estado: est }).eq('id', amistadId);
+        const { data: updated, error } = await supabaseClient
+            .from('amistades')
+            .update({ estado: est })
+            .eq('id', amistadId)
+            .select('usuario_id, amigo_id')
+            .maybeSingle();
+
         if (error) throw error;
         
+        if (rowEl) {
+            rowEl.remove();
+        }
+
         if (document.getElementById('friendSystemModal') && !document.getElementById('friendSystemModal').classList.contains('hidden')) {
             cambiarTabAmistades('solicitudes');
         }
         
-        if (amistadRel && appState.sesionActual) {
+        if (typeof comprobarNuevasSolicitudesSilencioso === 'function') {
+            comprobarNuevasSolicitudesSilencioso();
+        }
+        
+        const senderId = updated?.usuario_id;
+        if (senderId && appState.sesionActual) {
             socialNotifications.crear({
-                user_id: amistadRel.usuario_id,
+                user_id: senderId,
                 tipo: 'resolucion_amistad',
-                contenido: `${appState.perfilUsuario.nombre} ha ${accion} tu solicitud.`
+                titulo: 'Respuesta de Amistad',
+                contenido: `${appState.perfilUsuario?.nombre || 'Un palista'} ha ${accion === 'aceptar' ? 'aceptado' : 'rechazado'} tu solicitud de amistad.`
             });
         }
     } catch (e) { 
         console.warn('Aviso no crítico:', e); 
+        if (rowEl) {
+            rowEl.style.opacity = '1';
+            rowEl.style.pointerEvents = 'auto';
+            const buttons = rowEl.querySelectorAll('button');
+            buttons.forEach(b => { b.disabled = false; });
+        }
         alert("Error al responder."); 
     }
 }

@@ -723,6 +723,166 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.obtener_clubs_usuario(uuid) TO authenticated;
 
+-- ------------------------------------------------------------------------------
+-- 8. PATCH #08: SOCIAL RLS, REALTIME NOTIFICACIONES, AND CLUB CHAT
+-- ------------------------------------------------------------------------------
+
+-- A) AMISTADES SCHEMA, DEDUPLICACIÓN Y RLS
+WITH ranked_amistades AS (
+  SELECT ctid,
+    ROW_NUMBER() OVER (
+      PARTITION BY usuario_id, amigo_id
+      ORDER BY COALESCE(created_at, now()) ASC
+    ) as rn
+  FROM public.amistades
+)
+DELETE FROM public.amistades
+WHERE ctid IN (SELECT ctid FROM ranked_amistades WHERE rn > 1);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_amistades_unique_pair 
+  ON public.amistades (usuario_id, amigo_id);
+
+ALTER TABLE public.amistades ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'amistades' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.amistades', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY amistades_select ON public.amistades
+  FOR SELECT TO authenticated
+  USING (auth.uid() = usuario_id OR auth.uid() = amigo_id);
+
+CREATE POLICY amistades_insert ON public.amistades
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = usuario_id);
+
+CREATE POLICY amistades_update ON public.amistades
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = usuario_id OR auth.uid() = amigo_id)
+  WITH CHECK (auth.uid() = usuario_id OR auth.uid() = amigo_id);
+
+CREATE POLICY amistades_delete ON public.amistades
+  FOR DELETE TO authenticated
+  USING (auth.uid() = usuario_id OR auth.uid() = amigo_id);
+
+-- B) NOTIFICACIONES SCHEMA, RLS Y RPC
+ALTER TABLE public.notificaciones 
+  ADD COLUMN IF NOT EXISTS titulo text,
+  ADD COLUMN IF NOT EXISTS data jsonb DEFAULT '{}'::jsonb;
+
+ALTER TABLE public.notificaciones ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'notificaciones' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.notificaciones', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY notificaciones_select ON public.notificaciones
+  FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY notificaciones_insert ON public.notificaciones
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY notificaciones_update ON public.notificaciones
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY notificaciones_delete ON public.notificaciones
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
+
+DROP FUNCTION IF EXISTS public.enviar_notificacionSegura(uuid, text, text, text, jsonb);
+DROP FUNCTION IF EXISTS public.enviar_notificacionsegura(uuid, text, text, text, jsonb);
+CREATE OR REPLACE FUNCTION public.enviar_notificacionSegura(
+  p_user_id uuid,
+  p_tipo text,
+  p_titulo text,
+  p_mensaje text,
+  p_data jsonb DEFAULT '{}'::jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF p_user_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO public.notificaciones (
+    user_id,
+    tipo,
+    contenido,
+    titulo,
+    data,
+    leida,
+    created_at
+  )
+  VALUES (
+    p_user_id,
+    COALESCE(p_tipo, 'general'),
+    COALESCE(p_mensaje, p_titulo, ''),
+    p_titulo,
+    COALESCE(p_data, '{}'::jsonb),
+    false,
+    now()
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.enviar_notificacionSegura(uuid, text, text, text, jsonb) TO authenticated, anon;
+
+-- C) CLUB_CHAT RLS LIMPIO
+ALTER TABLE public.club_chat ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'club_chat' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.club_chat', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY club_chat_select ON public.club_chat
+  FOR SELECT TO authenticated, anon
+  USING (
+    COALESCE(is_public, false) = true
+    OR public.es_miembro_club(club_id, auth.uid())
+  );
+
+CREATE POLICY club_chat_insert ON public.club_chat
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    auth.uid() = user_id
+    AND public.es_miembro_club(club_id, auth.uid())
+  );
+
+CREATE POLICY club_chat_update ON public.club_chat
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY club_chat_delete ON public.club_chat
+  FOR DELETE TO authenticated
+  USING (
+    auth.uid() = user_id
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
 -- Recargar caché de schema en PostgREST inmediatamente
 NOTIFY pgrst, 'reload schema';
 
