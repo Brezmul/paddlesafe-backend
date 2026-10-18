@@ -1599,6 +1599,67 @@ NOTIFY pgrst, 'reload schema';
 
 COMMIT;
 
+-- ==============================================================================
+-- 12. PATCH #12 (BATCH #17): SPOT INTELLIGENCE & CONDITIONS LOGBOOK SCHEMA
+-- ==============================================================================
 
+BEGIN;
 
+-- A) EXTEND public.user_spots
+ALTER TABLE public.user_spots 
+  ADD COLUMN IF NOT EXISTS notas_tacticas text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS acceso_parking text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS peligros_locales text DEFAULT '';
 
+-- B) CREATE public.spot_logbook
+CREATE TABLE IF NOT EXISTS public.spot_logbook (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  spot_nombre text NOT NULL,
+  lat numeric(9,6) NOT NULL,
+  lon numeric(9,6) NOT NULL,
+  fecha date NOT NULL DEFAULT CURRENT_DATE,
+  viento_previsto_kt numeric(5,1),
+  viento_real_bias text NOT NULL DEFAULT 'exacto',
+  olas_m numeric(4,2),
+  rating integer NOT NULL DEFAULT 5 CHECK (rating >= 1 AND rating <= 5),
+  notas text DEFAULT '',
+  ruta_id uuid,
+  created_at timestamptz DEFAULT now()
+);
+
+-- C) INDEXES & RLS ON public.spot_logbook
+CREATE INDEX IF NOT EXISTS idx_spot_logbook_user_spot ON public.spot_logbook (user_id, spot_nombre, created_at DESC);
+
+ALTER TABLE public.spot_logbook ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "spot_logbook_select" ON public.spot_logbook;
+CREATE POLICY "spot_logbook_select" ON public.spot_logbook
+  FOR SELECT USING (auth.uid() = user_id OR auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "spot_logbook_insert" ON public.spot_logbook;
+CREATE POLICY "spot_logbook_insert" ON public.spot_logbook
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "spot_logbook_update" ON public.spot_logbook;
+CREATE POLICY "spot_logbook_update" ON public.spot_logbook
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "spot_logbook_delete" ON public.spot_logbook;
+CREATE POLICY "spot_logbook_delete" ON public.spot_logbook
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Ensure user_spots update policy covers tactical notes
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'user_spots' AND cmd = 'UPDATE'
+  ) THEN
+    CREATE POLICY "user_spots_update_own" ON public.user_spots
+      FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
+NOTIFY pgrst, 'reload schema';
+
+COMMIT;

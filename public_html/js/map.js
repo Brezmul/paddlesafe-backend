@@ -24,6 +24,7 @@ import {
 import { ClubState } from './club/state.js';
 import { calcularXpRuta } from './gamification.js';
 import { parseGPX, generarGPX, descargarGPX } from './gpxParser.js';
+import { generarPerfilTacticoSpot } from './engine/coastal.js';
 
 const ICONOS_SEGURIDAD = {
     'SEGURO': '🟢',
@@ -2141,11 +2142,13 @@ export async function consultarBasico() {
             if (dx.horasDiurnas && dx.horasDiurnas.length > 0) {
                 renderizarTimelineJornadaCompleta(spotActivoActual, dx, u);
             }
+            renderizarInteligenciaYDiarioSpot(spotActivoActual, dx);
         }
     } catch(e) { 
         res.innerHTML = `<strong>No se pudo cargar el pronóstico.</strong> ${esc(e?.message || 'Revisa tu conexión e inténtalo de nuevo.')}`;
         console.warn('Error al consultar el pronóstico básico:', e);
         document.getElementById('fullDaySpotTimeline')?.classList.add('hidden');
+        document.getElementById('spotIntelligenceBento')?.classList.add('hidden');
         renderizarAvisoSuperior({
             aemet: { alertas: [], disponible: false },
             tormentaElectrica: false,
@@ -6622,6 +6625,7 @@ export function renderizarTimelineJornadaCompleta(spot, pronostico, userLevel = 
     }
 
     timelineEl.classList.remove('hidden');
+    renderizarInteligenciaYDiarioSpot(spot, pronostico);
 }
 
 export function seleccionarHoraTimeline(horaStr, doScroll = false) {
@@ -6906,7 +6910,539 @@ export function generarGraficoSvgPerfilRuta(tramos, dt) {
     `;
 }
 
+// ==============================================================================
+// SPOT INTELLIGENCE, HISTORICAL SMART MATCH & CONDITIONS LOGBOOK (BATCH #17)
+// ==============================================================================
+
+export let biasSeleccionadoLogbook = 'exacto';
+export let ratingSeleccionadoLogbook = 5;
+
+export function calcularDistanciaGeodesicaKm(lat1, lon1, lat2, lon2) {
+    if (!Number.isFinite(lat1) || !Number.isFinite(lon1) || !Number.isFinite(lat2) || !Number.isFinite(lon2)) return Infinity;
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+export function analizarHistorialYSmartMatchSpot(lat, lon, spotNombre = '', meteoHoy = {}, rutasExternas = null) {
+    const latNum = Number(lat);
+    const lonNum = Number(lon);
+    const nombreNorm = String(spotNombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    const routesMap = new Map();
+    if (Array.isArray(rutasExternas)) {
+        rutasExternas.forEach(r => { if (r && (r.id || r.ruta_id)) routesMap.set(String(r.id || r.ruta_id), r); });
+    }
+    if (typeof window !== 'undefined' && window.__rutasUsuarioCache instanceof Map) {
+        window.__rutasUsuarioCache.forEach((r, k) => { if (r && (r.id || k)) routesMap.set(String(r.id || k), r); });
+    }
+    if (typeof window !== 'undefined' && window.socialRoutesCache && typeof window.socialRoutesCache === 'object') {
+        Object.values(window.socialRoutesCache).forEach(r => { if (r && (r.id || r.ruta_id)) routesMap.set(String(r.id || r.ruta_id), r); });
+    }
+    try {
+        if (typeof localStorage !== 'undefined') {
+            const stored = JSON.parse(localStorage.getItem('ps_user_routes_cache') || '[]');
+            if (Array.isArray(stored)) {
+                stored.forEach(r => { if (r && (r.id || r.ruta_id)) routesMap.set(String(r.id || r.ruta_id), r); });
+            }
+        }
+    } catch (_) {}
+
+    const todasLasRutas = Array.from(routesMap.values());
+    const matchedRoutes = [];
+
+    for (const r of todasLasRutas) {
+        let coincide = false;
+        const rNom = String(r.nombre || r.titulo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const rUbic = String(r.ubicacion || r.spot_nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        if (nombreNorm.length >= 3 && (rNom.includes(nombreNorm) || rUbic.includes(nombreNorm) || (nombreNorm.includes(rNom) && rNom.length >= 4))) {
+            coincide = true;
+        }
+
+        if (!coincide && Number.isFinite(latNum) && Number.isFinite(lonNum)) {
+            let rLat = Number(r.lat ?? r.latitude ?? r.inicio_lat);
+            let rLon = Number(r.lon ?? r.longitude ?? r.inicio_lon);
+
+            if (!Number.isFinite(rLat) && Array.isArray(r.puntos) && r.puntos.length > 0) {
+                const pt = r.puntos[0];
+                rLat = Number(Array.isArray(pt) ? pt[0] : (pt.lat || pt.latitude));
+                rLon = Number(Array.isArray(pt) ? pt[1] : (pt.lng || pt.lon || pt.longitude));
+            } else if (!Number.isFinite(rLat) && Array.isArray(r.coordenadas) && r.coordenadas.length > 0) {
+                const pt = r.coordenadas[0];
+                rLat = Number(Array.isArray(pt) ? pt[0] : (pt.lat || pt.latitude));
+                rLon = Number(Array.isArray(pt) ? pt[1] : (pt.lng || pt.lon || pt.longitude));
+            }
+
+            if (Number.isFinite(rLat) && Number.isFinite(rLon)) {
+                const dKm = calcularDistanciaGeodesicaKm(latNum, lonNum, rLat, rLon);
+                if (dKm <= 4.5) {
+                    coincide = true;
+                }
+            }
+        }
+
+        if (coincide) {
+            matchedRoutes.push(r);
+        }
+    }
+
+    if (matchedRoutes.length === 0) {
+        return {
+            totalSesionesSpot: 0,
+            totalKmSpot: 0,
+            mejorRitmoKmh: 0,
+            mejorRutaId: null,
+            smartMatch: null
+        };
+    }
+
+    let totalKm = 0;
+    let maxVel = 0;
+    let mejorRutaId = null;
+
+    matchedRoutes.forEach(r => {
+        const d = Number(r.distancia_km || r.distanciaKm || (r.distancia_m ? r.distancia_m / 1000 : 0)) || 0;
+        totalKm += d;
+        const vel = Number(r.velocidad_media_kmh || r.velocidad_media || r.ritmo_kmh || (r.duracion_seg && d > 0 ? (d / (r.duracion_seg / 3600)) : 0)) || 0;
+        if (vel > maxVel) {
+            maxVel = vel;
+            mejorRutaId = r.id || r.ruta_id;
+        }
+    });
+
+    const hoyViento = Number(meteoHoy.vientoKt || meteoHoy.windKnots || 8);
+    const hoyOlas = Number(meteoHoy.olasM || meteoHoy.waveHeight || 0.4);
+
+    let bestDelta = Infinity;
+    let smartMatch = null;
+
+    matchedRoutes.forEach(r => {
+        const rViento = Number(r.meteo_viento_kt ?? r.viento_kt ?? (r.meteo?.windKnots) ?? 8);
+        const rOlas = Number(r.meteo_olas_m ?? r.olas_m ?? (r.meteo?.waveHeight) ?? 0.4);
+        const delta = Math.abs(rViento - hoyViento) + Math.abs(rOlas - hoyOlas) * 10;
+        if (delta < bestDelta) {
+            bestDelta = delta;
+            smartMatch = {
+                rutaId: r.id || r.ruta_id,
+                fecha: r.fecha || (r.created_at ? r.created_at.slice(0, 10) : 'Sesión pasada'),
+                distKm: Number((r.distancia_km || (r.distancia_m ? r.distancia_m / 1000 : 0) || 0).toFixed(1)),
+                velMedia: Number((r.velocidad_media_kmh || (r.duracion_seg && r.distancia_km ? (r.distancia_km / (r.duracion_seg / 3600)) : 0) || 4.5).toFixed(1)),
+                vientoKt: rViento,
+                olasM: rOlas,
+                nombre: r.nombre || 'Sesión en este spot',
+                delta: Math.round(delta * 10) / 10
+            };
+        }
+    });
+
+    return {
+        totalSesionesSpot: matchedRoutes.length,
+        totalKmSpot: Number(totalKm.toFixed(1)),
+        mejorRitmoKmh: Number(maxVel.toFixed(1)),
+        mejorRutaId,
+        smartMatch
+    };
+}
+
+export function calcularSesgoTermicoSpot(spotNombre = '', lat = null, lon = null, entries = []) {
+    if (!Array.isArray(entries) || entries.length === 0) {
+        return { hasThermalBias: false, masVientoCount: 0, totalEntries: 0, msg: null };
+    }
+    const nombreNorm = String(spotNombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const spotEntries = entries.filter(e => {
+        if (!e) return false;
+        const eNom = String(e.spot_nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        if (nombreNorm.length >= 3 && eNom.includes(nombreNorm)) return true;
+        if (Number.isFinite(Number(lat)) && Number.isFinite(Number(lon)) && Number.isFinite(Number(e.lat)) && Number.isFinite(Number(e.lon))) {
+            return calcularDistanciaGeodesicaKm(Number(lat), Number(lon), Number(e.lat), Number(e.lon)) <= 4.5;
+        }
+        return false;
+    });
+
+    if (spotEntries.length === 0) {
+        return { hasThermalBias: false, masVientoCount: 0, totalEntries: 0, msg: null };
+    }
+
+    const masVientoCount = spotEntries.filter(e => e.viento_real_bias === 'mas_viento').length;
+    const ratio = masVientoCount / spotEntries.length;
+
+    if (masVientoCount >= 2 || (spotEntries.length >= 2 && ratio >= 0.5)) {
+        return {
+            hasThermalBias: true,
+            masVientoCount,
+            totalEntries: spotEntries.length,
+            msg: `🧠 Inteligencia Local: En este spot sueles registrar +3 a +5 kt más de viento térmico que el modelo oficial (${masVientoCount} de ${spotEntries.length} entradas en bitácora).`
+        };
+    }
+
+    return {
+        hasThermalBias: false,
+        masVientoCount,
+        totalEntries: spotEntries.length,
+        msg: null
+    };
+}
+
+export function toggleFormBitacoraSpot(forceOpen) {
+    const panel = document.getElementById('spotLogbookFormPanel');
+    if (!panel) return;
+    const shouldOpen = forceOpen !== undefined ? forceOpen : panel.classList.contains('hidden');
+    if (shouldOpen) {
+        panel.classList.remove('hidden');
+        panel.classList.add('flex');
+    } else {
+        panel.classList.add('hidden');
+        panel.classList.remove('flex');
+    }
+}
+
+export function seleccionarBiasLogbook(bias) {
+    biasSeleccionadoLogbook = bias;
+    const group = document.getElementById('spotBiasSelectorGroup');
+    if (group) {
+        const btns = group.querySelectorAll('button[data-bias]');
+        btns.forEach(btn => {
+            if (btn.getAttribute('data-bias') === bias) {
+                btn.classList.add('ps-chip-active');
+            } else {
+                btn.classList.remove('ps-chip-active');
+            }
+        });
+    }
+}
+
+export function setLogbookRating(rating) {
+    ratingSeleccionadoLogbook = Number(rating) || 5;
+    const group = document.getElementById('spotRatingStarsGroup');
+    if (group) {
+        const stars = group.querySelectorAll('button');
+        stars.forEach((star, i) => {
+            star.textContent = (i < ratingSeleccionadoLogbook) ? '⭐' : '☆';
+            star.style.opacity = (i < ratingSeleccionadoLogbook) ? '1' : '0.4';
+        });
+        const label = document.getElementById('spotLogbookRatingLabel');
+        if (label) label.textContent = `${ratingSeleccionadoLogbook}/5`;
+    }
+}
+
+export async function guardarEntradaBitacoraSpot(datosEntrada) {
+    const spot = spotActivoActual || {};
+    const userId = appState?.sesionActual?.user?.id || null;
+    const lat = Number(datosEntrada?.lat ?? spot.lat ?? latitudActual);
+    const lon = Number(datosEntrada?.lon ?? spot.lon ?? longitudActual);
+    const spotNombre = datosEntrada?.spot_nombre || spot.nombre || document.getElementById('location')?.value?.split(',')[0]?.trim() || 'Spot';
+
+    const nuevaEntrada = {
+        id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `log_${Date.now()}`,
+        user_id: userId,
+        spot_nombre: spotNombre,
+        lat,
+        lon,
+        fecha: datosEntrada?.fecha || new Date().toISOString().slice(0, 10),
+        viento_previsto_kt: datosEntrada?.viento_previsto_kt ?? (datosMeteoActuales?.windSpeed ? kmhANudos(datosMeteoActuales.windSpeed * 3.6) : null),
+        viento_real_bias: datosEntrada?.viento_real_bias || biasSeleccionadoLogbook || 'exacto',
+        olas_m: datosEntrada?.olas_m ?? (datosMeteoActuales?.waveHeight ?? null),
+        rating: Math.max(1, Math.min(5, Number(datosEntrada?.rating ?? ratingSeleccionadoLogbook ?? 5))),
+        notas: (datosEntrada?.notas ?? document.getElementById('inputNotaBitacoraSpot')?.value ?? '').trim(),
+        ruta_id: datosEntrada?.ruta_id || null,
+        created_at: new Date().toISOString()
+    };
+
+    try {
+        const localLogs = JSON.parse(localStorage.getItem('ps_spot_logbook') || '[]');
+        localLogs.unshift(nuevaEntrada);
+        localStorage.setItem('ps_spot_logbook', JSON.stringify(localLogs.slice(0, 100)));
+    } catch (_) {}
+
+    if (userId && supabaseClient) {
+        try {
+            const { error } = await supabaseClient
+                .from('spot_logbook')
+                .insert([{
+                    user_id: userId,
+                    spot_nombre: nuevaEntrada.spot_nombre,
+                    lat: nuevaEntrada.lat,
+                    lon: nuevaEntrada.lon,
+                    fecha: nuevaEntrada.fecha,
+                    viento_previsto_kt: nuevaEntrada.viento_previsto_kt,
+                    viento_real_bias: nuevaEntrada.viento_real_bias,
+                    olas_m: nuevaEntrada.olas_m,
+                    rating: nuevaEntrada.rating,
+                    notas: nuevaEntrada.notas,
+                    ruta_id: nuevaEntrada.ruta_id
+                }]);
+            if (error) {
+                console.warn('Aviso no crítico al guardar en spot_logbook:', error.message);
+            }
+        } catch (err) {
+            console.warn('Aviso al conectar con Supabase para spot_logbook:', err);
+        }
+    }
+
+    const inputEl = document.getElementById('inputNotaBitacoraSpot');
+    if (inputEl) inputEl.value = '';
+    toggleFormBitacoraSpot(false);
+
+    renderizarInteligenciaYDiarioSpot(spot, pronosticoDiaCompletoActual || datosMeteoActuales);
+    return nuevaEntrada;
+}
+
+export function abrirModalNotasTacticasSpot() {
+    const modal = document.getElementById('modalNotasTacticasSpot');
+    if (!modal) return;
+    const spot = spotActivoActual || {};
+    const inputNotas = document.getElementById('inputSpotNotasTacticas');
+    const inputAcceso = document.getElementById('inputSpotAccesoParking');
+    const inputPeligros = document.getElementById('inputSpotPeligrosLocales');
+
+    if (inputNotas) inputNotas.value = spot.notas_tacticas || '';
+    if (inputAcceso) inputAcceso.value = spot.acceso_parking || '';
+    if (inputPeligros) inputPeligros.value = spot.peligros_locales || '';
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+export function cerrarModalNotasTacticasSpot() {
+    const modal = document.getElementById('modalNotasTacticasSpot');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+export async function confirmarGuardarNotasTacticas() {
+    const inputNotas = document.getElementById('inputSpotNotasTacticas');
+    const inputAcceso = document.getElementById('inputSpotAccesoParking');
+    const inputPeligros = document.getElementById('inputSpotPeligrosLocales');
+
+    const notas = {
+        notas_tacticas: inputNotas?.value?.trim() || '',
+        acceso_parking: inputAcceso?.value?.trim() || '',
+        peligros_locales: inputPeligros?.value?.trim() || ''
+    };
+
+    await guardarNotasTacticasSpot(spotActivoActual?.id, notas);
+    cerrarModalNotasTacticasSpot();
+}
+
+export async function guardarNotasTacticasSpot(spotId, notas = {}) {
+    const userId = appState?.sesionActual?.user?.id || null;
+    const spot = spotActivoActual || {};
+    const sid = spotId || spot.id;
+
+    if (spot) {
+        if (notas.notas_tacticas !== undefined) spot.notas_tacticas = notas.notas_tacticas;
+        if (notas.acceso_parking !== undefined) spot.acceso_parking = notas.acceso_parking;
+        if (notas.peligros_locales !== undefined) spot.peligros_locales = notas.peligros_locales;
+    }
+    const idx = spotsGuardadosMemoria.findIndex(s => (sid && s.id === sid) || s.nombre === spot.nombre);
+    if (idx >= 0) {
+        Object.assign(spotsGuardadosMemoria[idx], notas);
+        try {
+            localStorage.setItem('ps_spots_guardados', JSON.stringify(spotsGuardadosMemoria));
+        } catch (_) {}
+    }
+
+    if (userId && supabaseClient && sid && !String(sid).startsWith('spot_')) {
+        try {
+            await supabaseClient
+                .from('user_spots')
+                .update({
+                    notas_tacticas: notas.notas_tacticas ?? '',
+                    acceso_parking: notas.acceso_parking ?? '',
+                    peligros_locales: notas.peligros_locales ?? ''
+                })
+                .eq('id', sid)
+                .eq('user_id', userId);
+        } catch (err) {
+            console.warn('Aviso al actualizar notas en user_spots:', err);
+        }
+    }
+
+    renderizarInteligenciaYDiarioSpot(spot, pronosticoDiaCompletoActual || datosMeteoActuales);
+    return { ok: true, spot };
+}
+
+export function renderizarInteligenciaYDiarioSpot(spot, pronosticoActual) {
+    const bento = document.getElementById('spotIntelligenceBento');
+    if (!bento) return;
+
+    const sNom = spot?.nombre || document.getElementById('location')?.value?.split(',')[0]?.trim() || 'Spot';
+    const lat = Number(spot?.lat ?? latitudActual);
+    const lon = Number(spot?.lon ?? longitudActual);
+
+    // 1. Header Bar
+    const titleEl = document.getElementById('spotIntelTitle');
+    if (titleEl) titleEl.textContent = `Spot Intelligence: ${esc(sNom)}`;
+
+    const perfil = generarPerfilTacticoSpot(sNom, lat, lon);
+    const orientEl = document.getElementById('spotIntelOrientation');
+    if (orientEl) {
+        orientEl.textContent = perfil.seawardDeg !== null 
+            ? `🌊 Mar hacia ${perfil.seawardDeg}° (${perfil.cardinalMar})` 
+            : `🏞️ ${perfil.cardinalMar}`;
+    }
+
+    // Viento & Olas actuales
+    const wKt = pronosticoActual?.windSpeed ? kmhANudos(pronosticoActual.windSpeed * 3.6) : null;
+    const wvM = pronosticoActual?.waveHeight ?? null;
+
+    // 2. Tactical Rose Cards
+    const abrigoCard = document.getElementById('spotRumboAbrigoCardinal');
+    const abrigoDesc = document.getElementById('spotRumboAbrigoDesc');
+    if (abrigoCard) abrigoCard.textContent = perfil.rumboAbrigo.cardinal;
+    if (abrigoDesc) abrigoDesc.textContent = perfil.rumboAbrigo.descripcion;
+
+    const crossCard = document.getElementById('spotRumboCrossCardinal');
+    const crossDesc = document.getElementById('spotRumboCrossDesc');
+    if (crossCard) crossCard.textContent = perfil.rumboCross.cardinales.join(' / ');
+    if (crossDesc) crossDesc.textContent = perfil.rumboCross.descripcion;
+
+    const criticoCard = document.getElementById('spotRumboCriticoCardinal');
+    const criticoDesc = document.getElementById('spotRumboCriticoDesc');
+    if (criticoCard) criticoCard.textContent = perfil.rumboCritico.onshore.cardinal;
+    if (criticoDesc) criticoDesc.textContent = perfil.rumboCritico.offshoreDrift.descripcion;
+
+    // 3. User History & Smart Match
+    const hist = analizarHistorialYSmartMatchSpot(lat, lon, sNom, { vientoKt: wKt, olasM: wvM });
+    const statsContainer = document.getElementById('spotIntelStatsPills');
+    if (statsContainer) {
+        statsContainer.innerHTML = `
+            <span class="ps-chip text-slate-300">🏄 ${hist.totalSesionesSpot} sesiones tuyas aquí</span>
+            <span class="ps-chip text-slate-300 ps-tabular">📏 ${hist.totalKmSpot} km</span>
+            <span class="ps-chip text-emerald-300 ps-tabular">⚡ PR: ${hist.mejorRitmoKmh > 0 ? `${hist.mejorRitmoKmh} km/h` : '--'}</span>
+        `;
+    }
+
+    // 4. Logbook entries & Thermal Bias
+    let localLogs = [];
+    try {
+        localLogs = JSON.parse(localStorage.getItem('ps_spot_logbook') || '[]');
+    } catch (_) { localLogs = []; }
+
+    const bias = calcularSesgoTermicoSpot(sNom, lat, lon, localLogs);
+
+    // Smart Match Banner
+    const bannerEl = document.getElementById('spotSmartMatchBanner');
+    if (bannerEl) {
+        let bannerHtml = '';
+        if (hist.smartMatch) {
+            bannerHtml += `
+                <div class="flex items-center gap-2.5">
+                    <span class="text-2xl shrink-0">🎯</span>
+                    <div>
+                        <div class="font-black text-teal-300 text-xs sm:text-sm">SMART MATCH CONDICIONES SIMILARES: ${esc(hist.smartMatch.fecha)}</div>
+                        <p class="text-[11px] text-slate-200 mt-0.5 leading-snug">
+                            Remaste en condiciones casi idénticas (${hist.smartMatch.vientoKt} kt · ${hist.smartMatch.olasM}m) completando <b>${hist.smartMatch.distKm} km</b> a una media de <b>${hist.smartMatch.velMedia} km/h</b>.
+                        </p>
+                    </div>
+                </div>
+                <button type="button" onclick="if(window.abrirRutaSocialEnMapa) window.abrirRutaSocialEnMapa('${esc(hist.smartMatch.rutaId)}');" class="ps-chip text-teal-300 border-teal-500/50 bg-teal-500/20 hover:bg-teal-500/30 active:scale-95 shrink-0 cursor-pointer">
+                    <span>🗺️</span> <span>Ver aquella ruta</span>
+                </button>
+            `;
+        }
+        if (bias.hasThermalBias) {
+            bannerHtml += `
+                <div class="w-full mt-1.5 p-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs flex items-center gap-2">
+                    <span class="text-base">⚠️</span>
+                    <span>${esc(bias.msg)}</span>
+                </div>
+            `;
+        }
+
+        if (bannerHtml) {
+            bannerEl.innerHTML = bannerHtml;
+            bannerEl.classList.remove('hidden');
+            bannerEl.classList.add('flex');
+        } else {
+            bannerEl.classList.add('hidden');
+            bannerEl.classList.remove('flex');
+            bannerEl.innerHTML = '';
+        }
+    }
+
+    // 5. Tactical Notes container
+    const notasCont = document.getElementById('spotNotasTacticasContainer');
+    if (notasCont) {
+        const hasNotes = spot?.notas_tacticas || spot?.acceso_parking || spot?.peligros_locales;
+        if (hasNotes) {
+            let nHtml = '<div class="font-black text-amber-400 uppercase text-[10px] tracking-wider mb-0.5">Notas Tácticas del Spot</div>';
+            if (spot.notas_tacticas) nHtml += `<p class="leading-relaxed"><b class="text-slate-300">Táctica:</b> ${esc(spot.notas_tacticas)}</p>`;
+            if (spot.acceso_parking) nHtml += `<p class="leading-relaxed"><b class="text-sky-300">Acceso / Parking:</b> ${esc(spot.acceso_parking)}</p>`;
+            if (spot.peligros_locales) nHtml += `<p class="leading-relaxed text-rose-300 font-semibold"><b class="text-rose-400">Peligros Locales:</b> ⚠️ ${esc(spot.peligros_locales)}</p>`;
+            notasCont.innerHTML = nHtml;
+            notasCont.classList.remove('hidden');
+            notasCont.classList.add('flex');
+        } else {
+            notasCont.classList.add('hidden');
+            notasCont.classList.remove('flex');
+            notasCont.innerHTML = '';
+        }
+    }
+
+    // 6. Logbook Feed List
+    const logList = document.getElementById('spotLogbookList');
+    const logBadge = document.getElementById('spotLogbookCountBadge');
+    const spotEntries = localLogs.filter(e => {
+        if (!e) return false;
+        const eNom = String(e.spot_nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const sNomNorm = sNom.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        return sNomNorm.length >= 3 && (eNom.includes(sNomNorm) || sNomNorm.includes(eNom));
+    });
+
+    if (logBadge) logBadge.textContent = `${spotEntries.length} entradas`;
+    if (logList) {
+        if (spotEntries.length === 0) {
+            logList.innerHTML = `
+                <div class="text-center py-3 text-slate-500 text-xs">
+                    Sin reportes aún en la bitácora de este spot. ¡Añade tu primera sensación arriba!
+                </div>
+            `;
+        } else {
+            const biasLabels = {
+                'exacto': '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">🎯 Exacto</span>',
+                'mas_viento': '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">💨 +Térmico</span>',
+                'menos_viento': '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">🌊 +Calmado</span>'
+            };
+            logList.innerHTML = spotEntries.slice(0, 10).map(e => `
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-1 text-xs">
+                    <div class="flex items-center justify-between text-slate-400 text-[10px]">
+                        <div class="flex items-center gap-1.5 font-bold">
+                            <span>📅 ${esc(e.fecha || 'Reciente')}</span>
+                            <span class="text-amber-400">${'⭐'.repeat(e.rating || 5)}</span>
+                        </div>
+                        ${biasLabels[e.viento_real_bias] || ''}
+                    </div>
+                    ${e.notas ? `<p class="text-slate-200 mt-0.5 leading-snug">"${esc(e.notas)}"</p>` : ''}
+                </div>
+            `).join('');
+        }
+    }
+
+    bento.classList.remove('hidden');
+    bento.classList.add('flex');
+}
+
 window.buscarYCentrarMapa = buscarYCentrarMapa;
+window.generarPerfilTacticoSpot = generarPerfilTacticoSpot;
+window.analizarHistorialYSmartMatchSpot = analizarHistorialYSmartMatchSpot;
+window.calcularSesgoTermicoSpot = calcularSesgoTermicoSpot;
+window.guardarEntradaBitacoraSpot = guardarEntradaBitacoraSpot;
+window.guardarNotasTacticasSpot = guardarNotasTacticasSpot;
+window.toggleFormBitacoraSpot = toggleFormBitacoraSpot;
+window.seleccionarBiasLogbook = seleccionarBiasLogbook;
+window.setLogbookRating = setLogbookRating;
+window.abrirModalNotasTacticasSpot = abrirModalNotasTacticasSpot;
+window.cerrarModalNotasTacticasSpot = cerrarModalNotasTacticasSpot;
+window.confirmarGuardarNotasTacticas = confirmarGuardarNotasTacticas;
+window.renderizarInteligenciaYDiarioSpot = renderizarInteligenciaYDiarioSpot;
 window.importarRutaGPXPro = importarRutaGPXPro;
 window.centrarTramoMapa = centrarTramoMapa;
 window.generarGraficoSvgPerfilRuta = generarGraficoSvgPerfilRuta;

@@ -124,7 +124,7 @@ const swContent = fs.readFileSync(swPath, 'utf8');
 const versionMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
 const expectedSwVersion = versionMatch ? versionMatch[1] : null;
 
-assert(expectedSwVersion === 'paddlesafe-v61', `sw.js version must be paddlesafe-v61, got: ${expectedSwVersion}`);
+assert(expectedSwVersion === 'paddlesafe-v62', `sw.js version must be paddlesafe-v62, got: ${expectedSwVersion}`);
 
 if (fs.existsSync(versionJsonPath)) {
     let vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
@@ -173,6 +173,8 @@ const criticalDomIds = [
     'proBiometricsBar',
     'proRouteWindChart',
     'mobileBottomNav',
+    'spotIntelligenceBento',
+    'spotSmartMatchBanner',
     'posterFinisherLightbox',
     'profileWeeklyChart',
     'rankingScopeTabs',
@@ -344,6 +346,53 @@ const svgChart = generarGraficoSvgPerfilRuta(mockChartTramos, 5700);
 assert(typeof svgChart === 'string' && svgChart.includes('<svg') && svgChart.includes('</svg>'), '#proRouteWindChart must receive valid <svg> markup when route segments exist');
 assert(svgChart.includes('ps-tabular'), 'Route SVG chart must include ps-tabular classes');
 assert(svgChart.includes('centrarTramoMapa'), 'Route SVG chart must include centrarTramoMapa waypoint handlers');
+
+// 3.4c Spot Intelligence, Smart Match Engine & Conditions Logbook (Batch #17)
+const { generarPerfilTacticoSpot, anguloACardinal } = coastalMod;
+assert(typeof generarPerfilTacticoSpot === 'function', 'generarPerfilTacticoSpot must be exported from coastal.js');
+assert(typeof anguloACardinal === 'function', 'anguloACardinal must be exported from coastal.js');
+
+// Test 1: Tactical profile for Dénia coast
+const deniaTactical = generarPerfilTacticoSpot('Dénia', 38.83, 0.145, 80);
+assert(deniaTactical.esCosta === true, 'Dénia profile should be coastal');
+assert(Array.isArray(deniaTactical.rumboAbrigo.rango) && deniaTactical.rumboAbrigo.rango.length === 2, 'rumboAbrigo must have 2-element range');
+assert(Array.isArray(deniaTactical.rumboCross.cardinales) && deniaTactical.rumboCross.cardinales.length === 2, 'rumboCross must have 2 cardinals');
+assert(deniaTactical.rumboCritico && deniaTactical.rumboCritico.onshore && deniaTactical.rumboCritico.offshoreDrift, 'rumboCritico must define onshore and offshoreDrift');
+
+// Test 2: Smart Match & Historical Activity Analysis
+const {
+    analizarHistorialYSmartMatchSpot,
+    calcularSesgoTermicoSpot,
+    guardarEntradaBitacoraSpot,
+    guardarNotasTacticasSpot
+} = mapMod;
+
+assert(typeof analizarHistorialYSmartMatchSpot === 'function', 'analizarHistorialYSmartMatchSpot must be exported from map.js');
+assert(typeof calcularSesgoTermicoSpot === 'function', 'calcularSesgoTermicoSpot must be exported from map.js');
+assert(typeof guardarEntradaBitacoraSpot === 'function', 'guardarEntradaBitacoraSpot must be exported from map.js');
+assert(typeof guardarNotasTacticasSpot === 'function', 'guardarNotasTacticasSpot must be exported from map.js');
+
+const mockHistoricalSpotRoutes = [
+    { id: 'r-spot-1', nombre: 'Paseo Las Rotas Dénia', lat: 38.83, lon: 0.145, distancia_km: 6.2, velocidad_media_kmh: 5.1, meteo_viento_kt: 9, meteo_olas_m: 0.4 },
+    { id: 'r-spot-2', nombre: 'Dénia Port Entreno', lat: 38.84, lon: 0.140, distancia_km: 8.5, velocidad_media_kmh: 5.8, meteo_viento_kt: 15, meteo_olas_m: 0.8 }
+];
+
+const intelAnalysis = analizarHistorialYSmartMatchSpot(38.83, 0.145, 'Dénia', { vientoKt: 10, olasM: 0.5 }, mockHistoricalSpotRoutes);
+assert(intelAnalysis.totalSesionesSpot === 2, `Should match 2 sessions for Dénia, got: ${intelAnalysis.totalSesionesSpot}`);
+assert(intelAnalysis.totalKmSpot >= 14.7, `Total km in spot must be >= 14.7 km, got: ${intelAnalysis.totalKmSpot}`);
+assert(intelAnalysis.mejorRitmoKmh === 5.8, `Best rhythm must be 5.8 km/h, got: ${intelAnalysis.mejorRitmoKmh}`);
+assert(intelAnalysis.smartMatch && intelAnalysis.smartMatch.rutaId === 'r-spot-1', `SmartMatch should identify r-spot-1 as closest weather match, got: ${intelAnalysis.smartMatch?.rutaId}`);
+
+// Test 3: Thermal Bias Detection
+const mockLogEntries = [
+    { spot_nombre: 'Dénia', viento_real_bias: 'mas_viento', rating: 5 },
+    { spot_nombre: 'Dénia', viento_real_bias: 'mas_viento', rating: 4 },
+    { spot_nombre: 'Dénia', viento_real_bias: 'exacto', rating: 4 }
+];
+const sesgo = calcularSesgoTermicoSpot('Dénia', 38.83, 0.145, mockLogEntries);
+assert(sesgo.hasThermalBias === true, 'Should detect thermal bias when >= 2 entries report mas_viento');
+assert(sesgo.masVientoCount === 2, `masVientoCount must be 2, got: ${sesgo.masVientoCount}`);
+assert(typeof sesgo.msg === 'string' && sesgo.msg.includes('Inteligencia Local'), 'Thermal bias should provide informative message');
 
 // 3.5 Personal Records (PRs) & ISA Merit Badges Engine (Batch #10)
 const gamifMod = await import(pathToFileURL(path.resolve('public_html/js/gamification.js')).href);
@@ -798,6 +847,17 @@ const clubEventsLatest = fs.readFileSync('public_html/js/club/club.events.js', '
 assert(clubEventsLatest.includes('evento-count-'), 'club.events.js must bind dynamic counter ID');
 assert(clubEventsLatest.includes('btn-asistir-'), 'club.events.js must bind dynamic button ID');
 
+// 4.10 Batch #17 Spot Intelligence & Conditions Logbook Schema Audit
+assert(sqlContentRoot.includes('spot_logbook'), 'Root SQL must define spot_logbook table');
+assert(sqlContentRoot.includes('notas_tacticas'), 'Root SQL must extend user_spots with notas_tacticas');
+assert(sqlContentRoot.includes('acceso_parking'), 'Root SQL must extend user_spots with acceso_parking');
+assert(sqlContentRoot.includes('peligros_locales'), 'Root SQL must extend user_spots with peligros_locales');
+assert(sqlContentRoot.includes('spot_logbook_select'), 'Root SQL must define spot_logbook_select policy');
+
+assert(sqlContentBackend.includes('spot_logbook'), 'Backend SQL must define spot_logbook table');
+assert(sqlContentBackend.includes('notas_tacticas'), 'Backend SQL must extend user_spots with notas_tacticas');
+assert(sqlContentBackend.includes('acceso_parking'), 'Backend SQL must extend user_spots with acceso_parking');
+assert(sqlContentBackend.includes('peligros_locales'), 'Backend SQL must extend user_spots with peligros_locales');
 
 // ------------------------------------------------------------------------------
 // FINAL RESULT SUMMARY

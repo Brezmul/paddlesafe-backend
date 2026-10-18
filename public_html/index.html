@@ -21,7 +21,7 @@
     <link rel="manifest" href="/manifest.json">
     
     <!-- Tailwind CSS (Compilado localmente para offline y rendimiento de producción) -->
-    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v61">
+    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v62">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -554,6 +554,151 @@
                     </div>
                     <div id="spotHourlyMatrix" class="ps-scroll-snap flex gap-2.5 pb-2 pt-1">
                         <!-- Cards horarias renderizadas dinámicamente -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- BENTO SPOT INTELLIGENCE & CONDITIONS LOGBOOK (BATCH #17) -->
+            <section id="spotIntelligenceBento" class="ps-bento-card p-4 sm:p-5 text-white hidden flex-col gap-3.5 shadow-xl">
+                <!-- 1. Header Bar -->
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/60 pb-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-2xl shrink-0">🧠</span>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 id="spotIntelTitle" class="text-sm sm:text-base font-black text-white">Spot Intelligence: --</h3>
+                                <span id="spotIntelOrientation" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">🌊 Mar hacia --°</span>
+                            </div>
+                            <div id="spotIntelStatsPills" class="flex items-center gap-2 mt-1 text-[11px] text-slate-300 font-medium flex-wrap">
+                                <span class="ps-chip text-slate-300">🏄 0 sesiones tuyas aquí</span>
+                                <span class="ps-chip text-slate-300">📏 0.0 km</span>
+                                <span class="ps-chip text-slate-300">⚡ PR: --</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" id="btnAbrirFormBitacoraSpot" onclick="window.toggleFormBitacoraSpot()" class="ps-chip text-sky-300 border-sky-500/40 bg-sky-500/15 hover:bg-sky-500/25 active:scale-95 cursor-pointer" title="Añadir reporte de sensaciones y sesgo del viento">
+                            <span>📓</span> <span>+ Entrada Bitácora</span>
+                        </button>
+                        <button type="button" id="btnEditarNotasSpot" onclick="window.abrirModalNotasTacticasSpot()" class="ps-chip text-amber-300 border-amber-500/40 bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 cursor-pointer" title="Ver o editar notas tácticas y acceso al agua">
+                            <span>📝</span> <span>Notas del Spot</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Smart Match Banner -->
+                <div id="spotSmartMatchBanner" class="hidden w-full p-3.5 rounded-xl border border-teal-500/40 bg-gradient-to-r from-teal-950/80 to-slate-900/90 text-xs flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+                    <!-- Renderizado dinámicamente con sesión pasada casi idéntica o sesgo térmico -->
+                </div>
+
+                <!-- 3. 3-Column Tactical Rose Pills & Local Hazards -->
+                <div id="spotTacticalRoseGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <!-- Abrigo -->
+                    <div id="spotRumboAbrigoCard" class="bg-slate-900/80 border border-emerald-500/30 rounded-xl p-3 flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-emerald-400 mb-1">
+                            <span>🟢 Vientos de Abrigo</span>
+                            <span id="spotRumboAbrigoCardinal" class="font-mono bg-emerald-950/80 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/40">--</span>
+                        </div>
+                        <p id="spotRumboAbrigoDesc" class="text-xs text-slate-300 leading-snug">Viento de tierra suave. Agua plana cerca de orilla.</p>
+                    </div>
+                    <!-- Cross / Side -->
+                    <div id="spotRumboCrossCard" class="bg-slate-900/80 border border-amber-500/30 rounded-xl p-3 flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-amber-400 mb-1">
+                            <span>🟡 Rumbos Laterales</span>
+                            <span id="spotRumboCrossCardinal" class="font-mono bg-amber-950/80 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/40">--</span>
+                        </div>
+                        <p id="spotRumboCrossDesc" class="text-xs text-slate-300 leading-snug">Viento paralelo a la orilla. Ideal travesías costeras.</p>
+                    </div>
+                    <!-- Crítico -->
+                    <div id="spotRumboCriticoCard" class="bg-slate-900/80 border border-rose-500/30 rounded-xl p-3 flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-rose-400 mb-1">
+                            <span>🔴 Rumbos de Precaución</span>
+                            <span id="spotRumboCriticoCardinal" class="font-mono bg-rose-950/80 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/40">--</span>
+                        </div>
+                        <p id="spotRumboCriticoDesc" class="text-xs text-slate-300 leading-snug">Mar directo (shorebreak) o tierra fuerte (deriva).</p>
+                    </div>
+                </div>
+
+                <!-- Notas y Peligros Locales si existen -->
+                <div id="spotNotasTacticasContainer" class="hidden text-xs bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 flex-col gap-1.5 text-slate-200"></div>
+
+                <!-- 4. Quick Entry Form (Collapsible) -->
+                <div id="spotLogbookFormPanel" class="hidden p-3.5 bg-slate-900/90 rounded-xl border border-sky-500/40 flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black uppercase tracking-wider text-sky-300 flex items-center gap-1.5">
+                            <span>📓</span> Nueva Entrada en Bitácora del Spot
+                        </span>
+                        <button type="button" onclick="window.toggleFormBitacoraSpot(false)" class="text-slate-400 hover:text-white text-xs font-bold px-1.5 py-0.5 cursor-pointer">✕</button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Comportamiento Real del Viento (Sesgo Térmico)</label>
+                            <div class="flex items-center gap-1.5 flex-wrap" id="spotBiasSelectorGroup">
+                                <button type="button" data-bias="exacto" onclick="window.seleccionarBiasLogbook('exacto')" class="ps-chip ps-chip-active text-[11px] font-bold cursor-pointer">🎯 Exacto</button>
+                                <button type="button" data-bias="mas_viento" onclick="window.seleccionarBiasLogbook('mas_viento')" class="ps-chip text-[11px] font-bold cursor-pointer">💨 +Térmico</button>
+                                <button type="button" data-bias="menos_viento" onclick="window.seleccionarBiasLogbook('menos_viento')" class="ps-chip text-[11px] font-bold cursor-pointer">🌊 +Calmado</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Sensación General / Rating del Spot</label>
+                            <div class="flex items-center gap-1" id="spotRatingStarsGroup">
+                                <button type="button" onclick="window.setLogbookRating(1)" class="text-lg hover:scale-110 transition-transform cursor-pointer">⭐</button>
+                                <button type="button" onclick="window.setLogbookRating(2)" class="text-lg hover:scale-110 transition-transform cursor-pointer">⭐</button>
+                                <button type="button" onclick="window.setLogbookRating(3)" class="text-lg hover:scale-110 transition-transform cursor-pointer">⭐</button>
+                                <button type="button" onclick="window.setLogbookRating(4)" class="text-lg hover:scale-110 transition-transform cursor-pointer">⭐</button>
+                                <button type="button" onclick="window.setLogbookRating(5)" class="text-lg hover:scale-110 transition-transform cursor-pointer">⭐</button>
+                                <span id="spotLogbookRatingLabel" class="text-xs font-bold text-amber-300 ml-2 ps-tabular">5/5</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="inputNotaBitacoraSpot" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nota Táctica / Estado del Mar / Embarque</label>
+                        <input type="text" id="inputNotaBitacoraSpot" placeholder="Ej. Rompiente baja a las 11h, fondo de arena sin piedras, térmico entró del SE a las 13h." class="w-full h-10 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="window.toggleFormBitacoraSpot(false)" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer">Cancelar</button>
+                        <button type="button" id="btnGuardarLogbookSpot" onclick="window.guardarEntradaBitacoraSpot()" class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-black shadow-md active:scale-95 cursor-pointer">Guardar en Bitácora</button>
+                    </div>
+                </div>
+
+                <!-- 5. Logbook Feed -->
+                <div id="spotLogbookFeedSection" class="flex flex-col gap-2 pt-2 border-t border-slate-800/80">
+                    <div class="flex items-center justify-between text-[11px] font-bold text-slate-400 px-0.5">
+                        <span>BITÁCORA HISTÓRICA DEL SPOT</span>
+                        <span id="spotLogbookCountBadge" class="text-sky-400 text-[10px] ps-tabular">0 entradas</span>
+                    </div>
+                    <div id="spotLogbookList" class="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+                        <!-- Entradas renderizadas dinámicamente -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- MODAL DE NOTAS TÁCTICAS DEL SPOT -->
+            <div id="modalNotasTacticasSpot" class="fixed inset-0 z-[1200] bg-slate-950/80 backdrop-blur-md hidden items-center justify-center p-4">
+                <div class="ps-bento-card bg-slate-900 border border-slate-700 w-full max-w-lg p-5 rounded-2xl shadow-2xl flex flex-col gap-4 text-white">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                        <h3 class="text-sm font-black text-white flex items-center gap-2">
+                            <span>📝</span> Notas Tácticas y Acceso al Spot
+                        </h3>
+                        <button type="button" onclick="window.cerrarModalNotasTacticasSpot()" class="text-slate-400 hover:text-white text-sm font-bold p-1 cursor-pointer">✕</button>
+                    </div>
+                    <div class="flex flex-col gap-3 text-xs">
+                        <div>
+                            <label for="inputSpotNotasTacticas" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Notas Tácticas / Consejos de Navegación</label>
+                            <textarea id="inputSpotNotasTacticas" rows="3" placeholder="Ej. Con viento de tierra salir por la orilla norte detrás del espigón..." class="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-sky-500"></textarea>
+                        </div>
+                        <div>
+                            <label for="inputSpotAccesoParking" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Acceso, Parking y Entrada al Agua</label>
+                            <input type="text" id="inputSpotAccesoParking" placeholder="Ej. Parking gratuito a 50m, acceso por rampa de arena suave..." class="w-full h-10 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div>
+                            <label for="inputSpotPeligrosLocales" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Peligros Locales / Fondos Rocosos / Corrientes</label>
+                            <input type="text" id="inputSpotPeligrosLocales" placeholder="Ej. Rocas sumergidas a la derecha de la cala con marea baja..." class="w-full h-10 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-rose-500">
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                        <button type="button" onclick="window.cerrarModalNotasTacticasSpot()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer">Cerrar</button>
+                        <button type="button" onclick="window.confirmarGuardarNotasTacticas()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-md active:scale-95 cursor-pointer">Guardar Notas</button>
                     </div>
                 </div>
             </div>
