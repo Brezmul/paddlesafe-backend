@@ -1,26 +1,14 @@
-# Logs
-logs.txt
-Paddlesafe_frontend/public_html/logs.txt
-*.log
-
-# Dependencies
-node_modules/
-
-# Environment and credentials
-.env
-.env.*
-*.env
-*.local
-
-# OS metadata
 .DS_Store
 Thumbs.db
-
-# Deployment builds
 *.zip
+*.log
+node_modules/
+package*.json
+scratch/
+.vscode/
 hostinger_public_html_ready.zip
+paddlesafe-backend-main/
+Paddlesafe_frontend/
+.env*
 
-# Database schemas & sensitive SQL (kept private in 'database' branch)
-sql/
-*.sql
-
+test-results/
