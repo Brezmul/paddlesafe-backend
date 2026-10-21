@@ -1791,6 +1791,18 @@ const routesJsContent = fs.readFileSync('public_html/js/map/map.routes.js', 'utf
 assert(routesJsContent.includes("document.getElementById('mapWindWaveHud')?.classList.add('hidden')"), 'routes must hide mapWindWaveHud when drawing or replaying');
 
 // ------------------------------------------------------------------------------
+// POWERSHELL APPROVED VERBS & SCRIPTS AUDIT
+// ------------------------------------------------------------------------------
+console.log('--- [POWERSHELL] Approved Verbs & Script Hygiene Audit ---');
+const deployPs1 = fs.readFileSync('scripts/deploy_hostinger.ps1', 'utf8');
+assert(!deployPs1.includes('function Upload-FtpFile'), 'deploy_hostinger.ps1 must not define function with unapproved verb Upload-FtpFile');
+assert(!deployPs1.includes('function Ensure-FtpDirectory'), 'deploy_hostinger.ps1 must not define function with unapproved verb Ensure-FtpDirectory');
+assert(deployPs1.includes('function Send-FtpFile'), 'deploy_hostinger.ps1 must define approved verb function Send-FtpFile');
+assert(deployPs1.includes('function New-FtpDirectory'), 'deploy_hostinger.ps1 must define approved verb function New-FtpDirectory');
+assert(deployPs1.includes('Set-Alias -Name Upload-FtpFile -Value Send-FtpFile'), 'deploy_hostinger.ps1 must preserve Upload-FtpFile alias');
+assert(deployPs1.includes('Set-Alias -Name Ensure-FtpDirectory -Value New-FtpDirectory'), 'deploy_hostinger.ps1 must preserve Ensure-FtpDirectory alias');
+
+// ------------------------------------------------------------------------------
 // FINAL RESULT SUMMARY
 // ------------------------------------------------------------------------------
 const summary = {
