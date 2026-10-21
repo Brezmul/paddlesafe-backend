@@ -1,7 +1,7 @@
 // ==============================================================================
 // PADDLESAFE NEXT-GEN - PERFILES DEPORTIVOS Y BEGINNER INDEX (sports.js)
 // Adapta las recomendaciones a la disciplina específica (Paddle Surf, SUP Race,
-// SUP Touring, Kayak, Surf, Wing Foil) y calcula el PaddleSafe Beginner Index.
+// SUP All-Round, SUP Race, SUP Touring, SUP Olas) y calcula el PaddleSafe Beginner Index.
 // ==============================================================================
 
 export const DEPORTES = {
@@ -29,12 +29,12 @@ export const DEPORTES = {
         requiereOlas: false,
         requiereViento: false
     },
-    kayak: {
-        nombre: 'Kayak de Mar / Travesía',
-        icono: '🛶',
-        vientoMax: { Principiante: 10, Intermedio: 16, Avanzado: 22, Competicion: 28 },
-        olaMax:    { Principiante: 0.5, Intermedio: 1.0, Avanzado: 1.6, Competicion: 2.5 },
-        requiereOlas: false,
+    sup_waves: {
+        nombre: 'SUP Olas / Waves',
+        icono: '🌊',
+        vientoMax: { Principiante: 8, Intermedio: 13, Avanzado: 18, Competicion: 24 },
+        olaMax:    { Principiante: 0.5, Intermedio: 1.0, Avanzado: 1.6, Competicion: 2.2 },
+        requiereOlas: true,
         requiereViento: false
     },
     surf: {
@@ -181,7 +181,7 @@ export function evaluarCondicionesDeporte({
                 recomendable: false,
                 estado: 'Sin oleaje suficiente',
                 motivo: `No hay suficiente rompiente para surfear (olas de ${olaEfectiva.toFixed(1)} m, mínimo recomendado: ${minO} m).`,
-                consejo: 'Día ideal para entrenar remada en Paddle Surf o Kayak en aguas tranquilas.'
+                consejo: 'Día ideal para entrenar remada en Paddle Surf en aguas tranquilas.'
             };
         }
     }
