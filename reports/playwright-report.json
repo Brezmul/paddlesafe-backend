@@ -4,7 +4,7 @@
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\node_modules\\@playwright\\test\\cli.js",
       "test",
-      "--project=Desktop 1920x1080"
+      "--project=iPhone SE - Portrait"
     ],
     "configFile": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\playwright.config.mjs",
     "rootDir": "C:/Users/Usuario/Desktop/WEBS/PaddleSafe/tests/e2e",
@@ -257,7 +257,7 @@
         "metadata": {
           "actualWorkers": 2
         },
-        "name": "Desktop 1920x1080",
+        "name": "iPhone SE - Portrait",
         "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
         "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
         "testIgnore": [],
@@ -268,23 +268,18 @@
           "trace": "on-first-retry",
           "screenshot": "only-on-failure",
           "video": "off",
-          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Safari/537.36",
           "viewport": {
-            "width": 1920,
-            "height": 1080
+            "width": 320,
+            "height": 568
           },
-          "screen": {
-            "width": 1920,
-            "height": 1080
-          },
-          "deviceScaleFactor": 1,
-          "isMobile": false,
-          "hasTouch": false,
-          "defaultBrowserType": "chromium"
+          "deviceScaleFactor": 2,
+          "isMobile": true,
+          "hasTouch": true,
+          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1"
         },
         "dependencies": [],
         "ignoreSnapshots": false,
-        "__projectId": "Desktop 1920x1080"
+        "__projectId": "iPhone SE - Portrait"
       }
     ],
     "quiet": false,
@@ -347,19 +342,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1337,
+                      "duration": 1000,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:16.310Z",
+                      "startTime": "2026-10-21T21:31:20.314Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -367,7 +362,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "03baa6ab3bdd64385f5b-0b8f1a209a4be093bbf6",
+              "id": "03baa6ab3bdd64385f5b-3c8310ea843193078158",
               "file": "01-layout-viewport.spec.mjs",
               "line": 19,
               "column": 5
@@ -381,19 +376,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 693,
+                      "duration": 430,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:17.763Z",
+                      "startTime": "2026-10-21T21:31:21.415Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -401,7 +396,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "03baa6ab3bdd64385f5b-d72377024046ec1fbefa",
+              "id": "03baa6ab3bdd64385f5b-6496369e5d06717d9e01",
               "file": "01-layout-viewport.spec.mjs",
               "line": 71,
               "column": 5
@@ -415,19 +410,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 974,
+                      "duration": 759,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:16.310Z",
+                      "startTime": "2026-10-21T21:31:20.315Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -435,7 +430,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "03baa6ab3bdd64385f5b-f74844fb9507d003dae6",
+              "id": "03baa6ab3bdd64385f5b-e6f4b106e2e1e7a5959a",
               "file": "01-layout-viewport.spec.mjs",
               "line": 90,
               "column": 5
@@ -466,19 +461,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 999,
+                      "duration": 895,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:17.407Z",
+                      "startTime": "2026-10-21T21:31:21.188Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -486,7 +481,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "c8f6e6c835bedb8da188-9eba934af91ff40c14a1",
+              "id": "c8f6e6c835bedb8da188-1fcb4af2a071440a10a6",
               "file": "02-map-leaflet.spec.mjs",
               "line": 32,
               "column": 5
@@ -500,19 +495,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1822,
+                      "duration": 1727,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:18.416Z",
+                      "startTime": "2026-10-21T21:31:21.876Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -520,7 +515,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "c8f6e6c835bedb8da188-4a7ef95eff22c07af2a1",
+              "id": "c8f6e6c835bedb8da188-178fedfcc5e885c2c3b0",
               "file": "02-map-leaflet.spec.mjs",
               "line": 46,
               "column": 5
@@ -534,19 +529,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1667,
+                      "duration": 1473,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:18.482Z",
+                      "startTime": "2026-10-21T21:31:22.092Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -554,7 +549,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "c8f6e6c835bedb8da188-a1a712e09fdb459ceba9",
+              "id": "c8f6e6c835bedb8da188-ae5a1247eab9fc73a265",
               "file": "02-map-leaflet.spec.mjs",
               "line": 68,
               "column": 5
@@ -568,19 +563,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1270,
+                      "duration": 1123,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:20.158Z",
+                      "startTime": "2026-10-21T21:31:23.582Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -588,7 +583,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "c8f6e6c835bedb8da188-dabb78978f69ee48d1b9",
+              "id": "c8f6e6c835bedb8da188-d9f6c2c8d579b550c13a",
               "file": "02-map-leaflet.spec.mjs",
               "line": 85,
               "column": 5
@@ -602,19 +597,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1372,
+                      "duration": 1295,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:20.249Z",
+                      "startTime": "2026-10-21T21:31:23.611Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -622,7 +617,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "c8f6e6c835bedb8da188-299d180d66dbcaabcc4a",
+              "id": "c8f6e6c835bedb8da188-3845b10aee45ae768a1d",
               "file": "02-map-leaflet.spec.mjs",
               "line": 107,
               "column": 5
@@ -636,19 +631,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1199,
+                      "duration": 1123,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:21.439Z",
+                      "startTime": "2026-10-21T21:31:24.717Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -656,7 +651,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "c8f6e6c835bedb8da188-81a5cf814c8f799ba57f",
+              "id": "c8f6e6c835bedb8da188-5b717f066704939e4ee6",
               "file": "02-map-leaflet.spec.mjs",
               "line": 133,
               "column": 5
@@ -687,19 +682,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1743,
+                      "duration": 1605,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:21.641Z",
+                      "startTime": "2026-10-21T21:31:24.926Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -707,7 +702,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "e2eb9b9a40944036b32d-c92d5bef1c271b412414",
+              "id": "e2eb9b9a40944036b32d-a9b355edb2454ad7b0e3",
               "file": "03-radar-panel.spec.mjs",
               "line": 31,
               "column": 5
@@ -721,19 +716,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 2074,
+                      "duration": 1916,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:22.657Z",
+                      "startTime": "2026-10-21T21:31:25.858Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -741,7 +736,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "e2eb9b9a40944036b32d-6a25008f6a1a7463e66c",
+              "id": "e2eb9b9a40944036b32d-ba5281d66c0fb32bd174",
               "file": "03-radar-panel.spec.mjs",
               "line": 57,
               "column": 5
@@ -772,19 +767,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 607,
+                      "duration": 1262,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:23.410Z",
+                      "startTime": "2026-10-21T21:31:26.554Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -792,7 +787,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5626a267fd0c88ce506e-679c382d4ad7be70a869",
+              "id": "5626a267fd0c88ce506e-0c39166e36f9d3a3612f",
               "file": "04-scroll-navigation.spec.mjs",
               "line": 10,
               "column": 5
@@ -806,19 +801,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 632,
+                      "duration": 391,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:24.028Z",
+                      "startTime": "2026-10-21T21:31:27.789Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -826,7 +821,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5626a267fd0c88ce506e-ad665a563a556dfa99c8",
+              "id": "5626a267fd0c88ce506e-845f85c94f48362a4f33",
               "file": "04-scroll-navigation.spec.mjs",
               "line": 59,
               "column": 5
@@ -840,19 +835,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 619,
+                      "duration": 474,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:24.670Z",
+                      "startTime": "2026-10-21T21:31:27.825Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -860,7 +855,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5626a267fd0c88ce506e-8da63c2cab3f0f1039a6",
+              "id": "5626a267fd0c88ce506e-072a2e283596a8d38984",
               "file": "04-scroll-navigation.spec.mjs",
               "line": 75,
               "column": 5
@@ -891,19 +886,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1979,
+                      "duration": 1404,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:24.753Z",
+                      "startTime": "2026-10-21T21:31:28.197Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -911,7 +906,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "32150ec7b92884ed7a66-a36b2e6487e00312d1f0",
+              "id": "32150ec7b92884ed7a66-4fa67e0ed99bddb463c8",
               "file": "05-modals.spec.mjs",
               "line": 13,
               "column": 5
@@ -925,19 +920,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1592,
+                      "duration": 1354,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:25.304Z",
+                      "startTime": "2026-10-21T21:31:28.315Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -945,7 +940,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "32150ec7b92884ed7a66-ea320b9db170a961f601",
+              "id": "32150ec7b92884ed7a66-58e41c0ee878cdeb65c4",
               "file": "05-modals.spec.mjs",
               "line": 41,
               "column": 5
@@ -959,19 +954,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1758,
+                      "duration": 1348,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:26.740Z",
+                      "startTime": "2026-10-21T21:31:29.613Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -979,7 +974,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "32150ec7b92884ed7a66-92b3182f33e6235c9286",
+              "id": "32150ec7b92884ed7a66-1e5dd3064747ea8b4ac4",
               "file": "05-modals.spec.mjs",
               "line": 70,
               "column": 5
@@ -993,19 +988,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1330,
+                      "duration": 1034,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:26.906Z",
+                      "startTime": "2026-10-21T21:31:29.677Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1013,7 +1008,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "32150ec7b92884ed7a66-9dc197306952e355b62b",
+              "id": "32150ec7b92884ed7a66-c59c961f681c3d165a68",
               "file": "05-modals.spec.mjs",
               "line": 100,
               "column": 5
@@ -1044,19 +1039,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1781,
+                      "duration": 1470,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:28.315Z",
+                      "startTime": "2026-10-21T21:31:30.775Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1064,7 +1059,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "af7a716a0c2ad3776347-c394a8edf5a77428d75b",
+              "id": "af7a716a0c2ad3776347-03b2b029277c420f4ad7",
               "file": "06-accessibility-axe.spec.mjs",
               "line": 13,
               "column": 5
@@ -1078,19 +1073,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 579,
+                      "duration": 353,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:28.579Z",
+                      "startTime": "2026-10-21T21:31:31.028Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1098,7 +1093,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "af7a716a0c2ad3776347-70236e09aad4ea350018",
+              "id": "af7a716a0c2ad3776347-481b719b1047d1f2da71",
               "file": "06-accessibility-axe.spec.mjs",
               "line": 41,
               "column": 5
@@ -1112,19 +1107,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 661,
+                      "duration": 557,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:29.167Z",
+                      "startTime": "2026-10-21T21:31:31.396Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1132,7 +1127,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "af7a716a0c2ad3776347-52ae77f8eb7098a617a5",
+              "id": "af7a716a0c2ad3776347-053cb7487b5dd7e22ab7",
               "file": "06-accessibility-axe.spec.mjs",
               "line": 71,
               "column": 5
@@ -1163,19 +1158,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 4513,
+                      "duration": 2996,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:29.845Z",
+                      "startTime": "2026-10-21T21:31:31.978Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1183,7 +1178,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-18b11c242e667b6b2385",
+              "id": "73a7e171b8ccf73f7b90-d6cb06db0f2f848dff34",
               "file": "07-weather-spots.spec.mjs",
               "line": 23,
               "column": 5
@@ -1197,19 +1192,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4459,
+                      "duration": 1438,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:30.121Z",
+                      "startTime": "2026-10-21T21:31:32.272Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1217,7 +1212,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-ad9f26b75ad2ce159f8a",
+              "id": "73a7e171b8ccf73f7b90-412037f4b89ccf85f02e",
               "file": "07-weather-spots.spec.mjs",
               "line": 61,
               "column": 5
@@ -1231,19 +1226,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3175,
+                      "duration": 1467,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:34.366Z",
+                      "startTime": "2026-10-21T21:31:33.718Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1251,7 +1246,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-da8c52c7f9032e501a86",
+              "id": "73a7e171b8ccf73f7b90-9aa1299566f03c5365e9",
               "file": "07-weather-spots.spec.mjs",
               "line": 83,
               "column": 5
@@ -1265,19 +1260,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 942,
+                      "duration": 639,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:34.588Z",
+                      "startTime": "2026-10-21T21:31:34.982Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1285,7 +1280,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-4a024621f7dc4c6ecec4",
+              "id": "73a7e171b8ccf73f7b90-77f311555297bd923564",
               "file": "07-weather-spots.spec.mjs",
               "line": 107,
               "column": 5
@@ -1316,19 +1311,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 609,
+                      "duration": 469,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:35.547Z",
+                      "startTime": "2026-10-21T21:31:35.212Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1336,7 +1331,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5ba6f74f6288c8eabd8e-0cc83086438ceeb28396",
+              "id": "5ba6f74f6288c8eabd8e-4a0e5b386bf62a8ba4fd",
               "file": "08-mobile-profile.spec.mjs",
               "line": 12,
               "column": 5
@@ -1350,19 +1345,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1044,
+                      "duration": 1240,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:36.168Z",
+                      "startTime": "2026-10-21T21:31:35.647Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1370,7 +1365,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5ba6f74f6288c8eabd8e-cd2b4886561a41c79d0a",
+              "id": "5ba6f74f6288c8eabd8e-3b0288b9abca7c1815d3",
               "file": "08-mobile-profile.spec.mjs",
               "line": 43,
               "column": 5
@@ -1384,19 +1379,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1542,
+                      "duration": 1979,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:37.221Z",
+                      "startTime": "2026-10-21T21:31:35.691Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1404,7 +1399,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5ba6f74f6288c8eabd8e-c441e242c3d133011e9d",
+              "id": "5ba6f74f6288c8eabd8e-b38f4a44f3dfa25d1163",
               "file": "08-mobile-profile.spec.mjs",
               "line": 76,
               "column": 5
@@ -1418,19 +1413,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 849,
+                      "duration": 1243,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:37.561Z",
+                      "startTime": "2026-10-21T21:31:36.899Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1438,7 +1433,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5ba6f74f6288c8eabd8e-ee5de2f5b54ec333da51",
+              "id": "5ba6f74f6288c8eabd8e-4982a257ec755405be31",
               "file": "08-mobile-profile.spec.mjs",
               "line": 119,
               "column": 5
@@ -1452,19 +1447,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 741,
+                      "duration": 922,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:04:38.425Z",
+                      "startTime": "2026-10-21T21:31:37.678Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1472,7 +1467,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5ba6f74f6288c8eabd8e-a3825a5891119df1a0cd",
+              "id": "5ba6f74f6288c8eabd8e-fd627e2bb7fab21a8e58",
               "file": "08-mobile-profile.spec.mjs",
               "line": 154,
               "column": 5
@@ -1484,8 +1479,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-21T21:04:15.610Z",
-    "duration": 23774.054,
+    "startTime": "2026-10-21T21:31:19.738Z",
+    "duration": 19072.591,
     "expected": 30,
     "skipped": 0,
     "unexpected": 0,

@@ -452,3 +452,40 @@ html, body { overflow-x: hidden; max-width: 100vw; }
   background: #0284c7 !important;
   color: #ffffff !important;
 }
+
+/* ==========================================================================
+   MOBILE BOTTOM NAVIGATION (NATIVE IOS / STRAVA TAB BAR)
+   ========================================================================== */
+.grid-cols-6 {
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+}
+
+#mobileBottomNav {
+  box-shadow: 0 -4px 24px -2px rgba(2, 6, 23, 0.65);
+}
+
+@media (max-width: 1023px) {
+  #mobileBottomNav {
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  #mobileBottomNav {
+    display: none !important;
+  }
+}
+
+#mobileBottomNav button {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+#mobileBottomNav .nav-indicator {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#mobileBottomNav button:active .nav-indicator {
+  transform: scale(0.92);
+}

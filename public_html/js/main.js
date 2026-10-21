@@ -135,21 +135,29 @@ export function activarItemBottomNav(tabId) {
 
     Object.entries(navItems).forEach(([key, btn]) => {
         if (!btn) return;
-        const indicator = btn.querySelector('.nav-indicator');
+        const pill = btn.querySelector('.nav-indicator');
+        const label = btn.querySelector('span:last-child');
         if (key === tabId) {
             btn.classList.add('text-sky-400');
             btn.classList.remove('text-slate-400');
-            btn.classList.add('scale-105');
-            if (indicator) {
-                indicator.classList.remove('opacity-0');
-                indicator.classList.add('opacity-100');
+            if (pill) {
+                pill.classList.add('bg-sky-500/15', 'text-sky-400');
+                pill.classList.remove('bg-transparent', 'text-slate-400');
+            }
+            if (label) {
+                label.classList.add('font-bold', 'text-sky-400');
+                label.classList.remove('font-semibold', 'text-slate-400');
             }
         } else {
-            btn.classList.remove('text-sky-400', 'scale-105');
+            btn.classList.remove('text-sky-400');
             btn.classList.add('text-slate-400');
-            if (indicator) {
-                indicator.classList.add('opacity-0');
-                indicator.classList.remove('opacity-100');
+            if (pill) {
+                pill.classList.remove('bg-sky-500/15', 'text-sky-400');
+                pill.classList.add('bg-transparent', 'text-slate-400');
+            }
+            if (label) {
+                label.classList.remove('font-bold', 'text-sky-400');
+                label.classList.add('font-semibold', 'text-slate-400');
             }
         }
     });

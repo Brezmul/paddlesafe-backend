@@ -7,13 +7,13 @@
     "name": "axe"
   },
   "testEnvironment": {
-    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Safari/537.36",
-    "windowWidth": 1920,
-    "windowHeight": 1080,
+    "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
+    "windowWidth": 320,
+    "windowHeight": 568,
     "orientationAngle": 0,
-    "orientationType": "landscape-primary"
+    "orientationType": "portrait-primary"
   },
-  "timestamp": "2026-10-21T21:04:29.422Z",
+  "timestamp": "2026-10-21T21:31:31.790Z",
   "url": "http://127.0.0.1:8080/",
   "toolOptions": {
     "runOnly": {
@@ -298,6 +298,27 @@
       "description": "Ensure <blink> elements are not used",
       "help": "<blink> elements are deprecated and must not be used",
       "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/blink?application=playwright",
+      "nodes": []
+    },
+    {
+      "id": "bypass",
+      "impact": null,
+      "tags": [
+        "cat.keyboard",
+        "wcag2a",
+        "wcag241",
+        "section508",
+        "section508.22.o",
+        "TTv5",
+        "TT9.a",
+        "EN-301-549",
+        "EN-9.2.4.1",
+        "RGAAv4",
+        "RGAA-12.7.1"
+      ],
+      "description": "Ensure each page has at least one mechanism for a user to bypass navigation and jump straight to the content",
+      "help": "Page must have means to bypass repeated blocks",
+      "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/bypass?application=playwright",
       "nodes": []
     },
     {
@@ -1054,9 +1075,9 @@
             }
           ],
           "impact": null,
-          "html": "<input type=\"date\" id=\"proDate\" aria-label=\"Fecha de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
           "target": [
-            "#proDate"
+            "#mobileBottomNav"
           ]
         },
         {
@@ -1094,9 +1115,9 @@
             }
           ],
           "impact": null,
-          "html": "<input type=\"time\" id=\"proTime\" aria-label=\"Hora de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
           "target": [
-            "#proTime"
+            "#btnNavParte"
           ]
         },
         {
@@ -1134,9 +1155,169 @@
             }
           ],
           "impact": null,
-          "html": "<select id=\"proLevelOption\" aria-label=\"Nivel de experiencia táctico\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
           "target": [
-            "#proLevelOption"
+            "#btnNavPro"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-allowed-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attributes are used correctly for the defined role"
+            },
+            {
+              "id": "aria-allowed-attr-elm",
+              "data": null,
+              "relatedNodes": [],
+              "message": "ARIA attributes are allowed for this element",
+              "impact": "critical"
+            },
+            {
+              "id": "aria-no-deprecated-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "No deprecated ARIA attributes are used"
+            }
+          ],
+          "none": [
+            {
+              "id": "aria-unsupported-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute is supported"
+            }
+          ],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
+          "target": [
+            "#btnNavMuro"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-allowed-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attributes are used correctly for the defined role"
+            },
+            {
+              "id": "aria-allowed-attr-elm",
+              "data": null,
+              "relatedNodes": [],
+              "message": "ARIA attributes are allowed for this element",
+              "impact": "critical"
+            },
+            {
+              "id": "aria-no-deprecated-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "No deprecated ARIA attributes are used"
+            }
+          ],
+          "none": [
+            {
+              "id": "aria-unsupported-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute is supported"
+            }
+          ],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
+          "target": [
+            "#btnNavClubes"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-allowed-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attributes are used correctly for the defined role"
+            },
+            {
+              "id": "aria-allowed-attr-elm",
+              "data": null,
+              "relatedNodes": [],
+              "message": "ARIA attributes are allowed for this element",
+              "impact": "critical"
+            },
+            {
+              "id": "aria-no-deprecated-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "No deprecated ARIA attributes are used"
+            }
+          ],
+          "none": [
+            {
+              "id": "aria-unsupported-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute is supported"
+            }
+          ],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
+          "target": [
+            "#btnNavRanking"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-allowed-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attributes are used correctly for the defined role"
+            },
+            {
+              "id": "aria-allowed-attr-elm",
+              "data": null,
+              "relatedNodes": [],
+              "message": "ARIA attributes are allowed for this element",
+              "impact": "critical"
+            },
+            {
+              "id": "aria-no-deprecated-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "No deprecated ARIA attributes are used"
+            }
+          ],
+          "none": [
+            {
+              "id": "aria-unsupported-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute is supported"
+            }
+          ],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
+          "target": [
+            "#btnNavPerfil"
           ]
         }
       ]
@@ -1260,9 +1441,9 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<input type=\"date\" id=\"proDate\" aria-label=\"Fecha de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
           "target": [
-            "#proDate"
+            "#mobileBottomNav"
           ]
         },
         {
@@ -1278,9 +1459,9 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<input type=\"time\" id=\"proTime\" aria-label=\"Hora de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
           "target": [
-            "#proTime"
+            "#btnNavParte"
           ]
         },
         {
@@ -1296,9 +1477,81 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<select id=\"proLevelOption\" aria-label=\"Nivel de experiencia táctico\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
           "target": [
-            "#proLevelOption"
+            "#btnNavPro"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-conditional-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
+          "target": [
+            "#btnNavMuro"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-conditional-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
+          "target": [
+            "#btnNavClubes"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-conditional-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
+          "target": [
+            "#btnNavRanking"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-conditional-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
+          "target": [
+            "#btnNavPerfil"
           ]
         }
       ]
@@ -1672,9 +1925,9 @@
             }
           ],
           "impact": null,
-          "html": "<input type=\"date\" id=\"proDate\" aria-label=\"Fecha de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
           "target": [
-            "#proDate"
+            "#mobileBottomNav"
           ]
         },
         {
@@ -1690,9 +1943,9 @@
             }
           ],
           "impact": null,
-          "html": "<input type=\"time\" id=\"proTime\" aria-label=\"Hora de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
           "target": [
-            "#proTime"
+            "#btnNavParte"
           ]
         },
         {
@@ -1708,9 +1961,81 @@
             }
           ],
           "impact": null,
-          "html": "<select id=\"proLevelOption\" aria-label=\"Nivel de experiencia táctico\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
           "target": [
-            "#proLevelOption"
+            "#btnNavPro"
+          ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "aria-prohibited-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
+          "target": [
+            "#btnNavMuro"
+          ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "aria-prohibited-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
+          "target": [
+            "#btnNavClubes"
+          ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "aria-prohibited-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
+          "target": [
+            "#btnNavRanking"
+          ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "aria-prohibited-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
+          "target": [
+            "#btnNavPerfil"
           ]
         }
       ]
@@ -1918,9 +2243,9 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<input type=\"date\" id=\"proDate\" aria-label=\"Fecha de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
           "target": [
-            "#proDate"
+            "#mobileBottomNav"
           ]
         },
         {
@@ -1950,9 +2275,9 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<input type=\"time\" id=\"proTime\" aria-label=\"Hora de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
           "target": [
-            "#proTime"
+            "#btnNavParte"
           ]
         },
         {
@@ -1982,9 +2307,137 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<select id=\"proLevelOption\" aria-label=\"Nivel de experiencia táctico\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
           "target": [
-            "#proLevelOption"
+            "#btnNavPro"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-valid-attr-value",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute values are valid"
+            },
+            {
+              "id": "aria-errormessage",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+            },
+            {
+              "id": "aria-level",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-level values are valid"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
+          "target": [
+            "#btnNavMuro"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-valid-attr-value",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute values are valid"
+            },
+            {
+              "id": "aria-errormessage",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+            },
+            {
+              "id": "aria-level",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-level values are valid"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
+          "target": [
+            "#btnNavClubes"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-valid-attr-value",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute values are valid"
+            },
+            {
+              "id": "aria-errormessage",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+            },
+            {
+              "id": "aria-level",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-level values are valid"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
+          "target": [
+            "#btnNavRanking"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-valid-attr-value",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute values are valid"
+            },
+            {
+              "id": "aria-errormessage",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+            },
+            {
+              "id": "aria-level",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-level values are valid"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
+          "target": [
+            "#btnNavPerfil"
           ]
         }
       ]
@@ -2108,9 +2561,9 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<input type=\"date\" id=\"proDate\" aria-label=\"Fecha de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
           "target": [
-            "#proDate"
+            "#mobileBottomNav"
           ]
         },
         {
@@ -2126,9 +2579,9 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<input type=\"time\" id=\"proTime\" aria-label=\"Hora de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
           "target": [
-            "#proTime"
+            "#btnNavParte"
           ]
         },
         {
@@ -2144,9 +2597,81 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<select id=\"proLevelOption\" aria-label=\"Nivel de experiencia táctico\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
           "target": [
-            "#proLevelOption"
+            "#btnNavPro"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "aria-valid-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute name is valid"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
+          "target": [
+            "#btnNavMuro"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "aria-valid-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute name is valid"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
+          "target": [
+            "#btnNavClubes"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "aria-valid-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute name is valid"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
+          "target": [
+            "#btnNavRanking"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "aria-valid-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute name is valid"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
+          "target": [
+            "#btnNavPerfil"
           ]
         }
       ]
@@ -2172,131 +2697,6 @@
       "help": "Buttons must have discernible text",
       "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/button-name?application=playwright",
       "nodes": [
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
-            },
-            {
-              "id": "non-empty-title",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has a title attribute"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnModalRanking\" onclick=\"abrirModalRanking()\" class=\"ps-chip text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95\" title=\"Ranking de Paddlers\">",
-          "target": [
-            "#btnModalRanking"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
-            },
-            {
-              "id": "non-empty-title",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has a title attribute"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnModalClubs\" onclick=\"abrirModalClubs()\" class=\"ps-chip text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95\" title=\"Clubes y Comunidad\">",
-          "target": [
-            "#btnModalClubs"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
-            },
-            {
-              "id": "non-empty-title",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has a title attribute"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnModalFeed\" onclick=\"abrirModalFeed()\" class=\"ps-chip text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95\" title=\"Muro Social\">",
-          "target": [
-            "#btnModalFeed"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
-            },
-            {
-              "id": "non-empty-title",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has a title attribute"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnAvisos\" onclick=\"if(window.mostrarPanelAvisos) window.mostrarPanelAvisos()\" class=\"ps-chip relative text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95\" title=\"Notificaciones y Avisos\">",
-          "target": [
-            "#btnAvisos"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
-            },
-            {
-              "id": "non-empty-title",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has a title attribute"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnCabeceraPerfil\" onclick=\"abrirModalAuth()\" class=\"ps-chip text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95\" title=\"Mi Perfil\">",
-          "target": [
-            "#btnCabeceraPerfil"
-          ]
-        },
         {
           "any": [
             {
@@ -2680,7 +3080,7 @@
           "impact": null,
           "html": "<button type=\"button\" onclick=\"obtenerUbicacion()\" class=\"ps-chip ps-quick-pill text-sky-300 bg-sky-500/15 border-sky-500/30 hover:bg-sky-500/25 active:scale-95 cursor-pointer\">\n                            <span>📍</span> <span>Usar mi ubicación GPS</span>\n                        </button>",
           "target": [
-            ".bg-sky-500\\/15.hover\\:bg-sky-500\\/25[onclick=\"obtenerUbicacion()\"]"
+            ".hover\\:bg-sky-500\\/25.bg-sky-500\\/15[onclick=\"obtenerUbicacion()\"]"
           ]
         },
         {
@@ -2871,168 +3271,13 @@
               "relatedNodes": [],
               "impact": "critical",
               "message": "Element has inner text that is visible to screen readers"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnTravesia\" onclick=\"toggleModoTravesia()\" class=\"flex-1 sm:w-auto bg-teal-500 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-md hover:bg-teal-400 active:scale-95 transition-colors cursor-pointer\">🗺️ Trazar (A ➔ B)</button>",
-          "target": [
-            "#btnTravesia"
-          ]
-        },
-        {
-          "any": [
+            },
             {
-              "id": "button-has-visible-text",
+              "id": "aria-label",
               "data": null,
               "relatedNodes": [],
               "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnRutaLibre\" onclick=\"toggleRutaLibre()\" class=\"flex-1 sm:w-auto bg-teal-600 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-sm hover:bg-teal-500 active:scale-95 transition-colors cursor-pointer\">✍️ Multipunto</button>",
-          "target": [
-            "#btnRutaLibre"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnQuedadaClub\" onclick=\"iniciarCreacionQueda...\" class=\"flex-1 sm:w-auto bg-...\">",
-          "target": [
-            "#btnQuedadaClub"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnDescargarMapaOffl...\" onclick=\"descargarZonaMapaOff...\" class=\"flex-1 sm:w-auto bg-...\">",
-          "target": [
-            "#btnDescargarMapaOffline"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnExportarGpxPro\" onclick=\"exportarRutaPlanific...\" class=\"flex-1 sm:w-auto bg-...\">",
-          "target": [
-            "#btnExportarGpxPro"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnImportarGpxPro\" onclick=\"document.getElementB...\" class=\"flex-1 sm:w-auto bg-...\">",
-          "target": [
-            "#btnImportarGpxPro"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnProMisSpots\" onclick=\"document.getElementB...\" class=\"flex-1 sm:w-auto bg-...\">",
-          "target": [
-            "#btnProMisSpots"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnProGear\" onclick=\"window.toggleSelecto...\" class=\"flex-1 sm:w-auto bg-...\">",
-          "target": [
-            "#btnProGear"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnIniciarLive\" onclick=\"iniciarTravesia()\" class=\"w-full sm:w-auto bg-emerald-500 text-slate-900 h-11 px-5 rounded-xl text-sm font-black shadow hover:bg-emerald-400 active:scale-95 transition-colors cursor-pointer\">🔴 Live GPS</button>",
-          "target": [
-            "#btnIniciarLive"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
+              "message": "aria-label attribute exists and is not empty"
             },
             {
               "id": "non-empty-title",
@@ -3045,9 +3290,9 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" data-map-layer=\"nautico\" onclick=\"window.cambiarCapaBaseMapa('nautico')\" class=\"ps-map-layer-pill px-2.5 py-1 rounded-lg transition-all cursor-pointer bg-sky-500/30 text-sky-300 border border-sky-400 font-bold\" title=\"CARTO Voyager HD + Balizamiento OpenSeaMap\">",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
           "target": [
-            "button[data-map-layer=\"nautico\"]"
+            "#btnNavParte"
           ]
         },
         {
@@ -3060,29 +3305,11 @@
               "message": "Element has inner text that is visible to screen readers"
             },
             {
-              "id": "non-empty-title",
+              "id": "aria-label",
               "data": null,
               "relatedNodes": [],
               "impact": "critical",
-              "message": "Element has a title attribute"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" data-map-layer=\"satelite\" onclick=\"window.cambiarCapaBa...\" class=\"ps-map-layer-pill px...\" title=\"Fotografía satélite ...\">",
-          "target": [
-            "button[data-map-layer=\"satelite\"]"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "button-has-visible-text",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has inner text that is visible to screen readers"
+              "message": "aria-label attribute exists and is not empty"
             },
             {
               "id": "non-empty-title",
@@ -3095,9 +3322,9 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" data-map-layer=\"oscuro\" onclick=\"window.cambiarCapaBaseMapa('oscuro')\" class=\"ps-map-layer-pill px-2.5 py-1 rounded-lg transition-all cursor-pointer text-slate-300 border border-transparent hover:text-white font-medium\" title=\"Modo táctico de alto contraste / radar\">",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
           "target": [
-            "button[data-map-layer=\"oscuro\"]"
+            "#btnNavPro"
           ]
         },
         {
@@ -3108,67 +3335,124 @@
               "relatedNodes": [],
               "impact": "critical",
               "message": "Element has inner text that is visible to screen readers"
+            },
+            {
+              "id": "aria-label",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-label attribute exists and is not empty"
+            },
+            {
+              "id": "non-empty-title",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has a title attribute"
             }
           ],
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" onclick=\"consultarRutaPro()\" id=\"btnCalcPro\" class=\"w-full h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all text-xs flex justify-center items-center gap-2 mt-1 cursor-pointer\">",
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
           "target": [
-            "#btnCalcPro"
+            "#btnNavMuro"
           ]
-        }
-      ]
-    },
-    {
-      "id": "bypass",
-      "impact": null,
-      "tags": [
-        "cat.keyboard",
-        "wcag2a",
-        "wcag241",
-        "section508",
-        "section508.22.o",
-        "TTv5",
-        "TT9.a",
-        "EN-301-549",
-        "EN-9.2.4.1",
-        "RGAAv4",
-        "RGAA-12.7.1"
-      ],
-      "description": "Ensure each page has at least one mechanism for a user to bypass navigation and jump straight to the content",
-      "help": "Page must have means to bypass repeated blocks",
-      "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/bypass?application=playwright",
-      "nodes": [
+        },
         {
           "any": [
             {
-              "id": "header-present",
+              "id": "button-has-visible-text",
               "data": null,
-              "relatedNodes": [
-                {
-                  "html": "<h1 class=\"text-3xl sm:text-4xl font-black text-white tracking-tight drop-shadow-lg\">Paddle<span class=\"text-transparent bg-clip-text bg-gradient-to-r from-water to-blue-400\">Safe</span></h1>",
-                  "target": [
-                    "h1"
-                  ]
-                },
-                {
-                  "html": "<h3 class=\"text-white font-black flex items-center gap-2 text-sm uppercase tracking-widest border-b border-slate-700 pb-2\">\n                                🧭 Detalles de Exploración\n                            </h3>",
-                  "target": [
-                    "#proPlanificador > .pb-2"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Page has a heading"
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            },
+            {
+              "id": "aria-label",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-label attribute exists and is not empty"
+            },
+            {
+              "id": "non-empty-title",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has a title attribute"
             }
           ],
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<html lang=\"es\">",
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
           "target": [
-            "html"
+            "#btnNavClubes"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "button-has-visible-text",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            },
+            {
+              "id": "aria-label",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-label attribute exists and is not empty"
+            },
+            {
+              "id": "non-empty-title",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has a title attribute"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
+          "target": [
+            "#btnNavRanking"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "button-has-visible-text",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            },
+            {
+              "id": "aria-label",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-label attribute exists and is not empty"
+            },
+            {
+              "id": "non-empty-title",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has a title attribute"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
+          "target": [
+            "#btnNavPerfil"
           ]
         }
       ]
@@ -3197,135 +3481,10 @@
             {
               "id": "color-contrast",
               "data": {
-                "fgColor": "#94a3b8",
-                "bgColor": "#1a2436",
-                "contrastRatio": 6.06,
-                "fontSize": "8.3pt (11px)",
-                "fontWeight": "bold",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element has sufficient color contrast of 6.06"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<span class=\"text-[11px] font-black uppercase tracking-wider\">Ranking</span>",
-          "target": [
-            "#btnModalRanking > .tracking-wider.text-\\[11px\\].uppercase"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#94a3b8",
-                "bgColor": "#1a2436",
-                "contrastRatio": 6.06,
-                "fontSize": "8.3pt (11px)",
-                "fontWeight": "bold",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element has sufficient color contrast of 6.06"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<span class=\"text-[11px] font-black uppercase tracking-wider\">Comunidad</span>",
-          "target": [
-            "#btnModalClubs > .tracking-wider.text-\\[11px\\].uppercase"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#94a3b8",
-                "bgColor": "#1a2436",
-                "contrastRatio": 6.06,
-                "fontSize": "8.3pt (11px)",
-                "fontWeight": "bold",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element has sufficient color contrast of 6.06"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<span class=\"text-[11px] font-black uppercase tracking-wider\">Feed</span>",
-          "target": [
-            "#btnModalFeed > .tracking-wider.text-\\[11px\\].uppercase"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#94a3b8",
-                "bgColor": "#1a2436",
-                "contrastRatio": 6.06,
-                "fontSize": "8.3pt (11px)",
-                "fontWeight": "bold",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element has sufficient color contrast of 6.06"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<span class=\"text-[11px] font-black uppercase tracking-wider\">Avisos</span>",
-          "target": [
-            "#btnAvisos > .tracking-wider.text-\\[11px\\].uppercase"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#d1d3d7",
-                "bgColor": "#1a2436",
-                "contrastRatio": 10.38,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "bold",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element has sufficient color contrast of 10.38"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<span class=\"text-[11px] sm:text-xs font-black mt-1 uppercase tracking-widest text-white/80\">Perfil</span>",
-          "target": [
-            ".sm\\:text-xs.text-white\\/80.mt-1"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
                 "fgColor": "#ffffff",
                 "bgColor": "#0f172a",
                 "contrastRatio": 17.85,
-                "fontSize": "27.0pt (36px)",
+                "fontSize": "22.5pt (30px)",
                 "fontWeight": "bold",
                 "expectedContrastRatio": "3:1"
               },
@@ -3350,7 +3509,7 @@
                 "fgColor": "#cbd5e1",
                 "bgColor": "#0f172a",
                 "contrastRatio": 12.02,
-                "fontSize": "10.5pt (14px)",
+                "fontSize": "9.0pt (12px)",
                 "fontWeight": "normal",
                 "expectedContrastRatio": "4.5:1"
               },
@@ -3425,156 +3584,6 @@
           "html": "<input type=\"text\" id=\"inputNotaBitacoraSpot\" placeholder=\"Ej. Rompiente baja a las 11h, fondo de arena sin piedras, térmico entró del SE a las 13h.\" class=\"w-full h-10 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-sky-500\">",
           "target": [
             "#inputNotaBitacoraSpot"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#7dd3fc",
-                "bgColor": "#1e293b",
-                "contrastRatio": 8.77,
-                "fontSize": "10.5pt (14px)",
-                "fontWeight": "bold",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element has sufficient color contrast of 8.77"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnDescargarMapaOffl...\" onclick=\"descargarZonaMapaOff...\" class=\"flex-1 sm:w-auto bg-...\">",
-          "target": [
-            "#btnDescargarMapaOffline"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#d1fae5",
-                "bgColor": "#047857",
-                "contrastRatio": 4.83,
-                "fontSize": "10.5pt (14px)",
-                "fontWeight": "bold",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element has sufficient color contrast of 4.83"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnExportarGpxPro\" onclick=\"exportarRutaPlanific...\" class=\"flex-1 sm:w-auto bg-...\">",
-          "target": [
-            "#btnExportarGpxPro"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#e0f2fe",
-                "bgColor": "#075985",
-                "contrastRatio": 6.59,
-                "fontSize": "10.5pt (14px)",
-                "fontWeight": "bold",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element has sufficient color contrast of 6.59"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnImportarGpxPro\" onclick=\"document.getElementB...\" class=\"flex-1 sm:w-auto bg-...\">",
-          "target": [
-            "#btnImportarGpxPro"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#fcd34d",
-                "bgColor": "#1e293b",
-                "contrastRatio": 10.14,
-                "fontSize": "10.5pt (14px)",
-                "fontWeight": "bold",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element has sufficient color contrast of 10.14"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnProMisSpots\" onclick=\"document.getElementB...\" class=\"flex-1 sm:w-auto bg-...\">",
-          "target": [
-            "#btnProMisSpots"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#7dd3fc",
-                "bgColor": "#1e293b",
-                "contrastRatio": 8.77,
-                "fontSize": "10.5pt (14px)",
-                "fontWeight": "bold",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element has sufficient color contrast of 8.77"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnProGear\" onclick=\"window.toggleSelecto...\" class=\"flex-1 sm:w-auto bg-...\">",
-          "target": [
-            "#btnProGear"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#0f172a",
-                "bgColor": "#10b981",
-                "contrastRatio": 7.03,
-                "fontSize": "10.5pt (14px)",
-                "fontWeight": "bold",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element has sufficient color contrast of 7.03"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnIniciarLive\" onclick=\"iniciarTravesia()\" class=\"w-full sm:w-auto bg-emerald-500 text-slate-900 h-11 px-5 rounded-xl text-sm font-black shadow hover:bg-emerald-400 active:scale-95 transition-colors cursor-pointer\">🔴 Live GPS</button>",
-          "target": [
-            "#btnIniciarLive"
           ]
         },
         {
@@ -3682,16 +3691,11 @@
             {
               "id": "color-contrast",
               "data": {
-                "fgColor": "#34d399",
-                "bgColor": "#0f172a",
-                "contrastRatio": 9.28,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "bold",
-                "expectedContrastRatio": "4.5:1"
+                "messageKey": "hidden"
               },
               "relatedNodes": [],
               "impact": "serious",
-              "message": "Element has sufficient color contrast of 9.28"
+              "message": "Element is hidden"
             }
           ],
           "all": [],
@@ -3707,16 +3711,11 @@
             {
               "id": "color-contrast",
               "data": {
-                "fgColor": "#ffffff",
-                "bgColor": "#0f172a",
-                "contrastRatio": 17.85,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "normal",
-                "expectedContrastRatio": "4.5:1"
+                "messageKey": "hidden"
               },
               "relatedNodes": [],
               "impact": "serious",
-              "message": "Element has sufficient color contrast of 17.85"
+              "message": "Element is hidden"
             }
           ],
           "all": [],
@@ -3732,16 +3731,11 @@
             {
               "id": "color-contrast",
               "data": {
-                "fgColor": "#ffffff",
-                "bgColor": "#0f172a",
-                "contrastRatio": 17.85,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "normal",
-                "expectedContrastRatio": "4.5:1"
+                "messageKey": "hidden"
               },
               "relatedNodes": [],
               "impact": "serious",
-              "message": "Element has sufficient color contrast of 17.85"
+              "message": "Element is hidden"
             }
           ],
           "all": [],
@@ -3757,16 +3751,11 @@
             {
               "id": "color-contrast",
               "data": {
-                "fgColor": "#ffffff",
-                "bgColor": "#0f172a",
-                "contrastRatio": 17.85,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "normal",
-                "expectedContrastRatio": "4.5:1"
+                "messageKey": "hidden"
               },
               "relatedNodes": [],
               "impact": "serious",
-              "message": "Element has sufficient color contrast of 17.85"
+              "message": "Element is hidden"
             }
           ],
           "all": [],
@@ -4255,78 +4244,6 @@
           "target": [
             "#userLevel"
           ]
-        },
-        {
-          "any": [],
-          "all": [],
-          "none": [
-            {
-              "id": "multiple-label",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "moderate",
-              "message": "Form field does not have multiple label elements"
-            }
-          ],
-          "impact": null,
-          "html": "<input type=\"text\" id=\"proLocation\" readonly=\"\" placeholder=\"Toca en el mapa\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-emerald-400 font-bold rounded-xl text-xs outline-none cursor-not-allowed\">",
-          "target": [
-            "#proLocation"
-          ]
-        },
-        {
-          "any": [],
-          "all": [],
-          "none": [
-            {
-              "id": "multiple-label",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "moderate",
-              "message": "Form field does not have multiple label elements"
-            }
-          ],
-          "impact": null,
-          "html": "<input type=\"date\" id=\"proDate\" aria-label=\"Fecha de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
-          "target": [
-            "#proDate"
-          ]
-        },
-        {
-          "any": [],
-          "all": [],
-          "none": [
-            {
-              "id": "multiple-label",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "moderate",
-              "message": "Form field does not have multiple label elements"
-            }
-          ],
-          "impact": null,
-          "html": "<input type=\"time\" id=\"proTime\" aria-label=\"Hora de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
-          "target": [
-            "#proTime"
-          ]
-        },
-        {
-          "any": [],
-          "all": [],
-          "none": [
-            {
-              "id": "multiple-label",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "moderate",
-              "message": "Form field does not have multiple label elements"
-            }
-          ],
-          "impact": null,
-          "html": "<select id=\"proLevelOption\" aria-label=\"Nivel de experiencia táctico\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
-          "target": [
-            "#proLevelOption"
-          ]
         }
       ]
     },
@@ -4480,84 +4397,6 @@
           "target": [
             "#date"
           ]
-        },
-        {
-          "any": [
-            {
-              "id": "non-empty-placeholder",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Element has a placeholder attribute"
-            }
-          ],
-          "all": [],
-          "none": [
-            {
-              "id": "hidden-explicit-label",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Form element has a visible explicit <label>"
-            }
-          ],
-          "impact": null,
-          "html": "<input type=\"text\" id=\"proLocation\" readonly=\"\" placeholder=\"Toca en el mapa\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-emerald-400 font-bold rounded-xl text-xs outline-none cursor-not-allowed\">",
-          "target": [
-            "#proLocation"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "aria-label",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "aria-label attribute exists and is not empty"
-            }
-          ],
-          "all": [],
-          "none": [
-            {
-              "id": "hidden-explicit-label",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Form element has a visible explicit <label>"
-            }
-          ],
-          "impact": null,
-          "html": "<input type=\"date\" id=\"proDate\" aria-label=\"Fecha de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
-          "target": [
-            "#proDate"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "aria-label",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "aria-label attribute exists and is not empty"
-            }
-          ],
-          "all": [],
-          "none": [
-            {
-              "id": "hidden-explicit-label",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Form element has a visible explicit <label>"
-            }
-          ],
-          "impact": null,
-          "html": "<input type=\"time\" id=\"proTime\" aria-label=\"Hora de salida planificada\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
-          "target": [
-            "#proTime"
-          ]
         }
       ]
     },
@@ -4616,96 +4455,6 @@
       "help": "Interactive controls must not be nested",
       "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/nested-interactive?application=playwright",
       "nodes": [
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnModalRanking\" onclick=\"abrirModalRanking()\" class=\"ps-chip text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95\" title=\"Ranking de Paddlers\">",
-          "target": [
-            "#btnModalRanking"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnModalClubs\" onclick=\"abrirModalClubs()\" class=\"ps-chip text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95\" title=\"Clubes y Comunidad\">",
-          "target": [
-            "#btnModalClubs"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnModalFeed\" onclick=\"abrirModalFeed()\" class=\"ps-chip text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95\" title=\"Muro Social\">",
-          "target": [
-            "#btnModalFeed"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnAvisos\" onclick=\"if(window.mostrarPanelAvisos) window.mostrarPanelAvisos()\" class=\"ps-chip relative text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95\" title=\"Notificaciones y Avisos\">",
-          "target": [
-            "#btnAvisos"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnCabeceraPerfil\" onclick=\"abrirModalAuth()\" class=\"ps-chip text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95\" title=\"Mi Perfil\">",
-          "target": [
-            "#btnCabeceraPerfil"
-          ]
-        },
         {
           "any": [
             {
@@ -5153,7 +4902,7 @@
           "impact": null,
           "html": "<button type=\"button\" onclick=\"obtenerUbicacion()\" class=\"ps-chip ps-quick-pill text-sky-300 bg-sky-500/15 border-sky-500/30 hover:bg-sky-500/25 active:scale-95 cursor-pointer\">\n                            <span>📍</span> <span>Usar mi ubicación GPS</span>\n                        </button>",
           "target": [
-            ".bg-sky-500\\/15.hover\\:bg-sky-500\\/25[onclick=\"obtenerUbicacion()\"]"
+            ".hover\\:bg-sky-500\\/25.bg-sky-500\\/15[onclick=\"obtenerUbicacion()\"]"
           ]
         },
         {
@@ -5349,9 +5098,9 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnTravesia\" onclick=\"toggleModoTravesia()\" class=\"flex-1 sm:w-auto bg-teal-500 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-md hover:bg-teal-400 active:scale-95 transition-colors cursor-pointer\">🗺️ Trazar (A ➔ B)</button>",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
           "target": [
-            "#btnTravesia"
+            "#btnNavParte"
           ]
         },
         {
@@ -5367,9 +5116,9 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnRutaLibre\" onclick=\"toggleRutaLibre()\" class=\"flex-1 sm:w-auto bg-teal-600 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-sm hover:bg-teal-500 active:scale-95 transition-colors cursor-pointer\">✍️ Multipunto</button>",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
           "target": [
-            "#btnRutaLibre"
+            "#btnNavPro"
           ]
         },
         {
@@ -5385,9 +5134,9 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnQuedadaClub\" onclick=\"iniciarCreacionQueda...\" class=\"flex-1 sm:w-auto bg-...\">",
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
           "target": [
-            "#btnQuedadaClub"
+            "#btnNavMuro"
           ]
         },
         {
@@ -5403,9 +5152,9 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnDescargarMapaOffl...\" onclick=\"descargarZonaMapaOff...\" class=\"flex-1 sm:w-auto bg-...\">",
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
           "target": [
-            "#btnDescargarMapaOffline"
+            "#btnNavClubes"
           ]
         },
         {
@@ -5421,9 +5170,9 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnExportarGpxPro\" onclick=\"exportarRutaPlanific...\" class=\"flex-1 sm:w-auto bg-...\">",
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
           "target": [
-            "#btnExportarGpxPro"
+            "#btnNavRanking"
           ]
         },
         {
@@ -5439,214 +5188,16 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnImportarGpxPro\" onclick=\"document.getElementB...\" class=\"flex-1 sm:w-auto bg-...\">",
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
           "target": [
-            "#btnImportarGpxPro"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnProMisSpots\" onclick=\"document.getElementB...\" class=\"flex-1 sm:w-auto bg-...\">",
-          "target": [
-            "#btnProMisSpots"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnProGear\" onclick=\"window.toggleSelecto...\" class=\"flex-1 sm:w-auto bg-...\">",
-          "target": [
-            "#btnProGear"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" id=\"btnIniciarLive\" onclick=\"iniciarTravesia()\" class=\"w-full sm:w-auto bg-emerald-500 text-slate-900 h-11 px-5 rounded-xl text-sm font-black shadow hover:bg-emerald-400 active:scale-95 transition-colors cursor-pointer\">🔴 Live GPS</button>",
-          "target": [
-            "#btnIniciarLive"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" data-map-layer=\"nautico\" onclick=\"window.cambiarCapaBaseMapa('nautico')\" class=\"ps-map-layer-pill px-2.5 py-1 rounded-lg transition-all cursor-pointer bg-sky-500/30 text-sky-300 border border-sky-400 font-bold\" title=\"CARTO Voyager HD + Balizamiento OpenSeaMap\">",
-          "target": [
-            "button[data-map-layer=\"nautico\"]"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" data-map-layer=\"satelite\" onclick=\"window.cambiarCapaBa...\" class=\"ps-map-layer-pill px...\" title=\"Fotografía satélite ...\">",
-          "target": [
-            "button[data-map-layer=\"satelite\"]"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" data-map-layer=\"oscuro\" onclick=\"window.cambiarCapaBaseMapa('oscuro')\" class=\"ps-map-layer-pill px-2.5 py-1 rounded-lg transition-all cursor-pointer text-slate-300 border border-transparent hover:text-white font-medium\" title=\"Modo táctico de alto contraste / radar\">",
-          "target": [
-            "button[data-map-layer=\"oscuro\"]"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<option value=\"Principiante\">Principiante</option>",
-          "target": [
-            "#proLevelOption > option[value=\"Principiante\"]"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<option value=\"Intermedio\" selected=\"\">Intermedio</option>",
-          "target": [
-            "#proLevelOption > option[value=\"Intermedio\"]"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<option value=\"Avanzado\">Avanzado</option>",
-          "target": [
-            "#proLevelOption > option[value=\"Avanzado\"]"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<option value=\"Competición\">Competición</option>",
-          "target": [
-            "#proLevelOption > option[value=\"Competición\"]"
-          ]
-        },
-        {
-          "any": [
-            {
-              "id": "no-focusable-content",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element does not have focusable descendants"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": null,
-          "html": "<button type=\"button\" onclick=\"consultarRutaPro()\" id=\"btnCalcPro\" class=\"w-full h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all text-xs flex justify-center items-center gap-2 mt-1 cursor-pointer\">",
-          "target": [
-            "#btnCalcPro"
+            "#btnNavPerfil"
           ]
         }
       ]
     },
     {
       "id": "scrollable-region-focusable",
-      "impact": null,
+      "impact": "serious",
       "tags": [
         "cat.keyboard",
         "wcag2a",
@@ -5664,6 +5215,24 @@
       "help": "Scrollable region must have keyboard access",
       "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/scrollable-region-focusable?application=playwright",
       "nodes": [
+        {
+          "any": [
+            {
+              "id": "focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element contains focusable elements"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<html lang=\"es\">",
+          "target": [
+            "html"
+          ]
+        },
         {
           "any": [
             {
@@ -5756,32 +5325,6 @@
           "target": [
             "#userLevel"
           ]
-        },
-        {
-          "any": [
-            {
-              "id": "aria-label",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "aria-label attribute exists and is not empty"
-            }
-          ],
-          "all": [],
-          "none": [
-            {
-              "id": "hidden-explicit-label",
-              "data": null,
-              "relatedNodes": [],
-              "impact": "critical",
-              "message": "Form element has a visible explicit <label>"
-            }
-          ],
-          "impact": null,
-          "html": "<select id=\"proLevelOption\" aria-label=\"Nivel de experiencia táctico\" class=\"h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors\">",
-          "target": [
-            "#proLevelOption"
-          ]
         }
       ]
     }
@@ -5812,7 +5355,7 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "27.0pt (36px)",
+                "fontSize": "22.5pt (30px)",
                 "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "3:1"
@@ -6185,7 +5728,7 @@
                 "contrastRatio": 0,
                 "fontSize": "9.0pt (12px)",
                 "fontWeight": "normal",
-                "messageKey": "bgGradient",
+                "messageKey": "elmPartiallyObscured",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
@@ -6194,28 +5737,10 @@
                   "target": [
                     "#savedSpotsBar"
                   ]
-                },
-                {
-                  "html": "<div class=\"px-4 sm:px-6 pt-4 pb-2 bg-slate-900/90 text-white space-y-3 border-b border-slate-800/60\">",
-                  "target": [
-                    ".sm\\:px-6"
-                  ]
-                },
-                {
-                  "html": "<div class=\"max-w-2xl lg:max-w-[1600px] w-full bg-slate-900/95 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-4 sm:pb-0 border border-slate-800 z-10 backdrop-blur-xl mx-auto\">",
-                  "target": [
-                    ".max-w-2xl"
-                  ]
-                },
-                {
-                  "html": "<body class=\"bg-slate-950 text-sl...\" style=\"background-color: #0...\">",
-                  "target": [
-                    "body"
-                  ]
                 }
               ],
               "impact": "serious",
-              "message": "Element's background color could not be determined due to a background gradient"
+              "message": "Element's background color could not be determined because it's partially obscured by another element"
             }
           ],
           "all": [],
@@ -6225,7 +5750,7 @@
           "target": [
             ".italic.py-1.px-2"
           ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
         },
         {
           "any": [
@@ -6265,7 +5790,7 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "10.5pt (14px)",
+                "fontSize": "9.0pt (12px)",
                 "fontWeight": "normal",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
@@ -6303,7 +5828,7 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "10.5pt (14px)",
+                "fontSize": "9.0pt (12px)",
                 "fontWeight": "normal",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
@@ -6341,7 +5866,7 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "10.5pt (14px)",
+                "fontSize": "9.0pt (12px)",
                 "fontWeight": "normal",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
@@ -6379,7 +5904,7 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "10.5pt (14px)",
+                "fontSize": "9.0pt (12px)",
                 "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
@@ -6563,7 +6088,7 @@
                 "contrastRatio": 0,
                 "fontSize": "9.8pt (13px)",
                 "fontWeight": "normal",
-                "messageKey": "bgGradient",
+                "messageKey": "elmPartiallyObscured",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
@@ -6571,156 +6096,6 @@
                   "html": "<button type=\"button\" id=\"quickDayPill2\" onclick=\"window.aplicarFiltroRapidoTiempo(2)\" class=\"ps-chip ps-quick-pill bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 active:scale-95 cursor-pointer\" data-day=\"2\" title=\"Previsión a 2 días\" data-date=\"2026-10-23\">",
                   "target": [
                     "#quickDayPill2"
-                  ]
-                },
-                {
-                  "html": "<div class=\"px-4 sm:px-6 pt-4 pb-2 bg-slate-900/90 text-white space-y-3 border-b border-slate-800/60\">",
-                  "target": [
-                    ".sm\\:px-6"
-                  ]
-                },
-                {
-                  "html": "<div class=\"max-w-2xl lg:max-w-[1600px] w-full bg-slate-900/95 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-4 sm:pb-0 border border-slate-800 z-10 backdrop-blur-xl mx-auto\">",
-                  "target": [
-                    ".max-w-2xl"
-                  ]
-                },
-                {
-                  "html": "<body class=\"bg-slate-950 text-sl...\" style=\"background-color: #0...\">",
-                  "target": [
-                    "body"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Element's background color could not be determined due to a background gradient"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<span>Vie 23</span>",
-          "target": [
-            "#quickDayPill2 > span:nth-child(2)"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.8pt (13px)",
-                "fontWeight": "normal",
-                "messageKey": "bgGradient",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<button type=\"button\" id=\"quickDayPill3\" onclick=\"window.aplicarFiltroRapidoTiempo(3)\" class=\"ps-chip ps-quick-pill bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 active:scale-95 cursor-pointer\" data-day=\"3\" title=\"Previsión a 3 días\" data-date=\"2026-10-24\">",
-                  "target": [
-                    "#quickDayPill3"
-                  ]
-                },
-                {
-                  "html": "<div class=\"px-4 sm:px-6 pt-4 pb-2 bg-slate-900/90 text-white space-y-3 border-b border-slate-800/60\">",
-                  "target": [
-                    ".sm\\:px-6"
-                  ]
-                },
-                {
-                  "html": "<div class=\"max-w-2xl lg:max-w-[1600px] w-full bg-slate-900/95 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-4 sm:pb-0 border border-slate-800 z-10 backdrop-blur-xl mx-auto\">",
-                  "target": [
-                    ".max-w-2xl"
-                  ]
-                },
-                {
-                  "html": "<body class=\"bg-slate-950 text-sl...\" style=\"background-color: #0...\">",
-                  "target": [
-                    "body"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Element's background color could not be determined due to a background gradient"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<span>Sáb 24</span>",
-          "target": [
-            "#quickDayPill3 > span:nth-child(2)"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.8pt (13px)",
-                "fontWeight": "normal",
-                "messageKey": "bgGradient",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<button type=\"button\" id=\"quickSlotManana\" onclick=\"window.aplicarFiltroRapidoTiempo(null, '09:00')\" class=\"ps-chip ps-quick-pill bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 active:scale-95 cursor-pointer\" data-slot=\"09:00\" title=\"Sesión matinal (09:00)\">",
-                  "target": [
-                    "#quickSlotManana"
-                  ]
-                },
-                {
-                  "html": "<div class=\"px-4 sm:px-6 pt-4 pb-2 bg-slate-900/90 text-white space-y-3 border-b border-slate-800/60\">",
-                  "target": [
-                    ".sm\\:px-6"
-                  ]
-                },
-                {
-                  "html": "<div class=\"max-w-2xl lg:max-w-[1600px] w-full bg-slate-900/95 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-4 sm:pb-0 border border-slate-800 z-10 backdrop-blur-xl mx-auto\">",
-                  "target": [
-                    ".max-w-2xl"
-                  ]
-                },
-                {
-                  "html": "<body class=\"bg-slate-950 text-sl...\" style=\"background-color: #0...\">",
-                  "target": [
-                    "body"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Element's background color could not be determined due to a background gradient"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<span>Mañana (09:00)</span>",
-          "target": [
-            "#quickSlotManana > span:nth-child(2)"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.8pt (13px)",
-                "fontWeight": "normal",
-                "messageKey": "elmPartiallyObscured",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<button type=\"button\" id=\"quickSlotMediodia\" onclick=\"window.aplicarFiltroRapidoTiempo(null, '13:00')\" class=\"ps-chip ps-quick-pill bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 active:scale-95 cursor-pointer\" data-slot=\"13:00\" title=\"Sesión mediodía (13:00)\">",
-                  "target": [
-                    "#quickSlotMediodia"
                   ]
                 },
                 {
@@ -6737,9 +6112,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span>Mediodía (13:00)</span>",
+          "html": "<span>Vie 23</span>",
           "target": [
-            "#quickSlotMediodia > span:nth-child(2)"
+            "#quickDayPill2 > span:nth-child(2)"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
         },
@@ -7113,7 +6488,7 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "10.5pt (14px)",
+                "fontSize": "9.0pt (12px)",
                 "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
@@ -7254,7 +6629,7 @@
                 {
                   "html": "<button type=\"button\" onclick=\"obtenerUbicacion()\" class=\"ps-chip ps-quick-pill text-sky-300 bg-sky-500/15 border-sky-500/30 hover:bg-sky-500/25 active:scale-95 cursor-pointer\">\n                            <span>📍</span> <span>Usar mi ubicación GPS</span>\n                        </button>",
                   "target": [
-                    ".bg-sky-500\\/15.hover\\:bg-sky-500\\/25[onclick=\"obtenerUbicacion()\"]"
+                    ".hover\\:bg-sky-500\\/25.bg-sky-500\\/15[onclick=\"obtenerUbicacion()\"]"
                   ]
                 },
                 {
@@ -7285,7 +6660,7 @@
           "impact": "serious",
           "html": "<span>Usar mi ubicación GPS</span>",
           "target": [
-            ".bg-sky-500\\/15.hover\\:bg-sky-500\\/25[onclick=\"obtenerUbicacion()\"] > span:nth-child(2)"
+            ".hover\\:bg-sky-500\\/25.bg-sky-500\\/15[onclick=\"obtenerUbicacion()\"] > span:nth-child(2)"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -7595,7 +6970,7 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
+                "fontSize": "7.5pt (10px)",
                 "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
@@ -7645,7 +7020,7 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
+                "fontSize": "7.5pt (10px)",
                 "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
@@ -7689,7 +7064,7 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
+                "fontSize": "7.5pt (10px)",
                 "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
@@ -7733,7 +7108,7 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
+                "fontSize": "7.5pt (10px)",
                 "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
@@ -7777,16 +7152,22 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "10.5pt (14px)",
+                "fontSize": "8.3pt (11px)",
                 "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<button type=\"button\" id=\"btnQuedadaClub\" onclick=\"iniciarCreacionQueda...\" class=\"flex-1 sm:w-auto bg-...\">",
+                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
                   "target": [
-                    "#btnQuedadaClub"
+                    "#mobileBottomNav"
+                  ]
+                },
+                {
+                  "html": "<div class=\"ps-omnibar w-full rounded-2xl p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-0\">",
+                  "target": [
+                    ".ps-omnibar"
                   ]
                 }
               ],
@@ -7797,9 +7178,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<button type=\"button\" id=\"btnQuedadaClub\" onclick=\"iniciarCreacionQueda...\" class=\"flex-1 sm:w-auto bg-...\">",
+          "html": "<span class=\"text-[11px] font-bold leading-none tracking-tight whitespace-nowrap\">Parte</span>",
           "target": [
-            "#btnQuedadaClub"
+            "#btnNavParte > .leading-none.tracking-tight.whitespace-nowrap"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -7810,36 +7191,42 @@
               "data": {
                 "contrastRatio": 0,
                 "fontSize": "8.3pt (11px)",
-                "fontWeight": "bold",
-                "messageKey": "imgNode",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<div id=\"mapLayerSwitcher\" class=\"absolute top-3 right-3 z-[400] flex items-center p-1 bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-700/80 shadow-2xl text-[11px] font-bold\">",
+                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
                   "target": [
-                    "#mapLayerSwitcher"
+                    "#mobileBottomNav"
                   ]
                 },
                 {
-                  "html": "<img crossorigin=\"\" alt=\"\" src=\"https://tiles.openseamap.org/seamark/11/1025/783.png\" class=\"leaflet-tile leaflet-tile-loaded\" style=\"width: 256px; height: 256px; transform: translate3d(307px, -29px, 0px); opacity: 1;\">",
+                  "html": "<select id=\"userLevel\" aria-label=\"Nivel de experiencia...\" class=\"w-full bg-slate-800/...\" data-spots-bound=\"true\">",
                   "target": [
-                    ".leaflet-layer:nth-child(2) > .leaflet-tile-container.leaflet-zoom-animated > .leaflet-tile.leaflet-tile-loaded[crossorigin=\"\"]:nth-child(4)"
+                    "#userLevel"
+                  ]
+                },
+                {
+                  "html": "<div class=\"ps-omnibar w-full rounded-2xl p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-0\">",
+                  "target": [
+                    ".ps-omnibar"
                   ]
                 }
               ],
               "impact": "serious",
-              "message": "Element's background color could not be determined because element contains an image node"
+              "message": "Element's background color could not be determined due to a background gradient"
             }
           ],
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span>Mapa</span>",
+          "html": "<span class=\"text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap\">Ruta Pro</span>",
           "target": [
-            "button[data-map-layer=\"nautico\"] > span:nth-child(2)"
+            "#btnNavPro > .leading-none.tracking-tight.whitespace-nowrap"
           ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because element contains an image node"
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
         {
           "any": [
@@ -7849,35 +7236,41 @@
                 "contrastRatio": 0,
                 "fontSize": "8.3pt (11px)",
                 "fontWeight": "normal",
-                "messageKey": "imgNode",
+                "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<div id=\"mapLayerSwitcher\" class=\"absolute top-3 right-3 z-[400] flex items-center p-1 bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-700/80 shadow-2xl text-[11px] font-bold\">",
+                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
                   "target": [
-                    "#mapLayerSwitcher"
+                    "#mobileBottomNav"
                   ]
                 },
                 {
-                  "html": "<img crossorigin=\"\" alt=\"\" src=\"https://tiles.openseamap.org/seamark/11/1025/783.png\" class=\"leaflet-tile leaflet-tile-loaded\" style=\"width: 256px; height: 256px; transform: translate3d(307px, -29px, 0px); opacity: 1;\">",
+                  "html": "<select id=\"userLevel\" aria-label=\"Nivel de experiencia...\" class=\"w-full bg-slate-800/...\" data-spots-bound=\"true\">",
                   "target": [
-                    ".leaflet-layer:nth-child(2) > .leaflet-tile-container.leaflet-zoom-animated > .leaflet-tile.leaflet-tile-loaded[crossorigin=\"\"]:nth-child(4)"
+                    "#userLevel"
+                  ]
+                },
+                {
+                  "html": "<div class=\"ps-omnibar w-full rounded-2xl p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-0\">",
+                  "target": [
+                    ".ps-omnibar"
                   ]
                 }
               ],
               "impact": "serious",
-              "message": "Element's background color could not be determined because element contains an image node"
+              "message": "Element's background color could not be determined due to a background gradient"
             }
           ],
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span>Satélite</span>",
+          "html": "<span class=\"text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap\">Muro</span>",
           "target": [
-            "button[data-map-layer=\"satelite\"] > span:nth-child(2)"
+            "#btnNavMuro > .leading-none.tracking-tight.whitespace-nowrap"
           ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because element contains an image node"
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
         {
           "any": [
@@ -7887,35 +7280,41 @@
                 "contrastRatio": 0,
                 "fontSize": "8.3pt (11px)",
                 "fontWeight": "normal",
-                "messageKey": "imgNode",
+                "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<div id=\"mapLayerSwitcher\" class=\"absolute top-3 right-3 z-[400] flex items-center p-1 bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-700/80 shadow-2xl text-[11px] font-bold\">",
+                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
                   "target": [
-                    "#mapLayerSwitcher"
+                    "#mobileBottomNav"
                   ]
                 },
                 {
-                  "html": "<img crossorigin=\"\" alt=\"\" src=\"https://tiles.openseamap.org/seamark/11/1026/783.png\" class=\"leaflet-tile leaflet-tile-loaded\" style=\"width: 256px; height: 256px; transform: translate3d(563px, -29px, 0px); opacity: 1;\">",
+                  "html": "<select id=\"userLevel\" aria-label=\"Nivel de experiencia...\" class=\"w-full bg-slate-800/...\" data-spots-bound=\"true\">",
                   "target": [
-                    ".leaflet-layer:nth-child(2) > .leaflet-tile-container.leaflet-zoom-animated > .leaflet-tile.leaflet-tile-loaded[crossorigin=\"\"]:nth-child(10)"
+                    "#userLevel"
+                  ]
+                },
+                {
+                  "html": "<div class=\"ps-omnibar w-full rounded-2xl p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-0\">",
+                  "target": [
+                    ".ps-omnibar"
                   ]
                 }
               ],
               "impact": "serious",
-              "message": "Element's background color could not be determined because element contains an image node"
+              "message": "Element's background color could not be determined due to a background gradient"
             }
           ],
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span>Radar</span>",
+          "html": "<span class=\"text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap\">Clubes</span>",
           "target": [
-            "button[data-map-layer=\"oscuro\"] > span:nth-child(2)"
+            "#btnNavClubes > .leading-none.tracking-tight.whitespace-nowrap"
           ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because element contains an image node"
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
         {
           "any": [
@@ -7923,24 +7322,43 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "10.5pt (14px)",
-                "fontWeight": "bold",
-                "messageKey": "bgOverlap",
+                "fontSize": "8.3pt (11px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
-              "relatedNodes": [],
+              "relatedNodes": [
+                {
+                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
+                  "target": [
+                    "#mobileBottomNav"
+                  ]
+                },
+                {
+                  "html": "<select id=\"userLevel\" aria-label=\"Nivel de experiencia...\" class=\"w-full bg-slate-800/...\" data-spots-bound=\"true\">",
+                  "target": [
+                    "#userLevel"
+                  ]
+                },
+                {
+                  "html": "<div class=\"ps-omnibar w-full rounded-2xl p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-0\">",
+                  "target": [
+                    ".ps-omnibar"
+                  ]
+                }
+              ],
               "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
+              "message": "Element's background color could not be determined due to a background gradient"
             }
           ],
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<h3 class=\"text-white font-black flex items-center gap-2 text-sm uppercase tracking-widest border-b border-slate-700 pb-2\">\n                                🧭 Detalles de Exploración\n                            </h3>",
+          "html": "<span class=\"text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap\">Ranking</span>",
           "target": [
-            "#proPlanificador > .pb-2"
+            "#btnNavRanking > .leading-none.tracking-tight.whitespace-nowrap"
           ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
         {
           "any": [
@@ -7948,99 +7366,37 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "7.5pt (10px)",
-                "fontWeight": "bold",
-                "messageKey": "bgOverlap",
+                "fontSize": "8.3pt (11px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
-              "relatedNodes": [],
+              "relatedNodes": [
+                {
+                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
+                  "target": [
+                    "#mobileBottomNav"
+                  ]
+                },
+                {
+                  "html": "<div class=\"ps-omnibar w-full rounded-2xl p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-0\">",
+                  "target": [
+                    ".ps-omnibar"
+                  ]
+                }
+              ],
               "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
+              "message": "Element's background color could not be determined due to a background gradient"
             }
           ],
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<label class=\"text-[10px] font-bold text-slate-400 uppercase mb-1\">Coordenadas</label>",
+          "html": "<span id=\"navPerfilLabel\" class=\"text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap\">Perfil</span>",
           "target": [
-            ".col-span-2.sm\\:col-span-1.flex-col:nth-child(1) > label"
+            "#navPerfilLabel"
           ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "7.5pt (10px)",
-                "fontWeight": "bold",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<label class=\"text-[10px] font-bold text-slate-400 uppercase mb-1\">Fecha</label>",
-          "target": [
-            ".flex-col.flex:nth-child(2) > label"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "7.5pt (10px)",
-                "fontWeight": "bold",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<label class=\"text-[10px] font-bold text-slate-400 uppercase mb-1\">Hora Salida</label>",
-          "target": [
-            ".flex-col.flex:nth-child(3) > label"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "7.5pt (10px)",
-                "fontWeight": "bold",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<label class=\"text-[10px] font-bold text-slate-400 uppercase mb-1\">Tu Nivel</label>",
-          "target": [
-            ".col-span-2.sm\\:col-span-1.flex-col:nth-child(4) > label"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         }
       ]
     }
@@ -8070,9 +7426,9 @@
             {
               "id": "color-contrast",
               "data": {
-                "fgColor": "#269273",
+                "fgColor": "#269071",
                 "bgColor": "#0f2b35",
-                "contrastRatio": 3.83,
+                "contrastRatio": 3.74,
                 "fontSize": "6.8pt (9px)",
                 "fontWeight": "bold",
                 "messageKey": null,
@@ -8093,7 +7449,7 @@
                 }
               ],
               "impact": "serious",
-              "message": "Element has insufficient color contrast of 3.83 (foreground color: #269273, background color: #0f2b35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
+              "message": "Element has insufficient color contrast of 3.74 (foreground color: #269071, background color: #0f2b35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
             }
           ],
           "all": [],
@@ -8103,7 +7459,7 @@
           "target": [
             ".ml-1"
           ],
-          "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.83 (foreground color: #269273, background color: #0f2b35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
+          "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.74 (foreground color: #269071, background color: #0f2b35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
         },
         {
           "any": [
@@ -8138,142 +7494,54 @@
             "#btnToggleSaveSpotText"
           ],
           "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.07 (foreground color: #d97706, background color: #fffbeb, font size: 9.0pt (12px), font weight: bold). Expected contrast ratio of 4.5:1"
-        },
+        }
+      ]
+    },
+    {
+      "id": "scrollable-region-focusable",
+      "impact": "serious",
+      "tags": [
+        "cat.keyboard",
+        "wcag2a",
+        "wcag211",
+        "wcag213",
+        "TTv5",
+        "TT4.a",
+        "EN-301-549",
+        "EN-9.2.1.1",
+        "EN-9.2.1.3",
+        "RGAAv4",
+        "RGAA-7.3.2"
+      ],
+      "description": "Ensure elements that have scrollable content are accessible by keyboard in Safari",
+      "help": "Scrollable region must have keyboard access",
+      "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/scrollable-region-focusable?application=playwright",
+      "nodes": [
         {
           "any": [
             {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#ffffff",
-                "bgColor": "#14b8a6",
-                "contrastRatio": 2.48,
-                "fontSize": "10.5pt (14px)",
-                "fontWeight": "bold",
-                "messageKey": null,
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<button type=\"button\" id=\"btnTravesia\" onclick=\"toggleModoTravesia()\" class=\"flex-1 sm:w-auto bg-teal-500 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-md hover:bg-teal-400 active:scale-95 transition-colors cursor-pointer\">🗺️ Trazar (A ➔ B)</button>",
-                  "target": [
-                    "#btnTravesia"
-                  ]
-                }
-              ],
+              "id": "focusable-content",
+              "data": null,
+              "relatedNodes": [],
               "impact": "serious",
-              "message": "Element has insufficient color contrast of 2.48 (foreground color: #ffffff, background color: #14b8a6, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+              "message": "Element should have focusable content"
+            },
+            {
+              "id": "focusable-element",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element should be focusable"
             }
           ],
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<button type=\"button\" id=\"btnTravesia\" onclick=\"toggleModoTravesia()\" class=\"flex-1 sm:w-auto bg-teal-500 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-md hover:bg-teal-400 active:scale-95 transition-colors cursor-pointer\">🗺️ Trazar (A ➔ B)</button>",
+          "html": "<div id=\"savedSpotsList\" class=\"ps-scroll-snap flex items-center gap-2 pb-1 pt-0.5\"><span class=\"text-xs text-slate-400 italic px-2 py-1\">Aún no tienes spots guardados. Pulsa ⭐ Guardar Spot tras buscar una playa o tocar el mapa.</span></div>",
           "target": [
-            "#btnTravesia"
+            "#savedSpotsList"
           ],
-          "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.48 (foreground color: #ffffff, background color: #14b8a6, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#ffffff",
-                "bgColor": "#0d9488",
-                "contrastRatio": 3.74,
-                "fontSize": "10.5pt (14px)",
-                "fontWeight": "bold",
-                "messageKey": null,
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<button type=\"button\" id=\"btnRutaLibre\" onclick=\"toggleRutaLibre()\" class=\"flex-1 sm:w-auto bg-teal-600 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-sm hover:bg-teal-500 active:scale-95 transition-colors cursor-pointer\">✍️ Multipunto</button>",
-                  "target": [
-                    "#btnRutaLibre"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Element has insufficient color contrast of 3.74 (foreground color: #ffffff, background color: #0d9488, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<button type=\"button\" id=\"btnRutaLibre\" onclick=\"toggleRutaLibre()\" class=\"flex-1 sm:w-auto bg-teal-600 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-sm hover:bg-teal-500 active:scale-95 transition-colors cursor-pointer\">✍️ Multipunto</button>",
-          "target": [
-            "#btnRutaLibre"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.74 (foreground color: #ffffff, background color: #0d9488, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#ffffff",
-                "bgColor": "#0d9488",
-                "contrastRatio": 3.74,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "bold",
-                "messageKey": null,
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<div id=\"mapMsg\" class=\"text-xs font-bold text-white bg-teal-600 h-10 px-4 rounded-xl border border-teal-500 shadow-md flex items-center justify-center transition-colors\">👆 Toca el mar para Punto Fijo o Traza Ruta Completa</div>",
-                  "target": [
-                    "#mapMsg"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Element has insufficient color contrast of 3.74 (foreground color: #ffffff, background color: #0d9488, font size: 9.0pt (12px), font weight: bold). Expected contrast ratio of 4.5:1"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<div id=\"mapMsg\" class=\"text-xs font-bold text-white bg-teal-600 h-10 px-4 rounded-xl border border-teal-500 shadow-md flex items-center justify-center transition-colors\">👆 Toca el mar para Punto Fijo o Traza Ruta Completa</div>",
-          "target": [
-            "#mapMsg"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.74 (foreground color: #ffffff, background color: #0d9488, font size: 9.0pt (12px), font weight: bold). Expected contrast ratio of 4.5:1"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "fgColor": "#ffffff",
-                "bgColor": "#059669",
-                "contrastRatio": 3.76,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "bold",
-                "messageKey": null,
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<button type=\"button\" onclick=\"consultarRutaPro()\" id=\"btnCalcPro\" class=\"w-full h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all text-xs flex justify-center items-center gap-2 mt-1 cursor-pointer\">",
-                  "target": [
-                    "#btnCalcPro"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Element has insufficient color contrast of 3.76 (foreground color: #ffffff, background color: #059669, font size: 9.0pt (12px), font weight: bold). Expected contrast ratio of 4.5:1"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<button type=\"button\" onclick=\"consultarRutaPro()\" id=\"btnCalcPro\" class=\"w-full h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all text-xs flex justify-center items-center gap-2 mt-1 cursor-pointer\">",
-          "target": [
-            "#btnCalcPro"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.76 (foreground color: #ffffff, background color: #059669, font size: 9.0pt (12px), font weight: bold). Expected contrast ratio of 4.5:1"
+          "failureSummary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable"
         }
       ]
     }
