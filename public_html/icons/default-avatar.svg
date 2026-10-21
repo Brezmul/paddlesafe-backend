@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="psSupBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0f766e" />
+    </linearGradient>
+    <linearGradient id="psBoardGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#2dd4bf" />
+    </linearGradient>
+  </defs>
+  <!-- Disco de fondo deportivo oceánico -->
+  <circle cx="50" cy="50" r="48" fill="url(#psSupBg)" stroke="#38bdf8" stroke-width="2" />
+  
+  <!-- Olas estilizadas -->
+  <path d="M 10 75 Q 30 71 50 75 T 90 75" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 6 83 Q 28 79 50 83 T 94 83" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2.5" stroke-linecap="round"/>
+  
+  <!-- Tabla SUP -->
+  <ellipse cx="50" cy="73" rx="34" ry="4.5" fill="url(#psBoardGrad)" />
+  <ellipse cx="50" cy="73" rx="31" ry="2.5" fill="#ffffff" opacity="0.9" />
+  
+  <!-- Palista de Stand Up Paddle (Silueta anatómica y postura atlética) -->
+  <circle cx="48" cy="27" r="5.5" fill="#ffffff" />
+  <path d="M 46 33 L 52 34 L 53 52 L 44 52 Z" fill="#ffffff" />
+  
+  <!-- Pértiga y pala de remo de SUP -->
+  <path d="M 67 66 C 68 70 66 77 64 79 C 62 77 61 70 62 66 Z" fill="#ffffff" />
+  <line x1="43" y1="24" x2="65" y2="72" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" />
+  
+  <!-- Brazos en acción de remada -->
+  <path d="M 47 33 L 43 25" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" fill="none" />
+  <path d="M 50 37 L 56 46" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" fill="none" />
+  
+  <!-- Piernas en posición de equilibrio sobre la tabla -->
+  <path d="M 46 52 L 45 69 L 41 69" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <path d="M 51 52 L 53 69 L 57 69" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>
+

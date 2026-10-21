@@ -540,9 +540,9 @@ export async function abrirPerfilPublicoSPA(userId) {
         document.getElementById('modalUserName').textContent = user.nombre;
         
         const avatarEl = document.getElementById('spaAvatar');
-        avatarEl.src = user.avatar_url || IMG_FALLBACK || '';
+        avatarEl.src = safeUrl(user.avatar_url, IMG_FALLBACK);
         // Fallback robusto nativo para evitar roturas visuales por CORS
-        avatarEl.onerror = function() { this.onerror=null; this.src=IMG_FALLBACK; };
+        avatarEl.onerror = function() { if (window.handleAvatarError) window.handleAvatarError(this); else { this.onerror=null; this.src=IMG_FALLBACK; } };
         
         const levelEl = document.getElementById('spaUserLevel');
         if (levelEl) levelEl.textContent = `Nivel ${user.nivel || 1}`;
@@ -1105,7 +1105,7 @@ function renderizarRankingUsuarios(ranking, currentUserRank, podioContainer, lis
                 <div role="button" tabindex="0" onclick="navigateSPA('/user/${esc(pd.id)}')" class="flex items-center justify-between p-3 border border-slate-100 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-800/80 hover:shadow-md cursor-pointer w-full mb-1.5 transition-all group">
                     <div class="flex items-center gap-2.5 min-w-0">
                         <span class="w-6 text-[11px] font-black text-slate-400 group-hover:text-water text-center shrink-0">#${pd.rank}</span>
-                        <img src="${avatarEsc}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700 shadow-xs">
+                        <img src="${avatarEsc}" onerror="if(window.handleAvatarError){window.handleAvatarError(this)}else{this.onerror=null;this.src='${IMG_FALLBACK}';}" class="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700 shadow-xs" alt="${nombreEsc}">
                         <div class="min-w-0">
                             <p class="text-xs font-bold truncate text-marine dark:text-white group-hover:text-water transition-colors">${nombreEsc}</p>
                             <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Nivel ${pd.nivel}</span>
@@ -1178,7 +1178,7 @@ function renderizarLigaClubes(clubsRanking, podioContainer, listaContainer, miPo
             <div class="flex items-center justify-between p-3.5 border border-slate-100 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-800/90 hover:shadow-md transition-all gap-3 w-full mb-2 group">
                 <div class="flex items-center gap-3 min-w-0">
                     <span class="w-7 text-xs font-black text-slate-400 group-hover:text-water text-center shrink-0">${medal}</span>
-                    <img src="${logoEsc}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-700 shadow-xs">
+                    <img src="${logoEsc}" onerror="if(window.handleAvatarError){window.handleAvatarError(this)}else{this.onerror=null;this.src='${IMG_FALLBACK}';}" class="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-700 shadow-xs" alt="${esc(c.nombre || 'Club')}">
                     <div class="min-w-0">
                         <p class="text-sm font-black text-marine dark:text-white truncate group-hover:text-water transition-colors">${nombreEsc}</p>
                         <div class="flex items-center gap-2 mt-1 text-[10px] text-slate-500 dark:text-slate-400 font-bold flex-wrap">

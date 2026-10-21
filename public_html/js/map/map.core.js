@@ -302,6 +302,18 @@ export function inicializarMapa() {
     mapRuntime.map = mapInstance;
     if (typeof window !== 'undefined') window.map = mapInstance;
 
+    // Panes especializados para Radar 2.0 y Sandwich Retina Labels
+    if (!mapInstance.getPane('radarCanvasPane')) {
+        const cPane = mapInstance.createPane('radarCanvasPane');
+        cPane.style.zIndex = '450';
+        cPane.style.pointerEvents = 'none';
+    }
+    if (!mapInstance.getPane('radarLabelsPane')) {
+        const lPane = mapInstance.createPane('radarLabelsPane');
+        lPane.style.zIndex = '620';
+        lPane.style.pointerEvents = 'none';
+    }
+
     cambiarCapaBaseMapa(mapRuntime.tipoCapaBase || 'nautico');
 
     if (!mapRuntime.modoTravesiaActivo && !mapRuntime.modoRutaLibreActivo) {
@@ -611,15 +623,36 @@ export function cambiarCapaBaseMapa(tipoCapa = 'nautico') {
         }).addTo(mapInstance);
         mapRuntime.capaBaseTile.bringToBack();
     } else if (estilo === 'oscuro') {
-        const darkUrl = (CARTO_TILE_URLS && CARTO_TILE_URLS.dark_all) ||
-            `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY || 'cb1_4qv5_1_683638fb471571b180e5b9e6'}`;
-        mapRuntime.capaBaseTile = L.tileLayer(darkUrl, {
-            maxZoom: 20,
+        // Base dark sin etiquetas (debajo de partículas y Doppler)
+        const darkNoLabelsUrl = (CARTO_TILE_URLS && CARTO_TILE_URLS.dark_nolabels) ||
+            `https://{s}.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY || 'cb1_4qv5_1_683638fb471571b180e5b9e6'}`;
+        mapRuntime.capaBaseTile = L.tileLayer(darkNoLabelsUrl, {
+            maxZoom: 19,
+            detectRetina: true,
             subdomains: 'abcd',
             crossOrigin: true,
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
         }).addTo(mapInstance);
         mapRuntime.capaBaseTile.bringToBack();
+
+        // Sandwich Retina Labels en radarLabelsPane (zIndex 620): nombres de ciudades y seamarks nítidos
+        const darkOnlyLabelsUrl = (CARTO_TILE_URLS && CARTO_TILE_URLS.dark_only_labels) ||
+            `https://{s}.basemaps.cartocdn.com/rastertiles/dark_only_labels/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY || 'cb1_4qv5_1_683638fb471571b180e5b9e6'}`;
+        const labelsLayer = L.tileLayer(darkOnlyLabelsUrl, {
+            pane: 'radarLabelsPane',
+            maxZoom: 19,
+            detectRetina: true,
+            subdomains: 'abcd',
+            crossOrigin: true
+        });
+        const seaMarkLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+            pane: 'radarLabelsPane',
+            maxZoom: 18,
+            crossOrigin: true,
+            attribution: '&copy; <a href="http://www.openseamap.org">OpenSeaMap</a>'
+        });
+        mapRuntime.capaOverlayTile = L.layerGroup([labelsLayer, seaMarkLayer]).addTo(mapInstance);
+
         if (typeof window !== 'undefined' && typeof window.activarModoRadar === 'function') {
             window.activarModoRadar();
         }
