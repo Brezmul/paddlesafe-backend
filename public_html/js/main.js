@@ -7,7 +7,7 @@ import { IMG_FALLBACK, esc, safeUrl } from './utils.js'; // AÑADIDO: esc y safe
 import * as Auth from './auth.js';
 import * as MapModule from './map.js';
 import * as Social from './social.js';
-import { calcularDatosRankingMulticategoria, PLANTILLAS_RETOS_CLUB, calcularProgresoRetoClub } from './gamification.js';
+import { calcularDatosRankingMulticategoria, PLANTILLAS_RETOS_CLUB, calcularProgresoRetoClub, renderizarPodioTop3Ranking } from './gamification.js';
 
 window.PLANTILLAS_RETOS_CLUB = PLANTILLAS_RETOS_CLUB;
 window.calcularProgresoRetoClub = calcularProgresoRetoClub;
@@ -210,6 +210,11 @@ async function inicializarAplicacion() {
                 togglePanelPro();
             });
         }
+    }
+
+    // UI 5.0: En pantallas de escritorio (Cockpit split-screen), inicializar mapa interactivo automáticamente
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+        togglePanelPro(true);
     }
 
     const hoy = new Date();
@@ -1051,62 +1056,10 @@ function renderizarRankingUsuarios(ranking, currentUserRank, podioContainer, lis
     });
 
     if (podioContainer) {
-        podioContainer.innerHTML = `
-            <div class="grid grid-cols-3 gap-2 items-end pt-3 pb-1 w-full max-w-sm mx-auto">
-                <!-- 2º Puesto (Plata) -->
-                <div class="flex flex-col items-center">
-                    ${p2 ? `
-                        <div role="button" tabindex="0" onclick="navigateSPA('/user/${esc(p2.id)}')" class="cursor-pointer group flex flex-col items-center w-full">
-                            <div class="relative mb-1">
-                                <img src="${esc(safeUrl(p2.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-300 dark:border-slate-500 shadow-md group-hover:scale-105 transition-transform">
-                                <span class="absolute -bottom-1 -right-1 text-sm">🥈</span>
-                            </div>
-                            <p class="text-[11px] font-black text-slate-800 dark:text-white truncate max-w-[85px] text-center">${esc(p2.nombre)}</p>
-                            <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate max-w-[85px]">Nivel ${p2.nivel}</span>
-                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-xs mb-1">${esc(p2.metricLabel)}</span>
-                        </div>
-                        <div class="w-full h-14 bg-gradient-to-t from-slate-300 to-slate-200 dark:from-slate-700 dark:to-slate-600 rounded-t-xl flex items-center justify-center font-black text-slate-600 dark:text-slate-300 text-xs shadow-inner">2º</div>
-                    ` : `
-                        <div class="w-full h-10 opacity-30 bg-slate-200 dark:bg-slate-700 rounded-t-xl flex items-center justify-center text-[10px] font-bold text-slate-400">--</div>
-                    `}
-                </div>
-
-                <!-- 1er Puesto (Oro) -->
-                <div class="flex flex-col items-center">
-                    ${p1 ? `
-                        <div role="button" tabindex="0" onclick="navigateSPA('/user/${esc(p1.id)}')" class="cursor-pointer group flex flex-col items-center w-full">
-                            <div class="relative mb-1">
-                                <span class="text-base absolute -top-4 left-1/2 -translate-x-1/2 animate-bounce">👑</span>
-                                <img src="${esc(safeUrl(p1.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-16 h-16 rounded-full object-cover border-3 border-amber-400 dark:border-amber-300 shadow-lg group-hover:scale-105 transition-transform ring-4 ring-amber-400/20">
-                                <span class="absolute -bottom-1 -right-1 text-base">🥇</span>
-                            </div>
-                            <p class="text-xs font-black text-marine dark:text-white truncate max-w-[95px] text-center">${esc(p1.nombre)}</p>
-                            <span class="text-[9px] font-bold text-amber-500 uppercase tracking-widest mb-1 truncate max-w-[95px]">${esc(p1.titulo || `Nivel ${p1.nivel}`)}</span>
-                            <span class="px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-gradient-to-r from-amber-500 to-orange-400 text-white shadow-sm mb-1">${esc(p1.metricLabel)}</span>
-                        </div>
-                        <div class="w-full h-20 bg-gradient-to-t from-amber-400 to-amber-300 dark:from-amber-600 dark:to-amber-500 rounded-t-xl flex items-center justify-center font-black text-white text-sm shadow-md">1º</div>
-                    ` : ''}
-                </div>
-
-                <!-- 3er Puesto (Bronce) -->
-                <div class="flex flex-col items-center">
-                    ${p3 ? `
-                        <div role="button" tabindex="0" onclick="navigateSPA('/user/${esc(p3.id)}')" class="cursor-pointer group flex flex-col items-center w-full">
-                            <div class="relative mb-1">
-                                <img src="${esc(safeUrl(p3.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-amber-600/70 shadow-md group-hover:scale-105 transition-transform">
-                                <span class="absolute -bottom-1 -right-1 text-sm">🥉</span>
-                            </div>
-                            <p class="text-[11px] font-black text-slate-800 dark:text-white truncate max-w-[85px] text-center">${esc(p3.nombre)}</p>
-                            <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate max-w-[85px]">Nivel ${p3.nivel}</span>
-                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 shadow-xs mb-1">${esc(p3.metricLabel)}</span>
-                        </div>
-                        <div class="w-full h-10 bg-gradient-to-t from-amber-600 to-amber-500 dark:from-amber-800 dark:to-amber-700 rounded-t-xl flex items-center justify-center font-black text-white text-xs shadow-inner">3º</div>
-                    ` : `
-                        <div class="w-full h-10 opacity-30 bg-slate-200 dark:bg-slate-700 rounded-t-xl flex items-center justify-center text-[10px] font-bold text-slate-400">--</div>
-                    `}
-                </div>
-            </div>
-        `;
+        const podioFn = window.renderizarPodioTop3Ranking || renderizarPodioTop3Ranking;
+        if (typeof podioFn === 'function') {
+            podioContainer.innerHTML = podioFn(ranking);
+        }
     }
 
     // Leaderboard desde la posición 4

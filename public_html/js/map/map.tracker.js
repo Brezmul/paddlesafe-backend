@@ -1,3 +1,98 @@
+
+/**
+ * Calcula la zona de ritmo y eficiencia biomecánica en tiempo real (Batch #21)
+ * @param {number} velActualKmh - Velocidad instantánea en km/h
+ * @param {number} velCruceroEquipoKmh - Velocidad de crucero teórica según tabla/embarcación
+ * @returns {Object} Zona, etiqueta, color, porcentaje y clases Tailwind
+ */
+export function calcularZonaRitmoLive(velActualKmh = 0, velCruceroEquipoKmh = 4.5) {
+    const vel = Number(velActualKmh) || 0;
+    const crucero = Number(velCruceroEquipoKmh) > 0 ? Number(velCruceroEquipoKmh) : 4.5;
+    const ratio = crucero > 0 ? (vel / crucero) : 0;
+    const porcentaje = Math.min(150, Math.round(ratio * 100));
+
+    if (vel < 0.8) {
+        return {
+            zona: 'parado',
+            etiqueta: '⏸️ Parado',
+            color: '#94a3b8',
+            bgClass: 'bg-slate-700/70 border-slate-600',
+            textClass: 'text-slate-300',
+            porcentaje: 0,
+            vel,
+            crucero
+        };
+    }
+    if (vel < crucero * 0.85) {
+        return {
+            zona: 'suave',
+            etiqueta: '🌊 Deriva / Ritmo Suave',
+            color: '#38bdf8',
+            bgClass: 'bg-sky-500/20 border-sky-500/50',
+            textClass: 'text-sky-300',
+            porcentaje,
+            vel,
+            crucero
+        };
+    }
+    if (vel <= crucero * 1.25) {
+        return {
+            zona: 'optimo',
+            etiqueta: '🟢 Crucero Óptimo',
+            color: '#10b981',
+            bgClass: 'bg-emerald-500/20 border-emerald-500/50',
+            textClass: 'text-emerald-400',
+            porcentaje,
+            vel,
+            crucero
+        };
+    }
+    return {
+        zona: 'sprint',
+        etiqueta: '🔥 Sprint / Competición',
+        color: '#f59e0b',
+        bgClass: 'bg-amber-500/20 border-amber-500/50',
+        textClass: 'text-amber-400',
+        porcentaje,
+        vel,
+        crucero
+    };
+}
+
+/**
+ * Renderiza gráfico SVG Sparkline de splits por kilómetro (Batch #21)
+ * @param {Array} splits - Lista de splits grabados
+ * @returns {string} Markup SVG inline
+ */
+export function renderLiveSplitsSparkline(splits = []) {
+    if (!splits || splits.length === 0) {
+        return `<div class="text-center py-1.5 text-[10px] text-slate-400 font-mono">Completando 1er kilómetro...</div>`;
+    }
+    const maxVel = Math.max(6, ...splits.map(s => Number(s.velMediaKmh) || 0));
+    const barWidth = Math.max(16, Math.floor(180 / Math.max(splits.length, 1)));
+    const totalW = Math.max(220, splits.length * (barWidth + 6) + 20);
+    
+    let barsSvg = '';
+    splits.forEach((s, idx) => {
+        const x = 10 + idx * (barWidth + 6);
+        const vel = Number(s.velMediaKmh) || 0;
+        const barH = Math.min(20, Math.max(4, Math.round((vel / maxVel) * 20)));
+        const y = 22 - barH;
+        const color = vel >= 5.0 ? '#10b981' : (vel >= 3.5 ? '#38bdf8' : '#94a3b8');
+        barsSvg += `
+            <g class="cursor-pointer" title="Km ${s.km}: ${s.velMediaKmh} km/h (${s.ritmoMinKm} min/km)">
+                <rect x="${x}" y="${y}" width="${barWidth}" height="${barH}" rx="2" fill="${color}" opacity="0.9" />
+                <text x="${x + barWidth / 2}" y="30" text-anchor="middle" font-size="7" fill="#94a3b8" font-family="monospace">${s.km}k</text>
+            </g>
+        `;
+    });
+
+    return `<svg viewBox="0 0 ${totalW} 32" class="w-full h-8 overflow-visible" preserveAspectRatio="none">
+        <line x1="0" y1="22" x2="${totalW}" y2="22" stroke="#334155" stroke-width="1" />
+        ${barsSvg}
+    </svg>`;
+}
+
 // ==============================================================================
 // PADDLESAFE NEXT-GEN - MAP GPS TRACKER & TELEMETRY MODULE (map.tracker.js)
 // Strangler Fig Pattern: Extracted from map.js to modularize real-time GPS tracking,
@@ -287,50 +382,63 @@ export function toggleModoSolTracker() {
         const styleEl = document.createElement('style');
         styleEl.id = 'paddlesafe-modo-sol-style';
         styleEl.textContent = `
-            #liveTrackingPanel.modo-sol-activo {
-                background-color: #ffffff !important;
-                color: #020617 !important;
-                border: 3px solid #000000 !important;
-                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7) !important;
+            #liveTrackingPanel.modo-sol-activo,
+            .modo-sol-activo {
+                background-color: #000000 !important;
+                color: #ffffff !important;
+                border: 2px solid #38bdf8 !important;
+                box-shadow: 0 0 0 3px #000000, 0 10px 30px rgba(0, 0, 0, 0.95) !important;
             }
             #liveTrackingPanel.modo-sol-activo .live-hud-card,
-            #liveTrackingPanel.modo-sol-activo .live-hud-return {
-                background-color: #f8fafc !important;
-                border: 2px solid #0f172a !important;
-                color: #020617 !important;
+            #liveTrackingPanel.modo-sol-activo .live-hud-return,
+            #liveTrackingPanel.modo-sol-activo .live-hud-splits,
+            #liveTrackingPanel.modo-sol-activo #livePaceZoneBar {
+                background-color: #000000 !important;
+                border: 2px solid #ffffff !important;
+                color: #ffffff !important;
             }
             #liveTrackingPanel.modo-sol-activo .live-hud-label,
-            #liveTrackingPanel.modo-sol-activo .live-hud-status,
-            #liveTrackingPanel.modo-sol-activo span,
-            #liveTrackingPanel.modo-sol-activo p {
-                color: #020617 !important;
+            #liveTrackingPanel.modo-sol-activo .live-hud-status {
+                color: #38bdf8 !important;
                 font-weight: 900 !important;
             }
-            #liveTrackingPanel.modo-sol-activo #liveTime {
-                color: #047857 !important;
+            #liveTrackingPanel.modo-sol-activo #liveTime,
+            #liveTrackingPanel.modo-sol-activo #trackerTime {
+                color: #38bdf8 !important;
                 font-weight: 900 !important;
+                text-shadow: 0 0 8px rgba(56, 189, 248, 0.6) !important;
+            }
+            #liveTrackingPanel.modo-sol-activo #liveSpeed,
+            #liveTrackingPanel.modo-sol-activo #trackerSpeed {
+                color: #00ffff !important;
+                font-weight: 900 !important;
+                text-shadow: 0 0 10px rgba(0, 255, 255, 0.7) !important;
             }
             #liveTrackingPanel.modo-sol-activo #liveDist,
-            #liveTrackingPanel.modo-sol-activo #liveSpeed,
+            #liveTrackingPanel.modo-sol-activo #trackerDist {
+                color: #ffffff !important;
+                font-weight: 900 !important;
+            }
             #liveTrackingPanel.modo-sol-activo #liveReturnDist,
-            #liveTrackingPanel.modo-sol-activo #liveReturnBearing {
-                color: #000000 !important;
+            #liveTrackingPanel.modo-sol-activo #liveReturnBearing,
+            #liveTrackingPanel.modo-sol-activo #liveRtlHud {
+                color: #00ffff !important;
                 font-weight: 900 !important;
             }
             #liveTrackingPanel.modo-sol-activo #liveReturnEta {
-                color: #047857 !important;
+                color: #34d399 !important;
                 font-weight: 900 !important;
             }
             #liveTrackingPanel.modo-sol-activo .live-btn-tool {
                 background-color: #000000 !important;
                 color: #ffffff !important;
-                border: 1px solid #000000 !important;
+                border: 2px solid #ffffff !important;
                 font-weight: 900 !important;
             }
             #liveTrackingPanel.modo-sol-activo .live-btn-finish {
                 background-color: #dc2626 !important;
                 color: #ffffff !important;
-                border: 2px solid #7f1d1d !important;
+                border: 2px solid #ffffff !important;
                 font-weight: 900 !important;
             }
         `;
@@ -414,6 +522,8 @@ export function actualizarRetornoSalidaLive(latActual, lonActual) {
     if (elDist) elDist.textContent = `${distKm.toFixed(2)} km`;
     const elBearing = document.getElementById('liveReturnBearing');
     if (elBearing) elBearing.textContent = `🧭 ${rumboVuelta}° (${cardinalVuelta})`;
+    const elRtl = document.getElementById('liveRtlHud');
+    if (elRtl) elRtl.textContent = `${rumboVuelta}° ${cardinalVuelta}`;
     const elEta = document.getElementById('liveReturnEta');
     if (elEta) elEta.textContent = `ETA: ${tiempoVueltaMin} min`;
     const elWind = document.getElementById('liveReturnWind');
@@ -739,22 +849,40 @@ export async function iniciarTravesia() {
     const p = document.getElementById('liveTrackingPanel');
     if (p) {
         p.innerHTML = `
-            <div class="flex justify-between items-center mb-2 w-full">
+            <div class="flex justify-between items-center mb-2.5 w-full">
                 <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] font-bold text-red-400 animate-pulse uppercase tracking-widest live-hud-status">🔴 Grabando GPS</span>
-                    <button type="button" onclick="window.toggleModoSolTracker()" title="Modo Alto Contraste Solar" class="px-2 py-0.5 text-[10px] font-black rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 active:scale-95 cursor-pointer live-btn-tool">☀️ Sol</button>
-                    <button type="button" onclick="window.compartirPosicionActualLive()" title="Compartir posición de emergencia" class="px-2 py-0.5 text-[10px] font-black rounded-lg bg-rose-900/60 hover:bg-rose-800 text-rose-300 border border-rose-700/60 active:scale-95 cursor-pointer live-btn-tool">🆘 Posición</button>
+                    <span class="text-[10px] font-black text-rose-500 animate-pulse uppercase tracking-widest live-hud-status flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-rose-500 inline-block animate-ping"></span>
+                        🔴 REC GPS
+                    </span>
+                    <button type="button" onclick="window.toggleModoSolTracker()" title="Modo Alto Contraste Solar" class="px-2.5 py-1 text-[10px] font-black rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 active:scale-95 cursor-pointer live-btn-tool">☀️ Sol</button>
+                    <button type="button" onclick="window.compartirPosicionActualLive()" title="Compartir posición de emergencia" class="px-2.5 py-1 text-[10px] font-black rounded-lg bg-rose-900/60 hover:bg-rose-800 text-rose-300 border border-rose-700/60 active:scale-95 cursor-pointer live-btn-tool">🆘 Posición</button>
                 </div>
-                <span id="liveTime" class="font-mono text-2xl font-black text-emerald-400 live-hud-time">00:00</span>
+                <div class="text-right">
+                    <p class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Tiempo</p>
+                    <span id="liveTime" class="font-mono text-2xl sm:text-3xl font-black text-emerald-400 ps-tabular tracking-tight live-hud-time">00:00:00</span>
+                    <span id="trackerTime" class="hidden">00:00:00</span>
+                </div>
             </div>
             <div class="grid grid-cols-2 gap-2 text-center mb-2 w-full">
-                <div class="bg-slate-800 rounded-xl py-2 live-hud-card">
-                    <p class="text-[9px] text-slate-400 uppercase tracking-widest live-hud-label">DISTANCIA</p>
-                    <p id="liveDist" class="font-black text-lg text-white live-hud-val">0.00 km</p>
+                <div class="bg-slate-800/90 rounded-xl p-2.5 border border-slate-700/60 live-hud-card">
+                    <p class="text-[9px] text-slate-400 uppercase tracking-widest font-bold live-hud-label">VELOCIDAD</p>
+                    <p id="liveSpeed" class="font-black text-2xl sm:text-3xl text-cyan-400 font-mono ps-tabular live-hud-val">0.0 <span class="text-xs text-slate-400 font-sans font-normal">km/h</span></p>
+                    <span id="trackerSpeed" class="hidden">0.0</span>
                 </div>
-                <div class="bg-slate-800 rounded-xl py-2 live-hud-card">
-                    <p class="text-[9px] text-slate-400 uppercase tracking-widest live-hud-label">VELOCIDAD</p>
-                    <p id="liveSpeed" class="font-black text-lg text-white live-hud-val">0.0 km/h</p>
+                <div class="bg-slate-800/90 rounded-xl p-2.5 border border-slate-700/60 live-hud-card">
+                    <p class="text-[9px] text-slate-400 uppercase tracking-widest font-bold live-hud-label">DISTANCIA</p>
+                    <p id="liveDist" class="font-black text-2xl sm:text-3xl text-white font-mono ps-tabular live-hud-val">0.00 <span class="text-xs text-slate-400 font-sans font-normal">km</span></p>
+                    <span id="trackerDist" class="hidden">0.00</span>
+                </div>
+            </div>
+            <div id="livePaceZoneBar" class="w-full bg-slate-800/80 rounded-xl p-2.5 border border-slate-700/60 mb-2 transition-all">
+                <div class="flex items-center justify-between text-[11px] font-bold mb-1.5">
+                    <span class="text-slate-400">Eficiencia / Ritmo:</span>
+                    <span id="livePaceZoneBadge" class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-700/70 text-slate-300">⏸️ Parado</span>
+                </div>
+                <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-700/70">
+                    <div id="livePaceZoneProgress" class="h-full bg-slate-500 rounded-full transition-all duration-500" style="width: 0%"></div>
                 </div>
             </div>
             <div id="liveReturnInfo" class="bg-slate-800/90 rounded-xl p-2.5 mb-2 border border-slate-700/60 w-full text-center text-xs live-hud-return">
@@ -762,20 +890,30 @@ export async function iniciarTravesia() {
                     <span class="font-bold flex items-center gap-1">🧭 Retorno a Salida:</span>
                     <div class="flex items-center gap-1.5">
                         <span id="liveSunsetCountdown" class="hidden font-mono text-orange-400 font-bold animate-pulse text-[10px]">🌇 Luz: -- min</span>
-                        <span id="liveReturnDist" class="font-mono font-bold text-white">0.00 km</span>
+                        <span id="liveReturnDist" class="font-mono font-black text-white ps-tabular">0.00 km</span>
                     </div>
                 </div>
                 <div class="flex justify-between items-center text-[10px] gap-1">
                     <span id="liveReturnBearing" class="font-mono text-amber-300">Rumbo: --° (--)</span>
-                    <span id="liveReturnEta" class="font-mono text-emerald-400">ETA: -- min</span>
+                    <span id="liveRtlHud" class="font-mono font-black text-cyan-300 ps-tabular">--° --</span>
+                    <span id="liveReturnEta" class="font-mono text-emerald-400 ps-tabular">ETA: -- min</span>
                     <span id="liveReturnWind" class="font-bold text-[9px] px-1.5 py-0.5 rounded bg-slate-900">💨 --</span>
+                </div>
+            </div>
+            <div class="bg-slate-800/80 rounded-xl p-2 border border-slate-700/60 mb-2 live-hud-splits">
+                <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold mb-1">
+                    <span>📊 Splits por Kilómetro</span>
+                    <span id="liveSplitsCount" class="text-sky-400 font-mono">0 km</span>
+                </div>
+                <div id="liveSplitsSparkline" class="w-full overflow-x-auto">
+                    ${renderLiveSplitsSparkline(mapRuntime.splitsKm)}
                 </div>
             </div>
             <div id="liveSafetyCheckinBar" class="bg-slate-900/90 rounded-xl p-2.5 mb-2.5 border border-slate-700/80 w-full text-xs transition-colors">
                 <div class="flex justify-between items-center mb-1.5">
                     <div class="flex items-center gap-1.5 font-bold text-[11px] text-slate-200">
                         <span class="text-amber-400">⏱️ Check-in:</span>
-                        <span id="liveEtaCountdown" class="font-mono text-emerald-400 font-black">--:--</span>
+                        <span id="liveEtaCountdown" class="font-mono text-emerald-400 font-black ps-tabular">--:--</span>
                     </div>
                     <div class="flex items-center gap-1">
                         <select id="selectCheckinDuracion" onchange="window.actualizarDuracionCheckin(this.value)" class="bg-slate-800 text-[10px] text-slate-200 border border-slate-700 rounded px-1 py-0.5 font-bold cursor-pointer">
@@ -799,8 +937,7 @@ export async function iniciarTravesia() {
                     </button>
                 </div>
             </div>
-            <button type="button" onclick="window.finalizarTravesia()" class="w-full h-11 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl active:scale-95 text-[11px] uppercase tracking-widest transition-transform cursor-pointer shadow-lg live-btn-finish">⏹ Finalizar Travesía</button>
-        `;
+            <button type="button" onclick="window.finalizarTravesia()" class="w-full h-11 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl active:scale-95 text-[11px] uppercase tracking-widest transition-transform cursor-pointer shadow-lg live-btn-finish">⏹ Finalizar Travesía</button>`;
         p.classList.remove('hidden');
     }
     document.getElementById('btnIniciarLive')?.classList.add('hidden');
@@ -818,12 +955,12 @@ export async function iniciarTravesia() {
         const mins = Math.floor((s % 3600) / 60);
         const secs = s % 60;
 
-        const timeStr = hrs > 0 
-            ? `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-            : `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        const timeStr = `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
         const liveTimeEl = document.getElementById('liveTime');
         if (liveTimeEl) liveTimeEl.textContent = timeStr;
+        const trackerTimeEl = document.getElementById('trackerTime');
+        if (trackerTimeEl) trackerTimeEl.textContent = timeStr;
 
         verificarAlertaCheckin();
     }, 1000);
@@ -863,9 +1000,28 @@ export async function iniciarTravesia() {
             mapRuntime.trackDistanceKm += (mDist / 1000);
             const liveDistEl = document.getElementById('liveDist');
             if (liveDistEl) liveDistEl.textContent = `${mapRuntime.trackDistanceKm.toFixed(2)} km`;
+            const trackerDistEl = document.getElementById('trackerDist');
+            if (trackerDistEl) trackerDistEl.textContent = `${mapRuntime.trackDistanceKm.toFixed(2)} km`;
 
             const uiSpeed = document.getElementById('liveSpeed');
             if (uiSpeed) uiSpeed.textContent = `${speedKmh.toFixed(1)} km/h`;
+            const trackerSpeedEl = document.getElementById('trackerSpeed');
+            if (trackerSpeedEl) trackerSpeedEl.textContent = `${speedKmh.toFixed(1)} km/h`;
+
+            const velCruceroUsr = (typeof window !== 'undefined' && typeof window.obtenerVelocidadCruceroUsuario === 'function')
+                ? window.obtenerVelocidadCruceroUsuario()
+                : 4.5;
+            const paceData = calcularZonaRitmoLive(speedKmh, velCruceroUsr);
+            const paceBadge = document.getElementById('livePaceZoneBadge');
+            if (paceBadge) {
+                paceBadge.textContent = paceData.etiqueta;
+                paceBadge.className = `px-2 py-0.5 rounded text-[10px] font-black border transition-all ${paceData.bgClass} ${paceData.textClass}`;
+            }
+            const paceProgress = document.getElementById('livePaceZoneProgress');
+            if (paceProgress) {
+                paceProgress.style.width = `${Math.min(100, paceData.porcentaje)}%`;
+                paceProgress.style.backgroundColor = paceData.color;
+            }
 
             const splitKmEsperado = mapRuntime.splitsKm.length + 1;
             if (mapRuntime.trackDistanceKm >= splitKmEsperado) {
@@ -881,6 +1037,11 @@ export async function iniciarTravesia() {
                     velMediaKmh,
                     timestamp: currentTimestamp
                 });
+
+                const sparkEl = document.getElementById('liveSplitsSparkline');
+                if (sparkEl) sparkEl.innerHTML = renderLiveSplitsSparkline(mapRuntime.splitsKm);
+                const splitsCnt = document.getElementById('liveSplitsCount');
+                if (splitsCnt) splitsCnt.textContent = `${mapRuntime.splitsKm.length} km`;
             }
         }
 

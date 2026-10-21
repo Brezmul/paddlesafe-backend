@@ -26,9 +26,12 @@ import {
     solicitarPronosticoOpenMeteo,
     obtenerMotorExperto,
     renderizarAvisoSuperior,
-    extraerDatosHoraPronostico
+    extraerDatosHoraPronostico,
+    escanearMejoresVentanas72h
 } from './map.weather.js';
 import { solicitarCoachIABasico } from './map.coach.js';
+import { recuperarEquipoUsuario, actualizarTipoTablaDesdeSelect } from './map.core.js';
+import { renderizarMejoresVentanas72h } from './map.bento.js';
 
 // ==============================================================================
 // RUNTIME STATE & LIVE BINDING SYNCHRONIZATION
@@ -428,6 +431,16 @@ export async function cargarSpotsGuardadosUsuario() {
     syncStateToRuntime();
     renderizarBarraSpotsGuardados();
     actualizarEstadoBotonGuardarSpot();
+
+    // Auto-apertura única del Asistente de Configuración si el usuario no tiene spots y no lo ha descartado
+    if (spots.length === 0 && typeof window !== 'undefined' && !localStorage.getItem('ps_quick_setup_dismissed')) {
+        setTimeout(() => {
+            if (spotsGuardadosMemoria.length === 0 && !localStorage.getItem('ps_quick_setup_dismissed')) {
+                abrirAsistenteConfiguracion();
+            }
+        }, 1200);
+    }
+
     return spots;
 }
 
@@ -640,6 +653,169 @@ export async function eliminarSpotGuardado(spotIdOrName) {
     syncStateToRuntime();
     renderizarBarraSpotsGuardados();
     actualizarEstadoBotonGuardarSpot();
+}
+
+// ==============================================================================
+// 2.1 PRESETS COSTEROS Y ASISTENTE DE CONFIGURACIÓN RÁPIDA (BATCH #19)
+// ==============================================================================
+
+export const PACKS_SPOTS_COSTEROS = {
+    costa_blanca_norte: {
+        id: 'costa_blanca_norte',
+        nombre: '🌊 Marina Alta (Dénia · Jávea · Moraira)',
+        descripcion: 'Calas protegidas, aguas cristalinas y acantilados de la Costa Blanca Norte.',
+        spots: [
+            { nombre: 'Cala Blanca (Jávea)', lat: 38.7681, lon: 0.2078, seaward_deg: 85 },
+            { nombre: 'Cala Granadella (Jávea)', lat: 38.7294, lon: 0.1983, seaward_deg: 125 },
+            { nombre: 'Cala del Portitxol (Jávea)', lat: 38.7562, lon: 0.2289, seaward_deg: 90 },
+            { nombre: 'Les Rotes (Dénia)', lat: 38.8242, lon: 0.1472, seaward_deg: 60 },
+            { nombre: 'El Portet (Moraira)', lat: 38.6881, lon: 0.1389, seaward_deg: 160 }
+        ]
+    },
+    alicante_campello: {
+        id: 'alicante_campello',
+        nombre: '☀️ Alicante · Campello · Tabarca',
+        descripcion: 'Playas abiertas, fondos rocosos y travesía insular de referencia.',
+        spots: [
+            { nombre: 'Coveta Fumà (El Campello)', lat: 38.4411, lon: -0.3603, seaward_deg: 110 },
+            { nombre: 'Baños de la Reina (El Campello)', lat: 38.4286, lon: -0.3831, seaward_deg: 120 },
+            { nombre: 'Cabo de las Huertas (Alicante)', lat: 38.3569, lon: -0.2167, seaward_deg: 105 },
+            { nombre: 'Isla de Tabarca', lat: 38.1656, lon: -0.4736, seaward_deg: 180 }
+        ]
+    },
+    valencia_gandia: {
+        id: 'valencia_gandia',
+        nombre: '🏖️ Valencia · Cullera · Gandía',
+        descripcion: 'Arenales dorados, brisas térmicas y abrigo del cabo de Cullera.',
+        spots: [
+            { nombre: 'Les Deveses (Oliva/Dénia)', lat: 38.8872, lon: 0.0167, seaward_deg: 65 },
+            { nombre: 'Puerto de Gandía', lat: 38.9972, lon: -0.1556, seaward_deg: 90 },
+            { nombre: 'Faro de Cullera', lat: 39.1867, lon: -0.2189, seaward_deg: 80 },
+            { nombre: 'Malvarrosa (Valencia)', lat: 39.4792, lon: -0.3242, seaward_deg: 85 }
+        ]
+    },
+    baleares_brava: {
+        id: 'baleares_brava',
+        nombre: '🏝️ Baleares & Costa Brava',
+        descripcion: 'Aguas turquesas y calas espectaculares del Mediterráneo.',
+        spots: [
+            { nombre: 'Cap de Formentor (Mallorca)', lat: 39.9272, lon: 3.1367, seaward_deg: 350 },
+            { nombre: 'Cala Galdana (Menorca)', lat: 39.9378, lon: 3.9611, seaward_deg: 200 },
+            { nombre: 'Aiguablava (Begur, Costa Brava)', lat: 41.9356, lon: 3.2189, seaward_deg: 100 }
+        ]
+    }
+};
+
+/**
+ * Carga un pack costero preconfigurado en los spots favoritos del usuario en 1 tap.
+ * @param {string} packId Identificador del pack en PACKS_SPOTS_COSTEROS
+ * @returns {Promise<Array>} Lista actualizada de spots guardados
+ */
+export async function cargarPackSpotsCostero(packId) {
+    const pack = PACKS_SPOTS_COSTEROS[packId];
+    if (!pack || !Array.isArray(pack.spots)) return spotsGuardadosMemoria;
+
+    const user = appState?.sesionActual?.user;
+    const userId = user?.id || null;
+    const storageKey = userId ? `ps_spots_${userId}` : 'ps_guest_spots';
+
+    for (const spotInfo of pack.spots) {
+        const yaExiste = spotsGuardadosMemoria.some(s =>
+            (s.nombre && s.nombre.toLowerCase() === spotInfo.nombre.toLowerCase()) ||
+            (Math.abs(s.lat - spotInfo.lat) < 0.003 && Math.abs(s.lon - spotInfo.lon) < 0.003)
+        );
+        if (!yaExiste) {
+            const nuevoSpot = {
+                id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('spot_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7)),
+                user_id: userId,
+                nombre: spotInfo.nombre,
+                lat: Number(spotInfo.lat.toFixed(6)),
+                lon: Number(spotInfo.lon.toFixed(6)),
+                seaward_deg: spotInfo.seaward_deg ?? null,
+                orden: spotsGuardadosMemoria.length,
+                created_at: new Date().toISOString()
+            };
+            spotsGuardadosMemoria.push(nuevoSpot);
+
+            if (userId && supabaseClient) {
+                try {
+                    await supabaseClient.from('user_spots').insert([{
+                        user_id: userId,
+                        nombre: nuevoSpot.nombre,
+                        lat: nuevoSpot.lat,
+                        lon: nuevoSpot.lon,
+                        seaward_deg: nuevoSpot.seaward_deg,
+                        orden: nuevoSpot.orden
+                    }]);
+                } catch (e) {
+                    console.warn('Aviso guardando spot del pack en Supabase:', e);
+                }
+            }
+        }
+    }
+
+    syncStateToRuntime();
+    try {
+        localStorage.setItem(storageKey, JSON.stringify(spotsGuardadosMemoria));
+    } catch (e) {
+        console.warn('No se pudo guardar spots en localStorage:', e);
+    }
+
+    renderizarBarraSpotsGuardados();
+    actualizarEstadoBotonGuardarSpot();
+
+    // Si no había spot activo y estamos en navegador con DOM activo, activamos el primer spot
+    if (!spotActivoActual && pack.spots.length > 0 && typeof document !== 'undefined' && document.getElementById('location')) {
+        const primerSpot = spotsGuardadosMemoria.find(s => s.nombre === pack.spots[0].nombre) || spotsGuardadosMemoria[0];
+        if (primerSpot) {
+            void seleccionarSpotGuardadoPorId(primerSpot.id || primerSpot.nombre);
+        }
+    }
+
+    return spotsGuardadosMemoria;
+}
+
+export function abrirAsistenteConfiguracion() {
+    const modal = document.getElementById('quickSetupModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    const eq = (typeof recuperarEquipoUsuario === 'function') ? recuperarEquipoUsuario() : null;
+    const tipo = eq?.tipoTabla || 'rigid_touring';
+    seleccionarTablaAsistente(tipo);
+}
+
+export function cerrarAsistenteConfiguracion(dismissForever = false) {
+    const modal = document.getElementById('quickSetupModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+    if (dismissForever) {
+        try { localStorage.setItem('ps_quick_setup_dismissed', '1'); } catch (_) {}
+    }
+}
+
+export function seleccionarTablaAsistente(tipo) {
+    if (typeof actualizarTipoTablaDesdeSelect === 'function') {
+        actualizarTipoTablaDesdeSelect(tipo);
+    }
+    const btns = document.querySelectorAll('.quick-board-btn');
+    btns.forEach(b => {
+        const board = b.getAttribute('data-board');
+        if (board === tipo || (tipo === 'inflat_touring' && board === 'rigid_touring')) {
+            b.classList.add('border-emerald-500', 'ring-2', 'ring-emerald-400', 'bg-emerald-950/60');
+            b.classList.remove('border-slate-700', 'bg-slate-800/80');
+        } else {
+            b.classList.remove('border-emerald-500', 'ring-2', 'ring-emerald-400', 'bg-emerald-950/60');
+            b.classList.add('border-slate-700', 'bg-slate-800/80');
+        }
+    });
+}
+
+export async function cargarPackYFinalizarAsistente(packId) {
+    await cargarPackSpotsCostero(packId);
+    cerrarAsistenteConfiguracion(true);
 }
 
 export async function seleccionarSpotGuardado(spot) {
@@ -1007,6 +1183,10 @@ export function renderizarTimelineJornadaCompleta(spot, pronostico, userLevel = 
         }
     }
 
+    if (typeof renderizarMejoresVentanas72h === 'function') {
+        renderizarMejoresVentanas72h(spot, pronostico);
+    }
+
     const matrixEl = document.getElementById('spotHourlyMatrix');
     if (matrixEl) {
         const umbrales = {
@@ -1060,6 +1240,7 @@ export function renderizarTimelineJornadaCompleta(spot, pronostico, userLevel = 
                 : borderClass;
 
             const dir = Number(h.dirDeg || 0);
+            const wDir = Number(h.waveDirDeg ?? dir ?? 0);
             const hayRacha = r - v >= 3;
 
             let tagCosta = '';
@@ -1076,6 +1257,9 @@ export function renderizarTimelineJornadaCompleta(spot, pronostico, userLevel = 
                 }
             }
 
+            const sparkBarColor = score >= 80 ? 'bg-emerald-400' : (score >= 60 ? 'bg-amber-400' : (score >= 40 ? 'bg-orange-500' : 'bg-rose-500'));
+            const sparkPct = Math.min(100, Math.max(12, Math.round((r / 25) * 100)));
+
             return `
                 <div role="button" tabindex="0" onclick="window.seleccionarHoraTimeline('${esc(h.hora)}')" data-timeline-hour="${esc(h.hora)}" class="flex flex-col gap-1.5 p-2.5 rounded-xl border shrink-0 min-w-[125px] sm:min-w-[135px] transition-all cursor-pointer shadow-sm ${activeCardClass} ${dimCardClass}">
                     <div class="flex items-center justify-between gap-1 border-b border-slate-700/60 pb-1">
@@ -1086,27 +1270,40 @@ export function renderizarTimelineJornadaCompleta(spot, pronostico, userLevel = 
                         ${scoreBadge}
                     </div>
                     <div class="flex items-center gap-1.5 text-xs font-bold text-slate-200">
-                        <div class="wind-arrow text-emerald-400 w-3.5 h-3.5 shrink-0" style="transform: rotate(${dir}deg);">
+                        <div class="wind-arrow text-emerald-400 w-3.5 h-3.5 shrink-0" style="transform: rotate(${dir}deg);" title="Viento: ${Math.round(dir)}°">
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.25a.75.75 0 0 1 .75.75v16.19l4.72-4.72a.75.75 0 1 1 1.06 1.06l-6 6a.75.75 0 0 1-1.06 0l-6-6a.75.75 0 1 1 1.06-1.06l4.72 4.72V3a.75.75 0 0 1 .75-.75Z" /></svg>
                         </div>
-                        <span>${v.toFixed(1)} kt</span>
-                        ${hayRacha ? `<span class="text-[10px] text-amber-400 font-mono">(${r.toFixed(1)})</span>` : ''}
+                        <span class="ps-tabular font-mono">${v.toFixed(1)} kt</span>
+                        ${hayRacha ? `<span class="text-[10px] text-amber-400 font-mono ps-tabular">(${r.toFixed(1)})</span>` : ''}
                     </div>
                     <div class="flex items-center justify-between text-[11px] text-slate-300 gap-1">
-                        <span>🌊 ${o.toFixed(1)}m${h.periodoOlaS ? ` · ${Math.round(h.periodoOlaS)}s` : ''}</span>
-                        ${h.tempC !== null && h.tempC !== undefined ? `<span class="text-slate-400 font-mono text-[10px]">${Math.round(h.tempC)}°</span>` : ''}
+                        <div class="flex items-center gap-1">
+                            <div class="swell-arrow text-sky-400 w-3 h-3 shrink-0" style="transform: rotate(${wDir}deg);" title="Oleaje: ${Math.round(wDir)}°">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.25a.75.75 0 0 1 .75.75v16.19l4.72-4.72a.75.75 0 1 1 1.06 1.06l-6 6a.75.75 0 0 1-1.06 0l-6-6a.75.75 0 1 1 1.06-1.06l4.72 4.72V3a.75.75 0 0 1 .75-.75Z" /></svg>
+                            </div>
+                            <span class="ps-tabular">🌊 ${o.toFixed(1)}m${h.periodoOlaS ? ` · ${Math.round(h.periodoOlaS)}s` : ''}</span>
+                        </div>
+                        ${h.tempC !== null && h.tempC !== undefined ? `<span class="text-slate-400 font-mono text-[10px] ps-tabular">${Math.round(h.tempC)}°</span>` : ''}
                     </div>
                     ${tagCosta ? `<div class="mt-0.5 flex items-center">${tagCosta}</div>` : ''}
+                    <!-- Spark bar de intensidad de rachas / score -->
+                    <div class="w-full bg-slate-950/70 rounded-full h-1 mt-1 overflow-hidden" title="Rachas: ${r.toFixed(1)} kt · Score: ${score}/100">
+                        <div class="${sparkBarColor} h-full rounded-full transition-all duration-300" style="width: ${sparkPct}%;"></div>
+                    </div>
                 </div>
             `;
         }).join('');
     }
 
+    timelineEl.dataset.haSidoCargado = 'true';
     timelineEl.classList.remove('hidden');
     const ventanasCalc = pronostico.ventanasOptimas || detectarVentanasOptimas(pronostico.horasDiurnas, userLevel);
     const scoreTimeline = ventanasCalc?.mejorVentana?.score ?? pronostico?.score ?? 80;
     aplicarGlowVerdictBento(timelineEl, scoreTimeline);
     renderizarInteligenciaYDiarioSpot(spot, pronostico);
+    if (typeof window.cambiarSubVistaSpot === 'function' && window.subVistaSpotActual) {
+        window.cambiarSubVistaSpot(window.subVistaSpotActual);
+    }
 }
 export const renderizarScrubber24hSpot = renderizarTimelineJornadaCompleta;
 
@@ -1826,8 +2023,12 @@ export function renderizarInteligenciaYDiarioSpot(spot, pronosticoActual) {
     const scoreSpot = pronosticoActual?.score ?? Number(document.getElementById('basicScoreNumber')?.textContent) ?? 80;
     aplicarGlowVerdictBento(bento, scoreSpot);
 
+    bento.dataset.haSidoCargado = 'true';
     bento.classList.remove('hidden');
     bento.classList.add('flex');
+    if (typeof window.cambiarSubVistaSpot === 'function' && window.subVistaSpotActual) {
+        window.cambiarSubVistaSpot(window.subVistaSpotActual);
+    }
 }
 
 if (typeof window !== 'undefined') {
@@ -1883,4 +2084,10 @@ if (typeof window !== 'undefined') {
     window.abrirModalSpotsGuardados = abrirModalSpotsGuardados;
     window.cerrarModalSpotsGuardados = cerrarModalSpotsGuardados;
     window.actualizarEstadoBotonGuardarSpot = actualizarEstadoBotonGuardarSpot;
+    window.PACKS_SPOTS_COSTEROS = PACKS_SPOTS_COSTEROS;
+    window.cargarPackSpotsCostero = cargarPackSpotsCostero;
+    window.abrirAsistenteConfiguracion = abrirAsistenteConfiguracion;
+    window.cerrarAsistenteConfiguracion = cerrarAsistenteConfiguracion;
+    window.seleccionarTablaAsistente = seleccionarTablaAsistente;
+    window.cargarPackYFinalizarAsistente = cargarPackYFinalizarAsistente;
 }

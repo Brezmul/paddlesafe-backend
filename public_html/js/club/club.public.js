@@ -134,9 +134,9 @@ export const ClubPublic = {
             const btn = document.getElementById(`cpvTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
             if (btn) {
                 if (t === tab) {
-                    btn.className = "h-10 px-3 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-lg shadow flex-1 cursor-pointer transition-colors";
+                    btn.className = "h-10 px-3 ps-pill-tab ps-pill-tab-active text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors";
                 } else {
-                    btn.className = "h-10 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors";
+                    btn.className = "h-10 px-3 ps-pill-tab text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors";
                 }
             }
         });

@@ -575,8 +575,92 @@ export function actualizarUIPresencia() {
     });
 }
 
+
+/**
+ * Generador ultra-rápido de mini trazados SVG para tarjetas de rutas tipo Strava / Garmin (Batch #21)
+ * @param {Array|string} coordenadas - Array [[lat, lon], ...] o [{lat, lng}, ...] o string JSON
+ * @param {string} colorHex - Color hexadecimal del trazado (defecto: '#38bdf8')
+ * @returns {string} Markup SVG inline listo para inyectar en DOM
+ */
+export function generarMiniSvgTrazadoRuta(coordenadas, colorHex = '#38bdf8') {
+    let pts = coordenadas;
+    if (typeof pts === 'string') {
+        try { pts = JSON.parse(pts); } catch (_) { pts = []; }
+    }
+
+    const normPts = [];
+    if (Array.isArray(pts)) {
+        for (const p of pts) {
+            if (!p) continue;
+            let lat, lon;
+            if (Array.isArray(p) && p.length >= 2) {
+                lat = Number(p[0]);
+                lon = Number(p[1]);
+            } else if (typeof p === 'object') {
+                lat = Number(p.lat ?? p.latitude);
+                lon = Number(p.lon ?? p.lng ?? p.longitude);
+            }
+            if (!isNaN(lat) && !isNaN(lon)) {
+                normPts.push({ lat, lon });
+            }
+        }
+    }
+
+    if (normPts.length < 2) {
+        return `<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full text-sky-400/50" aria-label="Trazado decorativo"><path d="M 15 45 Q 45 25, 80 45 T 145 45" stroke="${colorHex}" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.5"/><circle cx="80" cy="45" r="3" fill="${colorHex}" opacity="0.7"/></svg>`;
+    }
+
+    let minLat = Infinity, maxLat = -Infinity;
+    let minLon = Infinity, maxLon = -Infinity;
+
+    for (const p of normPts) {
+        if (p.lat < minLat) minLat = p.lat;
+        if (p.lat > maxLat) maxLat = p.lat;
+        if (p.lon < minLon) minLon = p.lon;
+        if (p.lon > maxLon) maxLon = p.lon;
+    }
+
+    let latSpan = maxLat - minLat;
+    let lonSpan = maxLon - minLon;
+    if (latSpan <= 0.000001) latSpan = 0.0001;
+    if (lonSpan <= 0.000001) lonSpan = 0.0001;
+
+    const padX = 160 * 0.12; // 19.2px
+    const padY = 90 * 0.12;  // 10.8px
+    const drawW = 160 - (padX * 2);
+    const drawH = 90 - (padY * 2);
+
+    const midLat = (minLat + maxLat) / 2;
+    const cosLat = Math.cos((midLat * Math.PI) / 180);
+    const geoW = lonSpan * Math.max(0.1, Math.abs(cosLat));
+    const geoH = latSpan;
+
+    const scaleX = drawW / geoW;
+    const scaleY = drawH / geoH;
+    const scale = Math.min(scaleX, scaleY);
+
+    const usedW = geoW * scale;
+    const usedH = geoH * scale;
+    const offX = padX + (drawW - usedW) / 2;
+    const offY = padY + (drawH - usedH) / 2;
+
+    const svgPoints = normPts.map(p => {
+        const x = offX + (p.lon - minLon) * Math.abs(cosLat) * scale;
+        const y = (90 - offY) - (p.lat - minLat) * scale;
+        return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)) };
+    });
+
+    const startPt = svgPoints[0];
+    const endPt = svgPoints[svgPoints.length - 1];
+    const pointsAttr = svgPoints.map(p => `${p.x},${p.y}`).join(' ');
+    const safeId = Math.random().toString(36).substring(2, 7);
+
+    return `<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full overflow-visible" aria-label="Trazado de ruta GPS"><defs><filter id="psGlow-${safeId}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="${colorHex}" flood-opacity="0.6"/></filter></defs><polyline points="${pointsAttr}" fill="none" stroke="${colorHex}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#psGlow-${safeId})"/><circle cx="${startPt.x}" cy="${startPt.y}" r="3.5" fill="#10b981" stroke="#ffffff" stroke-width="1.5" /><circle cx="${endPt.x}" cy="${endPt.y}" r="3.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" /></svg>`;
+}
+
 if (typeof window !== 'undefined') {
     window.calcularSolYCrepusculo = calcularSolYCrepusculo;
     window.actualizarUIPresencia = actualizarUIPresencia;
     window.comprimirImagenCliente = comprimirImagenCliente;
+    window.generarMiniSvgTrazadoRuta = generarMiniSvgTrazadoRuta;
 }

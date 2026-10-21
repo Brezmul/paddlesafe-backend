@@ -27,7 +27,7 @@ import {
     obtenerVelocidadCruceroUsuario, obtenerModificadorDerivaUsuario,
     actualizarTipoTablaDesdeSelect, actualizarVelocidadCruceroManual,
     autoCalibrarRitmoDesdeRutas, toggleSelectorEquipoUsuario, actualizarUIGearSelector,
-    descargarZonaMapaOffline, calcularTilesBoundingBox
+    descargarZonaMapaOffline, calcularTilesBoundingBox, cambiarCapaBaseMapa
 } from './map/map.core.js';
 
 import {
@@ -35,7 +35,7 @@ import {
     obtenerMotorExperto, renderizarAvisoSuperior, guardarForecastSnapshot,
     recuperarForecastSnapshot, obtenerAutoridadEmergencias112,
     validarVigenciaAlerta, generarExplicacionAvisoAemet, registrarDiagnosticoAemet,
-    limpiarAvisosMeteorologicos
+    limpiarAvisosMeteorologicos, escanearMejoresVentanas72h
 } from './map/map.weather.js';
 
 import {
@@ -43,7 +43,9 @@ import {
     consultarPuntoProInstantaneo, consultarRutaPro, renderizarDashboardPro,
     cargarPrevisionHorariaExacta, volverPlanificadorPro,
     renderizarRosaVectoresMapa, actualizarHudVectoresMapa,
-    activarSkeletonCargaSpot, desactivarSkeletonCargaSpot
+    activarSkeletonCargaSpot, desactivarSkeletonCargaSpot,
+    renderizarMejoresVentanas72h, aplicarVentanaOptimaSpot,
+    generarSvgAnilloScore, cambiarSubVistaSpot
 } from './map/map.bento.js';
 
 import {
@@ -54,7 +56,7 @@ import {
     construirPayloadRutaSupabase, toggleModoTravesia, toggleModoSolTracker,
     compartirPosicionActualLive, compartirPosicionSOS, actualizarRetornoSalidaLive,
     actualizarDuracionCheckin, extenderCheckinTravesia, enviarAlertaCheckinWhatsApp,
-    verificarAlertaCheckin, mostrarModalSplitsKm, cerrarModalSplitsKm, syncTrackerState
+    verificarAlertaCheckin, mostrarModalSplitsKm, cerrarModalSplitsKm, syncTrackerState, calcularZonaRitmoLive
 } from './map/map.tracker.js';
 
 import { estamparPosterFinisherCanvas } from './map/map.poster.js';
@@ -68,7 +70,7 @@ import {
     reiniciarPuntosQuedada, guardarQuedadaDesdeMapa, cargarRutaEnMapaGrande,
     analizarVientoRutaClub, cargarRutaDeportivaEnMapa, exportarRutaPlanificadaGPX,
     activarModoPlanificacionEvento, guardarEventoClub, importarRutaGPXPro,
-    centrarTramoMapa, generarGraficoSvgPerfilRuta
+    centrarTramoMapa, generarGraficoSvgPerfilRuta, calcularMeteoProgresivaPorTramo
 } from './map/map.routes.js';
 
 import {
@@ -95,7 +97,9 @@ import {
     setLogbookRating, seleccionarRatingLogbook, guardarEntradaBitacoraSpot,
     guardarEntradaLogbookCondicion, cargarBitacoraSpot, abrirModalNotasTacticasSpot,
     cerrarModalNotasTacticasSpot, confirmarGuardarNotasTacticas, guardarNotasTacticasSpot,
-    renderizarInteligenciaYDiarioSpot
+    renderizarInteligenciaYDiarioSpot, PACKS_SPOTS_COSTEROS, cargarPackSpotsCostero,
+    abrirAsistenteConfiguracion, cerrarAsistenteConfiguracion,
+    seleccionarTablaAsistente, cargarPackYFinalizarAsistente
 } from './map/map.spots.js';
 
 import { parseGPX, generarGPX, descargarGPX } from './gpxParser.js';
@@ -111,17 +115,19 @@ if (typeof window !== 'undefined') {
         obtenerVelocidadCruceroUsuario, obtenerModificadorDerivaUsuario,
         actualizarTipoTablaDesdeSelect, actualizarVelocidadCruceroManual,
         autoCalibrarRitmoDesdeRutas, toggleSelectorEquipoUsuario, actualizarUIGearSelector,
-        descargarZonaMapaOffline, calcularTilesBoundingBox,
+        descargarZonaMapaOffline, calcularTilesBoundingBox, cambiarCapaBaseMapa,
         solicitarPronostico, solicitarPronosticoOpenMeteo, evaluarAlertasGlobales,
         obtenerMotorExperto, renderizarAvisoSuperior, guardarForecastSnapshot,
         recuperarForecastSnapshot, obtenerAutoridadEmergencias112,
         validarVigenciaAlerta, generarExplicacionAvisoAemet, registrarDiagnosticoAemet,
-        limpiarAvisosMeteorologicos,
+        limpiarAvisosMeteorologicos, escanearMejoresVentanas72h,
         aplicarGlowVerdictBento, renderizarResumenExperto, consultarBasico,
         consultarPuntoProInstantaneo, consultarRutaPro, renderizarDashboardPro,
         cargarPrevisionHorariaExacta, volverPlanificadorPro,
         renderizarRosaVectoresMapa, actualizarHudVectoresMapa,
         activarSkeletonCargaSpot, desactivarSkeletonCargaSpot,
+        renderizarMejoresVentanas72h, aplicarVentanaOptimaSpot,
+        generarSvgAnilloScore, cambiarSubVistaSpot,
         iniciarTravesia, finalizarTravesia, guardarCheckpointTravesia,
         guardarRutaOffline, sincronizarRutasPendientes, restaurarTracker,
         descartarCheckpoint, restaurarTravesiaDesdeCheckpoint, verificarCheckpointPendiente,
@@ -129,7 +135,7 @@ if (typeof window !== 'undefined') {
         construirPayloadRutaSupabase, toggleModoTravesia, toggleModoSolTracker,
         compartirPosicionActualLive, compartirPosicionSOS, actualizarRetornoSalidaLive,
         actualizarDuracionCheckin, extenderCheckinTravesia, enviarAlertaCheckinWhatsApp,
-        verificarAlertaCheckin, mostrarModalSplitsKm, cerrarModalSplitsKm, syncTrackerState,
+        verificarAlertaCheckin, mostrarModalSplitsKm, cerrarModalSplitsKm, syncTrackerState, calcularZonaRitmoLive,
         estamparPosterFinisherCanvas,
         toggleRutaLibre, limpiarRuta, gestionarClicRuta, gestionarClicRutaLibre,
         deshacerUltimoPunto, reiniciarRutaMultipunto, cerrarIdaYVueltaMultipunto,
@@ -139,7 +145,7 @@ if (typeof window !== 'undefined') {
         reiniciarPuntosQuedada, guardarQuedadaDesdeMapa, cargarRutaEnMapaGrande,
         analizarVientoRutaClub, cargarRutaDeportivaEnMapa, exportarRutaPlanificadaGPX,
         activarModoPlanificacionEvento, guardarEventoClub, importarRutaGPXPro,
-        centrarTramoMapa, generarGraficoSvgPerfilRuta,
+        centrarTramoMapa, generarGraficoSvgPerfilRuta, calcularMeteoProgresivaPorTramo,
         solicitarCoachIAPro, renderizarCoachProCard, solicitarCoachIABasico,
         solicitarAnalisisIARutaDeportiva, normalizarUnidadesCoach,
         renderizarCoachProFallbackLocal, generarAnalisisIARutaFallback,
@@ -160,7 +166,9 @@ if (typeof window !== 'undefined') {
         setLogbookRating, seleccionarRatingLogbook, guardarEntradaBitacoraSpot,
         guardarEntradaLogbookCondicion, cargarBitacoraSpot, abrirModalNotasTacticasSpot,
         cerrarModalNotasTacticasSpot, confirmarGuardarNotasTacticas, guardarNotasTacticasSpot,
-        renderizarInteligenciaYDiarioSpot,
+        renderizarInteligenciaYDiarioSpot, PACKS_SPOTS_COSTEROS, cargarPackSpotsCostero,
+        abrirAsistenteConfiguracion, cerrarAsistenteConfiguracion,
+        seleccionarTablaAsistente, cargarPackYFinalizarAsistente,
         parseGPX, generarGPX, descargarGPX,
         calcularSolYCrepusculo, generarPerfilTacticoSpot,
         descargarRutaActivaGPX: exportarRutaPlanificadaGPX,

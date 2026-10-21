@@ -1337,6 +1337,116 @@ export function calcularProgresoRetoClub(reto, rutasMiembros = [], participantes
 }
 
 // Exponer en window para acceso global si fuese necesario
+
+/**
+ * Renderiza el podio olímpico / Strava Bento Top 3 (Batch #21)
+ * Columna 1: #2 Plata (izquierda)
+ * Columna 2: #1 Oro (centro elevado)
+ * Columna 3: #3 Bronce (derecha)
+ * @param {Array} listaUsuarios - Lista de palistas clasificados ordenada por rank
+ * @returns {string} Markup HTML del podio Bento
+ */
+export function renderizarPodioTop3Ranking(listaUsuarios = []) {
+    if (!Array.isArray(listaUsuarios) || listaUsuarios.length === 0) {
+        return '';
+    }
+
+    const p1 = listaUsuarios[0] || null;
+    const p2 = listaUsuarios[1] || null;
+    const p3 = listaUsuarios[2] || null;
+
+    if (!p1) return '';
+
+    const formatMetric = (p) => {
+        if (!p) return '';
+        if (p.metricLabel) return p.metricLabel;
+        if (p.km_total !== undefined) return `${Number(p.km_total).toFixed(2)} km`;
+        if (p.xp_total !== undefined) return `${Math.round(p.xp_total)} XP`;
+        if (p.distancia_total_km !== undefined) return `${Number(p.distancia_total_km).toFixed(2)} km`;
+        return `${p.metric || 0}`;
+    };
+
+    const avatarP1 = (p1 && p1.avatar_url) ? p1.avatar_url : (typeof IMG_FALLBACK !== 'undefined' ? IMG_FALLBACK : 'img/default-avatar.svg');
+    const avatarP2 = (p2 && p2.avatar_url) ? p2.avatar_url : (typeof IMG_FALLBACK !== 'undefined' ? IMG_FALLBACK : 'img/default-avatar.svg');
+    const avatarP3 = (p3 && p3.avatar_url) ? p3.avatar_url : (typeof IMG_FALLBACK !== 'undefined' ? IMG_FALLBACK : 'img/default-avatar.svg');
+
+    return `
+        <div class="ps-bento-card bg-slate-900/90 border border-slate-700/80 rounded-2xl p-4 sm:p-5 mb-4 shadow-xl">
+            <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-base">🏆</span>
+                    <h3 class="text-xs font-black uppercase tracking-wider text-amber-400">Podio de Honor · Top 3</h3>
+                </div>
+                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-800/80 px-2 py-0.5 rounded-full border border-slate-700/50">Clasificación Élite</span>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-2 sm:gap-3 items-end pt-3 pb-1 w-full max-w-md mx-auto">
+                <!-- 2º Puesto (Plata - Izquierda) -->
+                <div class="flex flex-col items-center">
+                    ${p2 ? `
+                        <div role="button" tabindex="0" onclick="if(window.navigateSPA) window.navigateSPA('/user/${p2.id}')" class="cursor-pointer group flex flex-col items-center w-full active:scale-95 transition-transform">
+                            <div class="relative mb-1.5">
+                                <img src="${avatarP2}" onerror="this.onerror=null; this.src='img/default-avatar.svg';" class="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-slate-300 shadow-lg group-hover:scale-105 transition-transform ring-2 ring-slate-400/30">
+                                <span class="absolute -bottom-1 -right-1 text-sm bg-slate-900/90 rounded-full px-1 shadow">🥈</span>
+                            </div>
+                            <p class="text-[11px] font-black text-white truncate max-w-[90px] text-center">${p2.nombre || 'Paddler'}</p>
+                            <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate max-w-[90px]">Nivel ${p2.nivel || 1}</span>
+                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-slate-800 border border-slate-600 text-slate-200 ps-tabular shadow-xs mb-1.5">${formatMetric(p2)}</span>
+                        </div>
+                        <div class="w-full h-16 sm:h-18 ps-podium-silver rounded-t-xl flex flex-col items-center justify-center font-black text-slate-200 text-xs shadow-inner border-b-0">
+                            <span class="text-sm font-black">2º</span>
+                            <span class="text-[8px] text-slate-400 uppercase tracking-widest font-mono">Plata</span>
+                        </div>
+                    ` : `
+                        <div class="w-full h-12 opacity-30 bg-slate-800/60 rounded-t-xl flex items-center justify-center text-[10px] font-bold text-slate-500">--</div>
+                    `}
+                </div>
+
+                <!-- 1er Puesto (Oro - Centro Elevado) -->
+                <div class="flex flex-col items-center -mt-3">
+                    ${p1 ? `
+                        <div role="button" tabindex="0" onclick="if(window.navigateSPA) window.navigateSPA('/user/${p1.id}')" class="cursor-pointer group flex flex-col items-center w-full active:scale-95 transition-transform">
+                            <div class="relative mb-1.5">
+                                <span class="text-base absolute -top-4 left-1/2 -translate-x-1/2 animate-bounce">👑</span>
+                                <img src="${avatarP1}" onerror="this.onerror=null; this.src='img/default-avatar.svg';" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-3 border-amber-400 shadow-xl group-hover:scale-105 transition-transform ring-4 ring-amber-400/30">
+                                <span class="absolute -bottom-1 -right-1 text-base bg-slate-900/90 rounded-full px-1 shadow">🥇</span>
+                            </div>
+                            <p class="text-xs sm:text-sm font-black text-amber-300 truncate max-w-[105px] text-center">${p1.nombre || 'Líder'}</p>
+                            <span class="text-[9px] font-bold text-amber-400 uppercase tracking-widest mb-1 truncate max-w-[105px]">${p1.titulo || `Nivel ${p1.nivel || 1}`}</span>
+                            <span class="px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-gradient-to-r from-amber-500 to-orange-500 text-white ps-tabular shadow-md mb-1.5">${formatMetric(p1)}</span>
+                        </div>
+                        <div class="w-full h-24 sm:h-28 ps-podium-gold rounded-t-xl flex flex-col items-center justify-center font-black text-amber-200 text-sm shadow-xl border-b-0">
+                            <span class="text-base font-black">1º</span>
+                            <span class="text-[9px] text-amber-300 uppercase tracking-widest font-mono">Oro</span>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <!-- 3er Puesto (Bronce - Derecha) -->
+                <div class="flex flex-col items-center">
+                    ${p3 ? `
+                        <div role="button" tabindex="0" onclick="if(window.navigateSPA) window.navigateSPA('/user/${p3.id}')" class="cursor-pointer group flex flex-col items-center w-full active:scale-95 transition-transform">
+                            <div class="relative mb-1.5">
+                                <img src="${avatarP3}" onerror="this.onerror=null; this.src='img/default-avatar.svg';" class="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-amber-600/70 shadow-lg group-hover:scale-105 transition-transform ring-2 ring-amber-600/30">
+                                <span class="absolute -bottom-1 -right-1 text-sm bg-slate-900/90 rounded-full px-1 shadow">🥉</span>
+                            </div>
+                            <p class="text-[11px] font-black text-white truncate max-w-[90px] text-center">${p3.nombre || 'Paddler'}</p>
+                            <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate max-w-[90px]">Nivel ${p3.nivel || 1}</span>
+                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-slate-800 border border-amber-800/60 text-amber-300 ps-tabular shadow-xs mb-1.5">${formatMetric(p3)}</span>
+                        </div>
+                        <div class="w-full h-12 sm:h-14 ps-podium-bronze rounded-t-xl flex flex-col items-center justify-center font-black text-amber-300 text-xs shadow-inner border-b-0">
+                            <span class="text-xs font-black">3º</span>
+                            <span class="text-[8px] text-amber-400 uppercase tracking-widest font-mono">Bronce</span>
+                        </div>
+                    ` : `
+                        <div class="w-full h-10 opacity-30 bg-slate-800/60 rounded-t-xl flex items-center justify-center text-[10px] font-bold text-slate-500">--</div>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 if (typeof window !== 'undefined') {
     window.calcularNivelYProgreso = calcularNivelYProgreso;
     window.calcularXpRutaNueva = calcularXpRutaNueva;
@@ -1351,6 +1461,7 @@ if (typeof window !== 'undefined') {
     window.calcularDatosRankingMulticategoria = calcularDatosRankingMulticategoria;
     window.PLANTILLAS_RETOS_CLUB = PLANTILLAS_RETOS_CLUB;
     window.calcularProgresoRetoClub = calcularProgresoRetoClub;
+    window.renderizarPodioTop3Ranking = renderizarPodioTop3Ranking;
 }
 
 

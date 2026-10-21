@@ -43,7 +43,8 @@ import {
     nivelAlertaMeteorologica,
     obtenerMotorExperto,
     renderizarAvisoSuperior,
-    registrarDiagnosticoClima
+    registrarDiagnosticoClima,
+    escanearMejoresVentanas72h
 } from './map.weather.js';
 import {
     spotActivoActual,
@@ -54,7 +55,8 @@ import {
 } from './map.spots.js';
 import {
     generarGraficoSvgPerfilRuta,
-    evaluarVientoRelativoInfo
+    evaluarVientoRelativoInfo,
+    calcularMeteoProgresivaPorTramo
 } from './map.routes.js';
 import {
     obtenerVelocidadCruceroUsuario
@@ -143,23 +145,15 @@ export function renderizarResumenExperto(motor, prefijo = 'basic') {
     }
 
     if (prefijo === 'basic') {
-        const scoreNum = document.getElementById('basicScoreNumber');
-        if (scoreNum && motor?.seguridad?.score !== undefined) {
-            scoreNum.textContent = motor.seguridad.score;
-        }
         const scoreBadge = document.getElementById('basicVerdictScoreBadge');
         if (scoreBadge && motor?.seguridad?.score !== undefined) {
             const sc = motor.seguridad.score;
-            if (sc >= 75) {
-                scoreBadge.className = "w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/30 border border-emerald-500/50 flex flex-col items-center justify-center shrink-0 shadow-inner";
-                if (scoreNum) scoreNum.className = "text-base font-black text-emerald-300 ps-tabular";
-            } else if (sc >= 45) {
-                scoreBadge.className = "w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/30 border border-amber-500/50 flex flex-col items-center justify-center shrink-0 shadow-inner";
-                if (scoreNum) scoreNum.className = "text-base font-black text-amber-300 ps-tabular";
-            } else {
-                scoreBadge.className = "w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500/20 to-red-500/30 border border-rose-500/50 flex flex-col items-center justify-center shrink-0 shadow-inner";
-                if (scoreNum) scoreNum.className = "text-base font-black text-rose-300 ps-tabular";
-            }
+            let colorHex = '#10b981';
+            if (sc < 45) colorHex = '#f43f5e';
+            else if (sc < 75) colorHex = '#f59e0b';
+
+            scoreBadge.className = "flex items-center justify-center shrink-0 relative";
+            scoreBadge.innerHTML = generarSvgAnilloScore(sc, colorHex) + `<span id="basicScoreNumber" class="hidden">${sc}</span>`;
         }
         const orientPill = document.getElementById('basicOrientationPill');
         const dInfoBasic = motor.derivaCostera || motor.riesgoDeriva;
@@ -307,15 +301,22 @@ export function renderizarResumenExperto(motor, prefijo = 'basic') {
         aplicarGlowVerdictBento(document.getElementById('fullDaySpotTimeline'), scoreVal);
     }
 
+    contenedor.dataset.haSidoCargado = 'true';
     contenedor.classList.remove('hidden');
+    if (typeof cambiarSubVistaSpot === 'function' && mapRuntime.subVistaSpotActual) {
+        cambiarSubVistaSpot(mapRuntime.subVistaSpotActual);
+    }
 }
 
 export async function consultarBasico() {
-    if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
-    const loc = document.getElementById('location').value.trim();
-    const d = document.getElementById('date').value;
-    const r = document.getElementById('timeRange').value;
-    const u = document.getElementById('userLevel').value;
+    if (typeof document === 'undefined') return;
+    const locInput = document.getElementById('location');
+    if (!locInput) return;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    const loc = locInput.value.trim();
+    const d = document.getElementById('date')?.value || new Date().toISOString().slice(0, 10);
+    const r = document.getElementById('timeRange')?.value || 'Mañana (09:00 - 12:00)';
+    const u = document.getElementById('userLevel')?.value || 'Intermedio';
     const btn = document.getElementById('btn-consultar');
     const sp = document.getElementById('spinner');
     const bt = document.getElementById('btn-text');
@@ -418,6 +419,17 @@ export async function consultarBasico() {
 
             document.getElementById("basicWave").textContent = wv !== null ? `${wv.toFixed(1)} m` : 'N/D';
             
+            // Símbolo vectorial de dirección de oleaje
+            const waveDir = valorNumericoMeteo(dx.waveDirection, dx.wave_direction, dx.swellWaveDirection, dx.swell_wave_direction);
+            const waveLabelEl = document.getElementById("basicWaveHeightLabel");
+            if (waveLabelEl) {
+                if (waveDir !== null) {
+                    waveLabelEl.innerHTML = `<span class="flex items-center gap-1 justify-center"><span class="swell-arrow text-sky-400 inline-block w-3 h-3" style="transform: rotate(${waveDir}deg);"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.25a.75.75 0 0 1 .75.75v16.19l4.72-4.72a.75.75 0 1 1 1.06 1.06l-6 6a.75.75 0 0 1-1.06 0l-6-6a.75.75 0 1 1 1.06-1.06l4.72 4.72V3a.75.75 0 0 1 .75-.75Z" /></svg></span><span>Altura (${Math.round(waveDir)}°)</span></span>`;
+                } else {
+                    waveLabelEl.textContent = 'Altura M.';
+                }
+            }
+
             // Periodo de ola y badge
             const wavePeriodEl = document.getElementById("basicWavePeriod");
             let badgePeriodoHtml = '';
@@ -920,6 +932,37 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
     }
 
     renderizarResumenExperto(motor, 'pro');
+
+    // Simulación de evolución horaria progresiva por tramos (Batch #19)
+    const evoBadge = document.getElementById('proRouteWeatherEvolutionBadge');
+    if (evoBadge) {
+        if (esRutaTrazada && tramosParaCoach.length > 0) {
+            const hourlySource = dx.hourly || mapRuntime.datosMeteoActuales?.hourly;
+            const resEvolucion = calcularMeteoProgresivaPorTramo(tramosParaCoach, hhInicio, hourlySource);
+            if (resEvolucion.hayAumentoCritico && resEvolucion.alertaPrincipal) {
+                evoBadge.innerHTML = `
+                    <span class="text-xl shrink-0">⚠️</span>
+                    <div class="flex-1">
+                        <div class="font-black text-amber-300 uppercase tracking-wide text-[10px]">Alerta Táctica de Viento en Ruta</div>
+                        <div class="text-[11px] text-amber-100 font-semibold">${esc(resEvolucion.alertaPrincipal.mensaje)}</div>
+                    </div>
+                `;
+                evoBadge.className = 'mx-4 mt-3 p-3 rounded-xl border border-amber-500/60 bg-amber-950/80 text-amber-200 text-xs font-bold flex items-center gap-2 shadow-lg animate-fadeIn';
+                evoBadge.classList.remove('hidden');
+            } else {
+                evoBadge.classList.add('hidden');
+                evoBadge.innerHTML = '';
+            }
+        } else {
+            evoBadge.classList.add('hidden');
+            evoBadge.innerHTML = '';
+        }
+    }
+
+    if (typeof renderizarMejoresVentanas72h === 'function') {
+        renderizarMejoresVentanas72h(spotActivoActual, dx);
+    }
+
     document.getElementById('proPlanificador').classList.replace('flex','hidden');
     document.getElementById('proDashboardResumen').classList.remove('hidden'); document.getElementById('proDashboardResumen').classList.add('flex');
     const isoLlamada = `${fechaD}T${horaSalida}:00`;
@@ -979,6 +1022,11 @@ export async function cargarPrevisionHorariaExacta(lat, lon, startISO, durationM
 }
 
 export function volverPlanificadorPro() {
+    const evoBadge = document.getElementById('proRouteWeatherEvolutionBadge');
+    if (evoBadge) {
+        evoBadge.classList.add('hidden');
+        evoBadge.innerHTML = '';
+    }
     document.getElementById('proDashboardResumen').classList.replace('flex','hidden');
     document.getElementById('proPlanificador').classList.remove('hidden');
     document.getElementById('proPlanificador').classList.add('flex');
@@ -1159,9 +1207,205 @@ export function actualizarHudVectoresMapa(lat, lon, datosMeteo) {
     hud.classList.remove('hidden');
 }
 
+// ==============================================================================
+// 72H BEST WINDOWS UI & INTERACTIVE ACTIVATION (BATCH #19)
+// ==============================================================================
+
+/**
+ * Renderiza el banner de las 3 mejores ventanas diurnas 72h con mini-cards Bento interactivas.
+ * @param {Object} spot Spot activo actual
+ * @param {Object} pronostico Dataset de pronóstico meteo
+ */
+export function renderizarMejoresVentanas72h(spot, pronostico) {
+    const banner = document.getElementById('bestWindows72hBanner');
+    if (!banner) return;
+    if (!pronostico) {
+        banner.classList.add('hidden');
+        banner.innerHTML = '';
+        return;
+    }
+    const lat = Number(spot?.lat || mapRuntime.latitudActual);
+    const lon = Number(spot?.lon || mapRuntime.longitudActual);
+    const seawardDeg = spot?.seaward_deg ?? null;
+    const ventanas = escanearMejoresVentanas72h(lat, lon, pronostico, seawardDeg);
+    if (!Array.isArray(ventanas) || ventanas.length === 0) {
+        banner.classList.add('hidden');
+        banner.innerHTML = '';
+        return;
+    }
+
+    const pillsHtml = ventanas.map(w => {
+        const glowClass = w.scoreMedio >= 80 ? 'ps-glass-glow-emerald border-emerald-500/50 bg-emerald-950/60 text-emerald-200' :
+            (w.scoreMedio >= 60 ? 'ps-glass-glow-amber border-amber-500/50 bg-amber-950/60 text-amber-200' : 'ps-glass-glow-rose border-rose-500/50 bg-rose-950/60 text-rose-200');
+        const icono = w.scoreMedio >= 80 ? '🟢' : (w.scoreMedio >= 60 ? '🟡' : '🟠');
+        return `
+            <button type="button" onclick="window.aplicarVentanaOptimaSpot('${esc(w.fechaStr)}', '${esc(w.horaInicio)}')" class="ps-bento-card text-left p-3 rounded-2xl border ${glowClass} hover:scale-[1.02] active:scale-95 transition-all cursor-pointer flex flex-col gap-1.5 flex-1 min-w-[200px]" title="Toca para activar esta ventana óptima en el mapa y spot">
+                <div class="flex items-center justify-between gap-1 text-[11px] font-black">
+                    <span class="tracking-wide">${icono} ${esc(w.etiquetaDia)} ${esc(w.horaInicio)}–${esc(w.horaFin)}</span>
+                    <span class="ps-tabular font-mono px-2 py-0.5 rounded-full bg-black/40 text-[10px] border border-white/10 font-bold">Score ${w.scoreMedio}</span>
+                </div>
+                <div class="flex items-center gap-2.5 text-[10px] text-slate-300 font-semibold">
+                    <span class="flex items-center gap-1">💨 <b class="text-white">${w.vientoMedioKt}</b> kt</span>
+                    <span class="flex items-center gap-1">🌊 <b class="text-white">${w.olasMediasM}</b> m</span>
+                </div>
+                <p class="text-[9px] text-slate-400 line-clamp-1 italic">${esc(w.resumen)}</p>
+            </button>
+        `;
+    }).join('');
+
+    banner.innerHTML = `
+        <div class="flex items-center justify-between gap-2 border-b border-slate-700/60 pb-2">
+            <div class="flex items-center gap-2">
+                <span class="text-base">✨</span>
+                <span class="text-xs font-black text-amber-300 uppercase tracking-wider">Top 3 Mejores Ventanas 72h</span>
+                <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">Smart Scan</span>
+            </div>
+            <span class="text-[10px] text-slate-400 font-medium">Toca una ventana para activar</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+            ${pillsHtml}
+        </div>
+    `;
+    banner.classList.remove('hidden');
+}
+
+/**
+ * Aplica la ventana óptima seleccionada a los selectores de fecha/hora del cockpit y refresca los datos.
+ * @param {string} fechaStr Fecha 'YYYY-MM-DD'
+ * @param {string} horaInicio Hora 'HH:00'
+ */
+export async function aplicarVentanaOptimaSpot(fechaStr, horaInicio) {
+    if (fechaStr) {
+        const dInput = document.getElementById('date');
+        const pDate = document.getElementById('proDate');
+        const qDate = document.getElementById('quedadaFechaInput');
+        if (dInput) dInput.value = fechaStr;
+        if (pDate) pDate.value = fechaStr;
+        if (qDate) qDate.value = fechaStr;
+    }
+    if (horaInicio) {
+        const pTime = document.getElementById('proTime');
+        if (pTime) pTime.value = horaInicio;
+    }
+    if (typeof window.seleccionarHoraTimeline === 'function') {
+        window.seleccionarHoraTimeline(horaInicio, true);
+    }
+    if (spotActivoActual && typeof window.cargarJornadaCompletaSpot === 'function') {
+        await window.cargarJornadaCompletaSpot(spotActivoActual, fechaStr);
+    } else if (typeof window.consultarBasico === 'function') {
+        await window.consultarBasico();
+    }
+    const timelineEl = document.getElementById('fullDaySpotTimeline');
+    if (timelineEl) {
+        timelineEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+/**
+ * UI 5.0 - Apple Weather / Garmin-style Animated SVG Radial Score Gauge
+ * Genera un dial circular nítido con pista de fondo, arco reactivo al score (0-100),
+ * drop-shadow luminoso, valor numérico en el centro y etiqueta de seguridad.
+ * @param {number|string} score 0 - 100
+ * @param {string} [colorHex] Color opcional
+ * @returns {string} Código HTML SVG válido
+ */
+export function generarSvgAnilloScore(score, colorHex = null) {
+    const sc = Math.max(0, Math.min(100, Math.round(Number(score) || 0)));
+    const radius = 45;
+    const circ = 2 * Math.PI * radius; // ~282.74
+    const dashoffset = circ - (circ * sc / 100);
+
+    let strokeColor = colorHex;
+    if (!strokeColor || strokeColor === 'auto') {
+        if (sc >= 75) strokeColor = '#10b981';
+        else if (sc >= 45) strokeColor = '#f59e0b';
+        else strokeColor = '#f43f5e';
+    }
+
+    let safetyLabel = 'ÓPTIMO';
+    if (sc < 45) safetyLabel = 'PELIGRO';
+    else if (sc < 75) safetyLabel = 'PRECAUCIÓN';
+
+    return `<svg class="ps-gauge-ring w-20 h-20 sm:w-24 sm:h-24 select-none drop-shadow-md" viewBox="0 0 120 120" role="img" aria-label="Score de seguridad: ${sc}/100">
+        <defs>
+            <filter id="ps-gauge-glow-${sc}" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+        </defs>
+        <!-- Background track ring -->
+        <circle cx="60" cy="60" r="${radius}" fill="none" stroke="rgba(148, 163, 184, 0.16)" stroke-width="8" stroke-linecap="round" />
+        <!-- Dynamic score arc with glow -->
+        <circle cx="60" cy="60" r="${radius}" fill="none" stroke="${strokeColor}" stroke-width="8.5" stroke-linecap="round"
+            stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${dashoffset.toFixed(2)}"
+            transform="rotate(-90 60 60)" style="filter: drop-shadow(0 0 5px ${strokeColor}70);" />
+        <!-- Score number in center -->
+        <text x="60" y="56" text-anchor="middle" dominant-baseline="central" fill="#ffffff" style="font-size: 26px; font-weight: 900; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;" class="ps-tabular">
+            ${sc}
+        </text>
+        <!-- Safety label underneath -->
+        <text x="60" y="78" text-anchor="middle" dominant-baseline="central" fill="${strokeColor}" style="font-size: 8.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;">
+            ${safetyLabel}
+        </text>
+    </svg>`;
+}
+
+/**
+ * UI 5.0 - Selector segmentado de sub-vistas del spot
+ * Opciones: 'todas' | 'meteo' | 'inteligencia' | 'coach'
+ * @param {string} vista
+ */
+export function cambiarSubVistaSpot(vista = 'todas') {
+    const v = ['todas', 'meteo', 'inteligencia', 'coach'].includes(vista) ? vista : 'todas';
+    mapRuntime.subVistaSpotActual = v;
+    if (typeof window !== 'undefined') window.subVistaSpotActual = v;
+
+    if (typeof document !== 'undefined') {
+        const tabs = document.querySelectorAll('[data-subview]');
+        tabs.forEach(tab => {
+            const tabVal = tab.getAttribute('data-subview');
+            if (tabVal === v) {
+                tab.classList.add('ps-subview-tab-active');
+            } else {
+                tab.classList.remove('ps-subview-tab-active');
+            }
+        });
+
+        const resumenExperto = document.getElementById('basicExpertSummary');
+        const timeline = document.getElementById('fullDaySpotTimeline');
+        const inteligencia = document.getElementById('spotIntelligenceBento');
+        const coach = document.getElementById('basicCoachContainer');
+
+        if (v === 'todas') {
+            if (resumenExperto && resumenExperto.dataset.haSidoCargado === 'true') resumenExperto.classList.remove('hidden');
+            if (timeline && timeline.dataset.haSidoCargado === 'true') timeline.classList.remove('hidden');
+            if (inteligencia && inteligencia.dataset.haSidoCargado === 'true') inteligencia.classList.remove('hidden');
+            if (coach && coach.dataset.haSidoCargado === 'true') coach.classList.remove('hidden');
+        } else if (v === 'meteo') {
+            if (resumenExperto) resumenExperto.classList.remove('hidden');
+            if (timeline) timeline.classList.remove('hidden');
+            if (inteligencia) inteligencia.classList.add('hidden');
+            if (coach) coach.classList.add('hidden');
+        } else if (v === 'inteligencia') {
+            if (inteligencia) inteligencia.classList.remove('hidden');
+            if (timeline) timeline.classList.add('hidden');
+            if (coach) coach.classList.add('hidden');
+        } else if (v === 'coach') {
+            if (coach) coach.classList.remove('hidden');
+            if (resumenExperto) resumenExperto.classList.remove('hidden');
+            if (timeline) timeline.classList.add('hidden');
+            if (inteligencia) inteligencia.classList.add('hidden');
+        }
+    }
+
+    return v;
+}
+
 if (typeof window !== 'undefined') {
     window.aplicarGlowVerdictBento = aplicarGlowVerdictBento;
     window.renderizarResumenExperto = renderizarResumenExperto;
+    window.generarSvgAnilloScore = generarSvgAnilloScore;
+    window.cambiarSubVistaSpot = cambiarSubVistaSpot;
     window.activarSkeletonCargaSpot = activarSkeletonCargaSpot;
     window.desactivarSkeletonCargaSpot = desactivarSkeletonCargaSpot;
     window.consultarBasico = consultarBasico;
@@ -1172,4 +1416,6 @@ if (typeof window !== 'undefined') {
     window.volverPlanificadorPro = volverPlanificadorPro;
     window.renderizarRosaVectoresMapa = renderizarRosaVectoresMapa;
     window.actualizarHudVectoresMapa = actualizarHudVectoresMapa;
+    window.renderizarMejoresVentanas72h = renderizarMejoresVentanas72h;
+    window.aplicarVentanaOptimaSpot = aplicarVentanaOptimaSpot;
 }

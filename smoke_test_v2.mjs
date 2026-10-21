@@ -124,7 +124,7 @@ const swContent = fs.readFileSync(swPath, 'utf8');
 const versionMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
 const expectedSwVersion = versionMatch ? versionMatch[1] : null;
 
-assert(expectedSwVersion === 'paddlesafe-v64', `sw.js version must be paddlesafe-v64, got: ${expectedSwVersion}`);
+assert(expectedSwVersion === 'paddlesafe-v67', `sw.js version must be paddlesafe-v67, got: ${expectedSwVersion}`);
 
 if (fs.existsSync(versionJsonPath)) {
     let vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
@@ -870,8 +870,214 @@ const mapFacadeContent = fs.readFileSync('public_html/js/map.js', 'utf8');
 const mapFacadeLines = mapFacadeContent.split('\n').length;
 assert(mapFacadeLines < 200, `map.js must be a clean facade under 200 LOC, got ${mapFacadeLines} LOC`);
 
-// 3.5 Personal Records (PRs) & ISA Merit Badges Engine (Batch #10)
+// ==============================================================================
+// 3.4.5 Batch #19: Coastal Spot Packs, 72h Best Windows & Time-Progressive Route Weather Simulator
+// ==============================================================================
+
+// 1. Coastal Spot Packs & Quick Setup Wizard
+assert(typeof mapSpotsMod.PACKS_SPOTS_COSTEROS === 'object', 'map.spots.js must export PACKS_SPOTS_COSTEROS');
+assert(mapSpotsMod.PACKS_SPOTS_COSTEROS.costa_blanca_norte, 'PACKS_SPOTS_COSTEROS must contain costa_blanca_norte');
+assert(mapSpotsMod.PACKS_SPOTS_COSTEROS.alicante_campello, 'PACKS_SPOTS_COSTEROS must contain alicante_campello');
+assert(mapSpotsMod.PACKS_SPOTS_COSTEROS.valencia_gandia, 'PACKS_SPOTS_COSTEROS must contain valencia_gandia');
+assert(mapSpotsMod.PACKS_SPOTS_COSTEROS.baleares_brava, 'PACKS_SPOTS_COSTEROS must contain baleares_brava');
+assert(typeof mapSpotsMod.cargarPackSpotsCostero === 'function', 'map.spots.js must export cargarPackSpotsCostero');
+assert(typeof mapSpotsMod.abrirAsistenteConfiguracion === 'function', 'map.spots.js must export abrirAsistenteConfiguracion');
+assert(typeof mapSpotsMod.cerrarAsistenteConfiguracion === 'function', 'map.spots.js must export cerrarAsistenteConfiguracion');
+assert(typeof mapSpotsMod.seleccionarTablaAsistente === 'function', 'map.spots.js must export seleccionarTablaAsistente');
+
+assert(typeof mapMod.PACKS_SPOTS_COSTEROS === 'object', 'map.js must re-export PACKS_SPOTS_COSTEROS');
+assert(typeof mapMod.cargarPackSpotsCostero === 'function', 'map.js must re-export cargarPackSpotsCostero');
+assert(typeof mapMod.abrirAsistenteConfiguracion === 'function', 'map.js must re-export abrirAsistenteConfiguracion');
+
+const packLoaded = await mapSpotsMod.cargarPackSpotsCostero('costa_blanca_norte');
+assert(Array.isArray(packLoaded) && packLoaded.length >= 5, 'cargarPackSpotsCostero must load spots into spotsGuardadosMemoria');
+assert(packLoaded.some(s => s.nombre.includes('Granadella')), 'Loaded pack must include Cala Granadella');
+
+// 2. 72H Optimal Paddling Windows Scanner
+assert(typeof mapWeatherMod.escanearMejoresVentanas72h === 'function', 'map.weather.js must export escanearMejoresVentanas72h');
+assert(typeof mapMod.escanearMejoresVentanas72h === 'function', 'map.js must re-export escanearMejoresVentanas72h');
+assert(typeof mapBentoMod.renderizarMejoresVentanas72h === 'function', 'map.bento.js must export renderizarMejoresVentanas72h');
+assert(typeof mapBentoMod.aplicarVentanaOptimaSpot === 'function', 'map.bento.js must export aplicarVentanaOptimaSpot');
+assert(typeof mapMod.aplicarVentanaOptimaSpot === 'function', 'map.js must re-export aplicarVentanaOptimaSpot');
+
+const mock72hHourly = {
+    time: [
+        '2026-10-22T07:00', '2026-10-22T08:00', '2026-10-22T09:00', '2026-10-22T10:00',
+        '2026-10-22T11:00', '2026-10-22T12:00', '2026-10-22T13:00', '2026-10-22T14:00',
+        '2026-10-23T07:00', '2026-10-23T08:00', '2026-10-23T09:00', '2026-10-23T10:00',
+        '2026-10-23T11:00', '2026-10-23T12:00', '2026-10-23T13:00', '2026-10-23T14:00',
+        '2026-10-24T07:00', '2026-10-24T08:00', '2026-10-24T09:00', '2026-10-24T10:00'
+    ],
+    wind_speed_10m: [
+        2.0, 2.0, 2.5, 4.0, 6.0, 8.0, 9.0, 10.0,
+        3.0, 3.2, 3.5, 5.0, 7.0, 8.5, 9.0, 9.5,
+        1.5, 1.5, 1.8, 3.0
+    ],
+    wind_gusts_10m: [
+        2.5, 2.5, 3.0, 5.0, 7.5, 10.0, 11.0, 12.0,
+        3.8, 4.0, 4.5, 6.0, 8.5, 10.0, 11.0, 11.5,
+        2.0, 2.0, 2.2, 4.0
+    ],
+    wind_direction_10m: [
+        90, 90, 95, 100, 120, 130, 140, 140,
+        90, 90, 95, 100, 120, 130, 140, 140,
+        85, 85, 90, 95
+    ],
+    wave_height: [
+        0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,
+        0.3, 0.3, 0.3, 0.4, 0.5, 0.6, 0.6, 0.7,
+        0.1, 0.1, 0.2, 0.3
+    ],
+    weather_code: [
+        0, 0, 0, 1, 2, 2, 3, 3,
+        0, 0, 0, 1, 2, 2, 3, 3,
+        0, 0, 0, 1
+    ]
+};
+
+const topVentanas = mapWeatherMod.escanearMejoresVentanas72h(38.83, 0.14, { hourly: mock72hHourly }, 90);
+assert(Array.isArray(topVentanas) && topVentanas.length > 0 && topVentanas.length <= 3, 'escanearMejoresVentanas72h must return up to 3 optimal windows');
+assert(topVentanas[0].scoreMedio >= topVentanas[topVentanas.length - 1].scoreMedio, 'Ventanas must be sorted by scoreMedio descending');
+assert(topVentanas[0].horaInicio && topVentanas[0].horaFin, 'Ventana must specify horaInicio and horaFin');
+assert(Number.isFinite(topVentanas[0].vientoMedioKt) && Number.isFinite(topVentanas[0].olasMediasM), 'Ventana must contain numeric vientoMedioKt and olasMediasM');
+
+// 3. Time-Progressive Route Weather Simulator
+assert(typeof mapRoutesMod.calcularMeteoProgresivaPorTramo === 'function', 'map.routes.js must export calcularMeteoProgresivaPorTramo');
+assert(typeof mapMod.calcularMeteoProgresivaPorTramo === 'function', 'map.js must re-export calcularMeteoProgresivaPorTramo');
+
+const mockTramosRuta = [
+    { nombre: 'Tramo A ➔ B (Ida)', distancia_km: 3.5, minutos: 45, eta_hora: '10:00', viento_kt: 5.0 },
+    { nombre: 'Tramo B ➔ C (Punta)', distancia_km: 4.0, minutos: 55, eta_hora: '10:45', viento_kt: 7.2 },
+    { nombre: 'Tramo C ➔ A (Retorno)', distancia_km: 6.0, minutos: 80, eta_hora: '11:40', viento_kt: 11.5 }
+];
+
+const mockHourlyRuta = {
+    time: ['2026-10-22T10:00', '2026-10-22T11:00', '2026-10-22T12:00', '2026-10-22T13:00'],
+    wind_speed_10m: [
+        2.5,
+        3.8,
+        6.0,
+        7.5
+    ]
+};
+
+const resEvolucion = mapRoutesMod.calcularMeteoProgresivaPorTramo(mockTramosRuta, 10, mockHourlyRuta);
+assert(resEvolucion.hayAumentoCritico === true, 'calcularMeteoProgresivaPorTramo must detect critical wind increase on return/later segments');
+assert(Array.isArray(resEvolucion.alertas) && resEvolucion.alertas.length > 0, 'Must produce at least 1 alert for >= 4 kt increase');
+assert(resEvolucion.alertaPrincipal && resEvolucion.alertaPrincipal.mensaje.includes('Evolución Horaria'), 'Alert message must follow standard wording');
+assert(resEvolucion.alertaPrincipal.incrementoKt >= 4.0, 'Increment must be >= 4 kt');
+
+// ==============================================================================
+// 3.4.6 Batch #20: UI 5.0 Split-Cockpit, Marine Omnibar, Map Layer Switcher & SVG Gauges
+// ==============================================================================
+
+// 1. Map Base Layer Switcher ('nautico', 'satelite', 'oscuro')
+assert(typeof mapCoreMod.cambiarCapaBaseMapa === 'function', 'map.core.js must export cambiarCapaBaseMapa');
+assert(typeof mapMod.cambiarCapaBaseMapa === 'function', 'map.js must re-export cambiarCapaBaseMapa');
+assert(mapCoreMod.cambiarCapaBaseMapa('nautico') === 'nautico', 'cambiarCapaBaseMapa must support nautico');
+assert(mapCoreMod.cambiarCapaBaseMapa('satelite') === 'satelite', 'cambiarCapaBaseMapa must support satelite');
+assert(mapCoreMod.cambiarCapaBaseMapa('oscuro') === 'oscuro', 'cambiarCapaBaseMapa must support oscuro');
+assert(mapMod.cambiarCapaBaseMapa('nautico') === 'nautico', 'map.js cambiarCapaBaseMapa must switch layers');
+
+// 2. Apple Weather / Garmin Animated SVG Radial Score Gauge
+assert(typeof mapBentoMod.generarSvgAnilloScore === 'function', 'map.bento.js must export generarSvgAnilloScore');
+assert(typeof mapMod.generarSvgAnilloScore === 'function', 'map.js must re-export generarSvgAnilloScore');
+
+const svgScoreOptimal = mapBentoMod.generarSvgAnilloScore(85);
+assert(typeof svgScoreOptimal === 'string', 'generarSvgAnilloScore must return a string');
+assert(svgScoreOptimal.includes('<svg') && svgScoreOptimal.includes('</svg>'), 'generarSvgAnilloScore must output valid SVG tags');
+assert(svgScoreOptimal.includes('viewBox="0 0 120 120"'), 'SVG must use viewBox="0 0 120 120"');
+assert(svgScoreOptimal.includes('ps-gauge-ring'), 'SVG must contain ps-gauge-ring class');
+assert(svgScoreOptimal.includes('85'), 'SVG must contain score number 85');
+assert(svgScoreOptimal.includes('ÓPTIMO'), 'SVG must contain ÓPTIMO label for 85 score');
+
+const svgScoreDanger = mapBentoMod.generarSvgAnilloScore(30);
+assert(svgScoreDanger.includes('30'), 'SVG must contain score number 30');
+assert(svgScoreDanger.includes('PELIGRO'), 'SVG must contain PELIGRO label for 30 score');
+
+// 3. Segmented Sub-View Switcher ('todas' | 'meteo' | 'inteligencia' | 'coach')
+assert(typeof mapBentoMod.cambiarSubVistaSpot === 'function', 'map.bento.js must export cambiarSubVistaSpot');
+assert(typeof mapMod.cambiarSubVistaSpot === 'function', 'map.js must re-export cambiarSubVistaSpot');
+assert(mapBentoMod.cambiarSubVistaSpot('meteo') === 'meteo', 'cambiarSubVistaSpot must support meteo view');
+assert(mapBentoMod.cambiarSubVistaSpot('inteligencia') === 'inteligencia', 'cambiarSubVistaSpot must support inteligencia view');
+assert(mapBentoMod.cambiarSubVistaSpot('coach') === 'coach', 'cambiarSubVistaSpot must support coach view');
+assert(mapBentoMod.cambiarSubVistaSpot('todas') === 'todas', 'cambiarSubVistaSpot must support todas view');
+
+// 4. UI 5.0 DOM Layout & Tokens Integrity
+assert(indexHtml.includes('id="mapLayerSwitcher"'), 'index.html must include floating #mapLayerSwitcher');
+assert(indexHtml.includes('id="spotSubViewSwitcher"'), 'index.html must include segmented #spotSubViewSwitcher');
+assert(indexHtml.includes('ps-omnibar'), 'index.html must use .ps-omnibar command strip');
+assert(indexHtml.includes('ps-map-dock'), 'index.html must style floating multipuntoToolbar with ps-map-dock');
+
+// ==============================================================================
+// 3.4.7 Batch #21: Garmin Ultra Live Tracker, Strava Mini SVG & Olympic Podium
+// ==============================================================================
+
+// 1. Mini SVG Route Thumbnail Generator (utils.js)
+assert(typeof utilsMod.generarMiniSvgTrazadoRuta === 'function', 'utils.js must export generarMiniSvgTrazadoRuta');
+const sampleRouteCoords = [[38.801, 0.181], [38.815, 0.192], [38.825, 0.205]];
+const svgTrazado = utilsMod.generarMiniSvgTrazadoRuta(sampleRouteCoords, '#38bdf8');
+assert(svgTrazado.includes('<svg') && svgTrazado.includes('viewBox="0 0 160 90"'), 'SVG route must have 160x90 viewBox');
+assert(svgTrazado.includes('<polyline'), 'SVG route must render a polyline');
+assert(svgTrazado.includes('fill="#10b981"'), 'SVG route must include green start point circle marker');
+assert(svgTrazado.includes('fill="#f43f5e"'), 'SVG route must include red/checkered finish circle marker');
+assert(svgTrazado.includes('#38bdf8'), 'SVG route must use specified stroke color');
+
+// Fallback wave vector for < 2 coords
+const svgFallback = utilsMod.generarMiniSvgTrazadoRuta([]);
+assert(svgFallback.includes('<svg') && svgFallback.includes('Trazado decorativo'), 'Fallback must render decorative wave vector');
+
+// 2. Garmin Ultra Live Pace & Biometric Zones (map.tracker.js & map.js)
+assert(typeof mapTrackerMod.calcularZonaRitmoLive === 'function', 'map.tracker.js must export calcularZonaRitmoLive');
+assert(typeof mapMod.calcularZonaRitmoLive === 'function', 'map.js must re-export calcularZonaRitmoLive');
+
+const zonaParado = mapTrackerMod.calcularZonaRitmoLive(0, 4.5);
+assert(zonaParado.zona === 'parado' && zonaParado.etiqueta.includes('Parado'), '0 km/h must be Parado zone');
+
+const zonaDeriva = mapTrackerMod.calcularZonaRitmoLive(2.5, 4.5);
+assert(zonaDeriva.zona === 'suave' && zonaDeriva.etiqueta.includes('Deriva'), '2.5 km/h with 4.5 cruise must be Deriva / Ritmo Suave');
+
+const zonaOptimo = mapTrackerMod.calcularZonaRitmoLive(4.5, 4.5);
+assert(zonaOptimo.zona === 'optimo' && zonaOptimo.etiqueta.includes('Crucero'), '4.5 km/h with 4.5 cruise must be Crucero Óptimo');
+
+const zonaSprint = mapTrackerMod.calcularZonaRitmoLive(6.8, 4.5);
+assert(zonaSprint.zona === 'sprint' && zonaSprint.etiqueta.includes('Sprint'), '6.8 km/h with 4.5 cruise must be Sprint / Competición');
+
+// 3. Live Splits Sparkline Renderer
+assert(typeof mapTrackerMod.renderLiveSplitsSparkline === 'function', 'map.tracker.js must export renderLiveSplitsSparkline');
+const sampleSplits = [
+    { km: 1, ritmoMinKm: '10.2', velMediaKmh: '5.8', timestamp: Date.now() },
+    { km: 2, ritmoMinKm: '11.5', velMediaKmh: '5.2', timestamp: Date.now() + 600000 }
+];
+const splitsSparkSvg = mapTrackerMod.renderLiveSplitsSparkline(sampleSplits);
+assert(splitsSparkSvg.includes('<svg') && splitsSparkSvg.includes('1k') && splitsSparkSvg.includes('2k'), 'Splits sparkline must render split bars');
+
+// 4. Olympic / Strava-style Podium Bento (gamification.js)
 const gamifMod = await import(pathToFileURL(path.resolve('public_html/js/gamification.js')).href);
+assert(typeof gamifMod.renderizarPodioTop3Ranking === 'function', 'gamification.js must export renderizarPodioTop3Ranking');
+const mockPodiumUsers = [
+    { id: 'usr-1', nombre: 'Alba SUP', nivel: 8, titulo: 'Maestra Costera', metricLabel: '142.5 km', km_total: 142.5 },
+    { id: 'usr-2', nombre: 'Carlos Sea', nivel: 6, titulo: 'Guía de Travesía', metricLabel: '118.0 km', km_total: 118.0 },
+    { id: 'usr-3', nombre: 'Elena Wind', nivel: 5, titulo: 'Paddler Costero', metricLabel: '95.2 km', km_total: 95.2 }
+];
+const podiumHtml = gamifMod.renderizarPodioTop3Ranking(mockPodiumUsers);
+assert(podiumHtml.includes('ps-bento-card'), 'Podium must use .ps-bento-card container');
+assert(podiumHtml.includes('1º') && podiumHtml.includes('Oro'), 'Podium must feature 1st place gold pillar');
+assert(podiumHtml.includes('2º') && podiumHtml.includes('Plata'), 'Podium must feature 2nd place silver pillar');
+assert(podiumHtml.includes('3º') && podiumHtml.includes('Bronce'), 'Podium must feature 3rd place bronze pillar');
+assert(podiumHtml.includes('ps-tabular'), 'Podium metric numbers must use .ps-tabular');
+assert(gamifMod.renderizarPodioTop3Ranking([]) === '', 'Empty ranking should safely return empty string');
+
+// 5. Architecture Constraint: map.js Facade strictly under 200 LOC
+const mapJsLines = fs.readFileSync('public_html/js/map.js', 'utf8').split('\n').length;
+assert(mapJsLines < 200, `map.js Facade must remain strictly under 200 LOC, currently ${mapJsLines} lines`);
+
+// 6. UI 5.1 CSS Tokens in compiled tailwind.min.css
+assert(tailwindCss.includes('.ps-live-hud'), '.ps-live-hud must exist in tailwind.min.css');
+assert(tailwindCss.includes('.modo-sol-activo'), '.modo-sol-activo must exist in tailwind.min.css');
+assert(tailwindCss.includes('.ps-podium-gold'), '.ps-podium-gold must exist in tailwind.min.css');
+
+// 3.5 Personal Records (PRs) & ISA Merit Badges Engine (Batch #10)
 const { calcularRecordsYEstadisticasPerfil, evaluarLogrosUsuario, CATALOGO_LOGROS_MERITO } = gamifMod;
 
 assert(Array.isArray(CATALOGO_LOGROS_MERITO) && CATALOGO_LOGROS_MERITO.length >= 8, 'CATALOGO_LOGROS_MERITO must have at least 8 merit badges');

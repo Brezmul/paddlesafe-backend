@@ -1198,3 +1198,198 @@ export function renderizarAvisoSuperior(motor) {
     }
 }
 
+// ==============================================================================
+// 72H OPTIMAL PADDLING WINDOWS SCANNER (BATCH #19)
+// ==============================================================================
+
+/**
+ * Escanea las horas diurnas (07:00 a 20:00) en el dataset de pronóstico disponible (72h),
+ * evalúa cada bloque contiguo de 3 horas con el motor de veredictos y deriva PaddleSafe,
+ * y retorna las 3 mejores ventanas ordenadas de mayor a menor score de seguridad.
+ * @param {number} lat Latitud del spot
+ * @param {number} lon Longitud del spot
+ * @param {Object} pronosticoData Dataset horario de Open-Meteo o series horarias
+ * @param {number|null} seawardDeg Orientación de salida a mar abierto
+ * @returns {Array<Object>} Top 3 ventanas: { fechaStr, etiquetaDia, horaInicio, horaFin, scoreMedio, vientoMedioKt, olasMediasM, resumen }
+ */
+export function escanearMejoresVentanas72h(lat, lon, pronosticoData, seawardDeg = null) {
+    if (!pronosticoData) return [];
+
+    let registrosHorarios = [];
+
+    // Formato 1: Objeto Open-Meteo con hourly (arrays paralelos)
+    const hourly = pronosticoData.hourly || (pronosticoData.time ? pronosticoData : null);
+    if (hourly && Array.isArray(hourly.time)) {
+        for (let i = 0; i < hourly.time.length; i++) {
+            const timeStr = hourly.time[i];
+            if (!timeStr) continue;
+            const fechaStr = timeStr.slice(0, 10);
+            const horaNum = parseInt(timeStr.slice(11, 13), 10);
+            if (isNaN(horaNum) || horaNum < 7 || horaNum > 20) continue;
+
+            const wSpeedRaw = hourly.wind_speed_10m?.[i] ?? hourly.windSpeed?.[i] ?? 0;
+            const vientoKt = Number(kmhANudos(Number(wSpeedRaw) * 3.6).toFixed(1));
+            const wGustRaw = hourly.wind_gust_10m?.[i] ?? hourly.wind_gusts_10m?.[i] ?? hourly.windGusts?.[i] ?? wSpeedRaw;
+            const rachasKt = Number(kmhANudos(Number(wGustRaw) * 3.6).toFixed(1));
+            const dirDeg = Number(hourly.wind_direction_10m?.[i] ?? hourly.windDirection?.[i] ?? 0);
+            const olaM = Number(Number(hourly.wave_height?.[i] ?? hourly.waveHeight?.[i] ?? 0.2).toFixed(1));
+            const wCode = Number(hourly.weather_code?.[i] ?? hourly.weatherCode?.[i] ?? 0);
+
+            registrosHorarios.push({
+                fechaStr,
+                horaNum,
+                vientoKt,
+                rachasKt,
+                dirDeg,
+                olaM,
+                weatherCode: wCode
+            });
+        }
+    } else if (Array.isArray(pronosticoData.horasDiurnas)) {
+        // Formato 2: horasDiurnas de un pronóstico diario
+        const fechaBase = pronosticoData.fecha || pronosticoData.date || (typeof document !== 'undefined' ? document.getElementById('date')?.value : null) || new Date().toISOString().slice(0, 10);
+        for (const h of pronosticoData.horasDiurnas) {
+            const horaNum = parseInt((h.hora || '12:00').slice(0, 2), 10);
+            if (isNaN(horaNum) || horaNum < 7 || horaNum > 20) continue;
+            registrosHorarios.push({
+                fechaStr: h.fecha || fechaBase,
+                horaNum,
+                vientoKt: Number(Number(h.vientoKt ?? 5).toFixed(1)),
+                rachasKt: Number(Number(h.rachasKt ?? h.vientoKt ?? 6).toFixed(1)),
+                dirDeg: Number(h.dirDeg ?? h.direccionDeg ?? h.wind_direction ?? 0),
+                olaM: Number(Number(h.olaM ?? h.oleajeM ?? 0.2).toFixed(1)),
+                weatherCode: Number(h.weatherCode ?? 0)
+            });
+        }
+    } else if (Array.isArray(pronosticoData)) {
+        // Formato 3: Array plano de horas
+        for (const h of pronosticoData) {
+            const timeStr = String(h.hora || h.time || '12:00');
+            const horaNum = h.horaNum !== undefined ? h.horaNum : (timeStr.includes(':') ? parseInt(timeStr.slice(0, 2), 10) : 12);
+            if (isNaN(horaNum) || horaNum < 7 || horaNum > 20) continue;
+            registrosHorarios.push({
+                fechaStr: h.fechaStr || h.fecha || (h.time ? String(h.time).slice(0, 10) : new Date().toISOString().slice(0, 10)),
+                horaNum,
+                vientoKt: Number(Number(h.vientoKt ?? 5).toFixed(1)),
+                rachasKt: Number(Number(h.rachasKt ?? h.vientoKt ?? 6).toFixed(1)),
+                dirDeg: Number(h.dirDeg ?? h.dirVientoDeg ?? 0),
+                olaM: Number(Number(h.olaM ?? h.oleajeM ?? 0.2).toFixed(1)),
+                weatherCode: Number(h.weatherCode ?? 0)
+            });
+        }
+    }
+
+    if (registrosHorarios.length === 0) return [];
+
+    // Agrupar por fecha
+    const porFecha = new Map();
+    for (const r of registrosHorarios) {
+        if (!porFecha.has(r.fechaStr)) porFecha.set(r.fechaStr, []);
+        porFecha.get(r.fechaStr).push(r);
+    }
+
+    const ventanasCandidatas = [];
+
+    porFecha.forEach((horasDelDia, fechaStr) => {
+        horasDelDia.sort((a, b) => a.horaNum - b.horaNum);
+
+        for (let i = 0; i < horasDelDia.length; i++) {
+            const hStart = horasDelDia[i].horaNum;
+            if (hStart > 18) continue; // Una ventana de 3h iniciada después de las 18:00 termina pasadas las 21:00
+
+            // Buscar bloque contiguo de 3 horas
+            const bloque = [
+                horasDelDia.find(h => h.horaNum === hStart),
+                horasDelDia.find(h => h.horaNum === hStart + 1),
+                horasDelDia.find(h => h.horaNum === hStart + 2)
+            ].filter(Boolean);
+
+            if (bloque.length < 3) continue;
+
+            const avgViento = Number((bloque.reduce((acc, h) => acc + h.vientoKt, 0) / 3).toFixed(1));
+            const avgRachas = Number((bloque.reduce((acc, h) => acc + h.rachasKt, 0) / 3).toFixed(1));
+            const avgOla = Number((bloque.reduce((acc, h) => acc + h.olaM, 0) / 3).toFixed(1));
+            const avgDir = bloque[1].dirDeg;
+            const tieneTormenta = bloque.some(h => [95, 96, 99].includes(h.weatherCode));
+
+            let score = 90;
+            let resumen = 'Condiciones excelentes para remar.';
+            if (tieneTormenta) {
+                score = 0;
+                resumen = 'Riesgo de tormenta eléctrica en la franja.';
+            } else {
+                try {
+                    const verd = generarVeredictoNextGen({
+                        vientoKt: avgViento,
+                        rachasKt: avgRachas,
+                        oleajeM: avgOla,
+                        dirVientoDeg: avgDir,
+                        seaward_deg: seawardDeg,
+                        esCosta: true,
+                        deporte: 'paddle_surf',
+                        nivelUsuario: 'Intermedio'
+                    });
+                    score = verd.score ?? Math.max(10, Math.round(100 - avgViento * 4 - avgOla * 30));
+                    resumen = verd.justificacion || verd.respuestaDirecta || resumen;
+                } catch (_) {
+                    score = Math.max(10, Math.round(100 - avgViento * 4 - avgOla * 30));
+                }
+            }
+
+            const hoyStr = new Date().toISOString().slice(0, 10);
+            const mananaStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+            let etiquetaDia = 'Hoy';
+            if (fechaStr === hoyStr) etiquetaDia = 'Hoy';
+            else if (fechaStr === mananaStr) etiquetaDia = 'Mañana';
+            else {
+                const [y, m, d] = fechaStr.split('-').map(Number);
+                const dt = new Date(Date.UTC(y, m - 1, d));
+                const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                etiquetaDia = `${dias[dt.getUTCDay()]} ${d}`;
+            }
+
+            ventanasCandidatas.push({
+                fechaStr,
+                etiquetaDia,
+                horaInicio: `${String(hStart).padStart(2, '0')}:00`,
+                horaFin: `${String(hStart + 3).padStart(2, '0')}:00`,
+                scoreMedio: Math.round(score),
+                vientoMedioKt: avgViento,
+                olasMediasM: avgOla,
+                resumen
+            });
+        }
+    });
+
+    // Ordenar por scoreMedio descendente y menor viento
+    ventanasCandidatas.sort((a, b) => b.scoreMedio - a.scoreMedio || a.vientoMedioKt - b.vientoMedioKt);
+
+    // Selección evitando duplicidad idéntica en el mismo día
+    const seleccionadas = [];
+    for (const v of ventanasCandidatas) {
+        const solapa = seleccionadas.some(s =>
+            s.fechaStr === v.fechaStr &&
+            Math.abs(parseInt(s.horaInicio, 10) - parseInt(v.horaInicio, 10)) < 2
+        );
+        if (!solapa) {
+            seleccionadas.push(v);
+        }
+        if (seleccionadas.length === 3) break;
+    }
+
+    if (seleccionadas.length < 3) {
+        for (const v of ventanasCandidatas) {
+            if (!seleccionadas.some(s => s.fechaStr === v.fechaStr && s.horaInicio === v.horaInicio)) {
+                seleccionadas.push(v);
+            }
+            if (seleccionadas.length === 3) break;
+        }
+    }
+
+    return seleccionadas;
+}
+
+if (typeof window !== 'undefined') {
+    window.escanearMejoresVentanas72h = escanearMejoresVentanas72h;
+}
+

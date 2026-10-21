@@ -3,7 +3,7 @@
 // ====================================================
 
 import { supabaseClient, appState } from './config.js';
-import { esc, safeUrl, IMG_FALLBACK } from './utils.js';
+import { esc, safeUrl, IMG_FALLBACK, generarMiniSvgTrazadoRuta } from './utils.js';
 import { descargarGPX, parseGPX, generarGPX } from './gpxParser.js';
 import { ClubState } from './club/state.js';
 
@@ -156,6 +156,7 @@ export function renderTarjetaRutaSocial(ruta, clubNombre = null) {
     const autorAvatar = safeUrl(ruta.perfiles?.avatar_url, IMG_FALLBACK);
     const ubicacion = ruta.ubicacion || ruta.title || 'Travesía SUP';
     const fechaStr = ruta.fecha || ruta.created_at ? new Date(ruta.fecha || ruta.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+    const xpVal = Number(ruta.xp_ganados || ruta.xp || ruta.points_earned) || Math.max(10, Math.round(distKm * 20 + duracionMin * 2));
 
     // Comprobar si la ruta tiene coordenadas disponibles
     let coords = ruta.route_coordinates || ruta.coordinates || ruta.ruta_json;
@@ -171,7 +172,7 @@ export function renderTarjetaRutaSocial(ruta, clubNombre = null) {
         const scoreVal = weather.score != null ? Math.round(weather.score) : null;
         const scoreIcon = scoreVal != null ? (scoreVal >= 75 ? '🟢' : scoreVal >= 50 ? '🟡' : '🔴') : '';
         weatherBadgeHtml = `
-            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-[11px] font-bold text-sky-800 dark:text-sky-300 mt-1 mb-2">
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-950/60 border border-sky-800 text-[11px] font-bold text-sky-300 mt-1 mb-2">
                 <span>💨 ${weather.vientoKt} kt</span>
                 <span>·</span>
                 <span>🌊 ${weather.olasM.toFixed(1)}m</span>
@@ -180,80 +181,112 @@ export function renderTarjetaRutaSocial(ruta, clubNombre = null) {
         `;
     }
 
-    // 2. Previsualización Póster Finisher si hay imagen_url
+    // 2. Previsualización de Trazado Mini SVG (Strava-style)
+    let miniSvgHtml = '';
+    if (tieneCoords) {
+        const svgCode = (typeof window !== 'undefined' && typeof window.generarMiniSvgTrazadoRuta === 'function')
+            ? window.generarMiniSvgTrazadoRuta(coords, '#38bdf8')
+            : (typeof generarMiniSvgTrazadoRuta === 'function' ? generarMiniSvgTrazadoRuta(coords, '#38bdf8') : '');
+
+        miniSvgHtml = `
+            <div class="relative w-full h-32 my-2.5 rounded-2xl overflow-hidden border border-slate-700/60 bg-slate-950/70 p-2 flex items-center justify-center shadow-inner group cursor-pointer" onclick="abrirRutaSocialEnMapa('${rutaId}')" title="Clic para cargar en Cabina">
+                ${svgCode}
+                <div class="absolute bottom-2 left-2 flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md px-2 py-0.5 rounded-full border border-sky-500/30 text-[9px] font-mono font-bold text-sky-400 shadow">
+                    <span>📍</span><span>GPS TRACK</span>
+                </div>
+                <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-sky-600/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
+                    Cargar en Cabina 🗺️
+                </div>
+            </div>
+        `;
+    }
+
+    // 3. Previsualización Póster Finisher si hay imagen_url
     let posterHtml = '';
     if (ruta.imagen_url) {
         const resumenStats = `📏 ${distKm.toFixed(2)} km · ⏱️ ${duracionMin} min · 🚀 ${velMedia.toFixed(1)} km/h`;
         posterHtml = `
-            <div class="relative mt-2 mb-3 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 group cursor-pointer shadow-md bg-slate-900" onclick="verPosterFinisherFullscreen('${esc(ruta.imagen_url)}', '${esc(ubicacion)}', '${esc(resumenStats)}')">
+            <div class="relative mt-2 mb-3 rounded-2xl overflow-hidden border border-slate-700 group cursor-pointer shadow-md bg-slate-900" onclick="verPosterFinisherFullscreen('${esc(ruta.imagen_url)}', '${esc(ubicacion)}', '${esc(resumenStats)}')">
                 <img src="${esc(safeUrl(ruta.imagen_url))}" class="w-full max-h-64 object-cover object-center group-hover:scale-[1.02] transition-transform duration-300" loading="lazy" alt="Póster Finisher" onerror="this.onerror=null; this.parentElement.style.display='none';" />
                 <span class="absolute top-2.5 left-2.5 bg-slate-900/85 backdrop-blur-md text-amber-300 border border-amber-400/40 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">🏄 PÓSTER FINISHER</span>
             </div>
         `;
     }
 
-    // 3. Cuadrícula táctica de 4 pastillas (Stats)
+    // 4. Cuadrícula de 4 Métricas de Telemetría (Design System 5.0 + .ps-tabular)
     const statsGridHtml = `
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 my-2.5">
-            <div class="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center gap-2 shadow-xs">
                 <span class="text-xs">📏</span>
-                <span class="text-xs font-black text-slate-800 dark:text-slate-100">${distKm.toFixed(2)} km</span>
+                <div>
+                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold">Distancia</p>
+                    <p class="text-xs font-black text-white ps-tabular">${distKm.toFixed(2)} km</p>
+                </div>
             </div>
-            <div class="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center gap-2 shadow-xs">
                 <span class="text-xs">⏱️</span>
-                <span class="text-xs font-bold text-slate-800 dark:text-slate-100">${duracionMin} min</span>
+                <div>
+                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold">Tiempo</p>
+                    <p class="text-xs font-bold text-white ps-tabular">${duracionMin} min</p>
+                </div>
             </div>
-            <div class="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
-                <span class="text-xs">🚀</span>
-                <span class="text-xs font-bold text-slate-800 dark:text-slate-100">${velMedia.toFixed(1)} km/h</span>
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center gap-2 shadow-xs">
+                <span class="text-xs">⚡</span>
+                <div>
+                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold">Vel. Media</p>
+                    <p class="text-xs font-bold text-cyan-400 ps-tabular">${velMedia.toFixed(1)} km/h</p>
+                </div>
             </div>
-            <div class="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
-                <span class="text-xs">🔥</span>
-                <span class="text-xs font-black text-amber-600 dark:text-amber-400">~${kcal} kcal</span>
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center gap-2 shadow-xs">
+                <span class="text-xs">✨</span>
+                <div>
+                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold">XP</p>
+                    <p class="text-xs font-black text-amber-400 ps-tabular">+${xpVal} XP</p>
+                </div>
             </div>
         </div>
     `;
 
-    // 4. Barra de acciones operativas y Likes
+    // 5. Barra de acciones operativas, Cargar en Cabina y Likes
     let actionButtonsHtml = '';
     if (tieneCoords || rutaId) {
         actionButtonsHtml = `
-            <div class="flex items-center justify-between flex-wrap gap-2 pt-2.5 mt-2 border-t border-slate-100 dark:border-slate-700/60">
+            <div class="flex items-center justify-between flex-wrap gap-2 pt-2.5 mt-2 border-t border-slate-700/60">
                 <div class="flex items-center gap-1.5 flex-wrap">
                     ${tieneCoords ? `
-                        <button type="button" onclick="abrirRutaSocialEnMapa('${rutaId}')" class="px-2.5 py-1 bg-marine hover:bg-sky-700 text-white font-bold text-[11px] rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
-                            <span>🗺️</span><span>Ver en Mapa</span>
+                        <button type="button" onclick="abrirRutaSocialEnMapa('${rutaId}')" class="px-3 py-1.5 bg-gradient-to-r from-sky-600 to-cyan-500 hover:from-sky-500 hover:to-cyan-400 text-white font-black text-[11px] rounded-xl shadow-md shadow-sky-900/30 flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer">
+                            <span>🗺️</span><span>Cargar en Cabina</span>
                         </button>
-                        <button type="button" onclick="descargarGpxRutaSocial('${rutaId}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+                        <button type="button" onclick="descargarGpxRutaSocial('${rutaId}')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
                             <span>📲</span><span>GPX</span>
                         </button>
                     ` : ''}
-                    <button type="button" onclick="mostrarModalSplitsKm('${rutaId}')" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+                    <button type="button" onclick="mostrarModalSplitsKm('${rutaId}')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
                         <span>📊</span><span>Splits</span>
                     </button>
                     ${esPropietario ? `
-                        <button type="button" onclick="compartirRutaEnMiClub('${rutaId}')" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Compartir en el muro de mi club">
+                        <button type="button" onclick="compartirRutaEnMiClub('${rutaId}')" class="px-2.5 py-1.5 bg-indigo-900/70 hover:bg-indigo-800 text-indigo-300 border border-indigo-700/50 font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Compartir en el muro de mi club">
                             <span>📣</span><span>Club</span>
                         </button>
-                        <button type="button" onclick="eliminarRutaSocial('${rutaId}')" class="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Eliminar ruta">
+                        <button type="button" onclick="eliminarRutaSocial('${rutaId}')" class="px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/50 font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Eliminar ruta">
                             <span>🗑️</span><span>Eliminar</span>
                         </button>
                     ` : ''}
                 </div>
                 <div class="flex items-center gap-2">
-                    <button type="button" onclick="toggleLikeRutaSocial('${rutaId}')" id="btnLikeSocial-${rutaId}" class="px-2 py-1 text-slate-500 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 font-bold text-xs rounded-lg flex items-center gap-1 transition-colors cursor-pointer" title="Me gusta">
+                    <button type="button" onclick="toggleLikeRutaSocial('${rutaId}')" id="btnLikeSocial-${rutaId}" class="px-2 py-1 text-slate-400 hover:text-red-400 font-bold text-xs rounded-lg flex items-center gap-1 transition-colors cursor-pointer" title="Me gusta">
                         <span>❤️</span><span id="likeCountSocial-${rutaId}">0</span>
                     </button>
-                    <button type="button" onclick="toggleComentariosRutaSocial('${rutaId}')" id="btnCommentSocial-${rutaId}" class="px-2 py-1 text-slate-500 hover:text-sky-500 dark:text-slate-400 dark:hover:text-sky-400 font-bold text-xs rounded-lg flex items-center gap-1 transition-colors cursor-pointer" title="Comentarios">
+                    <button type="button" onclick="toggleComentariosRutaSocial('${rutaId}')" id="btnCommentSocial-${rutaId}" class="px-2 py-1 text-slate-400 hover:text-sky-400 font-bold text-xs rounded-lg flex items-center gap-1 transition-colors cursor-pointer" title="Comentarios">
                         <span>💬</span><span id="commentCountSocial-${rutaId}">0</span>
                     </button>
                 </div>
             </div>
-            <div id="comentarios-seccion-${rutaId}" class="hidden pt-3 mt-2 border-t border-slate-100 dark:border-slate-700/60">
+            <div id="comentarios-seccion-${rutaId}" class="hidden pt-3 mt-2 border-t border-slate-700/60">
                 <div id="comentarios-lista-${rutaId}" class="space-y-2 mb-3 max-h-48 overflow-y-auto pr-1"></div>
                 <div class="flex items-center gap-2">
-                    <input type="text" id="comentario-input-${rutaId}" placeholder="Escribe un comentario..." class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-marine dark:text-white focus:outline-none focus:border-water" onkeydown="if(event.key==='Enter') agregarComentarioRuta('${rutaId}')">
-                    <button type="button" onclick="agregarComentarioRuta('${rutaId}')" class="px-3 py-1.5 bg-water hover:bg-sky-600 text-white font-bold text-xs rounded-xl shadow active:scale-95 transition-all cursor-pointer">Enviar</button>
+                    <input type="text" id="comentario-input-${rutaId}" placeholder="Escribe un comentario..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500" onkeydown="if(event.key==='Enter') agregarComentarioRuta('${rutaId}')">
+                    <button type="button" onclick="agregarComentarioRuta('${rutaId}')" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow active:scale-95 transition-all cursor-pointer">Enviar</button>
                 </div>
             </div>
         `;
@@ -261,17 +294,21 @@ export function renderTarjetaRutaSocial(ruta, clubNombre = null) {
 
     return `
         <div class="flex flex-col gap-1 w-full text-left">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between mb-1">
                 <div class="flex items-center gap-3 min-w-0">
-                    <img src="${autorAvatar}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-11 h-11 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700 shadow-sm shrink-0" alt="Avatar">
+                    <div class="relative shrink-0">
+                        <img src="${autorAvatar}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-11 h-11 rounded-full object-cover border-2 border-slate-700 shadow-sm" alt="Avatar">
+                        <span data-user-presence-id="${esc(ruta.user_id || '')}" class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 bg-slate-500 transition-colors"></span>
+                    </div>
                     <div class="min-w-0">
-                        <p class="text-sm font-black text-marine dark:text-white leading-tight truncate">${esc(autorNombre)}</p>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate font-semibold">${esc(ubicacion)} ${clubNombre ? `· <span class="text-water dark:text-sky-400 font-bold">${esc(clubNombre)}</span>` : ''}</p>
+                        <p class="text-sm font-black text-white leading-tight truncate">${esc(autorNombre)}</p>
+                        <p class="text-[11px] text-slate-400 truncate font-semibold">${esc(ubicacion)} ${clubNombre ? `· <span class="text-sky-400 font-bold">${esc(clubNombre)}</span>` : ''}</p>
                     </div>
                 </div>
-                ${fechaStr ? `<span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider shrink-0">${fechaStr}</span>` : ''}
+                ${fechaStr ? `<span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider shrink-0 bg-slate-800/80 px-2 py-0.5 rounded-md border border-slate-700/50">${fechaStr}</span>` : ''}
             </div>
             ${weatherBadgeHtml}
+            ${miniSvgHtml}
             ${posterHtml}
             ${statsGridHtml}
             ${actionButtonsHtml}
@@ -279,9 +316,6 @@ export function renderTarjetaRutaSocial(ruta, clubNombre = null) {
     `;
 }
 
-/**
- * Visualiza el Póster Finisher a pantalla completa
- */
 export function verPosterFinisherFullscreen(imgUrl, titulo = 'Póster Finisher', resumenStats = '') {
     if (!imgUrl) return;
     let lb = document.getElementById('posterFinisherLightbox');
@@ -1649,7 +1683,7 @@ export const socialFeed = {
             if (queryErrors.length > 0) {
                 h += `<p class="text-center text-amber-600 dark:text-amber-400 text-xs py-2">No se pudo cargar toda la actividad.</p>`;
             }
-            h += this.items.map(i => `<div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 rounded-[24px] shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">${i.html}<div class="mt-4 pt-3 border-t border-slate-50 dark:border-slate-700/50 flex justify-end"><span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-900/50 px-2 py-1 rounded-md">${i.date.toLocaleDateString(undefined, {month:'short', day:'numeric'})} • ${i.date.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})}</span></div></div>`).join('');
+            h += this.items.map(i => `<div class="ps-bento-card bg-slate-900/90 border border-slate-700/80 p-5 rounded-[24px] shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">${i.html}<div class="mt-4 pt-3 border-t border-slate-50 dark:border-slate-700/50 flex justify-end"><span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-900/50 px-2 py-1 rounded-md">${i.date.toLocaleDateString(undefined, {month:'short', day:'numeric'})} • ${i.date.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})}</span></div></div>`).join('');
 
             if (this.hayMas) {
                 h += `

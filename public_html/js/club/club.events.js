@@ -160,14 +160,14 @@ export const ClubEvents = {
         const horaLabel = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
         return `
-            <div id="card-evento-${ev.id}" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden transition-all hover:shadow-md">
+            <div id="card-evento-${ev.id}" class="ps-bento-card bg-slate-900/90 rounded-2xl border border-slate-700/80 shadow-md overflow-hidden transition-all hover:shadow-lg">
                 <!-- Cabecera de la Tarjeta -->
                 <div class="p-4 border-b border-slate-100 dark:border-slate-700/60">
                     <div class="flex items-start justify-between gap-3 mb-2">
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap mb-1">
                                 ${badgeTiempo}
-                                <span class="text-xs font-black text-slate-700 dark:text-slate-300 capitalize">${fechaLabel} • ${horaLabel} h</span>
+                                <span class="text-xs font-black text-slate-300 capitalize ps-tabular">${fechaLabel} • ${horaLabel} h</span>
                             </div>
                             <h4 class="text-base font-black text-marine dark:text-white truncate">${esc(ev.nombre)}</h4>
                         </div>
@@ -211,7 +211,7 @@ export const ClubEvents = {
                 <div class="p-3.5 flex items-center justify-between gap-3 bg-white dark:bg-slate-800">
                     <div class="flex items-center gap-1.5">
                         <span class="text-base">👥</span>
-                        <span id="evento-count-${esc(ev.id)}" class="text-xs font-bold text-slate-700 dark:text-slate-200">${totalAsistentes} palistas confirmados</span>
+                        <span id="evento-count-${esc(ev.id)}" class="text-xs font-bold text-slate-200 ps-tabular">${totalAsistentes} palistas confirmados</span>
                     </div>
 
                     ${!esPasado ? `

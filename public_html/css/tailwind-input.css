@@ -198,3 +198,207 @@
   z-index: 0;
   transition: all 0.5s ease;
 }
+
+/* ==============================================================================
+   UI 5.0 SPLIT-COCKPIT, MARINE OMNIBAR & SVG INSTRUMENTATION TOKENS
+   ============================================================================== */
+
+/* Marine Omnibar Glass Command Strip */
+.ps-omnibar {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 41, 59, 0.88) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ps-omnibar:focus-within {
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 12px 30px -5px rgba(14, 165, 233, 0.25);
+}
+
+/* Segmented Sub-view Filter Pills */
+.ps-subview-tab {
+  color: #94a3b8;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ps-subview-tab:hover {
+  color: #f1f5f9;
+  background: rgba(51, 65, 85, 0.4);
+}
+
+.ps-subview-tab-active {
+  color: #38bdf8 !important;
+  background: rgba(14, 165, 233, 0.18) !important;
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
+}
+
+/* SVG Radial Gauge Ring Animation & Glow */
+.ps-gauge-ring circle {
+  transition: stroke-dashoffset 0.85s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.3s ease;
+}
+
+/* Floating Map HUD Dock & Base Layer Switcher */
+.ps-map-dock {
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.ps-map-layer-pill {
+  border: 1px solid transparent;
+  transition: all 0.18s ease;
+}
+
+.ps-map-layer-pill:hover {
+  background: rgba(51, 65, 85, 0.6);
+  color: #ffffff;
+}
+
+
+/* ==============================================================================
+   UI 5.1 GARMIN ULTRA LIVE TRACKER, SUNLIGHT GLARE & PODIUM DESIGN SYSTEM
+   ============================================================================== */
+
+/* Garmin Ultra Live Marine Telemetry HUD */
+.ps-live-hud {
+  background: linear-gradient(180deg, rgba(2, 6, 23, 0.96) 0%, rgba(15, 23, 42, 0.94) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 0 20px rgba(14, 165, 233, 0.15);
+}
+
+/* Sunlight Mode High-Contrast Glare Mode (Pitch Black & Cyan/White) */
+#liveTrackingPanel.modo-sol-activo,
+.modo-sol-activo {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #38bdf8 !important;
+  box-shadow: 0 0 0 3px #000000, 0 10px 30px rgba(0, 0, 0, 0.95) !important;
+}
+
+#liveTrackingPanel.modo-sol-activo .live-hud-card,
+#liveTrackingPanel.modo-sol-activo .live-hud-return,
+#liveTrackingPanel.modo-sol-activo .live-hud-splits,
+#liveTrackingPanel.modo-sol-activo #livePaceZoneBar {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+#liveTrackingPanel.modo-sol-activo .live-hud-label,
+#liveTrackingPanel.modo-sol-activo .live-hud-status {
+  color: #38bdf8 !important;
+  font-weight: 900 !important;
+}
+
+#liveTrackingPanel.modo-sol-activo #liveTime,
+#liveTrackingPanel.modo-sol-activo #trackerTime {
+  color: #38bdf8 !important;
+  font-weight: 900 !important;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.6) !important;
+}
+
+#liveTrackingPanel.modo-sol-activo #liveSpeed,
+#liveTrackingPanel.modo-sol-activo #trackerSpeed {
+  color: #00ffff !important;
+  font-weight: 900 !important;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.7) !important;
+}
+
+#liveTrackingPanel.modo-sol-activo #liveDist,
+#liveTrackingPanel.modo-sol-activo #trackerDist {
+  color: #ffffff !important;
+  font-weight: 900 !important;
+}
+
+#liveTrackingPanel.modo-sol-activo #liveReturnDist,
+#liveTrackingPanel.modo-sol-activo #liveReturnBearing,
+#liveTrackingPanel.modo-sol-activo #liveRtlHud {
+  color: #00ffff !important;
+  font-weight: 900 !important;
+}
+
+#liveTrackingPanel.modo-sol-activo #liveReturnEta {
+  color: #34d399 !important;
+  font-weight: 900 !important;
+}
+
+#liveTrackingPanel.modo-sol-activo .live-btn-tool {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  font-weight: 900 !important;
+}
+
+#liveTrackingPanel.modo-sol-activo .live-btn-finish {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  font-weight: 900 !important;
+}
+
+/* Navigation Sub-tab Pills (.ps-pill-tab) */
+.ps-pill-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 0.75rem;
+  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ps-pill-tab:hover {
+  color: #f8fafc;
+  background: rgba(51, 65, 85, 0.8);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.ps-pill-tab-active {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  border-color: rgba(56, 189, 248, 0.5) !important;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35) !important;
+}
+
+/* Olympic / Strava-style Podium Bento */
+.ps-podium-card {
+  position: relative;
+  border-radius: 1.25rem;
+  transition: all 0.25s ease;
+}
+
+.ps-podium-gold {
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1.5px solid rgba(251, 191, 36, 0.4);
+  box-shadow: 0 8px 24px -4px rgba(245, 158, 11, 0.25);
+}
+
+.ps-podium-silver {
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0.12) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1.5px solid rgba(203, 213, 225, 0.35);
+  box-shadow: 0 6px 18px -4px rgba(148, 163, 184, 0.2);
+}
+
+.ps-podium-bronze {
+  background: linear-gradient(180deg, rgba(217, 119, 6, 0.12) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1.5px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 6px 18px -4px rgba(217, 119, 6, 0.2);
+}

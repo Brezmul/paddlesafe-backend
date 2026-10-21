@@ -1368,6 +1368,119 @@ export function generarGraficoSvgPerfilRuta(tramos, dt) {
     `;
 }
 
+// ==============================================================================
+// TIME PROGRESSIVE ROUTE WEATHER SIMULATOR (BATCH #19)
+// ==============================================================================
+
+/**
+ * Evalúa la evolución meteorológica progresiva por tramo según el ETA de avance de la ruta.
+ * Detecta incrementos de viento >= 4 kt en tramos tardíos/retorno y genera alertas tácticas.
+ * @param {Array} tramos Array de tramos calculados de la ruta
+ * @param {number} horaSalidaIdx Hora inicial de salida (0 - 23)
+ * @param {Object} hourlyForecast Objeto horario Open-Meteo o series horarias
+ * @returns {Object} { hayAumentoCritico, alertas, alertaPrincipal, vientoSalidaKt, tramosEvaluados }
+ */
+export function calcularMeteoProgresivaPorTramo(tramos, horaSalidaIdx = 10, hourlyForecast = null) {
+    if (!Array.isArray(tramos) || tramos.length === 0) {
+        return {
+            hayAumentoCritico: false,
+            alertas: [],
+            alertaPrincipal: null,
+            vientoSalidaKt: 0,
+            tramosEvaluados: []
+        };
+    }
+
+    const hIdx = Number.isFinite(Number(horaSalidaIdx)) ? Math.max(0, Math.min(23, Math.round(Number(horaSalidaIdx)))) : 10;
+
+    const getWindKtAtHour = (targetHour) => {
+        if (!hourlyForecast) return null;
+        const normalizedTargetHour = ((targetHour % 24) + 24) % 24;
+
+        if (Array.isArray(hourlyForecast.time)) {
+            let matchIdx = hourlyForecast.time.findIndex(t => {
+                const hh = parseInt(String(t).slice(11, 13), 10);
+                return hh === normalizedTargetHour;
+            });
+            if (matchIdx < 0 && normalizedTargetHour < hourlyForecast.time.length) {
+                matchIdx = normalizedTargetHour;
+            }
+            if (matchIdx >= 0) {
+                const spd = hourlyForecast.wind_speed_10m?.[matchIdx] ?? hourlyForecast.windSpeed?.[matchIdx];
+                if (spd !== undefined && spd !== null) {
+                    return Number(kmhANudos(Number(spd) * 3.6).toFixed(1));
+                }
+            }
+        } else if (Array.isArray(hourlyForecast)) {
+            const el = hourlyForecast.find(h => {
+                const hh = h.horaNum ?? parseInt(String(h.hora || h.time || '').slice(0, 2), 10);
+                return hh === normalizedTargetHour;
+            });
+            if (el) {
+                const v = el.vientoKt ?? (el.wind_speed ? kmhANudos(el.wind_speed * 3.6) : null);
+                if (v !== null) return Number(Number(v).toFixed(1));
+            }
+        }
+        return null;
+    };
+
+    const firstTramoWind = (tramos[0].viento_kt !== undefined && tramos[0].viento_kt !== null)
+        ? Number(tramos[0].viento_kt)
+        : null;
+    const launchForecastWind = getWindKtAtHour(hIdx);
+    const vientoSalidaKt = launchForecastWind !== null ? launchForecastWind : (firstTramoWind ?? 5.0);
+
+    let minutosAcumulados = 0;
+    const alertas = [];
+    const tramosEvaluados = [];
+
+    for (let i = 0; i < tramos.length; i++) {
+        const tr = tramos[i];
+        const duracionTramoMin = Number(tr.minutos) || Math.round((Number(tr.distancia_km) || 1) / 4.5 * 60);
+
+        // Evaluamos al paso por el tramo según tiempo acumulado
+        const offsetHoras = Math.round((minutosAcumulados + (duracionTramoMin / 2)) / 60);
+        const horaPasoH = (hIdx + offsetHoras) % 24;
+        const horaPasoStr = tr.eta_hora || `${String((hIdx + Math.floor(minutosAcumulados / 60)) % 24).padStart(2, '0')}:${String(Math.round(minutosAcumulados % 60)).padStart(2, '0')}`;
+
+        const forecastWindAtTramo = getWindKtAtHour(horaPasoH);
+        const vientoTramoKt = forecastWindAtTramo !== null 
+            ? forecastWindAtTramo 
+            : ((tr.viento_kt !== undefined && tr.viento_kt !== null) ? Number(tr.viento_kt) : vientoSalidaKt);
+
+        const incrementoKt = Number((vientoTramoKt - vientoSalidaKt).toFixed(1));
+        const nombreTramo = tr.nombre || `Tramo ${i + 1}`;
+
+        const evaluacion = {
+            tramoIndex: i,
+            tramoNombre: nombreTramo,
+            etaHora: horaPasoStr,
+            minutosAcumulados: Math.round(minutosAcumulados),
+            horaPasoH,
+            vientoSalidaKt,
+            vientoTramoKt,
+            incrementoKt,
+            esAumentoCritico: incrementoKt >= 4.0
+        };
+
+        if (evaluacion.esAumentoCritico) {
+            evaluacion.mensaje = `⚠️ Evolución Horaria: A tu hora estimada de paso por el ${nombreTramo} (${horaPasoStr}), el viento subirá de ${vientoSalidaKt} kt a ${vientoTramoKt} kt`;
+            alertas.push(evaluacion);
+        }
+
+        tramosEvaluados.push(evaluacion);
+        minutosAcumulados += duracionTramoMin;
+    }
+
+    return {
+        hayAumentoCritico: alertas.length > 0,
+        alertas,
+        alertaPrincipal: alertas[0] || null,
+        vientoSalidaKt,
+        tramosEvaluados
+    };
+}
+
 
 if (typeof window !== 'undefined') {
     window.toggleRutaLibre = toggleRutaLibre;
@@ -1397,4 +1510,5 @@ if (typeof window !== 'undefined') {
     window.importarRutaGPXPro = importarRutaGPXPro;
     window.centrarTramoMapa = centrarTramoMapa;
     window.generarGraficoSvgPerfilRuta = generarGraficoSvgPerfilRuta;
+    window.calcularMeteoProgresivaPorTramo = calcularMeteoProgresivaPorTramo;
 }

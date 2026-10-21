@@ -297,8 +297,7 @@ export function inicializarMapa() {
     mapRuntime.map = mapInstance;
     if (typeof window !== 'undefined') window.map = mapInstance;
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, crossOrigin: true }).addTo(mapInstance);
-    L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { crossOrigin: true }).addTo(mapInstance);
+    cambiarCapaBaseMapa(mapRuntime.tipoCapaBase || 'nautico');
 
     if (!mapRuntime.modoTravesiaActivo && !mapRuntime.modoRutaLibreActivo) {
         const markerInstance = L.marker([initialLat, initialLon]).addTo(mapInstance);
@@ -523,8 +522,10 @@ export async function descargarZonaMapaOffline() {
     // 2. Fallback cliente directo con Cache API
     try {
         let cache = null;
-        try { cache = await caches.open('paddlesafe-v64-tiles'); } catch (_) {
-            try { cache = await caches.open('paddlesafe-v47-tiles'); } catch (_) {}
+        try { cache = await caches.open('paddlesafe-v65-tiles'); } catch (_) {
+            try { cache = await caches.open('paddlesafe-v64-tiles'); } catch (_) {
+                try { cache = await caches.open('paddlesafe-v47-tiles'); } catch (_) {}
+            }
         }
         let cargadas = 0;
         const BATCH = 6;
@@ -555,8 +556,80 @@ export async function descargarZonaMapaOffline() {
     }
 }
 
+/**
+ * UI 5.0 - Cambia el estilo de la capa base del mapa Leaflet
+ * Estilos soportados:
+ * - 'nautico': OpenStreetMap + OpenSeaMap (balizamiento y marcas marinas)
+ * - 'satelite': Esri World Imagery (imágenes satélite costeras de alta resolución)
+ * - 'oscuro': CartoDB Dark Matter (modo radar táctico de alto contraste)
+ * @param {string} tipoCapa 'nautico' | 'satelite' | 'oscuro'
+ */
+export function cambiarCapaBaseMapa(tipoCapa = 'nautico') {
+    const estilo = ['nautico', 'satelite', 'oscuro'].includes(tipoCapa) ? tipoCapa : 'nautico';
+    mapRuntime.tipoCapaBase = estilo;
+
+    // Actualizar estilo visual de los botones del selector si existen en el DOM
+    if (typeof document !== 'undefined') {
+        const botones = document.querySelectorAll('[data-map-layer]');
+        botones.forEach(btn => {
+            const layerAttr = btn.getAttribute('data-map-layer');
+            if (layerAttr === estilo) {
+                btn.className = 'ps-map-layer-pill px-2.5 py-1 rounded-lg transition-all cursor-pointer bg-sky-500/30 text-sky-300 border border-sky-400 font-bold';
+            } else {
+                btn.className = 'ps-map-layer-pill px-2.5 py-1 rounded-lg transition-all cursor-pointer text-slate-300 border border-transparent hover:text-white font-medium';
+            }
+        });
+    }
+
+    const mapInstance = mapRuntime.map;
+    if (!mapInstance || typeof L === 'undefined') return estilo;
+
+    // Eliminar capas base anteriores
+    if (mapRuntime.capaBaseTile && mapInstance.hasLayer(mapRuntime.capaBaseTile)) {
+        mapInstance.removeLayer(mapRuntime.capaBaseTile);
+        mapRuntime.capaBaseTile = null;
+    }
+    if (mapRuntime.capaOverlayTile && mapInstance.hasLayer(mapRuntime.capaOverlayTile)) {
+        mapInstance.removeLayer(mapRuntime.capaOverlayTile);
+        mapRuntime.capaOverlayTile = null;
+    }
+
+    if (estilo === 'satelite') {
+        mapRuntime.capaBaseTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+            crossOrigin: true,
+            attribution: 'Tiles &copy; Esri'
+        }).addTo(mapInstance);
+        mapRuntime.capaBaseTile.bringToBack();
+    } else if (estilo === 'oscuro') {
+        mapRuntime.capaBaseTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            subdomains: 'abcd',
+            crossOrigin: true,
+            attribution: '&copy; CARTO'
+        }).addTo(mapInstance);
+        mapRuntime.capaBaseTile.bringToBack();
+    } else {
+        // 'nautico' (default)
+        mapRuntime.capaBaseTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            crossOrigin: true,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(mapInstance);
+        mapRuntime.capaOverlayTile = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            crossOrigin: true,
+            attribution: '&copy; OpenSeaMap'
+        }).addTo(mapInstance);
+        mapRuntime.capaBaseTile.bringToBack();
+    }
+
+    return estilo;
+}
+
 if (typeof window !== 'undefined') {
     window.inicializarMapa = inicializarMapa;
+    window.cambiarCapaBaseMapa = cambiarCapaBaseMapa;
     window.actualizarMapa = actualizarMapa;
     window.buscarYCentrarMapa = buscarYCentrarMapa;
     window.obtenerUbicacion = obtenerUbicacion;

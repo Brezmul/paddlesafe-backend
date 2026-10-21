@@ -551,7 +551,7 @@ export const ClubRetos = {
                 const currentLabel = reto.tipo === 'mejor_ritmo' ? `${calc.totalProgreso} km/h` : (reto.tipo === 'individual_salidas' ? `${calc.totalProgreso} salidas` : `${calc.totalProgreso} km`);
 
                 return `
-                    <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-3.5 transition-all">
+                    <div class="ps-bento-card bg-slate-900/90 rounded-2xl p-4 sm:p-5 border border-slate-700/80 shadow-md space-y-3.5 transition-all">
                         <div class="flex items-start justify-between gap-2 flex-wrap">
                             <div>
                                 <div class="flex items-center gap-1.5 flex-wrap">
@@ -580,10 +580,10 @@ export const ClubRetos = {
                             <div class="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-300">
                                 <span class="flex items-center gap-1">
                                     <span>Progreso:</span>
-                                    <strong class="text-marine dark:text-white">${currentLabel}</strong>
-                                    <span class="text-slate-400 font-normal">/ ${targetLabel}</span>
+                                    <strong class="text-white ps-tabular">${currentLabel}</strong>
+                                    <span class="text-slate-400 font-normal ps-tabular">/ ${targetLabel}</span>
                                 </span>
-                                <span class="font-black text-marine dark:text-white">${calc.progressPct}%</span>
+                                <span class="font-black text-white ps-tabular">${calc.progressPct}%</span>
                             </div>
                             <div class="w-full h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden p-0.5 border border-slate-200 dark:border-slate-600">
                                 <div class="h-full rounded-full transition-all duration-500 ${calc.completadoGlobal ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-amber-500 via-orange-500 to-water'}" style="width: ${calc.progressPct}%"></div>

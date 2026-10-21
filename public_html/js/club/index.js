@@ -208,9 +208,9 @@ const ClubFacade = {
             const btn = internalTabs[k];
             if (!btn) return;
             if (k === activeKey) {
-                btn.className = "flex-1 min-w-[80px] px-3 py-2.5 rounded-xl bg-marine dark:bg-water text-white font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors shadow text-center";
+                btn.className = "flex-1 min-w-[80px] ps-pill-tab ps-pill-tab-active font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center";
             } else {
-                btn.className = "flex-1 min-w-[80px] px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700 text-center";
+                btn.className = "flex-1 min-w-[80px] ps-pill-tab font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center";
             }
         });
 
