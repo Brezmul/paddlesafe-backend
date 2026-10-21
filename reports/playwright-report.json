@@ -4,6 +4,7 @@
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\node_modules\\@playwright\\test\\cli.js",
       "test",
+      "tests/e2e/99-screenshot.spec.mjs",
       "--project=iPhone 12 - Portrait"
     ],
     "configFile": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\playwright.config.mjs",
@@ -18,7 +19,7 @@
     "grepInvert": null,
     "maxFailures": 0,
     "metadata": {
-      "actualWorkers": 2
+      "actualWorkers": 1
     },
     "preserveOutput": "always",
     "projects": [
@@ -27,7 +28,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "iPhone SE - Portrait",
         "name": "iPhone SE - Portrait",
@@ -43,7 +44,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "iPhone SE - Landscape",
         "name": "iPhone SE - Landscape",
@@ -59,7 +60,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "iPhone 12 - Portrait",
         "name": "iPhone 12 - Portrait",
@@ -75,7 +76,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "iPhone 12 - Landscape",
         "name": "iPhone 12 - Landscape",
@@ -91,7 +92,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "iPhone 14 Pro - Portrait",
         "name": "iPhone 14 Pro - Portrait",
@@ -107,7 +108,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "iPhone 14 Pro - Landscape",
         "name": "iPhone 14 Pro - Landscape",
@@ -123,7 +124,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "iPhone 15 Pro Max - Portrait",
         "name": "iPhone 15 Pro Max - Portrait",
@@ -139,7 +140,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "iPhone 15 Pro Max - Landscape",
         "name": "iPhone 15 Pro Max - Landscape",
@@ -155,7 +156,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "Pixel 7 - Portrait",
         "name": "Pixel 7 - Portrait",
@@ -171,7 +172,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "Pixel 7 - Landscape",
         "name": "Pixel 7 - Landscape",
@@ -187,7 +188,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "Samsung Galaxy S23 - Portrait",
         "name": "Samsung Galaxy S23 - Portrait",
@@ -203,7 +204,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "Samsung Galaxy S23 - Landscape",
         "name": "Samsung Galaxy S23 - Landscape",
@@ -219,7 +220,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "Desktop 1366x768",
         "name": "Desktop 1366x768",
@@ -235,7 +236,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "Desktop 1920x1080",
         "name": "Desktop 1920x1080",
@@ -255,7 +256,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "name": "iPhone 12 - Portrait",
         "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
@@ -326,1201 +327,57 @@
   },
   "suites": [
     {
-      "title": "01-layout-viewport.spec.mjs",
-      "file": "01-layout-viewport.spec.mjs",
+      "title": "99-screenshot.spec.mjs",
+      "file": "99-screenshot.spec.mjs",
       "column": 0,
       "line": 0,
-      "specs": [],
-      "suites": [
+      "specs": [
         {
-          "title": "Layout & Responsive Viewport Audit",
-          "file": "01-layout-viewport.spec.mjs",
-          "line": 5,
-          "column": 6,
-          "specs": [
+          "title": "Capture mobile portrait screenshot",
+          "ok": true,
+          "tags": [],
+          "tests": [
             {
-              "title": "Zero horizontal overflow & bounded client width across devices",
-              "ok": true,
-              "tags": [],
-              "tests": [
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iPhone 12 - Portrait",
+              "projectName": "iPhone 12 - Portrait",
+              "results": [
                 {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2745,
+                  "errors": [],
+                  "stdout": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1551,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:45.643Z",
-                      "annotations": [],
-                      "attachments": []
+                      "text": "Successfully captured 07_movil_portrait.png\n"
                     }
                   ],
-                  "status": "expected"
-                }
-              ],
-              "id": "03baa6ab3bdd64385f5b-ae02fd1948cb51a36d27",
-              "file": "01-layout-viewport.spec.mjs",
-              "line": 19,
-              "column": 5
-            },
-            {
-              "title": "Header elements and Omnibar are fully visible and readable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-21T22:19:35.892Z",
                   "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 838,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:47.296Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
+                  "attachments": []
                 }
               ],
-              "id": "03baa6ab3bdd64385f5b-99940426465672e0ec3d",
-              "file": "01-layout-viewport.spec.mjs",
-              "line": 71,
-              "column": 5
-            },
-            {
-              "title": "Quick pills bar scrolls cleanly without breaking layout",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1170,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:45.644Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "03baa6ab3bdd64385f5b-046cc0c3f7d90117ecbd",
-              "file": "01-layout-viewport.spec.mjs",
-              "line": 90,
-              "column": 5
+              "status": "expected"
             }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "02-map-leaflet.spec.mjs",
-      "file": "02-map-leaflet.spec.mjs",
-      "column": 0,
-      "line": 0,
-      "specs": [],
-      "suites": [
-        {
-          "title": "Leaflet Map & Cockpit Controls Audit",
-          "file": "02-map-leaflet.spec.mjs",
+          ],
+          "id": "540e8025f0375ab2317b-2320221debde8b059eeb",
+          "file": "99-screenshot.spec.mjs",
           "line": 4,
-          "column": 6,
-          "specs": [
-            {
-              "title": "Leaflet map container initializes and renders tiles",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1239,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:46.932Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-e35944eaa407962911a0",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 32,
-              "column": 5
-            },
-            {
-              "title": "Zoom controls (+ / -) are functional and clickable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1928,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:48.153Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-1444c4180392751e75d6",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 46,
-              "column": 5
-            },
-            {
-              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1647,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:48.180Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-0e8527e46ddce45e0dd5",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 68,
-              "column": 5
-            },
-            {
-              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1523,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:49.835Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-98d9da05edebb37912ce",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 85,
-              "column": 5
-            },
-            {
-              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1499,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:50.088Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-9b8536dbfc39d9985833",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 107,
-              "column": 5
-            },
-            {
-              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1518,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:51.369Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-9e7b47ac9b1b30daff25",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 133,
-              "column": 5
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "03-radar-panel.spec.mjs",
-      "file": "03-radar-panel.spec.mjs",
-      "column": 0,
-      "line": 0,
-      "specs": [],
-      "suites": [
-        {
-          "title": "Advanced Marine Radar Cockpit Suite",
-          "file": "03-radar-panel.spec.mjs",
-          "line": 4,
-          "column": 6,
-          "specs": [
-            {
-              "title": "Radar cockpit panel opens, closes and displays quick verdict",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1925,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:51.606Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "e2eb9b9a40944036b32d-8d35d7b37dbba76972f7",
-              "file": "03-radar-panel.spec.mjs",
-              "line": 31,
-              "column": 5
-            },
-            {
-              "title": "Radar layer buttons toggle smoothly without runtime errors",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2589,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:52.914Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "e2eb9b9a40944036b32d-5959b0d5f8164990359c",
-              "file": "03-radar-panel.spec.mjs",
-              "line": 57,
-              "column": 5
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "04-scroll-navigation.spec.mjs",
-      "file": "04-scroll-navigation.spec.mjs",
-      "column": 0,
-      "line": 0,
-      "specs": [],
-      "suites": [
-        {
-          "title": "Mobile Scroll Hygiene & Bottom Dock Navigation",
-          "file": "04-scroll-navigation.spec.mjs",
-          "line": 3,
-          "column": 6,
-          "specs": [
-            {
-              "title": "Mobile view switches seamlessly between Parte and Ruta Pro without stacked page underneath",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1785,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:53.547Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "5626a267fd0c88ce506e-87a8fb74294ca802049b",
-              "file": "04-scroll-navigation.spec.mjs",
-              "line": 10,
-              "column": 5
-            },
-            {
-              "title": "Zero nested scroll contexts or runaway overflow containers",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 944,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:55.342Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "5626a267fd0c88ce506e-3e6527a6bbeb3b17162f",
-              "file": "04-scroll-navigation.spec.mjs",
-              "line": 59,
-              "column": 5
-            },
-            {
-              "title": "Desktop header navigation is strictly hidden on mobile and visible on desktop",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 934,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:55.521Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "5626a267fd0c88ce506e-9665821f9a68a78fb69d",
-              "file": "04-scroll-navigation.spec.mjs",
-              "line": 75,
-              "column": 5
-            },
-            {
-              "title": "Mobile bottom dock maintains true viewport anchoring (getBoundingClientRect bottom === innerHeight) before and after scroll",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1314,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:56.295Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "5626a267fd0c88ce506e-f45b464872204c9da090",
-              "file": "04-scroll-navigation.spec.mjs",
-              "line": 101,
-              "column": 5
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "05-modals.spec.mjs",
-      "file": "05-modals.spec.mjs",
-      "column": 0,
-      "line": 0,
-      "specs": [],
-      "suites": [
-        {
-          "title": "Modal Architecture & Isolation Suite",
-          "file": "05-modals.spec.mjs",
-          "line": 3,
-          "column": 6,
-          "specs": [
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2256,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:56.481Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-9146ab33ab89d00c6034",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2028,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:57.627Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-a3be98453e1df0ae3b68",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2307,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:58.746Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-253f81c2db80ea5bdbab",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1447,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:53:59.663Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-724716d9b811e4c78eea",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "06-accessibility-axe.spec.mjs",
-      "file": "06-accessibility-axe.spec.mjs",
-      "column": 0,
-      "line": 0,
-      "specs": [],
-      "suites": [
-        {
-          "title": "Accessibility & WCAG AA Audit (Axe-Core)",
-          "file": "06-accessibility-axe.spec.mjs",
-          "line": 6,
-          "column": 6,
-          "specs": [
-            {
-              "title": "Home screen passes core WCAG AA accessibility standards",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1902,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:54:01.131Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "af7a716a0c2ad3776347-fa71b3d43d88ee3c731f",
-              "file": "06-accessibility-axe.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "All interactive buttons have aria-label, title or accessible text",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 875,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:54:01.193Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "af7a716a0c2ad3776347-852622711ae8a59d89ea",
-              "file": "06-accessibility-axe.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Keyboard Tab navigation reaches key interactive controls",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 973,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:54:02.079Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "af7a716a0c2ad3776347-f0eca1115e23c1e98991",
-              "file": "06-accessibility-axe.spec.mjs",
-              "line": 71,
-              "column": 5
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "07-weather-spots.spec.mjs",
-      "file": "07-weather-spots.spec.mjs",
-      "column": 0,
-      "line": 0,
-      "specs": [],
-      "suites": [
-        {
-          "title": "Weather & Spot Selection Engine (End-to-End)",
-          "file": "07-weather-spots.spec.mjs",
-          "line": 4,
-          "column": 6,
-          "specs": [
-            {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 3471,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:54:03.052Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-7cd92158dbab6977f09d",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 23,
-              "column": 5
-            },
-            {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 3428,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:54:03.067Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-337208d06559cdc0466f",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 61,
-              "column": 5
-            },
-            {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2407,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:54:06.508Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-b046f006f069d42f9ef8",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 83,
-              "column": 5
-            },
-            {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1057,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:54:06.532Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-972ced93c9ff8b558ff2",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 107,
-              "column": 5
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "08-mobile-profile.spec.mjs",
-      "file": "08-mobile-profile.spec.mjs",
-      "column": 0,
-      "line": 0,
-      "specs": [],
-      "suites": [
-        {
-          "title": "Mobile Profile Navigation Suite (End-to-End)",
-          "file": "08-mobile-profile.spec.mjs",
-          "line": 3,
-          "column": 6,
-          "specs": [
-            {
-              "title": "Caso 1: Botón Perfil es visible y accesible en el dock inferior en móvil",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 889,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:54:07.608Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "5ba6f74f6288c8eabd8e-0c9f9fc0e244a3e53886",
-              "file": "08-mobile-profile.spec.mjs",
-              "line": 12,
-              "column": 5
-            },
-            {
-              "title": "Caso 2: Usuario no autenticado abre el flujo de autenticación existente al pulsar Perfil",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2077,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:54:08.505Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "5ba6f74f6288c8eabd8e-84999a20e9e33daf9e47",
-              "file": "08-mobile-profile.spec.mjs",
-              "line": 43,
-              "column": 5
-            },
-            {
-              "title": "Caso 3: Usuario autenticado / invitado muestra información completa de perfil",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 3117,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:54:08.937Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "5ba6f74f6288c8eabd8e-1b0fdb2739abec7d308b",
-              "file": "08-mobile-profile.spec.mjs",
-              "line": 76,
-              "column": 5
-            },
-            {
-              "title": "Caso 4: En pantalla de 320px (iPhone SE), Perfil es visible y sin scroll horizontal",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1722,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:54:10.591Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "5ba6f74f6288c8eabd8e-a55f8a4ac3561d2b8b06",
-              "file": "08-mobile-profile.spec.mjs",
-              "line": 119,
-              "column": 5
-            },
-            {
-              "title": "Caso 5: En orientación Landscape, Perfil continúa accesible y el dock permanece ergonómico",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1175,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T21:54:12.066Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "5ba6f74f6288c8eabd8e-5e028255845f1887af19",
-              "file": "08-mobile-profile.spec.mjs",
-              "line": 154,
-              "column": 5
-            }
-          ]
+          "column": 1
         }
       ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-21T21:53:45.028Z",
-    "duration": 28443.961,
-    "expected": 31,
+    "startTime": "2026-10-21T22:19:35.448Z",
+    "duration": 3422.4179999999997,
+    "expected": 1,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0
