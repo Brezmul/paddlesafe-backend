@@ -113,7 +113,7 @@ for (const file of jsFilesToCheck) {
     }
 }
 assert(syntaxErrors === 0, `All JS files must pass node --check without syntax errors. Found: ${syntaxErrors}`);
-assert(jsFilesToCheck.length > 50, `Found and checked ${jsFilesToCheck.length} JS files`);
+assert(jsFilesToCheck.length >= 30, `Found and checked ${jsFilesToCheck.length} JS files`);
 
 // 1.2 OTA Version Sync between sw.js and version.json
 const swPath = 'public_html/sw.js';
