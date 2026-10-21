@@ -116,3 +116,4 @@
 | **DT-08** | Conversión de PNGs a WebP/AVIF | Medio | Bajo | 0.5 días | **P2 (Media)** |
 | **DT-09** | Reemplazo de 57 `setTimeout` por `transitionend` | Bajo | Bajo | 1.5 días | **P3 (Baja)** |
 | **DT-10** | Incorporación de hashes SRI en CDNs | Bajo | Bajo | 0.5 días | **P3 (Baja)** |
+

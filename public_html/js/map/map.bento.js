@@ -1186,11 +1186,14 @@ export function actualizarHudVectoresMapa(lat, lon, datosMeteo) {
     const waveM = valorNumericoMeteo(datosMeteo.waveHeight, datosMeteo.wave_height);
     const perS = valorNumericoMeteo(datosMeteo.wavePeriod, datosMeteo.wave_period);
 
-    const spotNombre = spotActivoActual?.nombre || document.getElementById('location')?.value?.trim() || 'Spot';
+    const spotNombre = spotActivoActual?.nombre || (lat && lon ? `${Number(lat).toFixed(3)}, ${Number(lon).toFixed(3)}` : (document.getElementById('location')?.value?.trim() || 'Spot'));
     const infoCosta = resolverOrientacionCostera(spotNombre, lat, lon);
 
     const elName = document.getElementById('hudPointName');
-    if (elName) elName.textContent = spotNombre.split(',')[0];
+    if (elName) {
+        elName.textContent = spotActivoActual?.nombre ? spotNombre.split(',')[0] : `${Number(lat).toFixed(3)}, ${Number(lon).toFixed(3)}`;
+        elName.title = `Coordenadas: ${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}`;
+    }
 
     const elBadge = document.getElementById('hudCostalBadge');
     if (elBadge) {
