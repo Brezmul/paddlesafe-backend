@@ -190,6 +190,29 @@ export async function cargarPerfilUsuarioActivo() {
     }
 }
 
+export function actualizarBotonPerfilNav() {
+    const navBtn = document.getElementById('btnNavPerfil');
+    if (!navBtn) return;
+    const iconContainer = navBtn.querySelector('#navPerfilIcon');
+    const labelContainer = navBtn.querySelector('#navPerfilLabel');
+    if ((appState.sesionActual || appState.esInvitado) && appState.perfilUsuario) {
+        if (iconContainer) {
+            const avatarUrl = esc(safeUrl(appState.perfilUsuario.avatar_url, 'https://api.dicebear.com/9.x/adventurer/svg?seed=guest'));
+            iconContainer.innerHTML = `<img src="${avatarUrl}" alt="Avatar" onerror="this.onerror=null; this.parentElement.textContent='👤';" class="w-5 h-5 rounded-full object-cover border border-sky-400 inline-block shadow-sm">`;
+        }
+        if (labelContainer) {
+            labelContainer.textContent = esc(appState.perfilUsuario.nombre || 'Perfil');
+        }
+    } else {
+        if (iconContainer) {
+            iconContainer.textContent = '👤';
+        }
+        if (labelContainer) {
+            labelContainer.textContent = 'Perfil';
+        }
+    }
+}
+
 export function actualizarBotonCabecera() {
     const btn = document.getElementById('btnCabeceraPerfil');
     if (!btn) return;
@@ -206,6 +229,7 @@ export function actualizarBotonCabecera() {
             </svg>
             <span class="text-[11px] sm:text-xs font-black mt-1 uppercase tracking-widest text-white/80">Perfil</span>`;
     }
+    actualizarBotonPerfilNav();
 }
 
 export function abrirModalAuth() {
@@ -227,7 +251,14 @@ export function cerrarModalAuth() {
     const m = document.getElementById('authModal');
     if (m) {
         m.classList.add('opacity-0'); m.querySelector('div').classList.add('scale-95');
-        setTimeout(() => { m.classList.add('hidden'); }, 300);
+        setTimeout(() => {
+            m.classList.add('hidden');
+            if (typeof window.activarItemBottomNav === 'function' && window.innerWidth < 1024) {
+                const tabPro = document.getElementById('tab-pro');
+                const isPro = tabPro && !tabPro.classList.contains('hidden');
+                window.activarItemBottomNav(isPro ? 'pro' : 'parte');
+            }
+        }, 300);
     }
 }
 
@@ -1690,6 +1721,7 @@ export function cerrarModalDetallesRuta() {
     setTimeout(() => { modal.classList.add('hidden'); }, 300);
 }
 
+window.actualizarBotonPerfilNav = actualizarBotonPerfilNav;
 window.abrirModalAuth = abrirModalAuth;
 window.cerrarModalAuth = cerrarModalAuth;
 window.enviarEmailRecuperacion = enviarEmailRecuperacion;
