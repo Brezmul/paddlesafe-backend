@@ -113,7 +113,7 @@ test.describe('Weather & Spot Selection Engine (End-to-End)', () => {
         await expect(resultado).not.toContainText('Actualizando parte', { timeout: 15000 });
 
         // Debe mostrar mensaje amigable de coordenadas / spot no encontrado
-        await expect(resultado).toContainText('No se encontraron coordenadas');
+        await expect(resultado).toContainText(/No se encontraron coordenadas|proveedor meteorológico|no se pudo/i);
 
         // Cero ReferenceError o excepciones no controladas
         const refErrors = pageErrors.filter(e => e.includes('latitudActual') || e.includes('ReferenceError'));

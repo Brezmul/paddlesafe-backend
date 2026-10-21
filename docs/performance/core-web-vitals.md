@@ -18,12 +18,12 @@ Estándares recomendados por Google (Chrome UX Report):
 
 | Vista Analizada | TTFB (ms) | FCP (ms) | LCP (ms) | CLS | INP (ms) | Calificación Google |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Home (Dashboard Inicial)** | 10 ms | 2968 ms | 2968 ms | 0.003 | 12 ms | 🟡 MEJORABLE |
-| **Mapa (Visor Leaflet Pro)** | 10 ms | 232 ms | 232 ms | 0.003 | 12 ms | 🟢 BUENO |
-| **Radar (Cabina Marítima y Deriva)** | 10 ms | 224 ms | 224 ms | 0.003 | 12 ms | 🟢 BUENO |
-| **Clubes (Comunidad y Desafíos)** | 10 ms | 236 ms | 236 ms | 0.003 | 12 ms | 🟢 BUENO |
-| **Social (Ranking & Feed)** | 10 ms | 228 ms | 228 ms | 0.003 | 12 ms | 🟢 BUENO |
-| **Perfil (Gestión y Sesión)** | 10 ms | 224 ms | 224 ms | 0.003 | 12 ms | 🟢 BUENO |
+| **Home (Dashboard Inicial)** | 10 ms | 260 ms | 260 ms | 0.003 | 12 ms | 🟢 BUENO |
+| **Mapa (Visor Leaflet Pro)** | 10 ms | 252 ms | 252 ms | 0.003 | 12 ms | 🟢 BUENO |
+| **Radar (Cabina Marítima y Deriva)** | 10 ms | 244 ms | 244 ms | 0.003 | 12 ms | 🟢 BUENO |
+| **Clubes (Comunidad y Desafíos)** | 10 ms | 244 ms | 244 ms | 0.003 | 12 ms | 🟢 BUENO |
+| **Social (Ranking & Feed)** | 10 ms | 248 ms | 248 ms | 0.003 | 12 ms | 🟢 BUENO |
+| **Perfil (Gestión y Sesión)** | 10 ms | 260 ms | 260 ms | 0.003 | 12 ms | 🟢 BUENO |
 
 ---
 
