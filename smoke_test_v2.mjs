@@ -1778,7 +1778,7 @@ assert(indexHtmlContent.includes('overflow-x-hidden'), 'body or html must enforc
 assert(indexHtmlContent.includes('flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1'), 'savedSpotsBar header must wrap cleanly on mobile');
 assert(indexHtmlContent.includes('grid grid-cols-1 sm:grid-cols-3 gap-2 lg:flex'), 'Omnibar responsive grid must adapt on mobile');
 assert(indexHtmlContent.includes('top-20 left-3 z-[400]'), 'leyendaMapa must be at top-20 left-3 to not overlap mapLayerSwitcher');
-assert(indexHtmlContent.includes('top-14 left-3 right-3 sm:top-3 sm:left-4 sm:right-auto sm:w-[340px] z-[450]'), 'panelQuedadaMap must have top-14 clearance on mobile');
+assert(indexHtmlContent.includes('top-[80px] left-3 right-3 sm:left-3 sm:right-auto sm:w-[340px] z-[450]'), 'panelQuedadaMap must have top-[80px] clearance on mobile');
 assert(indexHtmlContent.includes('max-h-[90vh] overflow-y-auto custom-scrollbar'), 'modalNotasTacticasSpot must support max-h-[90vh] and scrolling');
 
 const trackerJsContent = fs.readFileSync('public_html/js/map/map.tracker.js', 'utf8');
@@ -1872,6 +1872,33 @@ assert(mainJsContent.includes("tabId === 'parte'"), 'main.js must handle parte t
 assert(mainJsContent.includes("tabId === 'pro'"), 'main.js must handle pro tab in activarItemBottomNav');
 assert(mainJsContent.includes("tabBasico.classList.remove('hidden')"), 'activarItemBottomNav must toggle tab-basico visibility on mobile');
 assert(mainJsContent.includes("tabPro.classList.remove('hidden')"), 'activarItemBottomNav must toggle tab-pro visibility on mobile');
+
+// ------------------------------------------------------------------------------
+// COMPREHENSIVE RESPONSIVE, OVERFLOW & VIEWPORT COLLISION AUDIT (FASES 1-9)
+// ------------------------------------------------------------------------------
+console.log('--- [RESPONSIVE & VIEWPORT] 320px-430px & Leaflet Ergonomics Audit ---');
+
+// 1. Tag balance & Modal isolation
+const authModalIdx = idxContent.indexOf('id="authModal"');
+assert(authModalIdx > modalNotasIdx, 'authModal must appear after modalNotasTacticasSpot');
+assert(idxContent.includes('id="modalNotasTacticasSpot" class="fixed inset-0 z-[150]'), 'modalNotasTacticasSpot must use z-[150]');
+
+// 2. Leaflet controls non-collision
+assert(idxContent.includes('id="panelQuedadaMap" class="hidden absolute top-[80px]'), 'panelQuedadaMap must have top-[80px] to prevent collision with Leaflet zoom buttons');
+assert(idxContent.includes('id="radarCockpitPanel" class="hidden absolute top-[80px]'), 'radarCockpitPanel must have top-[80px] to prevent collision with Leaflet zoom buttons');
+
+// 3. Ergonomic HUD dismiss button
+assert(idxContent.includes("document.getElementById('mapWindWaveHud')?.classList.add('hidden')"), 'mapWindWaveHud must have dismiss close button');
+
+// 4. Leaflet CSS touch targets and contrast
+assert(tailwindCss.includes('.leaflet-touch .leaflet-bar a'), 'tailwind.min.css must define .leaflet-touch .leaflet-bar a');
+assert(tailwindCss.includes('.leaflet-control-attribution'), 'tailwind.min.css must define .leaflet-control-attribution');
+
+// 5. Landscape mobile orientation safety
+assert(idxContent.includes('flex items-start justify-center'), 'body must use items-start to prevent header clipping in landscape mobile orientation');
+
+// 6. CPV tab container flex alignment for 320px screens
+assert(idxContent.includes('justify-start sm:justify-center gap-1 sm:gap-2 mb-4 overflow-x-auto'), 'CPV tabs must use justify-start sm:justify-center to prevent clipping on 320px screens');
 
 // ------------------------------------------------------------------------------
 // FINAL RESULT SUMMARY
