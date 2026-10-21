@@ -153,19 +153,31 @@ export function activarItemBottomNav(tabId) {
         }
     });
 
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+    const tabBasico = document.getElementById('tab-basico');
+    const tabPro = document.getElementById('tab-pro');
+    const panelPro = document.getElementById('panelPro');
+
     if (tabId === 'parte') {
-        const basico = document.getElementById('tab-basico') || document.getElementById('savedSpotsBar');
-        if (basico) {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (isMobile) {
+            if (tabBasico) { tabBasico.classList.remove('hidden'); tabBasico.classList.add('block'); }
+            if (tabPro) { tabPro.classList.add('hidden'); tabPro.classList.remove('flex'); }
         }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (tabId === 'pro') {
+        if (isMobile) {
+            if (tabPro) { tabPro.classList.remove('hidden'); tabPro.classList.add('flex'); }
+            if (tabBasico) { tabBasico.classList.add('hidden'); tabBasico.classList.remove('block'); }
+            if (panelPro) panelPro.style.gridTemplateRows = "1fr";
+        }
         if (typeof window.togglePanelPro === 'function') {
             window.togglePanelPro(true);
         }
-        const mapa = document.getElementById('mapaInteractivo') || document.getElementById('panelPro') || document.getElementById('tab-pro');
-        if (mapa) {
-            mapa.scrollIntoView({ behavior: 'smooth' });
-        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => {
+            const m = window.MapModule?.map || window.map;
+            if (m) m.invalidateSize();
+        }, 150);
     } else if (tabId === 'muro') {
         if (typeof window.abrirModalFeed === 'function') {
             window.abrirModalFeed();
@@ -1463,4 +1475,13 @@ window.actualizarRankingCompleto = actualizarRankingCompleto;
 window.abrirDetalleClubDesdeRanking = abrirDetalleClubDesdeRanking;
 window.obtenerModalActivo = obtenerModalActivo;
 window.cerrarModalActivo = cerrarModalActivo;
-window.inicializarManejadorNavegacionModales = inicializarManejadorNavegacionModales;
+window.inicializarManejadorNavegacionModales = inicializarManejadorNavegacionModales;
+// Asegurar que en pantallas de escritorio ambas columnas se muestren simultáneamente
+window.addEventListener('resize', () => {
+    if (window.innerWidth >= 1024) {
+        const tabBasico = document.getElementById('tab-basico');
+        const tabPro = document.getElementById('tab-pro');
+        if (tabBasico) { tabBasico.classList.remove('hidden'); tabBasico.classList.add('block'); }
+        if (tabPro) { tabPro.classList.remove('hidden'); tabPro.classList.add('flex'); }
+    }
+}); // resizeMobileCockpitListener
