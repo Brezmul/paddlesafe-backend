@@ -73,7 +73,7 @@ import {
     activarModoPlanificacionEvento, guardarEventoClub, importarRutaGPXPro,
     centrarTramoMapa, generarGraficoSvgPerfilRuta, calcularMeteoProgresivaPorTramo,
     iniciarReplayRuta, togglePlayPauseReplayRuta, detenerReplayRuta,
-    actualizarPosicionReplayProgreso, cambiarVelocidadReplayRuta, toggleReplaySeguirCamara, obtenerInterpolacionProgreso
+    actualizarPosicionReplayProgreso, actualizarPosicionReplayPorgreso, cambiarVelocidadReplayRuta, toggleReplaySeguirCamara, obtenerInterpolacionProgreso
 } from './map/map.routes.js';
 import {
     solicitarCoachIAPro, renderizarCoachProCard, solicitarCoachIABasico,
@@ -173,7 +173,7 @@ if (typeof window !== 'undefined') {
         inicializarPildorasCalendario, actualizarPildorasTiempoUI,
         aplicarFiltroRapidoTiempo, cargarSpotRapido, generarGuiaHumanaEquipamiento,
         iniciarReplayRuta, togglePlayPauseReplayRuta, detenerReplayRuta,
-        actualizarPosicionReplayProgreso, cambiarVelocidadReplayRuta, toggleReplaySeguirCamara, obtenerInterpolacionProgreso,
+        actualizarPosicionReplayProgreso, actualizarPosicionReplayPorgreso, cambiarVelocidadReplayRuta, toggleReplaySeguirCamara, obtenerInterpolacionProgreso,
         abrirCalculadoraTermica, cerrarCalculadoraTermica, actualizarVistaCalculadoraTermica, setCalculadoraTermicaSegment, calcularEquipamientoTermicoDetallado,
         descargarRutaActivaGPX: exportarRutaPlanificadaGPX,
         descartarCheckpointTravesia: descartarCheckpoint

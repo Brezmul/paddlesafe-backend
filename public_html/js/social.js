@@ -257,7 +257,7 @@ export function renderTarjetaRutaSocial(ruta, clubNombre = null) {
                         <button type="button" onclick="abrirRutaSocialEnMapa('${rutaId}')" class="px-3 py-1.5 bg-gradient-to-r from-sky-600 to-cyan-500 hover:from-sky-500 hover:to-cyan-400 text-white font-black text-[11px] rounded-xl shadow-md shadow-sky-900/30 flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer">
                             <span>🗺️</span><span>Cargar en Cabina</span>
                         </button>
-                        <button type="button" onclick="abrirRutaSocialConReplay('${rutaId}')" class="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-slate-950 font-black text-[11px] rounded-xl shadow-md shadow-emerald-950/40 flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer" title="Ver animación Flyover 60 FPS">
+                        <button type="button" onclick="abrirRutaSocialConReplay('${rutaId}')" class="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-slate-950 font-black text-[11px] rounded-xl shadow-md shadow-emerald-950/40 flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer" title="Ver animación Flyover 60 FPS" aria-label="Ver animación Flyover 60 FPS">
                             <span>▶️</span><span>Replay</span>
                         </button>
                         <button type="button" onclick="descargarGpxRutaSocial('${rutaId}')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
