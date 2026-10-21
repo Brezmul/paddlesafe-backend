@@ -4,7 +4,10 @@
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\node_modules\\@playwright\\test\\cli.js",
       "test",
-      "tests/e2e/02-map-leaflet.spec.mjs"
+      "tests/e2e/02-map-leaflet.spec.mjs",
+      "tests/e2e/03-radar-panel.spec.mjs",
+      "--project=iPhone SE - Portrait",
+      "--project=Desktop 1920x1080"
     ],
     "configFile": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\playwright.config.mjs",
     "rootDir": "C:/Users/Usuario/Desktop/WEBS/PaddleSafe/tests/e2e",
@@ -290,447 +293,6 @@
         "metadata": {
           "actualWorkers": 2
         },
-        "name": "iPhone SE - Landscape",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "viewport": {
-            "width": 568,
-            "height": 320
-          },
-          "deviceScaleFactor": 2,
-          "isMobile": true,
-          "hasTouch": true,
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone SE - Landscape"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "iPhone 12 - Portrait",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
-          "viewport": {
-            "width": 390,
-            "height": 664
-          },
-          "screen": {
-            "width": 390,
-            "height": 844
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone 12 - Portrait"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "iPhone 12 - Landscape",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
-          "viewport": {
-            "width": 750,
-            "height": 340
-          },
-          "screen": {
-            "width": 390,
-            "height": 844
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone 12 - Landscape"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "iPhone 14 Pro - Portrait",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
-          "viewport": {
-            "width": 393,
-            "height": 660
-          },
-          "screen": {
-            "width": 393,
-            "height": 852
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone 14 Pro - Portrait"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "iPhone 14 Pro - Landscape",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
-          "viewport": {
-            "width": 734,
-            "height": 343
-          },
-          "screen": {
-            "width": 393,
-            "height": 852
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone 14 Pro - Landscape"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "iPhone 15 Pro Max - Portrait",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
-          "viewport": {
-            "width": 430,
-            "height": 739
-          },
-          "screen": {
-            "width": 430,
-            "height": 932
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone 15 Pro Max - Portrait"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "iPhone 15 Pro Max - Landscape",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
-          "viewport": {
-            "width": 814,
-            "height": 380
-          },
-          "screen": {
-            "width": 430,
-            "height": 932
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone 15 Pro Max - Landscape"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "Pixel 7 - Portrait",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Mobile Safari/537.36",
-          "viewport": {
-            "width": 412,
-            "height": 839
-          },
-          "screen": {
-            "width": 412,
-            "height": 915
-          },
-          "deviceScaleFactor": 2.625,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "Pixel 7 - Portrait"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "Pixel 7 - Landscape",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Mobile Safari/537.36",
-          "viewport": {
-            "width": 863,
-            "height": 360
-          },
-          "screen": {
-            "width": 915,
-            "height": 412
-          },
-          "deviceScaleFactor": 2.625,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "Pixel 7 - Landscape"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "Samsung Galaxy S23 - Portrait",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "viewport": {
-            "width": 360,
-            "height": 780
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "userAgent": "Mozilla/5.0 (Linux; Android 13; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "Samsung Galaxy S23 - Portrait"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "Samsung Galaxy S23 - Landscape",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "viewport": {
-            "width": 780,
-            "height": 360
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "userAgent": "Mozilla/5.0 (Linux; Android 13; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "Samsung Galaxy S23 - Landscape"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "Desktop 1366x768",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Safari/537.36",
-          "viewport": {
-            "width": 1366,
-            "height": 768
-          },
-          "screen": {
-            "width": 1920,
-            "height": 1080
-          },
-          "deviceScaleFactor": 1,
-          "isMobile": false,
-          "hasTouch": false,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "Desktop 1366x768"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
         "name": "Desktop 1920x1080",
         "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
         "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
@@ -828,12 +390,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 865,
+                      "duration": 3586,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T15:32:32.214Z",
+                      "startTime": "2026-10-21T15:43:38.951Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -862,12 +424,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1725,
+                      "duration": 4460,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T15:32:32.198Z",
+                      "startTime": "2026-10-21T15:43:38.951Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -896,12 +458,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1447,
+                      "duration": 1426,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T15:32:33.161Z",
+                      "startTime": "2026-10-21T15:43:42.623Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -930,12 +492,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1008,
+                      "duration": 985,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T15:32:33.999Z",
+                      "startTime": "2026-10-21T15:43:43.495Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -964,12 +526,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1197,
+                      "duration": 1270,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T15:32:34.615Z",
+                      "startTime": "2026-10-21T15:43:44.057Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -998,12 +560,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1032,
+                      "duration": 1056,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T15:32:35.015Z",
+                      "startTime": "2026-10-21T15:43:44.488Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1025,2467 +587,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Landscape",
-                  "projectName": "iPhone SE - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 2,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 957,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:36.143Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-fac9f7d1a110ba1ac93d",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 30,
-              "column": 5
-            },
-            {
-              "title": "Zoom controls (+ / -) are functional and clickable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Landscape",
-                  "projectName": "iPhone SE - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 3,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1734,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:36.407Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-8b47f8f86baf87bd6617",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 44,
-              "column": 5
-            },
-            {
-              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Landscape",
-                  "projectName": "iPhone SE - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 2,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1447,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:37.176Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-26762c2a0216386564f9",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 66,
-              "column": 5
-            },
-            {
-              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Landscape",
-                  "projectName": "iPhone SE - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 3,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 976,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:38.226Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-277ddf509c0ec318d3d7",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 83,
-              "column": 5
-            },
-            {
-              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Landscape",
-                  "projectName": "iPhone SE - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 2,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1227,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:38.632Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-83948c6ad30ec58f0740",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 105,
-              "column": 5
-            },
-            {
-              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Landscape",
-                  "projectName": "iPhone SE - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 3,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 989,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:39.210Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-0b0dd56c934162a108bb",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 131,
-              "column": 5
-            },
-            {
-              "title": "Leaflet map container initializes and renders tiles",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 4,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1197,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:40.200Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-e35944eaa407962911a0",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 30,
-              "column": 5
-            },
-            {
-              "title": "Zoom controls (+ / -) are functional and clickable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 5,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1874,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:40.558Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-1444c4180392751e75d6",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 44,
-              "column": 5
-            },
-            {
-              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 4,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1609,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:41.477Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-0e8527e46ddce45e0dd5",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 66,
-              "column": 5
-            },
-            {
-              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 5,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1349,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:42.512Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-98d9da05edebb37912ce",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 83,
-              "column": 5
-            },
-            {
-              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 4,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1349,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:43.094Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-9b8536dbfc39d9985833",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 105,
-              "column": 5
-            },
-            {
-              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 5,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1403,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:43.871Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-9e7b47ac9b1b30daff25",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 131,
-              "column": 5
-            },
-            {
-              "title": "Leaflet map container initializes and renders tiles",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Landscape",
-                  "projectName": "iPhone 12 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 6,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1200,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:44.795Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-18d6623e2ad964efc011",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 30,
-              "column": 5
-            },
-            {
-              "title": "Zoom controls (+ / -) are functional and clickable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Landscape",
-                  "projectName": "iPhone 12 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 7,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2000,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:45.642Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-a2673631e2e0a2dbc724",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 44,
-              "column": 5
-            },
-            {
-              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Landscape",
-                  "projectName": "iPhone 12 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 6,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1574,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:46.077Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-dbc0a4b1d2726fe74da7",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 66,
-              "column": 5
-            },
-            {
-              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Landscape",
-                  "projectName": "iPhone 12 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 6,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1206,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:47.659Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-76e97ccf90bee5bfed9d",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 83,
-              "column": 5
-            },
-            {
-              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Landscape",
-                  "projectName": "iPhone 12 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 7,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1358,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:47.724Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-c72257319b7b52f5430f",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 105,
-              "column": 5
-            },
-            {
-              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Landscape",
-                  "projectName": "iPhone 12 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 6,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1292,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:48.874Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-e8cf46287f0802ee29f8",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 131,
-              "column": 5
-            },
-            {
-              "title": "Leaflet map container initializes and renders tiles",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Portrait",
-                  "projectName": "iPhone 14 Pro - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 8,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1228,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:49.439Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-7d49092e859a3596fc83",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 30,
-              "column": 5
-            },
-            {
-              "title": "Zoom controls (+ / -) are functional and clickable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Portrait",
-                  "projectName": "iPhone 14 Pro - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 9,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1829,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:50.501Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-b80c0f43f6a38a2b07e4",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 44,
-              "column": 5
-            },
-            {
-              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Portrait",
-                  "projectName": "iPhone 14 Pro - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 8,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1653,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:50.748Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-0ff446bccc42225aed21",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 66,
-              "column": 5
-            },
-            {
-              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Portrait",
-                  "projectName": "iPhone 14 Pro - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 9,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1338,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:52.406Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-24ca2f780b1d94c0be75",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 83,
-              "column": 5
-            },
-            {
-              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Portrait",
-                  "projectName": "iPhone 14 Pro - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 8,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1369,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:52.411Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-aa01873a6e8dd5d60fa0",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 105,
-              "column": 5
-            },
-            {
-              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Portrait",
-                  "projectName": "iPhone 14 Pro - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 9,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1358,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:53.754Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-8abecdf7f67f570c1513",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 131,
-              "column": 5
-            },
-            {
-              "title": "Leaflet map container initializes and renders tiles",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Landscape",
-                  "projectName": "iPhone 14 Pro - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 10,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1031,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:54.115Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-c7c406d8be8b0eed04e9",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 30,
-              "column": 5
-            },
-            {
-              "title": "Zoom controls (+ / -) are functional and clickable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Landscape",
-                  "projectName": "iPhone 14 Pro - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 11,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1997,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:55.476Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-1de97557f225efbb1f99",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 44,
-              "column": 5
-            },
-            {
-              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Landscape",
-                  "projectName": "iPhone 14 Pro - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 10,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1604,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:55.222Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-68b63b3836a4c1ba3f52",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 66,
-              "column": 5
-            },
-            {
-              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Landscape",
-                  "projectName": "iPhone 14 Pro - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 10,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1270,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:56.834Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-577f1e0b43a610c59130",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 83,
-              "column": 5
-            },
-            {
-              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Landscape",
-                  "projectName": "iPhone 14 Pro - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 11,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1399,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:57.560Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-d62eb6c36347dc758c7f",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 105,
-              "column": 5
-            },
-            {
-              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Landscape",
-                  "projectName": "iPhone 14 Pro - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 10,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1272,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:58.113Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-a5b172297f8f3ca90e29",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 131,
-              "column": 5
-            },
-            {
-              "title": "Leaflet map container initializes and renders tiles",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Portrait",
-                  "projectName": "iPhone 15 Pro Max - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 12,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1349,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:59.302Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-421154b85b0196732c23",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 30,
-              "column": 5
-            },
-            {
-              "title": "Zoom controls (+ / -) are functional and clickable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Portrait",
-                  "projectName": "iPhone 15 Pro Max - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 13,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1975,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:32:59.714Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-469239a5a395519a4338",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 44,
-              "column": 5
-            },
-            {
-              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Portrait",
-                  "projectName": "iPhone 15 Pro Max - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 12,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1643,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:00.729Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-7802ba602877dda6616c",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 66,
-              "column": 5
-            },
-            {
-              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Portrait",
-                  "projectName": "iPhone 15 Pro Max - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 13,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1439,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:01.765Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-83b5b171a4a6adfaa406",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 83,
-              "column": 5
-            },
-            {
-              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Portrait",
-                  "projectName": "iPhone 15 Pro Max - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 12,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1393,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:02.380Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-c4fdd5a154ded11dfbe9",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 105,
-              "column": 5
-            },
-            {
-              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Portrait",
-                  "projectName": "iPhone 15 Pro Max - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 13,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1480,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:03.215Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-e54331ac952311d45ab7",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 131,
-              "column": 5
-            },
-            {
-              "title": "Leaflet map container initializes and renders tiles",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Landscape",
-                  "projectName": "iPhone 15 Pro Max - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 14,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1150,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:04.105Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-e5d2c285921356ad3919",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 30,
-              "column": 5
-            },
-            {
-              "title": "Zoom controls (+ / -) are functional and clickable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Landscape",
-                  "projectName": "iPhone 15 Pro Max - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 15,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1878,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:05.042Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-31f9925b2aa4c5279a89",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 44,
-              "column": 5
-            },
-            {
-              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Landscape",
-                  "projectName": "iPhone 15 Pro Max - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 14,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1589,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:05.334Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-2d712b2287e6a8e4ce30",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 66,
-              "column": 5
-            },
-            {
-              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Landscape",
-                  "projectName": "iPhone 15 Pro Max - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 14,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1257,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:06.932Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-767b9693784dfa43f0dd",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 83,
-              "column": 5
-            },
-            {
-              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Landscape",
-                  "projectName": "iPhone 15 Pro Max - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 15,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1406,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:06.996Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-6ff66736ecf206dd5eac",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 105,
-              "column": 5
-            },
-            {
-              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Landscape",
-                  "projectName": "iPhone 15 Pro Max - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 14,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1287,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:08.196Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-897ca29f369b0f5abc8e",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 131,
-              "column": 5
-            },
-            {
-              "title": "Leaflet map container initializes and renders tiles",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Portrait",
-                  "projectName": "Pixel 7 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 16,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1178,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:08.769Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-393ca05f0100b0b733a1",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 30,
-              "column": 5
-            },
-            {
-              "title": "Zoom controls (+ / -) are functional and clickable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Portrait",
-                  "projectName": "Pixel 7 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 17,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1900,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:09.836Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-b0aae76f5d8058afb8e0",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 44,
-              "column": 5
-            },
-            {
-              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Portrait",
-                  "projectName": "Pixel 7 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 16,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1762,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:10.023Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-313577861e8a0be6a0fd",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 66,
-              "column": 5
-            },
-            {
-              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Portrait",
-                  "projectName": "Pixel 7 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 16,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1332,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:11.794Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-db0536378986ec4bfd0b",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 83,
-              "column": 5
-            },
-            {
-              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Portrait",
-                  "projectName": "Pixel 7 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 17,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1316,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:11.815Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-3b0c03d5223a03d6fd03",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 105,
-              "column": 5
-            },
-            {
-              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Portrait",
-                  "projectName": "Pixel 7 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 16,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1347,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:13.133Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-f4f197cfde21281eb2d3",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 131,
-              "column": 5
-            },
-            {
-              "title": "Leaflet map container initializes and renders tiles",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Landscape",
-                  "projectName": "Pixel 7 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 18,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 978,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:13.465Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-e0f874632ccb60e0c811",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 30,
-              "column": 5
-            },
-            {
-              "title": "Zoom controls (+ / -) are functional and clickable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Landscape",
-                  "projectName": "Pixel 7 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 19,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1839,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:14.818Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-bed9073b63e1d879f96d",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 44,
-              "column": 5
-            },
-            {
-              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Landscape",
-                  "projectName": "Pixel 7 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 18,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1606,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:14.524Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-3a6365ef796f6fae04d6",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 66,
-              "column": 5
-            },
-            {
-              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Landscape",
-                  "projectName": "Pixel 7 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 18,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1163,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:16.138Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-37e0daf59dbfc7c26fd9",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 83,
-              "column": 5
-            },
-            {
-              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Landscape",
-                  "projectName": "Pixel 7 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 19,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1347,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:16.745Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-22fe0c882209a9c9f6b3",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 105,
-              "column": 5
-            },
-            {
-              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Landscape",
-                  "projectName": "Pixel 7 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 18,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1237,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:17.308Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-8b0348054695fcc2b6f0",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 131,
-              "column": 5
-            },
-            {
-              "title": "Leaflet map container initializes and renders tiles",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Portrait",
-                  "projectName": "Samsung Galaxy S23 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 20,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1175,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:18.431Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-08cde1ae21c594e83fd4",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 30,
-              "column": 5
-            },
-            {
-              "title": "Zoom controls (+ / -) are functional and clickable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Portrait",
-                  "projectName": "Samsung Galaxy S23 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 21,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1878,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:18.893Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-2d57f802e255a8225629",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 44,
-              "column": 5
-            },
-            {
-              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Portrait",
-                  "projectName": "Samsung Galaxy S23 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 20,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1619,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:19.682Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-a6f5b2a10951fbfd5068",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 66,
-              "column": 5
-            },
-            {
-              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Portrait",
-                  "projectName": "Samsung Galaxy S23 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 21,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1299,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:20.851Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-ce6f9eea323de4c42eab",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 83,
-              "column": 5
-            },
-            {
-              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Portrait",
-                  "projectName": "Samsung Galaxy S23 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 20,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1363,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:21.310Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-42bd53a4622ccfbc9033",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 105,
-              "column": 5
-            },
-            {
-              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Portrait",
-                  "projectName": "Samsung Galaxy S23 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 21,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1325,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:22.159Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-f873c2fd05b7be2ce506",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 131,
-              "column": 5
-            },
-            {
-              "title": "Leaflet map container initializes and renders tiles",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Landscape",
-                  "projectName": "Samsung Galaxy S23 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 22,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1041,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:22.998Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-ebf19d2c5b452b6bf3ed",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 30,
-              "column": 5
-            },
-            {
-              "title": "Zoom controls (+ / -) are functional and clickable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Landscape",
-                  "projectName": "Samsung Galaxy S23 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 23,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1928,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:23.827Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-99508edc4363cda862a1",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 44,
-              "column": 5
-            },
-            {
-              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Landscape",
-                  "projectName": "Samsung Galaxy S23 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 22,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1596,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:24.116Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-110b15180e3bb7a6d608",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 66,
-              "column": 5
-            },
-            {
-              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Landscape",
-                  "projectName": "Samsung Galaxy S23 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 22,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1232,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:25.723Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-ece46d5865fa9fe040d3",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 83,
-              "column": 5
-            },
-            {
-              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Landscape",
-                  "projectName": "Samsung Galaxy S23 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 23,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1360,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:25.831Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-4818ded2b435c3ab74c9",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 105,
-              "column": 5
-            },
-            {
-              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Landscape",
-                  "projectName": "Samsung Galaxy S23 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 22,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1273,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:26.961Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-1835be3ba03d99862670",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 131,
-              "column": 5
-            },
-            {
-              "title": "Leaflet map container initializes and renders tiles",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1366x768",
-                  "projectName": "Desktop 1366x768",
-                  "results": [
-                    {
-                      "workerIndex": 24,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 832,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:27.535Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-49031f4c008cecece9f2",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 30,
-              "column": 5
-            },
-            {
-              "title": "Zoom controls (+ / -) are functional and clickable",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1366x768",
-                  "projectName": "Desktop 1366x768",
-                  "results": [
-                    {
-                      "workerIndex": 25,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1618,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:28.580Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-dcb080584f7c0e2ef992",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 44,
-              "column": 5
-            },
-            {
-              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1366x768",
-                  "projectName": "Desktop 1366x768",
-                  "results": [
-                    {
-                      "workerIndex": 24,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1400,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:28.446Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-c24c8b1cc75f929c9620",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 66,
-              "column": 5
-            },
-            {
-              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1366x768",
-                  "projectName": "Desktop 1366x768",
-                  "results": [
-                    {
-                      "workerIndex": 24,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 949,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:29.853Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-7d2b91af02ea932db8d7",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 83,
-              "column": 5
-            },
-            {
-              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1366x768",
-                  "projectName": "Desktop 1366x768",
-                  "results": [
-                    {
-                      "workerIndex": 25,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1132,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:30.273Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-3ba30240b2a9174e01a0",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 105,
-              "column": 5
-            },
-            {
-              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1366x768",
-                  "projectName": "Desktop 1366x768",
-                  "results": [
-                    {
-                      "workerIndex": 24,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 964,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T15:33:30.809Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "c8f6e6c835bedb8da188-8ed7d25c1960f22159c1",
-              "file": "02-map-leaflet.spec.mjs",
-              "line": 131,
-              "column": 5
-            },
-            {
-              "title": "Leaflet map container initializes and renders tiles",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
                   "projectId": "Desktop 1920x1080",
                   "projectName": "Desktop 1920x1080",
                   "results": [
                     {
-                      "workerIndex": 26,
-                      "parallelIndex": 1,
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 907,
+                      "duration": 929,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T15:33:31.741Z",
+                      "startTime": "2026-10-21T15:43:47.092Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -3511,15 +625,15 @@
                   "projectName": "Desktop 1920x1080",
                   "results": [
                     {
-                      "workerIndex": 27,
-                      "parallelIndex": 0,
+                      "workerIndex": 3,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1757,
+                      "duration": 1720,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T15:33:32.137Z",
+                      "startTime": "2026-10-21T15:43:47.847Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -3545,15 +659,15 @@
                   "projectName": "Desktop 1920x1080",
                   "results": [
                     {
-                      "workerIndex": 26,
-                      "parallelIndex": 1,
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1503,
+                      "duration": 1461,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T15:33:32.737Z",
+                      "startTime": "2026-10-21T15:43:48.095Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -3579,15 +693,15 @@
                   "projectName": "Desktop 1920x1080",
                   "results": [
                     {
-                      "workerIndex": 27,
+                      "workerIndex": 2,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1066,
+                      "duration": 1067,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T15:33:33.974Z",
+                      "startTime": "2026-10-21T15:43:49.566Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -3613,15 +727,15 @@
                   "projectName": "Desktop 1920x1080",
                   "results": [
                     {
-                      "workerIndex": 26,
+                      "workerIndex": 3,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1219,
+                      "duration": 1199,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T15:33:34.249Z",
+                      "startTime": "2026-10-21T15:43:49.643Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -3647,15 +761,15 @@
                   "projectName": "Desktop 1920x1080",
                   "results": [
                     {
-                      "workerIndex": 27,
+                      "workerIndex": 2,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1063,
+                      "duration": 1064,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T15:33:35.047Z",
+                      "startTime": "2026-10-21T15:43:50.640Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -3671,13 +785,166 @@
           ]
         }
       ]
+    },
+    {
+      "title": "03-radar-panel.spec.mjs",
+      "file": "03-radar-panel.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Advanced Marine Radar Cockpit Suite",
+          "file": "03-radar-panel.spec.mjs",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Radar cockpit panel opens, closes and displays quick verdict",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1405,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T15:43:45.351Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e2eb9b9a40944036b32d-a9b355edb2454ad7b0e3",
+              "file": "03-radar-panel.spec.mjs",
+              "line": 29,
+              "column": 5
+            },
+            {
+              "title": "Radar layer buttons toggle smoothly without runtime errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "iPhone SE - Portrait",
+                  "projectName": "iPhone SE - Portrait",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1925,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T15:43:45.568Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e2eb9b9a40944036b32d-ba5281d66c0fb32bd174",
+              "file": "03-radar-panel.spec.mjs",
+              "line": 55,
+              "column": 5
+            },
+            {
+              "title": "Radar cockpit panel opens, closes and displays quick verdict",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1469,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T15:43:50.867Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e2eb9b9a40944036b32d-c92d5bef1c271b412414",
+              "file": "03-radar-panel.spec.mjs",
+              "line": 29,
+              "column": 5
+            },
+            {
+              "title": "Radar layer buttons toggle smoothly without runtime errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1892,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T15:43:51.719Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e2eb9b9a40944036b32d-6a25008f6a1a7463e66c",
+              "file": "03-radar-panel.spec.mjs",
+              "line": 55,
+              "column": 5
+            }
+          ]
+        }
+      ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-21T15:32:31.769Z",
-    "duration": 64504.793,
-    "expected": 84,
+    "startTime": "2026-10-21T15:43:38.482Z",
+    "duration": 15294.897,
+    "expected": 16,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0
