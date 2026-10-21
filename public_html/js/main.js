@@ -122,8 +122,45 @@ export function togglePanelPro(forceState) {
 }
 window.togglePanelPro = togglePanelPro;
 
+export function cerrarModalesActivosNavegacion(tabId) {
+    const modalMapping = {
+        muro: 'socialFeedModal',
+        clubes: 'clubsModal',
+        ranking: 'rankingModal',
+        perfil: 'authModal'
+    };
+    const targetModal = modalMapping[tabId] || null;
+
+    const modales = [
+        { id: 'socialFeedModal', close: () => typeof window.cerrarModalFeed === 'function' ? window.cerrarModalFeed() : null },
+        { id: 'clubsModal', close: () => typeof window.cerrarModalClubs === 'function' ? window.cerrarModalClubs() : (window.Club?.cerrarModal ? window.Club.cerrarModal() : null) },
+        { id: 'rankingModal', close: () => typeof window.cerrarModalRanking === 'function' ? window.cerrarModalRanking() : null },
+        { id: 'authModal', close: () => typeof window.cerrarModalAuth === 'function' ? window.cerrarModalAuth() : null },
+        { id: 'userProfileModal', close: () => null },
+        { id: 'thermalCalculatorModal', close: () => typeof window.cerrarCalculadoraTermica === 'function' ? window.cerrarCalculadoraTermica() : null },
+        { id: 'quickSetupModal', close: () => null },
+        { id: 'modalNotasTacticasSpot', close: () => typeof window.cerrarModalNotasTacticasSpot === 'function' ? window.cerrarModalNotasTacticasSpot() : null },
+        { id: 'modalReporteSpot', close: () => typeof window.cerrarModalReporteSpot === 'function' ? window.cerrarModalReporteSpot() : null },
+        { id: 'rutaDetalleModal', close: () => typeof window.cerrarModalDetallesRuta === 'function' ? window.cerrarModalDetallesRuta() : null }
+    ];
+
+    modales.forEach(({ id, close }) => {
+        if (id === targetModal) return;
+        const el = document.getElementById(id);
+        if (el && !el.classList.contains('hidden') && el.style.display !== 'none') {
+            try {
+                if (typeof close === 'function') close();
+            } catch (_) {}
+            el.classList.add('hidden');
+            el.classList.add('opacity-0');
+        }
+    });
+}
+window.cerrarModalesActivosNavegacion = cerrarModalesActivosNavegacion;
+
 // Navegación Ergonómica Móvil (Design System 4.0)
 export function activarItemBottomNav(tabId) {
+    cerrarModalesActivosNavegacion(tabId);
     const navItems = {
         parte: document.getElementById('btnNavParte'),
         pro: document.getElementById('btnNavPro'),

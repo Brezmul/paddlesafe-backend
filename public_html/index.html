@@ -21,7 +21,7 @@
     <link rel="manifest" href="/manifest.json">
     
     <!-- Tailwind CSS (Compilado localmente para offline y rendimiento de producción) -->
-    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v73">
+    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v74">
 
     <!-- Leaflet CSS y JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -243,13 +243,13 @@
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 setTimeout(() => { if (window.map) window.map.invalidateSize(); }, 150);
             } else if (tabId === 'muro') {
-                window.abrirModalFeed();
+                if (typeof window.abrirModalFeed === 'function') window.abrirModalFeed();
             } else if (tabId === 'clubes') {
-                window.abrirModalClubs();
+                if (typeof window.abrirModalClubs === 'function') window.abrirModalClubs();
             } else if (tabId === 'ranking') {
-                window.abrirModalRanking();
+                if (typeof window.abrirModalRanking === 'function') window.abrirModalRanking();
             } else if (tabId === 'perfil') {
-                window.abrirModalAuth();
+                if (typeof window.abrirModalAuth === 'function') window.abrirModalAuth();
             }
         };
     </script>
