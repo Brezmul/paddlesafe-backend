@@ -7,13 +7,13 @@
     "name": "axe"
   },
   "testEnvironment": {
-    "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
-    "windowWidth": 320,
-    "windowHeight": 568,
+    "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
+    "windowWidth": 390,
+    "windowHeight": 664,
     "orientationAngle": 0,
     "orientationType": "portrait-primary"
   },
-  "timestamp": "2026-10-21T21:31:31.790Z",
+  "timestamp": "2026-10-21T21:54:02.166Z",
   "url": "http://127.0.0.1:8080/",
   "toolOptions": {
     "runOnly": {
@@ -1075,7 +1075,7 @@
             }
           ],
           "impact": null,
-          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
+          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden\" aria-label=\"Navegación Móvil\">",
           "target": [
             "#mobileBottomNav"
           ]
@@ -1115,7 +1115,7 @@
             }
           ],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav('parte')\" class=\"is-active text-sky-400\" aria-label=\"Parte Meteorológico\" title=\"Parte Meteorológico\">",
           "target": [
             "#btnNavParte"
           ]
@@ -1155,7 +1155,7 @@
             }
           ],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav('pro')\" class=\"text-slate-400\" aria-label=\"Ruta Pro\" title=\"Ruta Pro\">",
           "target": [
             "#btnNavPro"
           ]
@@ -1195,7 +1195,7 @@
             }
           ],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav('muro')\" class=\"text-slate-400\" aria-label=\"Muro Social\" title=\"Muro Social\">",
           "target": [
             "#btnNavMuro"
           ]
@@ -1235,7 +1235,7 @@
             }
           ],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav('clubes')\" class=\"text-slate-400\" aria-label=\"Mi Club\" title=\"Comunidad y Clubes\">",
           "target": [
             "#btnNavClubes"
           ]
@@ -1275,7 +1275,7 @@
             }
           ],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav('ranking')\" class=\"text-slate-400\" aria-label=\"Ranking\" title=\"Ranking de Paddlers\">",
           "target": [
             "#btnNavRanking"
           ]
@@ -1315,7 +1315,7 @@
             }
           ],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav('perfil')\" class=\"text-slate-400\" aria-label=\"Mi Perfil\" title=\"Mi Perfil\">",
           "target": [
             "#btnNavPerfil"
           ]
@@ -1441,7 +1441,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
+          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden\" aria-label=\"Navegación Móvil\">",
           "target": [
             "#mobileBottomNav"
           ]
@@ -1459,7 +1459,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav('parte')\" class=\"is-active text-sky-400\" aria-label=\"Parte Meteorológico\" title=\"Parte Meteorológico\">",
           "target": [
             "#btnNavParte"
           ]
@@ -1477,7 +1477,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav('pro')\" class=\"text-slate-400\" aria-label=\"Ruta Pro\" title=\"Ruta Pro\">",
           "target": [
             "#btnNavPro"
           ]
@@ -1495,7 +1495,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav('muro')\" class=\"text-slate-400\" aria-label=\"Muro Social\" title=\"Muro Social\">",
           "target": [
             "#btnNavMuro"
           ]
@@ -1513,7 +1513,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav('clubes')\" class=\"text-slate-400\" aria-label=\"Mi Club\" title=\"Comunidad y Clubes\">",
           "target": [
             "#btnNavClubes"
           ]
@@ -1531,7 +1531,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav('ranking')\" class=\"text-slate-400\" aria-label=\"Ranking\" title=\"Ranking de Paddlers\">",
           "target": [
             "#btnNavRanking"
           ]
@@ -1549,7 +1549,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav('perfil')\" class=\"text-slate-400\" aria-label=\"Mi Perfil\" title=\"Mi Perfil\">",
           "target": [
             "#btnNavPerfil"
           ]
@@ -1925,7 +1925,7 @@
             }
           ],
           "impact": null,
-          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
+          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden\" aria-label=\"Navegación Móvil\">",
           "target": [
             "#mobileBottomNav"
           ]
@@ -1943,7 +1943,7 @@
             }
           ],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav('parte')\" class=\"is-active text-sky-400\" aria-label=\"Parte Meteorológico\" title=\"Parte Meteorológico\">",
           "target": [
             "#btnNavParte"
           ]
@@ -1961,7 +1961,7 @@
             }
           ],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav('pro')\" class=\"text-slate-400\" aria-label=\"Ruta Pro\" title=\"Ruta Pro\">",
           "target": [
             "#btnNavPro"
           ]
@@ -1979,7 +1979,7 @@
             }
           ],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav('muro')\" class=\"text-slate-400\" aria-label=\"Muro Social\" title=\"Muro Social\">",
           "target": [
             "#btnNavMuro"
           ]
@@ -1997,7 +1997,7 @@
             }
           ],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav('clubes')\" class=\"text-slate-400\" aria-label=\"Mi Club\" title=\"Comunidad y Clubes\">",
           "target": [
             "#btnNavClubes"
           ]
@@ -2015,7 +2015,7 @@
             }
           ],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav('ranking')\" class=\"text-slate-400\" aria-label=\"Ranking\" title=\"Ranking de Paddlers\">",
           "target": [
             "#btnNavRanking"
           ]
@@ -2033,7 +2033,7 @@
             }
           ],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav('perfil')\" class=\"text-slate-400\" aria-label=\"Mi Perfil\" title=\"Mi Perfil\">",
           "target": [
             "#btnNavPerfil"
           ]
@@ -2243,7 +2243,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
+          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden\" aria-label=\"Navegación Móvil\">",
           "target": [
             "#mobileBottomNav"
           ]
@@ -2275,7 +2275,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav('parte')\" class=\"is-active text-sky-400\" aria-label=\"Parte Meteorológico\" title=\"Parte Meteorológico\">",
           "target": [
             "#btnNavParte"
           ]
@@ -2307,7 +2307,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav('pro')\" class=\"text-slate-400\" aria-label=\"Ruta Pro\" title=\"Ruta Pro\">",
           "target": [
             "#btnNavPro"
           ]
@@ -2339,7 +2339,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav('muro')\" class=\"text-slate-400\" aria-label=\"Muro Social\" title=\"Muro Social\">",
           "target": [
             "#btnNavMuro"
           ]
@@ -2371,7 +2371,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav('clubes')\" class=\"text-slate-400\" aria-label=\"Mi Club\" title=\"Comunidad y Clubes\">",
           "target": [
             "#btnNavClubes"
           ]
@@ -2403,7 +2403,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav('ranking')\" class=\"text-slate-400\" aria-label=\"Ranking\" title=\"Ranking de Paddlers\">",
           "target": [
             "#btnNavRanking"
           ]
@@ -2435,7 +2435,7 @@
           ],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav('perfil')\" class=\"text-slate-400\" aria-label=\"Mi Perfil\" title=\"Mi Perfil\">",
           "target": [
             "#btnNavPerfil"
           ]
@@ -2561,7 +2561,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
+          "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden\" aria-label=\"Navegación Móvil\">",
           "target": [
             "#mobileBottomNav"
           ]
@@ -2579,7 +2579,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav('parte')\" class=\"is-active text-sky-400\" aria-label=\"Parte Meteorológico\" title=\"Parte Meteorológico\">",
           "target": [
             "#btnNavParte"
           ]
@@ -2597,7 +2597,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav('pro')\" class=\"text-slate-400\" aria-label=\"Ruta Pro\" title=\"Ruta Pro\">",
           "target": [
             "#btnNavPro"
           ]
@@ -2615,7 +2615,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav('muro')\" class=\"text-slate-400\" aria-label=\"Muro Social\" title=\"Muro Social\">",
           "target": [
             "#btnNavMuro"
           ]
@@ -2633,7 +2633,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav('clubes')\" class=\"text-slate-400\" aria-label=\"Mi Club\" title=\"Comunidad y Clubes\">",
           "target": [
             "#btnNavClubes"
           ]
@@ -2651,7 +2651,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav('ranking')\" class=\"text-slate-400\" aria-label=\"Ranking\" title=\"Ranking de Paddlers\">",
           "target": [
             "#btnNavRanking"
           ]
@@ -2669,7 +2669,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav('perfil')\" class=\"text-slate-400\" aria-label=\"Mi Perfil\" title=\"Mi Perfil\">",
           "target": [
             "#btnNavPerfil"
           ]
@@ -3080,7 +3080,7 @@
           "impact": null,
           "html": "<button type=\"button\" onclick=\"obtenerUbicacion()\" class=\"ps-chip ps-quick-pill text-sky-300 bg-sky-500/15 border-sky-500/30 hover:bg-sky-500/25 active:scale-95 cursor-pointer\">\n                            <span>📍</span> <span>Usar mi ubicación GPS</span>\n                        </button>",
           "target": [
-            ".hover\\:bg-sky-500\\/25.bg-sky-500\\/15[onclick=\"obtenerUbicacion()\"]"
+            ".bg-sky-500\\/15.hover\\:bg-sky-500\\/25[onclick=\"obtenerUbicacion()\"]"
           ]
         },
         {
@@ -3290,7 +3290,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav('parte')\" class=\"is-active text-sky-400\" aria-label=\"Parte Meteorológico\" title=\"Parte Meteorológico\">",
           "target": [
             "#btnNavParte"
           ]
@@ -3322,7 +3322,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav('pro')\" class=\"text-slate-400\" aria-label=\"Ruta Pro\" title=\"Ruta Pro\">",
           "target": [
             "#btnNavPro"
           ]
@@ -3354,7 +3354,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav('muro')\" class=\"text-slate-400\" aria-label=\"Muro Social\" title=\"Muro Social\">",
           "target": [
             "#btnNavMuro"
           ]
@@ -3386,7 +3386,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav('clubes')\" class=\"text-slate-400\" aria-label=\"Mi Club\" title=\"Comunidad y Clubes\">",
           "target": [
             "#btnNavClubes"
           ]
@@ -3418,7 +3418,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav('ranking')\" class=\"text-slate-400\" aria-label=\"Ranking\" title=\"Ranking de Paddlers\">",
           "target": [
             "#btnNavRanking"
           ]
@@ -3450,7 +3450,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav('perfil')\" class=\"text-slate-400\" aria-label=\"Mi Perfil\" title=\"Mi Perfil\">",
           "target": [
             "#btnNavPerfil"
           ]
@@ -4902,7 +4902,7 @@
           "impact": null,
           "html": "<button type=\"button\" onclick=\"obtenerUbicacion()\" class=\"ps-chip ps-quick-pill text-sky-300 bg-sky-500/15 border-sky-500/30 hover:bg-sky-500/25 active:scale-95 cursor-pointer\">\n                            <span>📍</span> <span>Usar mi ubicación GPS</span>\n                        </button>",
           "target": [
-            ".hover\\:bg-sky-500\\/25.bg-sky-500\\/15[onclick=\"obtenerUbicacion()\"]"
+            ".bg-sky-500\\/15.hover\\:bg-sky-500\\/25[onclick=\"obtenerUbicacion()\"]"
           ]
         },
         {
@@ -5098,7 +5098,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Parte Meteorológico\" aria-label=\"Parte Meteorológico\">",
+          "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav('parte')\" class=\"is-active text-sky-400\" aria-label=\"Parte Meteorológico\" title=\"Parte Meteorológico\">",
           "target": [
             "#btnNavParte"
           ]
@@ -5116,7 +5116,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ruta Pro\" aria-label=\"Ruta Pro\">",
+          "html": "<button type=\"button\" id=\"btnNavPro\" onclick=\"activarItemBottomNav('pro')\" class=\"text-slate-400\" aria-label=\"Ruta Pro\" title=\"Ruta Pro\">",
           "target": [
             "#btnNavPro"
           ]
@@ -5134,7 +5134,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Muro Social\" aria-label=\"Muro Social\">",
+          "html": "<button type=\"button\" id=\"btnNavMuro\" onclick=\"activarItemBottomNav('muro')\" class=\"text-slate-400\" aria-label=\"Muro Social\" title=\"Muro Social\">",
           "target": [
             "#btnNavMuro"
           ]
@@ -5152,7 +5152,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Comunidad y Clubes\" aria-label=\"Comunidad y Clubes\">",
+          "html": "<button type=\"button\" id=\"btnNavClubes\" onclick=\"activarItemBottomNav('clubes')\" class=\"text-slate-400\" aria-label=\"Mi Club\" title=\"Comunidad y Clubes\">",
           "target": [
             "#btnNavClubes"
           ]
@@ -5170,7 +5170,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Ranking de Paddlers\" aria-label=\"Ranking de Paddlers\">",
+          "html": "<button type=\"button\" id=\"btnNavRanking\" onclick=\"activarItemBottomNav('ranking')\" class=\"text-slate-400\" aria-label=\"Ranking\" title=\"Ranking de Paddlers\">",
           "target": [
             "#btnNavRanking"
           ]
@@ -5188,7 +5188,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav...\" class=\"flex flex-col items-...\" title=\"Mi Perfil\" aria-label=\"Mi Perfil\">",
+          "html": "<button type=\"button\" id=\"btnNavPerfil\" onclick=\"activarItemBottomNav('perfil')\" class=\"text-slate-400\" aria-label=\"Mi Perfil\" title=\"Mi Perfil\">",
           "target": [
             "#btnNavPerfil"
           ]
@@ -6088,7 +6088,7 @@
                 "contrastRatio": 0,
                 "fontSize": "9.8pt (13px)",
                 "fontWeight": "normal",
-                "messageKey": "elmPartiallyObscured",
+                "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
@@ -6096,6 +6096,56 @@
                   "html": "<button type=\"button\" id=\"quickDayPill2\" onclick=\"window.aplicarFiltroRapidoTiempo(2)\" class=\"ps-chip ps-quick-pill bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 active:scale-95 cursor-pointer\" data-day=\"2\" title=\"Previsión a 2 días\" data-date=\"2026-10-23\">",
                   "target": [
                     "#quickDayPill2"
+                  ]
+                },
+                {
+                  "html": "<div class=\"px-4 sm:px-6 pt-4 pb-2 bg-slate-900/90 text-white space-y-3 border-b border-slate-800/60\">",
+                  "target": [
+                    ".sm\\:px-6"
+                  ]
+                },
+                {
+                  "html": "<div class=\"max-w-2xl lg:max-w-[1600px] w-full bg-slate-900/95 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-4 sm:pb-0 border border-slate-800 z-10 backdrop-blur-xl mx-auto\">",
+                  "target": [
+                    ".max-w-2xl"
+                  ]
+                },
+                {
+                  "html": "<body class=\"bg-slate-950 text-sl...\" style=\"background-color: #0...\">",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span>Vie 23</span>",
+          "target": [
+            "#quickDayPill2 > span:nth-child(2)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "elmPartiallyObscured",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<button type=\"button\" id=\"quickDayPill3\" onclick=\"window.aplicarFiltroRapidoTiempo(3)\" class=\"ps-chip ps-quick-pill bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 active:scale-95 cursor-pointer\" data-day=\"3\" title=\"Previsión a 3 días\" data-date=\"2026-10-24\">",
+                  "target": [
+                    "#quickDayPill3"
                   ]
                 },
                 {
@@ -6112,9 +6162,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span>Vie 23</span>",
+          "html": "<span>Sáb 24</span>",
           "target": [
-            "#quickDayPill2 > span:nth-child(2)"
+            "#quickDayPill3 > span:nth-child(2)"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
         },
@@ -6629,7 +6679,7 @@
                 {
                   "html": "<button type=\"button\" onclick=\"obtenerUbicacion()\" class=\"ps-chip ps-quick-pill text-sky-300 bg-sky-500/15 border-sky-500/30 hover:bg-sky-500/25 active:scale-95 cursor-pointer\">\n                            <span>📍</span> <span>Usar mi ubicación GPS</span>\n                        </button>",
                   "target": [
-                    ".hover\\:bg-sky-500\\/25.bg-sky-500\\/15[onclick=\"obtenerUbicacion()\"]"
+                    ".bg-sky-500\\/15.hover\\:bg-sky-500\\/25[onclick=\"obtenerUbicacion()\"]"
                   ]
                 },
                 {
@@ -6660,7 +6710,7 @@
           "impact": "serious",
           "html": "<span>Usar mi ubicación GPS</span>",
           "target": [
-            ".hover\\:bg-sky-500\\/25.bg-sky-500\\/15[onclick=\"obtenerUbicacion()\"] > span:nth-child(2)"
+            ".bg-sky-500\\/15.hover\\:bg-sky-500\\/25[onclick=\"obtenerUbicacion()\"] > span:nth-child(2)"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -7152,22 +7202,34 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "8.3pt (11px)",
+                "fontSize": "7.5pt (10px)",
                 "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
+                  "html": "<button type=\"button\" id=\"btnNavParte\" onclick=\"activarItemBottomNav('parte')\" class=\"is-active text-sky-400\" aria-label=\"Parte Meteorológico\" title=\"Parte Meteorológico\">",
+                  "target": [
+                    "#btnNavParte"
+                  ]
+                },
+                {
+                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden\" aria-label=\"Navegación Móvil\">",
                   "target": [
                     "#mobileBottomNav"
                   ]
                 },
                 {
-                  "html": "<div class=\"ps-omnibar w-full rounded-2xl p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-0\">",
+                  "html": "<div class=\"max-w-2xl lg:max-w-[1600px] w-full bg-slate-900/95 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-4 sm:pb-0 border border-slate-800 z-10 backdrop-blur-xl mx-auto\">",
                   "target": [
-                    ".ps-omnibar"
+                    ".max-w-2xl"
+                  ]
+                },
+                {
+                  "html": "<body class=\"bg-slate-950 text-sl...\" style=\"background-color: #0...\">",
+                  "target": [
+                    "body"
                   ]
                 }
               ],
@@ -7178,9 +7240,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"text-[11px] font-bold leading-none tracking-tight whitespace-nowrap\">Parte</span>",
+          "html": "<span class=\"text-[10px] font-bold tracking-tight\">Parte</span>",
           "target": [
-            "#btnNavParte > .leading-none.tracking-tight.whitespace-nowrap"
+            "#btnNavParte > .tracking-tight.text-\\[10px\\].font-bold"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -7190,28 +7252,28 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "8.3pt (11px)",
-                "fontWeight": "normal",
+                "fontSize": "7.5pt (10px)",
+                "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
+                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden\" aria-label=\"Navegación Móvil\">",
                   "target": [
                     "#mobileBottomNav"
                   ]
                 },
                 {
-                  "html": "<select id=\"userLevel\" aria-label=\"Nivel de experiencia...\" class=\"w-full bg-slate-800/...\" data-spots-bound=\"true\">",
+                  "html": "<div class=\"max-w-2xl lg:max-w-[1600px] w-full bg-slate-900/95 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-4 sm:pb-0 border border-slate-800 z-10 backdrop-blur-xl mx-auto\">",
                   "target": [
-                    "#userLevel"
+                    ".max-w-2xl"
                   ]
                 },
                 {
-                  "html": "<div class=\"ps-omnibar w-full rounded-2xl p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-0\">",
+                  "html": "<body class=\"bg-slate-950 text-sl...\" style=\"background-color: #0...\">",
                   "target": [
-                    ".ps-omnibar"
+                    "body"
                   ]
                 }
               ],
@@ -7222,9 +7284,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap\">Ruta Pro</span>",
+          "html": "<span class=\"text-[10px] font-bold tracking-tight\">Ruta Pro</span>",
           "target": [
-            "#btnNavPro > .leading-none.tracking-tight.whitespace-nowrap"
+            "#btnNavPro > .tracking-tight.text-\\[10px\\].font-bold"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -7234,28 +7296,28 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "8.3pt (11px)",
-                "fontWeight": "normal",
+                "fontSize": "7.5pt (10px)",
+                "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
+                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden\" aria-label=\"Navegación Móvil\">",
                   "target": [
                     "#mobileBottomNav"
                   ]
                 },
                 {
-                  "html": "<select id=\"userLevel\" aria-label=\"Nivel de experiencia...\" class=\"w-full bg-slate-800/...\" data-spots-bound=\"true\">",
+                  "html": "<div class=\"max-w-2xl lg:max-w-[1600px] w-full bg-slate-900/95 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-4 sm:pb-0 border border-slate-800 z-10 backdrop-blur-xl mx-auto\">",
                   "target": [
-                    "#userLevel"
+                    ".max-w-2xl"
                   ]
                 },
                 {
-                  "html": "<div class=\"ps-omnibar w-full rounded-2xl p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-0\">",
+                  "html": "<body class=\"bg-slate-950 text-sl...\" style=\"background-color: #0...\">",
                   "target": [
-                    ".ps-omnibar"
+                    "body"
                   ]
                 }
               ],
@@ -7266,9 +7328,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap\">Muro</span>",
+          "html": "<span class=\"text-[10px] font-bold tracking-tight\">Muro</span>",
           "target": [
-            "#btnNavMuro > .leading-none.tracking-tight.whitespace-nowrap"
+            "#btnNavMuro > .tracking-tight.text-\\[10px\\].font-bold"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -7278,28 +7340,28 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "8.3pt (11px)",
-                "fontWeight": "normal",
+                "fontSize": "7.5pt (10px)",
+                "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
+                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden\" aria-label=\"Navegación Móvil\">",
                   "target": [
                     "#mobileBottomNav"
                   ]
                 },
                 {
-                  "html": "<select id=\"userLevel\" aria-label=\"Nivel de experiencia...\" class=\"w-full bg-slate-800/...\" data-spots-bound=\"true\">",
+                  "html": "<div class=\"max-w-2xl lg:max-w-[1600px] w-full bg-slate-900/95 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-4 sm:pb-0 border border-slate-800 z-10 backdrop-blur-xl mx-auto\">",
                   "target": [
-                    "#userLevel"
+                    ".max-w-2xl"
                   ]
                 },
                 {
-                  "html": "<div class=\"ps-omnibar w-full rounded-2xl p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-0\">",
+                  "html": "<body class=\"bg-slate-950 text-sl...\" style=\"background-color: #0...\">",
                   "target": [
-                    ".ps-omnibar"
+                    "body"
                   ]
                 }
               ],
@@ -7310,9 +7372,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap\">Clubes</span>",
+          "html": "<span class=\"text-[10px] font-bold tracking-tight\">Mi Club</span>",
           "target": [
-            "#btnNavClubes > .leading-none.tracking-tight.whitespace-nowrap"
+            "#btnNavClubes > .tracking-tight.text-\\[10px\\].font-bold"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -7322,28 +7384,28 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "8.3pt (11px)",
-                "fontWeight": "normal",
+                "fontSize": "7.5pt (10px)",
+                "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
+                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden\" aria-label=\"Navegación Móvil\">",
                   "target": [
                     "#mobileBottomNav"
                   ]
                 },
                 {
-                  "html": "<select id=\"userLevel\" aria-label=\"Nivel de experiencia...\" class=\"w-full bg-slate-800/...\" data-spots-bound=\"true\">",
+                  "html": "<div class=\"max-w-2xl lg:max-w-[1600px] w-full bg-slate-900/95 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-4 sm:pb-0 border border-slate-800 z-10 backdrop-blur-xl mx-auto\">",
                   "target": [
-                    "#userLevel"
+                    ".max-w-2xl"
                   ]
                 },
                 {
-                  "html": "<div class=\"ps-omnibar w-full rounded-2xl p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-0\">",
+                  "html": "<body class=\"bg-slate-950 text-sl...\" style=\"background-color: #0...\">",
                   "target": [
-                    ".ps-omnibar"
+                    "body"
                   ]
                 }
               ],
@@ -7354,9 +7416,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap\">Ranking</span>",
+          "html": "<span class=\"text-[10px] font-bold tracking-tight\">Ranking</span>",
           "target": [
-            "#btnNavRanking > .leading-none.tracking-tight.whitespace-nowrap"
+            "#btnNavRanking > .tracking-tight.text-\\[10px\\].font-bold"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -7366,22 +7428,22 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "8.3pt (11px)",
-                "fontWeight": "normal",
+                "fontSize": "7.5pt (10px)",
+                "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]\" aria-label=\"Navegación Móvil\">",
+                  "html": "<nav id=\"mobileBottomNav\" class=\"lg:hidden\" aria-label=\"Navegación Móvil\">",
                   "target": [
                     "#mobileBottomNav"
                   ]
                 },
                 {
-                  "html": "<div class=\"ps-omnibar w-full rounded-2xl p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-0\">",
+                  "html": "<div class=\"ps-bento-card p-3.5 flex flex-col items-center justify-between text-center relative overflow-hidden\">",
                   "target": [
-                    ".ps-omnibar"
+                    ".ps-bento-card.p-3\\.5.text-center:nth-child(2)"
                   ]
                 }
               ],
@@ -7392,7 +7454,7 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span id=\"navPerfilLabel\" class=\"text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap\">Perfil</span>",
+          "html": "<span id=\"navPerfilLabel\" class=\"text-[10px] font-bold tracking-tight truncate max-w-full\">Perfil</span>",
           "target": [
             "#navPerfilLabel"
           ],
@@ -7426,9 +7488,9 @@
             {
               "id": "color-contrast",
               "data": {
-                "fgColor": "#269071",
-                "bgColor": "#0f2b35",
-                "contrastRatio": 3.74,
+                "fgColor": "#279574",
+                "bgColor": "#0f2c35",
+                "contrastRatio": 3.93,
                 "fontSize": "6.8pt (9px)",
                 "fontWeight": "bold",
                 "messageKey": null,
@@ -7449,7 +7511,7 @@
                 }
               ],
               "impact": "serious",
-              "message": "Element has insufficient color contrast of 3.74 (foreground color: #269071, background color: #0f2b35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
+              "message": "Element has insufficient color contrast of 3.93 (foreground color: #279574, background color: #0f2c35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
             }
           ],
           "all": [],
@@ -7459,7 +7521,7 @@
           "target": [
             ".ml-1"
           ],
-          "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.74 (foreground color: #269071, background color: #0f2b35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
+          "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.93 (foreground color: #279574, background color: #0f2c35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
         },
         {
           "any": [
