@@ -161,7 +161,7 @@ function Remove-FtpFile {
     }
 }
 
-function Upload-FtpFile {
+function Send-FtpFile {
     param([string]$Uri, [string]$LocalPath, [string]$User, [string]$Pass)
     $uploadReq = [System.Net.FtpWebRequest]::Create($Uri)
     $uploadReq.Credentials = New-Object System.Net.NetworkCredential($User, $Pass)
@@ -179,7 +179,7 @@ function Upload-FtpFile {
     $uploadResp.Close()
 }
 
-function Ensure-FtpDirectory {
+function New-FtpDirectory {
     param([string]$BaseUri, [string]$SubPath, [string]$User, [string]$Pass)
     $parts = $SubPath.Split('/')
     $curr = $BaseUri
@@ -196,6 +196,9 @@ function Ensure-FtpDirectory {
         } catch {}
     }
 }
+# Alias de compatibilidad hacia atrás para llamadas heredadas
+Set-Alias -Name Upload-FtpFile -Value Send-FtpFile -ErrorAction SilentlyContinue
+Set-Alias -Name Ensure-FtpDirectory -Value New-FtpDirectory -ErrorAction SilentlyContinue
 
 # 5. Sincronización inteligente por FTP si se proporcionan credenciales
 if (-not [string]::IsNullOrWhiteSpace($FtpServer) -and -not [string]::IsNullOrWhiteSpace($FtpUser) -and -not $CreateZipOnly) {
@@ -254,7 +257,7 @@ if (-not [string]::IsNullOrWhiteSpace($FtpServer) -and -not [string]::IsNullOrWh
         $subDirs = $relPath.Split('/')
         if ($subDirs.Count -gt 1) {
             $parentRel = ($subDirs[0..($subDirs.Count - 2)]) -join '/'
-            Ensure-FtpDirectory -BaseUri $baseRemoteUri -SubPath $parentRel -User $FtpUser -Pass $FtpPass
+            New-FtpDirectory -BaseUri $baseRemoteUri -SubPath $parentRel -User $FtpUser -Pass $FtpPass
         }
 
         # Obtener metadatos remotos
@@ -277,13 +280,13 @@ if (-not [string]::IsNullOrWhiteSpace($FtpServer) -and -not [string]::IsNullOrWh
             } else {
                 # Repositorio más reciente o tamaño modificado -> reemplazar
                 Write-Host "  [+] Actualizando (repo más reciente): $relPath" -ForegroundColor Green
-                Upload-FtpFile -Uri $targetUri -LocalPath $localFile.FullName -User $FtpUser -Pass $FtpPass
+                Send-FtpFile -Uri $targetUri -LocalPath $localFile.FullName -User $FtpUser -Pass $FtpPass
                 $uploadedCount++
             }
         } else {
             # Archivo nuevo no existente en el servidor -> subir
             Write-Host "  [+] Subiendo nuevo: $relPath" -ForegroundColor Green
-            Upload-FtpFile -Uri $targetUri -LocalPath $localFile.FullName -User $FtpUser -Pass $FtpPass
+            Send-FtpFile -Uri $targetUri -LocalPath $localFile.FullName -User $FtpUser -Pass $FtpPass
             $uploadedCount++
         }
     }
