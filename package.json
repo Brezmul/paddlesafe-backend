@@ -12,7 +12,8 @@
     "test:evidence": "node scripts/capture_evidence.mjs",
     "lhci": "lhci autorun",
     "perf:audit": "node scripts/audit_performance.mjs",
-    "security:audit": "npm audit"
+    "security:audit": "npm audit",
+    "test:unit": "node tests/unit/weather-forecast.test.mjs"
   },
   "keywords": [
     "paddlesafe",
@@ -33,4 +34,3 @@
     "axe-core": "^4.14.0"
   }
 }
-

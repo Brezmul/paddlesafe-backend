@@ -27,6 +27,15 @@ import {
 } from '../utils.js';
 import { mapRuntime } from './map.state.js';
 import {
+    validarCoordenadas,
+    clasificarErrorMeteo,
+    logForecastService,
+    resolverSpotConocido,
+    ForecastError,
+    WeatherError
+} from '../engine/errors.js';
+import { actualizarMapa } from './map.core.js';
+import {
     ICONOS_SEGURIDAD,
     ICONOS_DERIVA,
     renderizarCoachProCard,
@@ -386,6 +395,7 @@ export async function consultarBasico() {
         userLevel: u || "Intermedio"
     };
 
+    const startTime = Date.now();
     try {
         const p = await solicitarPronostico(payload);
         
@@ -497,12 +507,35 @@ export async function consultarBasico() {
                 const wavePct = wv !== null ? Math.min(100, Math.round((wv / 2.0) * 100)) : 0;
                 waveBar.style.width = `${wavePct}%`;
             }
+            // Resolución segura y canónica de coordenadas activas
+            const latEfectiva = Number(
+                p.datos?.coordinates?.latitude ??
+                p.lat ??
+                p.received?.lat ??
+                spotActivoActual?.lat ??
+                mapRuntime.latitudActual ??
+                38.80
+            );
+            const lonEfectiva = Number(
+                p.datos?.coordinates?.longitude ??
+                p.lon ??
+                p.received?.lon ??
+                spotActivoActual?.lon ??
+                mapRuntime.longitudActual ??
+                0.18
+            );
+
+            // Sincronizar coordenadas en el motor de mapa y estado
+            mapRuntime.latitudActual = latEfectiva;
+            mapRuntime.longitudActual = lonEfectiva;
+            if (typeof actualizarMapa === 'function') {
+                actualizarMapa(latEfectiva, lonEfectiva);
+            }
+
             const solarTimesEl = document.getElementById('basicSolarTimes');
             if (solarTimesEl) {
                 try {
-                    const latVal = Number(latitudActual) || 39.5;
-                    const lonVal = Number(longitudActual) || 0.0;
-                    const solar = calcularSolYCrepusculo(latVal, lonVal, d || new Date().toISOString().slice(0, 10));
+                    const solar = calcularSolYCrepusculo(latEfectiva, lonEfectiva, d || new Date().toISOString().slice(0, 10));
                     if (solar && solar.sunriseStr && solar.sunsetStr) {
                         solarTimesEl.innerHTML = `🌅 ${solar.sunriseStr} · 🌇 ${solar.sunsetStr}`;
                     }
@@ -524,17 +557,17 @@ export async function consultarBasico() {
             // Actualizar estado del spot activo y renderizar timeline diurno completo
             setSpotActivoActual({
                 nombre: (p.received?.location || loc).split(',')[0],
-                lat: Number(latitudActual),
-                lon: Number(longitudActual)
+                lat: latEfectiva,
+                lon: lonEfectiva
             });
             setPronosticoDiaCompletoActual(dx);
             actualizarEstadoBotonGuardarSpot();
 
             // Renderizar rosa de vectores tácticos y HUD
-            renderizarRosaVectoresMapa(Number(latitudActual), Number(longitudActual), dx);
+            renderizarRosaVectoresMapa(latEfectiva, lonEfectiva, dx);
 
             // Cargar reportes en vivo de la comunidad (Waze for SUP)
-            void cargarReportesSpot(Number(latitudActual), Number(longitudActual));
+            void cargarReportesSpot(latEfectiva, lonEfectiva);
 
             if (dx.horasDiurnas && dx.horasDiurnas.length > 0) {
                 renderizarTimelineJornadaCompleta(spotActivoActual, dx, u);
@@ -542,8 +575,24 @@ export async function consultarBasico() {
             renderizarInteligenciaYDiarioSpot(spotActivoActual, dx);
         }
     } catch(e) { 
-        res.innerHTML = `<strong>No se pudo cargar el pronóstico.</strong> ${esc(e?.message || 'Revisa tu conexión e inténtalo de nuevo.')}`;
-        console.warn('Error al consultar el pronóstico básico:', e);
+        const durationMs = Date.now() - startTime;
+        const forecastErr = clasificarErrorMeteo(e, null, null, loc, mapRuntime.latitudActual, mapRuntime.longitudActual, durationMs);
+
+        logForecastService({
+            spot: loc,
+            lat: forecastErr.lat,
+            lng: forecastErr.lng,
+            url: forecastErr.technicalDetails?.url,
+            status: forecastErr.status,
+            durationMs,
+            error: forecastErr
+        });
+
+        const userMsg = forecastErr.userMessage || 'Revisa tu conexión o comprueba el nombre del spot e inténtalo de nuevo.';
+        res.className = "text-sm font-semibold text-amber-400 bg-amber-950/40 p-4 rounded-2xl border border-amber-500/40 leading-relaxed text-center";
+        res.innerHTML = `<strong>⚠️ ${esc(userMsg)}</strong>`;
+        console.warn('Error al consultar el pronóstico básico:', forecastErr);
+
         document.getElementById('fullDaySpotTimeline')?.classList.add('hidden');
         document.getElementById('spotIntelligenceBento')?.classList.add('hidden');
         renderizarAvisoSuperior({
@@ -557,7 +606,7 @@ export async function consultarBasico() {
         renderizarResumenExperto(calcularVeredicto({ datos: {} }));
         mostrarCoachPronosticoNoDisponible(document.getElementById('basicCoachContainer'));
     } finally {
-        btn.disabled = false; sp.classList.add('hidden'); bt.textContent = 'Análisis Básico Rápido';
+        btn.disabled = false; sp.classList.add('hidden'); bt.textContent = 'Evaluar Spot';
     }
 }
 
@@ -613,9 +662,21 @@ export async function consultarRutaPro() {
     
     let lat, lon;
     if (mapRuntime.marcadoresRuta.length >= 2) {
-        lat = mapRuntime.marcadoresRuta[0].getLatLng().lat.toFixed(5); lon = mapRuntime.marcadoresRuta[0].getLatLng().lng.toFixed(5);
+        lat = parseFloat(mapRuntime.marcadoresRuta[0].getLatLng().lat.toFixed(5));
+        lon = parseFloat(mapRuntime.marcadoresRuta[0].getLatLng().lng.toFixed(5));
     } else {
-        const partes = locVal.split(','); lat = parseFloat(partes[0]); lon = parseFloat(partes[1]);
+        const partes = locVal.split(',');
+        lat = parseFloat(partes[0]);
+        lon = parseFloat(partes[1]);
+    }
+
+    const valProCoords = validarCoordenadas(lat, lon);
+    if (!valProCoords.valido) {
+        alertCont.innerHTML = `⚠️ ${esc(valProCoords.userMessage || 'Toca un punto en el mapa para fijar las coordenadas de salida.')}`;
+        alertCont.className = "text-sm font-bold text-amber-400 bg-amber-950/40 p-4 rounded-xl border border-amber-500/40 text-center w-full block mt-2";
+        alertCont.classList.remove('hidden');
+        btn.disabled = false; btn.innerHTML = "✨ Procesar Análisis Pro";
+        return;
     }
     
     let duracionEstimada = 120;
