@@ -10,7 +10,7 @@ test.describe('Mobile Profile Navigation Suite (End-to-End)', () => {
     });
 
     test('Caso 1: Botón Perfil es visible y accesible en el dock inferior en móvil', async ({ page, isMobile }) => {
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
 
         if (!isMobile) {
@@ -41,7 +41,7 @@ test.describe('Mobile Profile Navigation Suite (End-to-End)', () => {
     });
 
     test('Caso 2: Usuario no autenticado abre el flujo de autenticación existente al pulsar Perfil', async ({ page, isMobile }) => {
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
 
         const btnPerfil = isMobile ? page.locator('#btnNavPerfil') : page.locator('#btnCabeceraPerfil');
@@ -74,7 +74,7 @@ test.describe('Mobile Profile Navigation Suite (End-to-End)', () => {
     });
 
     test('Caso 3: Usuario autenticado / invitado muestra información completa de perfil', async ({ page, isMobile }) => {
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
 
         // 1. Abrir modal y entrar como invitado para simular sesión activa sin depender de backend externo
@@ -118,7 +118,7 @@ test.describe('Mobile Profile Navigation Suite (End-to-End)', () => {
 
     test('Caso 4: En pantalla de 320px (iPhone SE), Perfil es visible y sin scroll horizontal', async ({ page }) => {
         await page.setViewportSize({ width: 320, height: 568 });
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
 
         const bottomNav = page.locator('#mobileBottomNav');
@@ -153,7 +153,7 @@ test.describe('Mobile Profile Navigation Suite (End-to-End)', () => {
 
     test('Caso 5: En orientación Landscape, Perfil continúa accesible y el dock permanece ergonómico', async ({ page }) => {
         await page.setViewportSize({ width: 844, height: 390 }); // iPhone 12/14 Landscape
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
 
         const bottomNav = page.locator('#mobileBottomNav');

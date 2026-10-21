@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { setupWeatherMocks } from './helpers/weather-mock.mjs';
 
 test.describe('Advanced Marine Radar Cockpit Suite', () => {
     test.beforeEach(async ({ page }) => {
+        await setupWeatherMocks(page);
         await page.addInitScript(() => {
             try { localStorage.setItem('ps_quick_setup_dismissed', '1'); } catch (_) {}
         });
