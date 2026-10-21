@@ -4,7 +4,7 @@
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\node_modules\\@playwright\\test\\cli.js",
       "test",
-      "tests/e2e/07-weather-spots.spec.mjs"
+      "tests/e2e/06-accessibility-axe.spec.mjs"
     ],
     "configFile": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\playwright.config.mjs",
     "rootDir": "C:/Users/Usuario/Desktop/WEBS/PaddleSafe/tests/e2e",
@@ -800,20 +800,20 @@
   },
   "suites": [
     {
-      "title": "07-weather-spots.spec.mjs",
-      "file": "07-weather-spots.spec.mjs",
+      "title": "06-accessibility-axe.spec.mjs",
+      "file": "06-accessibility-axe.spec.mjs",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "Weather & Spot Selection Engine (End-to-End)",
-          "file": "07-weather-spots.spec.mjs",
-          "line": 3,
+          "title": "Accessibility & WCAG AA Audit (Axe-Core)",
+          "file": "06-accessibility-axe.spec.mjs",
+          "line": 6,
           "column": 6,
           "specs": [
             {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "Home screen passes core WCAG AA accessibility standards",
               "ok": true,
               "tags": [],
               "tests": [
@@ -828,12 +828,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1973,
+                      "duration": 1414,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:11.828Z",
+                      "startTime": "2026-10-21T16:51:50.791Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -841,13 +841,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-d6cb06db0f2f848dff34",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
+              "id": "af7a716a0c2ad3776347-03b2b029277c420f4ad7",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
               "column": 5
             },
             {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -862,12 +862,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1940,
+                      "duration": 467,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:11.828Z",
+                      "startTime": "2026-10-21T16:51:50.792Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -875,13 +875,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-412037f4b89ccf85f02e",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
+              "id": "af7a716a0c2ad3776347-481b719b1047d1f2da71",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -896,12 +896,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1360,
+                      "duration": 537,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:13.853Z",
+                      "startTime": "2026-10-21T16:51:51.346Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -909,47 +909,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-9aa1299566f03c5365e9",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
+              "id": "af7a716a0c2ad3776347-053cb7487b5dd7e22ab7",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
               "column": 5
             },
             {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 700,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:13.886Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-77f311555297bd923564",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
-              "column": 5
-            },
-            {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "Home screen passes core WCAG AA accessibility standards",
               "ok": true,
               "tags": [],
               "tests": [
@@ -962,14 +928,14 @@
                   "results": [
                     {
                       "workerIndex": 2,
-                      "parallelIndex": 0,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1376,
+                      "duration": 1377,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:14.923Z",
+                      "startTime": "2026-10-21T16:51:52.275Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -977,13 +943,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-0700509cc662f20b6c4f",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
+              "id": "af7a716a0c2ad3776347-57b3a71afa3be8256d56",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
               "column": 5
             },
             {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -996,48 +962,14 @@
                   "results": [
                     {
                       "workerIndex": 3,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1346,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:15.551Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-9ea2d3ca3d68e8b77721",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
-              "column": 5
-            },
-            {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Landscape",
-                  "projectName": "iPhone SE - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 2,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1305,
+                      "duration": 945,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:16.381Z",
+                      "startTime": "2026-10-21T16:51:52.661Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1045,13 +977,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-6fc7f611739b26960d95",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
+              "id": "af7a716a0c2ad3776347-dcc59a8875710b0e98f0",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1064,14 +996,14 @@
                   "results": [
                     {
                       "workerIndex": 3,
-                      "parallelIndex": 1,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 683,
+                      "duration": 553,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:16.970Z",
+                      "startTime": "2026-10-21T16:51:53.679Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1079,13 +1011,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-00ab69cbdb902567998c",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
+              "id": "af7a716a0c2ad3776347-8ada45d3ec047e559fb4",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
               "column": 5
             },
             {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "Home screen passes core WCAG AA accessibility standards",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1100,12 +1032,12 @@
                       "workerIndex": 4,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1736,
+                      "duration": 1644,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:18.015Z",
+                      "startTime": "2026-10-21T16:51:54.112Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1113,13 +1045,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-7cd92158dbab6977f09d",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
+              "id": "af7a716a0c2ad3776347-fa71b3d43d88ee3c731f",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
               "column": 5
             },
             {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1134,12 +1066,12 @@
                       "workerIndex": 5,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1725,
+                      "duration": 749,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:18.046Z",
+                      "startTime": "2026-10-21T16:51:54.602Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1147,47 +1079,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-337208d06559cdc0466f",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
+              "id": "af7a716a0c2ad3776347-852622711ae8a59d89ea",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 4,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1719,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:19.828Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-b046f006f069d42f9ef8",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
-              "column": 5
-            },
-            {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1202,12 +1100,12 @@
                       "workerIndex": 5,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1016,
+                      "duration": 1197,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:19.850Z",
+                      "startTime": "2026-10-21T16:51:55.426Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1215,13 +1113,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-972ced93c9ff8b558ff2",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
+              "id": "af7a716a0c2ad3776347-f0eca1115e23c1e98991",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
               "column": 5
             },
             {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "Home screen passes core WCAG AA accessibility standards",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1234,14 +1132,14 @@
                   "results": [
                     {
                       "workerIndex": 6,
-                      "parallelIndex": 0,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1584,
+                      "duration": 3105,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:21.187Z",
+                      "startTime": "2026-10-21T16:51:56.194Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1249,13 +1147,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-1e86e409baee1f7ef2fc",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
+              "id": "af7a716a0c2ad3776347-f7e70a65783bc29bfeba",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
               "column": 5
             },
             {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1268,48 +1166,14 @@
                   "results": [
                     {
                       "workerIndex": 7,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1649,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:21.894Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-89846d4b42b4f01d5147",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
-              "column": 5
-            },
-            {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Landscape",
-                  "projectName": "iPhone 12 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 6,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1521,
+                      "duration": 621,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:22.847Z",
+                      "startTime": "2026-10-21T16:51:56.972Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1317,13 +1181,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-7102acd1993e0e22499c",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
+              "id": "af7a716a0c2ad3776347-300b10b38a2841e922a8",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1336,14 +1200,14 @@
                   "results": [
                     {
                       "workerIndex": 7,
-                      "parallelIndex": 1,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 851,
+                      "duration": 712,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:23.620Z",
+                      "startTime": "2026-10-21T16:51:57.667Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1351,13 +1215,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-f96a05c48a80b9b0cea6",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
+              "id": "af7a716a0c2ad3776347-1afbf4977c0caf8de6d8",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
               "column": 5
             },
             {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "Home screen passes core WCAG AA accessibility standards",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1372,12 +1236,12 @@
                       "workerIndex": 8,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1666,
+                      "duration": 1724,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:24.705Z",
+                      "startTime": "2026-10-21T16:51:58.740Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1385,13 +1249,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-98b0cc7eee8a0f0a6078",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
+              "id": "af7a716a0c2ad3776347-361ee0d8131e0cf1715d",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
               "column": 5
             },
             {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1406,12 +1270,12 @@
                       "workerIndex": 9,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1663,
+                      "duration": 2924,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:24.829Z",
+                      "startTime": "2026-10-21T16:51:59.757Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1419,13 +1283,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-f4ce9ef8fbbf51df59b4",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
+              "id": "af7a716a0c2ad3776347-df726b3d929728383598",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1440,12 +1304,12 @@
                       "workerIndex": 8,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1632,
+                      "duration": 783,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:26.446Z",
+                      "startTime": "2026-10-21T16:52:00.537Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1453,47 +1317,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-cf750814750d408dcfe5",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
+              "id": "af7a716a0c2ad3776347-70acbde490438f100e47",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
               "column": 5
             },
             {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Portrait",
-                  "projectName": "iPhone 14 Pro - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 9,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 844,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:26.566Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-162f7c6ef9c4e9de08af",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
-              "column": 5
-            },
-            {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "Home screen passes core WCAG AA accessibility standards",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1506,14 +1336,14 @@
                   "results": [
                     {
                       "workerIndex": 10,
-                      "parallelIndex": 1,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1622,
+                      "duration": 1534,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:27.737Z",
+                      "startTime": "2026-10-21T16:52:01.694Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1521,13 +1351,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-7bcf1fb8ca146feb8b7e",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
+              "id": "af7a716a0c2ad3776347-2af06f961d27867d8d29",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
               "column": 5
             },
             {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1540,14 +1370,14 @@
                   "results": [
                     {
                       "workerIndex": 11,
-                      "parallelIndex": 0,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1482,
+                      "duration": 675,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:28.431Z",
+                      "startTime": "2026-10-21T16:52:03.156Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1555,13 +1385,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-a2ef85947c3073e09ae0",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
+              "id": "af7a716a0c2ad3776347-5f0701a033d653376e56",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1574,48 +1404,14 @@
                   "results": [
                     {
                       "workerIndex": 10,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1488,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:29.434Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-134d7b941c726c83a345",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
-              "column": 5
-            },
-            {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Landscape",
-                  "projectName": "iPhone 14 Pro - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 11,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 803,
+                      "duration": 758,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:29.992Z",
+                      "startTime": "2026-10-21T16:52:03.303Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1623,13 +1419,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-3ec72658229b5f842473",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
+              "id": "af7a716a0c2ad3776347-4d3bd845b422f5448673",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
               "column": 5
             },
             {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "Home screen passes core WCAG AA accessibility standards",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1642,14 +1438,14 @@
                   "results": [
                     {
                       "workerIndex": 12,
-                      "parallelIndex": 0,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1761,
+                      "duration": 1724,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:31.125Z",
+                      "startTime": "2026-10-21T16:52:04.264Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1657,13 +1453,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-de0b4b25b297fddfb8d5",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
+              "id": "af7a716a0c2ad3776347-d70c18be49daa364f012",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
               "column": 5
             },
             {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1676,48 +1472,14 @@
                   "results": [
                     {
                       "workerIndex": 13,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1789,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:31.266Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-273acbff0095c6431476",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
-              "column": 5
-            },
-            {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Portrait",
-                  "projectName": "iPhone 15 Pro Max - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 12,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1833,
+                      "duration": 847,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:32.961Z",
+                      "startTime": "2026-10-21T16:52:04.437Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1725,13 +1487,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-d29ccaf14029f9667039",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
+              "id": "af7a716a0c2ad3776347-eb9967019f830cd7a48b",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1744,14 +1506,14 @@
                   "results": [
                     {
                       "workerIndex": 13,
-                      "parallelIndex": 1,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1084,
+                      "duration": 961,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:33.127Z",
+                      "startTime": "2026-10-21T16:52:05.358Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1759,13 +1521,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-89deef46dfa431745006",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
+              "id": "af7a716a0c2ad3776347-7a9ffbeab4f51a0025a5",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
               "column": 5
             },
             {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "Home screen passes core WCAG AA accessibility standards",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1780,12 +1542,12 @@
                       "workerIndex": 14,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1715,
+                      "duration": 1621,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:34.555Z",
+                      "startTime": "2026-10-21T16:52:06.416Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1793,13 +1555,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-975b78a0e33c7dd80420",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
+              "id": "af7a716a0c2ad3776347-7e0445a292fbdc6e693f",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
               "column": 5
             },
             {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1814,12 +1576,12 @@
                       "workerIndex": 15,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1686,
+                      "duration": 656,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:35.140Z",
+                      "startTime": "2026-10-21T16:52:06.709Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1827,47 +1589,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-a6e7dce8b8dc4f748fcc",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
+              "id": "af7a716a0c2ad3776347-0e918b733f6f79ec8b40",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Landscape",
-                  "projectName": "iPhone 15 Pro Max - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 14,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1596,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:36.348Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-bde28bbbc8451cd0e65d",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
-              "column": 5
-            },
-            {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1882,12 +1610,12 @@
                       "workerIndex": 15,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 921,
+                      "duration": 2182,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:36.902Z",
+                      "startTime": "2026-10-21T16:52:07.443Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1895,13 +1623,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-853c858b551ac9518a6d",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
+              "id": "af7a716a0c2ad3776347-6eda3901e88fde67b0fb",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
               "column": 5
             },
             {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "Home screen passes core WCAG AA accessibility standards",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1914,14 +1642,14 @@
                   "results": [
                     {
                       "workerIndex": 16,
-                      "parallelIndex": 0,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1765,
+                      "duration": 1585,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:38.160Z",
+                      "startTime": "2026-10-21T16:52:08.479Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1929,13 +1657,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-42bc9911e3e040ac255a",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
+              "id": "af7a716a0c2ad3776347-2fee5dcf0e07e57731ed",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
               "column": 5
             },
             {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1948,14 +1676,14 @@
                   "results": [
                     {
                       "workerIndex": 17,
-                      "parallelIndex": 1,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1725,
+                      "duration": 824,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:38.285Z",
+                      "startTime": "2026-10-21T16:52:10.012Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1963,13 +1691,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-1f46f1639c6b23f03461",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
+              "id": "af7a716a0c2ad3776347-748cdb532a6b1c0a33af",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -1982,48 +1710,14 @@
                   "results": [
                     {
                       "workerIndex": 16,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1707,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:39.999Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-ca5024eee37a80ac584a",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
-              "column": 5
-            },
-            {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Portrait",
-                  "projectName": "Pixel 7 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 17,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 964,
+                      "duration": 5280,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:40.084Z",
+                      "startTime": "2026-10-21T16:52:10.138Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2031,13 +1725,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-c2a309eeb7e87acfb404",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
+              "id": "af7a716a0c2ad3776347-5e8621076666304593ae",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
               "column": 5
             },
             {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "Home screen passes core WCAG AA accessibility standards",
               "ok": true,
               "tags": [],
               "tests": [
@@ -2050,48 +1744,14 @@
                   "results": [
                     {
                       "workerIndex": 18,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1461,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:41.378Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-315f9126e5b072788b17",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
-              "column": 5
-            },
-            {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Landscape",
-                  "projectName": "Pixel 7 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 19,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1465,
+                      "duration": 1424,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:42.057Z",
+                      "startTime": "2026-10-21T16:52:11.267Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2099,13 +1759,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-95de3bed4a5006447c2c",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
+              "id": "af7a716a0c2ad3776347-7e2acc63147d608d290b",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
               "column": 5
             },
             {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -2118,14 +1778,14 @@
                   "results": [
                     {
                       "workerIndex": 18,
-                      "parallelIndex": 1,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1444,
+                      "duration": 529,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:42.915Z",
+                      "startTime": "2026-10-21T16:52:12.764Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2133,13 +1793,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-20deef86923077dc8eaf",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
+              "id": "af7a716a0c2ad3776347-d5f40a96e61f5bdc2ce3",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -2151,15 +1811,15 @@
                   "projectName": "Pixel 7 - Landscape",
                   "results": [
                     {
-                      "workerIndex": 19,
+                      "workerIndex": 18,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1766,
+                      "duration": 613,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:43.597Z",
+                      "startTime": "2026-10-21T16:52:13.300Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2167,13 +1827,47 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-fa07639e2f2661a0e999",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
+              "id": "af7a716a0c2ad3776347-f02d35f3b0ec38d90141",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
               "column": 5
             },
             {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "Home screen passes core WCAG AA accessibility standards",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Samsung Galaxy S23 - Portrait",
+                  "projectName": "Samsung Galaxy S23 - Portrait",
+                  "results": [
+                    {
+                      "workerIndex": 19,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1674,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T16:52:14.269Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af7a716a0c2ad3776347-e010a8bf61b254eabdc2",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
+              "column": 5
+            },
+            {
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -2188,12 +1882,12 @@
                       "workerIndex": 20,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1670,
+                      "duration": 751,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:44.678Z",
+                      "startTime": "2026-10-21T16:52:15.788Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2201,13 +1895,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-01325d86026d7e674de0",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
+              "id": "af7a716a0c2ad3776347-fba0d2ca4f1e9adda9d8",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -2217,51 +1911,51 @@
                   "expectedStatus": "passed",
                   "projectId": "Samsung Galaxy S23 - Portrait",
                   "projectName": "Samsung Galaxy S23 - Portrait",
+                  "results": [
+                    {
+                      "workerIndex": 19,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 944,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T16:52:16.015Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af7a716a0c2ad3776347-5004f6cc21b8ac571395",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
+              "column": 5
+            },
+            {
+              "title": "Home screen passes core WCAG AA accessibility standards",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Samsung Galaxy S23 - Landscape",
+                  "projectName": "Samsung Galaxy S23 - Landscape",
                   "results": [
                     {
                       "workerIndex": 21,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1668,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:45.693Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-c304873aaeaebebad1cf",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
-              "column": 5
-            },
-            {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Portrait",
-                  "projectName": "Samsung Galaxy S23 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 20,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1651,
+                      "duration": 1573,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:46.421Z",
+                      "startTime": "2026-10-21T16:52:16.966Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2269,47 +1963,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-61009965a2661917cdc3",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
+              "id": "af7a716a0c2ad3776347-ec80a8a64d5d0a80adb2",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
               "column": 5
             },
             {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Portrait",
-                  "projectName": "Samsung Galaxy S23 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 21,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 928,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:47.442Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-ee7aa0f6c6c7c63ec74c",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
-              "column": 5
-            },
-            {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -2322,48 +1982,14 @@
                   "results": [
                     {
                       "workerIndex": 22,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1713,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:48.427Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-bc948f2d862f04642832",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
-              "column": 5
-            },
-            {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Landscape",
-                  "projectName": "Samsung Galaxy S23 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 23,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1660,
+                      "duration": 619,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:48.768Z",
+                      "startTime": "2026-10-21T16:52:17.354Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2371,13 +1997,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-6146ecb05a86a18c9bd3",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
+              "id": "af7a716a0c2ad3776347-6ad0584237a187548251",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -2390,14 +2016,14 @@
                   "results": [
                     {
                       "workerIndex": 22,
-                      "parallelIndex": 1,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1508,
+                      "duration": 744,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:50.222Z",
+                      "startTime": "2026-10-21T16:52:18.049Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2405,13 +2031,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-55b20f423deb4fe4e984",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
+              "id": "af7a716a0c2ad3776347-3d84f537d6f0646bcdbd",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
               "column": 5
             },
             {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
+              "title": "Home screen passes core WCAG AA accessibility standards",
               "ok": true,
               "tags": [],
               "tests": [
@@ -2419,19 +2045,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Landscape",
-                  "projectName": "Samsung Galaxy S23 - Landscape",
+                  "projectId": "Desktop 1366x768",
+                  "projectName": "Desktop 1366x768",
                   "results": [
                     {
                       "workerIndex": 23,
-                      "parallelIndex": 0,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 844,
+                      "duration": 1419,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:50.505Z",
+                      "startTime": "2026-10-21T16:52:19.044Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2439,13 +2065,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-55dceebe63576b4ad1d5",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
+              "id": "af7a716a0c2ad3776347-e6b89fd85dae9bac20a3",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
               "column": 5
             },
             {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -2460,12 +2086,12 @@
                       "workerIndex": 24,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1423,
+                      "duration": 1039,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:51.692Z",
+                      "startTime": "2026-10-21T16:52:19.217Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2473,13 +2099,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-aec7463a93b636228a74",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
+              "id": "af7a716a0c2ad3776347-a2c3400f0a7a5a1d0ea8",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -2489,17 +2115,51 @@
                   "expectedStatus": "passed",
                   "projectId": "Desktop 1366x768",
                   "projectName": "Desktop 1366x768",
+                  "results": [
+                    {
+                      "workerIndex": 24,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 542,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T16:52:20.328Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af7a716a0c2ad3776347-f410d33f6a7cf3ab34c0",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
+              "column": 5
+            },
+            {
+              "title": "Home screen passes core WCAG AA accessibility standards",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
                   "results": [
                     {
                       "workerIndex": 25,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1432,
+                      "duration": 2280,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:52.065Z",
+                      "startTime": "2026-10-21T16:52:20.925Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2507,81 +2167,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-8c18ec1766541bbf8914",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
+              "id": "af7a716a0c2ad3776347-c394a8edf5a77428d75b",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
               "column": 5
             },
             {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1366x768",
-                  "projectName": "Desktop 1366x768",
-                  "results": [
-                    {
-                      "workerIndex": 24,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1493,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:53.194Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-fd323ddcfcbd07398bee",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
-              "column": 5
-            },
-            {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1366x768",
-                  "projectName": "Desktop 1366x768",
-                  "results": [
-                    {
-                      "workerIndex": 24,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 777,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:54.694Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-ba64d4d0fbe8a6cca857",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
-              "column": 5
-            },
-            {
-              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "title": "All interactive buttons have aria-label, title or accessible text",
               "ok": true,
               "tags": [],
               "tests": [
@@ -2596,12 +2188,12 @@
                       "workerIndex": 26,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1609,
+                      "duration": 551,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:55.813Z",
+                      "startTime": "2026-10-21T16:52:21.263Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2609,47 +2201,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-18b11c242e667b6b2385",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 20,
+              "id": "af7a716a0c2ad3776347-70236e09aad4ea350018",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
               "column": 5
             },
             {
-              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
-                  "results": [
-                    {
-                      "workerIndex": 27,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1542,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:55.921Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-ad9f26b75ad2ce159f8a",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 58,
-              "column": 5
-            },
-            {
-              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
+              "title": "Keyboard Tab navigation reaches key interactive controls",
               "ok": true,
               "tags": [],
               "tests": [
@@ -2664,12 +2222,12 @@
                       "workerIndex": 26,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1491,
+                      "duration": 899,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T16:30:57.499Z",
+                      "startTime": "2026-10-21T16:52:21.896Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2677,43 +2235,9 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-da8c52c7f9032e501a86",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 80,
-              "column": 5
-            },
-            {
-              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1920x1080",
-                  "projectName": "Desktop 1920x1080",
-                  "results": [
-                    {
-                      "workerIndex": 27,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 951,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T16:30:57.537Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "73a7e171b8ccf73f7b90-4a024621f7dc4c6ecec4",
-              "file": "07-weather-spots.spec.mjs",
-              "line": 104,
+              "id": "af7a716a0c2ad3776347-52ae77f8eb7098a617a5",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
               "column": 5
             }
           ]
@@ -2723,9 +2247,9 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-21T16:30:11.387Z",
-    "duration": 47774.546,
-    "expected": 56,
+    "startTime": "2026-10-21T16:51:50.269Z",
+    "duration": 33163.778,
+    "expected": 42,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

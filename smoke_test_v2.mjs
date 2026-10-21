@@ -179,6 +179,7 @@ const criticalDomIds = [
     'proBiometricsBar',
     'proRouteWindChart',
     'mobileBottomNav',
+    'btnNavPerfil',
     'spotIntelligenceBento',
     'spotSmartMatchBanner',
     'posterFinisherLightbox',
@@ -253,6 +254,7 @@ for (const fn of inlineFunctions) {
 const mainJsCode = fs.readFileSync('public_html/js/main.js', 'utf8');
 assert(mainJsCode.includes('activarItemBottomNav') && (mainJsCode.includes('window.activarItemBottomNav') || indexHtml.includes('window.activarItemBottomNav')), 'window.activarItemBottomNav must exist');
 assert(indexHtml.includes('id="mobileBottomNav"'), '#mobileBottomNav element must exist in index.html');
+assert(indexHtml.includes('id="btnNavPerfil"'), '#btnNavPerfil element must exist in index.html');
 assert(indexHtml.includes('nav-indicator'), '#mobileBottomNav buttons must include nav-indicator');
 assert(indexHtml.includes('ps-modal-backdrop'), 'Modals must use ps-modal-backdrop');
 assert(indexHtml.includes('ps-modal-close-btn'), 'Modals must use ps-modal-close-btn');
@@ -1889,6 +1891,7 @@ assert(modalNotasIdx > tabProIdx, 'modalNotasTacticasSpot must not be nested ins
 // mainJsContent already loaded above
 assert(mainJsContent.includes("tabId === 'parte'"), 'main.js must handle parte tab in activarItemBottomNav');
 assert(mainJsContent.includes("tabId === 'pro'"), 'main.js must handle pro tab in activarItemBottomNav');
+assert(mainJsContent.includes("tabId === 'perfil'"), 'main.js must handle perfil tab in activarItemBottomNav');
 assert(mainJsContent.includes("tabBasico.classList.remove('hidden')"), 'activarItemBottomNav must toggle tab-basico visibility on mobile');
 assert(mainJsContent.includes("tabPro.classList.remove('hidden')"), 'activarItemBottomNav must toggle tab-pro visibility on mobile');
 
