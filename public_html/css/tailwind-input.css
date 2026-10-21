@@ -529,3 +529,49 @@ html, body {
     background: #020617 !important;
   }
 }
+
+/* Floating panels non-collision clearance below Leaflet zoom controls */
+.ps-floating-panel-top,
+.top-\[105px\] {
+  top: 105px !important;
+}
+
+/* Floating map cockpit controls & HUD z-index elevation */
+#radarCockpitPanel,
+#panelQuedadaMap,
+#mapLayerSwitcher,
+#mapWindWaveHud,
+#multipuntoToolbar,
+#leyendaMapa {
+  z-index: 1000 !important;
+}
+
+#radarCockpitPanel {
+  max-height: calc(100vh - 120px) !important;
+  max-height: calc(100dvh - 120px) !important;
+  overflow-y: auto !important;
+}
+
+/* Responsive Desktop Grid Layout for Interactive Map */
+@media (min-width: 1024px) {
+  #tab-pro {
+    display: flex !important;
+  }
+  #mobileBottomNav,
+  .lg\:hidden {
+    display: none !important;
+  }
+}
+
+/* Modal Viewport Safety Clamp (prevents modals from overflowing viewport on small screens) */
+.ps-modal-backdrop {
+  z-index: 9999 !important;
+}
+
+.ps-modal-backdrop > div {
+  max-height: calc(100dvh - 2rem) !important;
+  max-height: calc(100vh - 2rem) !important;
+  overflow-y: auto !important;
+}
+
+

@@ -1778,7 +1778,7 @@ assert(indexHtmlContent.includes('overflow-x-hidden'), 'body or html must enforc
 assert(indexHtmlContent.includes('flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1'), 'savedSpotsBar header must wrap cleanly on mobile');
 assert(indexHtmlContent.includes('grid grid-cols-1 sm:grid-cols-3 gap-2 lg:flex'), 'Omnibar responsive grid must adapt on mobile');
 assert(indexHtmlContent.includes('top-20 left-3 z-[400]'), 'leyendaMapa must be at top-20 left-3 to not overlap mapLayerSwitcher');
-assert(indexHtmlContent.includes('top-[80px] left-3 right-3 sm:left-3 sm:right-auto sm:w-[340px] z-[450]'), 'panelQuedadaMap must have top-[80px] clearance on mobile');
+assert(indexHtmlContent.includes('ps-floating-panel-top top-[105px] left-3 right-3 sm:left-3 sm:right-auto sm:w-[340px] z-[450]'), 'panelQuedadaMap must have top-[105px] clearance on mobile');
 assert(indexHtmlContent.includes('max-h-[90vh] overflow-y-auto custom-scrollbar'), 'modalNotasTacticasSpot must support max-h-[90vh] and scrolling');
 
 const trackerJsContent = fs.readFileSync('public_html/js/map/map.tracker.js', 'utf8');
@@ -1884,8 +1884,8 @@ assert(authModalIdx > modalNotasIdx, 'authModal must appear after modalNotasTact
 assert(idxContent.includes('id="modalNotasTacticasSpot" class="fixed inset-0 z-[150]'), 'modalNotasTacticasSpot must use z-[150]');
 
 // 2. Leaflet controls non-collision
-assert(idxContent.includes('id="panelQuedadaMap" class="hidden absolute top-[80px]'), 'panelQuedadaMap must have top-[80px] to prevent collision with Leaflet zoom buttons');
-assert(idxContent.includes('id="radarCockpitPanel" class="hidden absolute top-[80px]'), 'radarCockpitPanel must have top-[80px] to prevent collision with Leaflet zoom buttons');
+assert(idxContent.includes('id="panelQuedadaMap" class="hidden absolute ps-floating-panel-top top-[105px]'), 'panelQuedadaMap must have top-[105px] to prevent collision with Leaflet zoom buttons');
+assert(idxContent.includes('id="radarCockpitPanel" class="hidden absolute ps-floating-panel-top top-[105px]'), 'radarCockpitPanel must have top-[105px] to prevent collision with Leaflet zoom buttons');
 
 // 3. Ergonomic HUD dismiss button
 assert(idxContent.includes("document.getElementById('mapWindWaveHud')?.classList.add('hidden')"), 'mapWindWaveHud must have dismiss close button');
