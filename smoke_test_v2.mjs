@@ -450,6 +450,25 @@ assert(typeof mapMod.solicitarAnalisisIARutaDeportiva === 'function', 'map.js mu
 const normStr = mapCoachMod.normalizarUnidadesCoach('Viento de 18 km/h a 25 km/h');
 assert(normStr.includes('kt'), 'normalizarUnidadesCoach must convert km/h to kt');
 
+// 3.4.1.9 Errors & Observability Architecture (errors.js)
+const errorsMod = await import(pathToFileURL(path.resolve('public_html/js/engine/errors.js')).href);
+assert(typeof errorsMod.BaseAppError === 'function', 'errors.js must export BaseAppError');
+assert(typeof errorsMod.WeatherError === 'function', 'errors.js must export WeatherError');
+assert(typeof errorsMod.ForecastError === 'function', 'errors.js must export ForecastError');
+assert(typeof errorsMod.MapError === 'function', 'errors.js must export MapError');
+assert(typeof errorsMod.RadarError === 'function', 'errors.js must export RadarError');
+assert(typeof errorsMod.validarCoordenadas === 'function', 'errors.js must export validarCoordenadas');
+assert(typeof errorsMod.resolverSpotConocido === 'function', 'errors.js must export resolverSpotConocido');
+assert(typeof errorsMod.clasificarErrorMeteo === 'function', 'errors.js must export clasificarErrorMeteo');
+assert(typeof errorsMod.logForecastService === 'function', 'errors.js must export logForecastService');
+
+assert(errorsMod.validarCoordenadas(38.82, 0.14).valido === true, 'validarCoordenadas must accept valid coordinates');
+assert(errorsMod.validarCoordenadas(undefined, 0.14).valido === false, 'validarCoordenadas must reject undefined lat');
+assert(errorsMod.validarCoordenadas('invalido', 0.14).valido === false, 'validarCoordenadas must reject invalid lat');
+assert(errorsMod.resolverSpotConocido('Denia')?.nombre === 'Les Rotes (Dénia)', 'resolverSpotConocido must resolve Denia');
+assert(errorsMod.resolverSpotConocido('Jávea')?.nombre === 'Cala Blanca (Jávea)', 'resolverSpotConocido must resolve Jávea');
+assert(errorsMod.resolverSpotConocido('Moraira')?.nombre === 'El Portet (Moraira)', 'resolverSpotConocido must resolve Moraira');
+
 // 3.4.2 Strangler Fig Architecture - Phase 2 (map.weather.js & map.spots.js)
 const mapWeatherMod = await import(pathToFileURL(path.resolve('public_html/js/map/map.weather.js')).href);
 const mapSpotsMod = await import(pathToFileURL(path.resolve('public_html/js/map/map.spots.js')).href);

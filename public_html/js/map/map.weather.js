@@ -16,6 +16,14 @@ import {
     generarVeredictoNextGen
 } from '../utils.js';
 import { mapRuntime } from './map.state.js';
+import {
+    validarCoordenadas,
+    clasificarErrorMeteo,
+    logForecastService,
+    resolverSpotConocido,
+    ForecastError,
+    WeatherError
+} from '../engine/errors.js';
 
 export function registrarDiagnosticoClima(etiqueta, contenido) {
     try {
@@ -304,32 +312,76 @@ export async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, 
     const horaInicio = rango ? parseInt(rango[1], 10) : 10;
     const horaFin = rango ? parseInt(rango[2], 10) : 12;
 
-    let lat = resolvedLat;
-    let lon = resolvedLon;
+    let lat = (resolvedLat !== null && resolvedLat !== undefined && Number.isFinite(Number(resolvedLat))) ? Number(resolvedLat) : null;
+    let lon = (resolvedLon !== null && resolvedLon !== undefined && Number.isFinite(Number(resolvedLon))) ? Number(resolvedLon) : null;
 
     if (lat === null || lon === null) {
-        const coordenadas = String(payload.location || '').split(',').map(valor => Number(valor.trim()));
-        if (coordenadas.length === 2 && coordenadas.every(Number.isFinite)
-            && Math.abs(coordenadas[0]) <= 90 && Math.abs(coordenadas[1]) <= 180) {
-            [lat, lon] = coordenadas;
+        if (payload.lat !== undefined && payload.lon !== undefined && Number.isFinite(Number(payload.lat)) && Number.isFinite(Number(payload.lon))) {
+            lat = Number(payload.lat);
+            lon = Number(payload.lon);
         } else {
-            const geocodingUrl = new URL('https://geocoding-api.open-meteo.com/v1/search');
-            geocodingUrl.search = new URLSearchParams({
-                name: String(payload.location || ''),
-                count: '1',
-                language: 'es',
-                format: 'json'
-            });
-            const geocodingResponse = await fetchConTimeout(geocodingUrl, { cache: 'no-store' }, 8000);
-            if (!geocodingResponse.ok) throw new Error(`Geocodificación respondió con HTTP ${geocodingResponse.status}.`);
-            const result = (await geocodingResponse.json()).results?.[0];
-            if (!Number.isFinite(result?.latitude) || !Number.isFinite(result?.longitude)) {
-                throw new Error('No se pudieron determinar coordenadas para la ubicación seleccionada.');
+            const coordenadas = String(payload.location || '').split(',').map(valor => Number(valor.trim()));
+            if (coordenadas.length === 2 && coordenadas.every(Number.isFinite)
+                && Math.abs(coordenadas[0]) <= 90 && Math.abs(coordenadas[1]) <= 180) {
+                [lat, lon] = coordenadas;
+            } else {
+                const spotConocido = resolverSpotConocido(payload.location);
+                if (spotConocido) {
+                    lat = spotConocido.lat;
+                    lon = spotConocido.lon;
+                } else {
+                    const geocodingUrl = new URL('https://geocoding-api.open-meteo.com/v1/search');
+                    geocodingUrl.search = new URLSearchParams({
+                        name: String(payload.location || ''),
+                        count: '1',
+                        language: 'es',
+                        format: 'json'
+                    });
+                    const tGeo = Date.now();
+                    let geocodingResponse;
+                    try {
+                        geocodingResponse = await fetchConTimeout(geocodingUrl, { cache: 'no-store' }, 8000);
+                    } catch (netErr) {
+                        throw clasificarErrorMeteo(netErr, null, geocodingUrl.toString(), payload.location, null, null, Date.now() - tGeo);
+                    }
+                    if (!geocodingResponse.ok) {
+                        throw clasificarErrorMeteo(null, geocodingResponse.status, geocodingUrl.toString(), payload.location, null, null, Date.now() - tGeo);
+                    }
+                    let geoData;
+                    try {
+                        geoData = await geocodingResponse.json();
+                    } catch (jsonErr) {
+                        throw clasificarErrorMeteo(jsonErr, geocodingResponse.status, geocodingUrl.toString(), payload.location, null, null, Date.now() - tGeo);
+                    }
+                    const result = geoData?.results?.[0];
+                    if (!Number.isFinite(result?.latitude) || !Number.isFinite(result?.longitude)) {
+                        throw new ForecastError(`No se pudieron determinar coordenadas para "${payload.location}".`, {
+                            code: 'SPOT_NOT_FOUND',
+                            userMessage: `No se encontraron coordenadas para "${payload.location}". Comprueba el nombre o escribe coordenadas (ej. 38.84, 0.10).`,
+                            spot: payload.location,
+                            status: 404,
+                            durationMs: Date.now() - tGeo
+                        });
+                    }
+                    lat = result.latitude;
+                    lon = result.longitude;
+                }
             }
-            lat = result.latitude;
-            lon = result.longitude;
         }
     }
+
+    const valCoord = validarCoordenadas(lat, lon);
+    if (!valCoord.valido) {
+        throw new ForecastError(valCoord.error, {
+            code: valCoord.code,
+            userMessage: valCoord.userMessage,
+            spot: payload.location,
+            lat,
+            lng: lon
+        });
+    }
+    lat = valCoord.lat;
+    lon = valCoord.lon;
 
     const fechaStr = payload.date || new Date().toISOString().slice(0, 10);
 
@@ -349,13 +401,43 @@ export async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, 
 
     // 2. Open-Meteo Forecast con modelos ECMWF, GFS e ICON + variables completas
     const forecastUrl = `https://api.open-meteo.com/v1/forecast?${zona}&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m,weather_code,precipitation,precipitation_probability,cloud_cover,relative_humidity_2m,surface_pressure,visibility&models=best_match,ecmwf_ifs025,gfs_seamless,icon_seamless&wind_speed_unit=ms&start_date=${fechaStr}&end_date=${fechaStr}`;
-    const forecastResponse = await fetchConTimeout(forecastUrl, { cache: 'no-store' }, 10000);
-    if (!forecastResponse.ok) throw new Error(`Open-Meteo respondió con HTTP ${forecastResponse.status}.`);
-    const forecast = await forecastResponse.json();
-    const horas = forecast.hourly;
-    if (!Array.isArray(horas?.time) || horas.time.length === 0) {
-        throw new Error('Open-Meteo no devolvió datos horarios para el periodo seleccionado.');
+    const tForecast = Date.now();
+    let forecastResponse;
+    try {
+        forecastResponse = await fetchConTimeout(forecastUrl, { cache: 'no-store' }, 10000);
+    } catch (netErr) {
+        throw clasificarErrorMeteo(netErr, null, forecastUrl, payload.location, lat, lon, Date.now() - tForecast);
     }
+    if (!forecastResponse.ok) {
+        throw clasificarErrorMeteo(null, forecastResponse.status, forecastUrl, payload.location, lat, lon, Date.now() - tForecast);
+    }
+    let forecast;
+    try {
+        forecast = await forecastResponse.json();
+    } catch (jsonErr) {
+        throw clasificarErrorMeteo(jsonErr, forecastResponse.status, forecastUrl, payload.location, lat, lon, Date.now() - tForecast);
+    }
+    const horas = forecast?.hourly;
+    if (!Array.isArray(horas?.time) || horas.time.length === 0) {
+        throw new ForecastError('Open-Meteo no devolvió datos horarios para el periodo seleccionado.', {
+            code: 'EMPTY_RESPONSE',
+            userMessage: 'El proveedor meteorológico no devolvió datos horarios para la fecha seleccionada.',
+            status: forecastResponse.status,
+            spot: payload.location,
+            lat,
+            lng: lon,
+            durationMs: Date.now() - tForecast
+        });
+    }
+
+    logForecastService({
+        spot: payload.location,
+        lat,
+        lng: lon,
+        url: forecastUrl,
+        status: forecastResponse.status,
+        durationMs: Date.now() - tForecast
+    });
 
     // 3. Open-Meteo Marine: solo si es costa real para evitar errores 400 y latencia innecesaria en embalses
     let marine = null;
@@ -553,30 +635,77 @@ export async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, 
 }
 
 export async function solicitarPronostico(payload) {
-    let lat = null;
-    let lon = null;
+    let lat = (payload.lat !== undefined && payload.lat !== null && Number.isFinite(Number(payload.lat))) ? Number(payload.lat) : null;
+    let lon = (payload.lon !== undefined && payload.lon !== null && Number.isFinite(Number(payload.lon))) ? Number(payload.lon) : null;
+    const startTime = Date.now();
+
     try {
-        const coordenadas = String(payload.location || '').split(',').map(valor => Number(valor.trim()));
-        if (coordenadas.length === 2 && coordenadas.every(Number.isFinite)
-            && Math.abs(coordenadas[0]) <= 90 && Math.abs(coordenadas[1]) <= 180) {
-            [lat, lon] = coordenadas;
-        } else {
-            const geocodingUrl = new URL('https://geocoding-api.open-meteo.com/v1/search');
-            geocodingUrl.search = new URLSearchParams({
-                name: String(payload.location || ''),
-                count: '1',
-                language: 'es',
-                format: 'json'
-            });
-            const geocodingResponse = await fetchConTimeout(geocodingUrl, { cache: 'no-store' }, 8000);
-            if (!geocodingResponse.ok) throw new Error(`Geocodificación respondió con HTTP ${geocodingResponse.status}.`);
-            const result = (await geocodingResponse.json()).results?.[0];
-            if (!Number.isFinite(result?.latitude) || !Number.isFinite(result?.longitude)) {
-                throw new Error('No se pudieron determinar coordenadas para la ubicación seleccionada.');
+        if (lat === null || lon === null) {
+            const coordenadas = String(payload.location || '').split(',').map(valor => Number(valor.trim()));
+            if (coordenadas.length === 2 && coordenadas.every(Number.isFinite)
+                && Math.abs(coordenadas[0]) <= 90 && Math.abs(coordenadas[1]) <= 180) {
+                [lat, lon] = coordenadas;
+            } else {
+                const spotConocido = resolverSpotConocido(payload.location);
+                if (spotConocido) {
+                    lat = spotConocido.lat;
+                    lon = spotConocido.lon;
+                } else {
+                    const geocodingUrl = new URL('https://geocoding-api.open-meteo.com/v1/search');
+                    geocodingUrl.search = new URLSearchParams({
+                        name: String(payload.location || ''),
+                        count: '1',
+                        language: 'es',
+                        format: 'json'
+                    });
+                    const tGeo = Date.now();
+                    let geocodingResponse;
+                    try {
+                        geocodingResponse = await fetchConTimeout(geocodingUrl, { cache: 'no-store' }, 8000);
+                    } catch (netErr) {
+                        throw clasificarErrorMeteo(netErr, null, geocodingUrl.toString(), payload.location, null, null, Date.now() - tGeo);
+                    }
+                    if (!geocodingResponse.ok) {
+                        throw clasificarErrorMeteo(null, geocodingResponse.status, geocodingUrl.toString(), payload.location, null, null, Date.now() - tGeo);
+                    }
+                    let geoData;
+                    try {
+                        geoData = await geocodingResponse.json();
+                    } catch (jsonErr) {
+                        throw clasificarErrorMeteo(jsonErr, geocodingResponse.status, geocodingUrl.toString(), payload.location, null, null, Date.now() - tGeo);
+                    }
+                    const result = geoData?.results?.[0];
+                    if (!Number.isFinite(result?.latitude) || !Number.isFinite(result?.longitude)) {
+                        throw new ForecastError(`No se pudieron determinar coordenadas para "${payload.location}".`, {
+                            code: 'SPOT_NOT_FOUND',
+                            userMessage: `No se encontraron coordenadas para "${payload.location}". Comprueba el nombre o escribe coordenadas (ej. 38.84, 0.10).`,
+                            spot: payload.location,
+                            status: 404,
+                            durationMs: Date.now() - tGeo
+                        });
+                    }
+                    lat = result.latitude;
+                    lon = result.longitude;
+                }
             }
-            lat = result.latitude;
-            lon = result.longitude;
         }
+
+        const valCoord = validarCoordenadas(lat, lon);
+        if (!valCoord.valido) {
+            throw new ForecastError(valCoord.error, {
+                code: valCoord.code,
+                userMessage: valCoord.userMessage,
+                spot: payload.location,
+                lat,
+                lng: lon
+            });
+        }
+        lat = valCoord.lat;
+        lon = valCoord.lon;
+
+        // Sincronizar en mapRuntime inmediatamente
+        mapRuntime.latitudActual = lat;
+        mapRuntime.longitudActual = lon;
 
         // 1. Open-Meteo Forecast + Marine como fuente principal (con caché geodésica)
         let datosOpenMeteo = null;
@@ -585,7 +714,7 @@ export async function solicitarPronostico(payload) {
             datosOpenMeteo = await solicitarPronosticoOpenMeteo(payload, lat, lon);
         } catch (errOM) {
             errorOpenMeteo = errOM;
-            console.warn('[pronóstico] Error en consulta directa a Open-Meteo:', errOM);
+            console.warn('[pronóstico] Error en consulta directa a Open-Meteo:', errOM?.message || errOM);
         }
 
         // 2. Consulta no bloqueante de alertas oficiales AEMET y fallback de backend
@@ -691,20 +820,29 @@ export async function solicitarPronostico(payload) {
             vientoSpeed: datos.windSpeed
         });
 
-        const resultadoPronostico = { ok: true, datos, received: payload };
+        const resultadoPronostico = {
+            ok: true,
+            datos,
+            received: { ...payload, lat, lon },
+            lat,
+            lon
+        };
         guardarForecastSnapshot(payload.location || 'Costa', lat, lon, resultadoPronostico);
         return resultadoPronostico;
     } catch (err) {
+        const durationMs = Date.now() - startTime;
         const snapshot = recuperarForecastSnapshot();
-        if (snapshot && snapshot.data) {
-            console.warn('[pronóstico] Red no disponible / fallo en petición. Recuperando último snapshot meteorológico offline:', err);
+        if (snapshot && snapshot.data && (!lat || !lon || (Date.now() - snapshot.ts < 3600000))) {
+            console.warn('[pronóstico] Red no disponible / fallo en petición. Recuperando último snapshot meteorológico offline:', err?.message || err);
             const resSnapshot = JSON.parse(JSON.stringify(snapshot.data));
             resSnapshot._desdeSnapshot = true;
             resSnapshot._snapshotTs = snapshot.ts;
             resSnapshot._snapshotLocation = snapshot.location;
+            resSnapshot.lat = lat || snapshot.data.lat;
+            resSnapshot.lon = lon || snapshot.data.lon;
             return resSnapshot;
         }
-        throw err;
+        throw clasificarErrorMeteo(err, null, null, payload?.location, lat, lon, durationMs);
     }
 }
 
