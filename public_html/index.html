@@ -53,9 +53,31 @@
             #mapContainer { min-height: 500px; height: 50vh; }
             #mapaInteractivo { min-height: 500px; }
         }
+        /* Barra de navegación de cabecera: exclusiva para escritorio (>= 1024px), oculta en móvil (< 1024px) */
+        @media (max-width: 1023.98px) {
+            #desktopHeaderNav,
+            .desktop-header-nav,
+            .mobile-header-row {
+                display: none !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                pointer-events: none !important;
+            }
+        }
+        @media (min-width: 1024px) {
+            #desktopHeaderNav,
+            .desktop-header-nav,
+            .mobile-header-row {
+                display: flex !important;
+                visibility: visible !important;
+                pointer-events: auto !important;
+            }
+        }
         @media (max-width: 639px) {
-            .mobile-header-row.mobile-header-row { flex-wrap: nowrap; }
-            .mobile-header-row button { min-width: 44px; min-height: 44px; }
             #btn-gps { min-height: 44px; padding-block: 0.5rem; }
             #tabMiClub, #tabBuscarClub, #tabPaddlers,
             #tabFeedGlobal, #tabFeedClubs, #tabFeedAmigos,
@@ -65,14 +87,6 @@
             #panelQuedadaMap button, #quedadaFormPanel button,
             #quedadaFormPanel input, #quedadaFormPanel select { min-height: 44px; }
             [id$="Modal"] button.w-10.h-10 { width: 44px; height: 44px; }
-        }
-        @media (max-width: 374px) {
-            .mobile-header-row .mobile-header-links { gap: 0.25rem; }
-            .mobile-header-row .mobile-header-actions { gap: 0.125rem; }
-        }
-        @media (max-width: 359px) {
-            .mobile-header-row.mobile-header-row { flex-wrap: wrap; row-gap: 0.5rem; }
-            .mobile-header-row .mobile-header-actions { margin-left: auto; }
         }
     </style>
     <script>
@@ -252,7 +266,7 @@
         <div class="bg-marine p-4 sm:p-7 text-center relative flex flex-col items-center justify-center shadow-inner z-50 border-b border-slate-800/80">
             <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-water via-blue-400 to-emerald-400"></div>
             
-            <div class="mobile-header-row w-full flex justify-between items-center relative z-20 mb-3 px-1 gap-2 flex-wrap">
+            <div id="desktopHeaderNav" class="desktop-header-nav mobile-header-row hidden lg:flex w-full justify-between items-center relative z-20 mb-3 px-1 gap-2 flex-wrap">
                 <div class="mobile-header-links flex items-center gap-1.5 sm:gap-2">
                     <button type="button" id="btnModalRanking" onclick="abrirModalRanking()" class="ps-chip text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95" title="Ranking de Paddlers">
                         <span class="text-base drop-shadow">🏆</span>
