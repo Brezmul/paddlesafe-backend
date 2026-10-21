@@ -80,7 +80,7 @@ export const ClubRender = {
             <h3 class="font-black text-marine dark:text-white mb-2 text-lg">Sin clubes</h3>
             <p class="text-xs text-slate-400 mb-4">Aún no perteneces a ningún club. ¡Funda el tuyo o únete a uno existente!</p>
             <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
-                <input type="text" id="newClubName" placeholder="Nombre de tu club" class="w-full h-12 px-4 rounded-xl mb-3 outline-none focus:ring-2 focus:ring-water bg-white dark:bg-slate-800 text-sm">
+                <input type="text" id="newClubName" placeholder="Nombre de tu club" class="w-full h-12 px-4 rounded-xl mb-3 outline-none border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-water bg-white dark:bg-slate-800 !text-slate-900 dark:!text-white placeholder:text-slate-400 font-medium text-sm">
                 <button type="button" onclick="window.Club.onCreate()" class="w-full h-12 bg-water text-white font-bold rounded-xl active:scale-95 shadow cursor-pointer text-sm">➕ Fundar Club</button>
             </div>
             <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -92,23 +92,23 @@ export const ClubRender = {
     templateClubActivo(cl, isAdmin, isCreator = false) {
         // Selector de clubes
         const selectorHTML = ClubState.myClubs.length > 1 ? `
-            <select onchange="window.Club.onSelectActive(this.value)" class="w-full mb-4 bg-slate-50 dark:bg-slate-800 h-10 px-3 rounded-lg outline-none font-bold border border-slate-200 dark:border-slate-700 text-sm">
+            <select onchange="window.Club.onSelectActive(this.value)" class="w-full mb-4 bg-slate-50 dark:bg-slate-800 h-10 px-3 rounded-lg outline-none font-bold border border-slate-200 dark:border-slate-700 !text-slate-900 dark:!text-white text-sm">
                 ${ClubState.myClubs.map(c => `<option value="${c.club_id}" ${c.club_id === cl.club_id ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('')}
             </select>` : '';
 
         // Campos Auto-guardables
         const titleField = isAdmin ? 
-            `<input type="text" id="info_nombre" value="${esc(cl.nombre)}" oninput="window.Club.onInput('${cl.club_id}', 'info_nombre', 'nombre')" class="w-full bg-transparent text-xl font-black outline-none border-b-2 border-transparent focus:border-water">` : 
-            `<h3 class="text-xl font-black">${esc(cl.nombre)}</h3>`;
+            `<input type="text" id="info_nombre" value="${esc(cl.nombre)}" oninput="window.Club.onInput('${cl.club_id}', 'info_nombre', 'nombre')" class="w-full bg-transparent text-xl font-black outline-none border-b-2 border-transparent focus:border-water !text-slate-900 dark:!text-white">` : 
+            `<h3 class="text-xl font-black !text-slate-900 dark:!text-white">${esc(cl.nombre)}</h3>`;
 
         const extraFields = isAdmin ? `
             <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 relative">
                 <div class="absolute -top-3 right-0">
                     <span id="autoSaveIndicator" class="hidden"></span>
                 </div>
-                <input type="text" id="info_ubi" value="${esc(cl.ubicacion || '')}" oninput="window.Club.onInput('${cl.club_id}', 'info_ubi', 'ubicacion')" placeholder="Ubicación (Ej: Cala Blanca)" class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl outline-none focus:ring-1 focus:ring-water mb-3 text-sm">
-                <textarea id="info_desc" oninput="window.Club.onInput('${cl.club_id}', 'info_desc', 'descripcion')" placeholder="Descripción..." class="w-full h-20 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl outline-none focus:ring-1 focus:ring-water mb-3 text-sm">${esc(cl.descripcion || '')}</textarea>
-                <textarea id="info_normas" oninput="window.Club.onInput('${cl.club_id}', 'info_normas', 'normas')" placeholder="Normas..." class="w-full h-16 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl outline-none focus:ring-1 focus:ring-water text-sm">${esc(cl.normas || '')}</textarea>
+                <input type="text" id="info_ubi" value="${esc(cl.ubicacion || '')}" oninput="window.Club.onInput('${cl.club_id}', 'info_ubi', 'ubicacion')" placeholder="Ubicación (Ej: Cala Blanca)" class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl outline-none border border-slate-200 dark:border-slate-600 focus:bg-white dark:focus:bg-slate-700 focus:border-sky-500 !text-slate-900 dark:!text-white placeholder:text-slate-400 font-medium mb-3 text-sm">
+                <textarea id="info_desc" oninput="window.Club.onInput('${cl.club_id}', 'info_desc', 'descripcion')" placeholder="Descripción..." class="w-full h-20 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl outline-none border border-slate-200 dark:border-slate-600 focus:bg-white dark:focus:bg-slate-700 focus:border-sky-500 !text-slate-900 dark:!text-white placeholder:text-slate-400 font-medium mb-3 text-sm">${esc(cl.descripcion || '')}</textarea>
+                <textarea id="info_normas" oninput="window.Club.onInput('${cl.club_id}', 'info_normas', 'normas')" placeholder="Normas..." class="w-full h-16 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl outline-none border border-slate-200 dark:border-slate-600 focus:bg-white dark:focus:bg-slate-700 focus:border-sky-500 !text-slate-900 dark:!text-white placeholder:text-slate-400 font-medium text-sm">${esc(cl.normas || '')}</textarea>
             </div>` : '';
 
         const canDeleteClub = isCreator || isAdmin;
@@ -150,12 +150,12 @@ export const ClubRender = {
                 </div>
                 ${extraFields}
                 ${dangerZoneCard}
-                <div class="flex gap-1.5 mt-5 pt-4 border-t border-slate-100 dark:border-slate-700 overflow-x-auto custom-scrollbar pb-1">
-                    <button type="button" id="btnClubTabTripulacion" onclick="window.Club.cambiarVistaInterna('tripulacion')" class="flex-1 min-w-[90px] ps-pill-tab ps-pill-tab-active text-center">👥 Miembros</button>
-                    <button type="button" id="btnClubTabChat" onclick="window.Club.cambiarVistaInterna('chat')" class="flex-1 min-w-[90px] ps-pill-tab text-center">💬 Chat</button>
-                    <button type="button" id="btnClubTabEventos" onclick="window.Club.cambiarVistaInterna('eventos')" class="flex-1 min-w-[90px] ps-pill-tab text-center">📅 Quedadas</button>
-                    <button type="button" id="btnClubTabRetos" onclick="window.Club.cambiarVistaInterna('retos')" class="flex-1 min-w-[90px] ps-pill-tab text-center">🏆 Retos</button>
-                    ${isAdmin ? `<button type="button" id="btnClubTabGestion" onclick="window.Club.cambiarVistaInterna('gestion')" class="flex-1 min-w-[80px] ps-pill-tab text-center">⚙️ Gestión</button>` : ''}
+                <div class="flex items-center gap-1.5 mt-5 pt-4 border-t border-slate-100 dark:border-slate-700 overflow-x-auto ps-scroll-snap pb-1 [&::-webkit-scrollbar]:hidden" style="scrollbar-width: none; -ms-overflow-style: none;">
+                    <button type="button" id="btnClubTabTripulacion" onclick="window.Club.cambiarVistaInterna('tripulacion')" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 ps-pill-tab ps-pill-tab-active text-center">👥 Miembros</button>
+                    <button type="button" id="btnClubTabChat" onclick="window.Club.cambiarVistaInterna('chat')" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 ps-pill-tab text-center">💬 Chat</button>
+                    <button type="button" id="btnClubTabEventos" onclick="window.Club.cambiarVistaInterna('eventos')" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 ps-pill-tab text-center">📅 Quedadas</button>
+                    <button type="button" id="btnClubTabRetos" onclick="window.Club.cambiarVistaInterna('retos')" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 ps-pill-tab text-center">🏆 Retos</button>
+                    ${isAdmin ? `<button type="button" id="btnClubTabGestion" onclick="window.Club.cambiarVistaInterna('gestion')" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 ps-pill-tab text-center">⚙️ Gestión</button>` : ''}
                 </div>
             </div>
         </div>
@@ -172,7 +172,7 @@ export const ClubRender = {
             <div class="mb-4">
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">🔍</span>
-                    <input type="text" id="buscadorClubs" oninput="window.Club.onBuscarClubs(event)" placeholder="Buscar clubes por nombre..." class="w-full h-11 pl-10 pr-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-water">
+                    <input type="text" id="buscadorClubs" oninput="window.Club.onBuscarClubs(event)" placeholder="Buscar clubes por nombre..." class="w-full h-11 pl-10 pr-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 !text-slate-900 dark:!text-white placeholder:text-slate-400 font-medium text-sm outline-none focus:ring-2 focus:ring-water">
                 </div>
             </div>
             <div id="listaBusquedaClubs" class="space-y-3">
@@ -279,7 +279,7 @@ export const ClubRender = {
             <div class="mb-4">
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">🔍</span>
-                    <input type="text" id="buscadorPaddlers" oninput="window.Club.onBuscarPaddlers(event)" placeholder="Buscar paddlers por nombre..." class="w-full h-11 pl-10 pr-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-water">
+                    <input type="text" id="buscadorPaddlers" oninput="window.Club.onBuscarPaddlers(event)" placeholder="Buscar paddlers por nombre..." class="w-full h-11 pl-10 pr-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 !text-slate-900 dark:!text-white placeholder:text-slate-400 font-medium text-sm outline-none focus:ring-2 focus:ring-water">
                 </div>
             </div>
             <div id="listaBusquedaPaddlers" class="space-y-3">
