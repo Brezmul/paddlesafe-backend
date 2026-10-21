@@ -18,12 +18,12 @@ Estándares recomendados por Google (Chrome UX Report):
 
 | Vista Analizada | TTFB (ms) | FCP (ms) | LCP (ms) | CLS | INP (ms) | Calificación Google |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Home (Dashboard Inicial)** | 10 ms | 2972 ms | 2972 ms | 0.003 | 12 ms | 🟡 MEJORABLE |
-| **Mapa (Visor Leaflet Pro)** | 10 ms | 248 ms | 248 ms | 0.003 | 12 ms | 🟢 BUENO |
-| **Radar (Cabina Marítima y Deriva)** | 10 ms | 248 ms | 248 ms | 0.003 | 12 ms | 🟢 BUENO |
-| **Clubes (Comunidad y Desafíos)** | 10 ms | 252 ms | 252 ms | 0.003 | 12 ms | 🟢 BUENO |
-| **Social (Ranking & Feed)** | 10 ms | 268 ms | 268 ms | 0.003 | 12 ms | 🟢 BUENO |
-| **Perfil (Gestión y Sesión)** | 10 ms | 248 ms | 248 ms | 0.003 | 12 ms | 🟢 BUENO |
+| **Home (Dashboard Inicial)** | 10 ms | 2968 ms | 2968 ms | 0.003 | 12 ms | 🟡 MEJORABLE |
+| **Mapa (Visor Leaflet Pro)** | 10 ms | 232 ms | 232 ms | 0.003 | 12 ms | 🟢 BUENO |
+| **Radar (Cabina Marítima y Deriva)** | 10 ms | 224 ms | 224 ms | 0.003 | 12 ms | 🟢 BUENO |
+| **Clubes (Comunidad y Desafíos)** | 10 ms | 236 ms | 236 ms | 0.003 | 12 ms | 🟢 BUENO |
+| **Social (Ranking & Feed)** | 10 ms | 228 ms | 228 ms | 0.003 | 12 ms | 🟢 BUENO |
+| **Perfil (Gestión y Sesión)** | 10 ms | 224 ms | 224 ms | 0.003 | 12 ms | 🟢 BUENO |
 
 ---
 
@@ -31,9 +31,9 @@ Estándares recomendados por Google (Chrome UX Report):
 
 | Categoría | Presupuesto Máx. | Medición Real | Desviación / Estado |
 | :--- | :---: | :---: | :---: |
-| **JavaScript Inicial (Gzip)** | < 300 KB | **63.6 KB** | 🟢 Conforme (Margen de 236.4 KB) |
-| **Hojas de Estilo CSS (Gzip)** | < 150 KB | **21.5 KB** | 🟢 Conforme (Margen de 128.5 KB) |
-| **Bundle Inicial Total (HTML + CSS + JS)** | < 500 KB | **117.3 KB** | 🟢 Conforme (Excelente optimización) |
+| **JavaScript Inicial (Gzip)** | < 300 KB | **63.9 KB** | 🟢 Conforme (Margen de 236.1 KB) |
+| **Hojas de Estilo CSS (Gzip)** | < 150 KB | **21.7 KB** | 🟢 Conforme (Margen de 128.3 KB) |
+| **Bundle Inicial Total (HTML + CSS + JS)** | < 500 KB | **118.3 KB** | 🟢 Conforme (Excelente optimización) |
 | **Imagen Crítica: logo.png** | < 200 KB | **234.9 KB** | 🟡 ADVERTENCIA (> 200 KB) |
 | **Imagen Crítica: apple-touch-icon.png** | < 200 KB | **30.9 KB** | 🟢 Conforme |
 
