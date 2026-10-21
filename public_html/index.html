@@ -248,6 +248,8 @@
                 window.abrirModalClubs();
             } else if (tabId === 'ranking') {
                 window.abrirModalRanking();
+            } else if (tabId === 'perfil') {
+                window.abrirModalAuth();
             }
         };
     </script>
@@ -2162,7 +2164,7 @@
     </script>
 
     <!-- DOCK ERGONÓMICO INFERIOR PARA MÓVIL (DESIGN SYSTEM 4.0) -->
-    <nav id="mobileBottomNav" class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950/92 backdrop-blur-2xl border-t border-slate-800/80 px-2 py-1.5 flex justify-around items-center" aria-label="Navegación Móvil">
+    <nav id="mobileBottomNav" class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950/92 backdrop-blur-2xl border-t border-slate-800/80 px-1 sm:px-2 py-1.5 flex justify-around items-center" aria-label="Navegación Móvil">
         <button type="button" id="btnNavParte" onclick="activarItemBottomNav('parte')" class="flex flex-col items-center justify-center flex-1 py-1 text-sky-400 transition-all cursor-pointer active:scale-90 group relative scale-105">
             <span class="nav-indicator w-6 h-1 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.9)] opacity-100 transition-all duration-300 mb-0.5"></span>
             <span class="text-lg drop-shadow group-hover:scale-110 transition-transform">🌊</span>
@@ -2187,6 +2189,11 @@
             <span class="nav-indicator w-6 h-1 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.9)] opacity-0 transition-all duration-300 mb-0.5"></span>
             <span class="text-lg drop-shadow group-hover:scale-110 transition-transform">🏆</span>
             <span class="text-[10px] font-bold tracking-tight">Ranking</span>
+        </button>
+        <button type="button" id="btnNavPerfil" onclick="activarItemBottomNav('perfil')" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-200 transition-all cursor-pointer active:scale-90 group relative" aria-label="Mi Perfil">
+            <span class="nav-indicator w-6 h-1 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.9)] opacity-0 transition-all duration-300 mb-0.5"></span>
+            <span id="navPerfilIcon" class="text-lg drop-shadow group-hover:scale-110 transition-transform flex items-center justify-center h-6">👤</span>
+            <span id="navPerfilLabel" class="text-[10px] font-bold tracking-tight truncate max-w-full">Perfil</span>
         </button>
     </nav>
 </body>

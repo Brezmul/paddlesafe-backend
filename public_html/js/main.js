@@ -129,7 +129,8 @@ export function activarItemBottomNav(tabId) {
         pro: document.getElementById('btnNavPro'),
         muro: document.getElementById('btnNavMuro'),
         clubes: document.getElementById('btnNavClubes'),
-        ranking: document.getElementById('btnNavRanking')
+        ranking: document.getElementById('btnNavRanking'),
+        perfil: document.getElementById('btnNavPerfil')
     };
 
     Object.entries(navItems).forEach(([key, btn]) => {
@@ -189,6 +190,10 @@ export function activarItemBottomNav(tabId) {
     } else if (tabId === 'ranking') {
         if (typeof window.abrirModalRanking === 'function') {
             window.abrirModalRanking();
+        }
+    } else if (tabId === 'perfil') {
+        if (typeof window.abrirModalAuth === 'function') {
+            window.abrirModalAuth();
         }
     }
 }
