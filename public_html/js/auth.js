@@ -197,8 +197,8 @@ export function actualizarBotonPerfilNav() {
     const labelContainer = navBtn.querySelector('#navPerfilLabel');
     if ((appState.sesionActual || appState.esInvitado) && appState.perfilUsuario) {
         if (iconContainer) {
-            const avatarUrl = esc(safeUrl(appState.perfilUsuario.avatar_url, 'https://api.dicebear.com/9.x/adventurer/svg?seed=guest'));
-            iconContainer.innerHTML = `<img src="${avatarUrl}" alt="Avatar" onerror="this.onerror=null; this.parentElement.textContent='👤';" class="w-5 h-5 rounded-full object-cover border border-sky-400 inline-block shadow-sm">`;
+            const avatarUrl = esc(safeUrl(appState.perfilUsuario.avatar_url, IMG_FALLBACK));
+            iconContainer.innerHTML = `<img src="${avatarUrl}" alt="Avatar" onerror="if(window.handleAvatarError){window.handleAvatarError(this)}else{this.onerror=null;this.parentElement.textContent='👤';}" class="w-5 h-5 rounded-full object-cover border border-sky-400 inline-block shadow-sm">`;
         }
         if (labelContainer) {
             labelContainer.textContent = esc(appState.perfilUsuario.nombre || 'Perfil');
@@ -219,7 +219,7 @@ export function actualizarBotonCabecera() {
     if ((appState.sesionActual || appState.esInvitado) && appState.perfilUsuario) {
         btn.innerHTML = `
             <div class="flex items-center gap-2 bg-slate-800/50 hover:bg-slate-700 rounded-full pr-3 pl-1 py-1 border border-slate-700 transition-colors">
-                <img src="${esc(safeUrl(appState.perfilUsuario.avatar_url, `https://api.dicebear.com/9.x/adventurer/svg?seed=guest`))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-7 h-7 rounded-full object-cover border border-slate-600">
+                <img src="${esc(safeUrl(appState.perfilUsuario.avatar_url, IMG_FALLBACK))}" onerror="if(window.handleAvatarError){window.handleAvatarError(this)}else{this.onerror=null;this.src='${IMG_FALLBACK}';}" class="w-7 h-7 rounded-full object-cover border border-slate-600" alt="Avatar">
                 <span class="text-[10px] sm:text-xs font-bold text-white truncate max-w-[80px]">${esc(appState.perfilUsuario.nombre)}</span>
             </div>`;
     } else {
@@ -267,7 +267,7 @@ export function restaurarFormularioAuth() {
     if(!c) return;
     appState.isLoginMode = true;
     if ((appState.sesionActual && appState.perfilUsuario) || appState.esInvitado) {
-        const avatarSrc = appState.perfilUsuario?.avatar_url || `https://api.dicebear.com/9.x/adventurer/svg?seed=guest`;
+        const avatarSrc = esc(safeUrl(appState.perfilUsuario?.avatar_url, IMG_FALLBACK));
         const horasNav = Math.floor((appState.perfilUsuario?.tiempo_total || 0) / 60);
         const minNav = (appState.perfilUsuario?.tiempo_total || 0) % 60;
         const pts = appState.perfilUsuario?.total_xp ?? appState.perfilUsuario?.puntos ?? 0;
@@ -300,7 +300,7 @@ export function restaurarFormularioAuth() {
             <div class="text-center pt-2 relative dark:bg-slate-900 rounded-b-3xl pb-6">
                 ${bannerInvitado}
                 <div class="relative inline-block mb-2 mt-4 group">
-                    <img id="avatarPreview" src="${avatarSrc}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-28 h-28 sm:w-32 sm:h-32 mx-auto rounded-full border-[6px] border-white dark:border-slate-800 shadow-xl bg-slate-50 dark:bg-slate-800 object-cover transition-all group-hover:scale-105">
+                    <img id="avatarPreview" src="${avatarSrc}" onerror="if(window.handleAvatarError){window.handleAvatarError(this)}else{this.onerror=null;this.src='${IMG_FALLBACK}';}" class="w-28 h-28 sm:w-32 sm:h-32 mx-auto rounded-full border-[6px] border-white dark:border-slate-800 shadow-xl bg-slate-50 dark:bg-slate-800 object-cover transition-all group-hover:scale-105" alt="Avatar">
                     <label for="avatarUpload" class="absolute bottom-2 right-2 ${colorInput} text-white rounded-full p-3 ${cursorInput} shadow-lg transition-transform hover:scale-110 border-4 border-white dark:border-slate-800">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
                     </label>

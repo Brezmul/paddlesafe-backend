@@ -4,7 +4,7 @@
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\node_modules\\@playwright\\test\\cli.js",
       "test",
-      "tests/e2e/05-modals.spec.mjs"
+      "--project=Desktop 1920x1080"
     ],
     "configFile": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\playwright.config.mjs",
     "rootDir": "C:/Users/Usuario/Desktop/WEBS/PaddleSafe/tests/e2e",
@@ -257,480 +257,6 @@
         "metadata": {
           "actualWorkers": 2
         },
-        "name": "iPhone SE - Portrait",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": {},
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "viewport": {
-            "width": 320,
-            "height": 568
-          },
-          "deviceScaleFactor": 2,
-          "isMobile": true,
-          "hasTouch": true,
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone SE - Portrait"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "iPhone SE - Landscape",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": {},
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "viewport": {
-            "width": 568,
-            "height": 320
-          },
-          "deviceScaleFactor": 2,
-          "isMobile": true,
-          "hasTouch": true,
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone SE - Landscape"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "iPhone 12 - Portrait",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": {},
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
-          "viewport": {
-            "width": 390,
-            "height": 664
-          },
-          "screen": {
-            "width": 390,
-            "height": 844
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone 12 - Portrait"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "iPhone 12 - Landscape",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": {},
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
-          "viewport": {
-            "width": 750,
-            "height": 340
-          },
-          "screen": {
-            "width": 390,
-            "height": 844
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone 12 - Landscape"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "iPhone 14 Pro - Portrait",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": {},
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
-          "viewport": {
-            "width": 393,
-            "height": 660
-          },
-          "screen": {
-            "width": 393,
-            "height": 852
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone 14 Pro - Portrait"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "iPhone 14 Pro - Landscape",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": {},
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
-          "viewport": {
-            "width": 734,
-            "height": 343
-          },
-          "screen": {
-            "width": 393,
-            "height": 852
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone 14 Pro - Landscape"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "iPhone 15 Pro Max - Portrait",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": {},
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
-          "viewport": {
-            "width": 430,
-            "height": 739
-          },
-          "screen": {
-            "width": 430,
-            "height": 932
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone 15 Pro Max - Portrait"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "iPhone 15 Pro Max - Landscape",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": {},
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
-          "viewport": {
-            "width": 814,
-            "height": 380
-          },
-          "screen": {
-            "width": 430,
-            "height": 932
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "iPhone 15 Pro Max - Landscape"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "Pixel 7 - Portrait",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": {},
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Mobile Safari/537.36",
-          "viewport": {
-            "width": 412,
-            "height": 839
-          },
-          "screen": {
-            "width": 412,
-            "height": 915
-          },
-          "deviceScaleFactor": 2.625,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "Pixel 7 - Portrait"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "Pixel 7 - Landscape",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": {},
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Mobile Safari/537.36",
-          "viewport": {
-            "width": 863,
-            "height": 360
-          },
-          "screen": {
-            "width": 915,
-            "height": 412
-          },
-          "deviceScaleFactor": 2.625,
-          "isMobile": true,
-          "hasTouch": true,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "Pixel 7 - Landscape"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "Samsung Galaxy S23 - Portrait",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": {},
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "viewport": {
-            "width": 360,
-            "height": 780
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "userAgent": "Mozilla/5.0 (Linux; Android 13; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "Samsung Galaxy S23 - Portrait"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "Samsung Galaxy S23 - Landscape",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": {},
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "viewport": {
-            "width": 780,
-            "height": 360
-          },
-          "deviceScaleFactor": 3,
-          "isMobile": true,
-          "hasTouch": true,
-          "userAgent": "Mozilla/5.0 (Linux; Android 13; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "Samsung Galaxy S23 - Landscape"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
-        "name": "Desktop 1366x768",
-        "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
-        "testIgnore": [],
-        "testMatch": {},
-        "timeout": 30000,
-        "use": {
-          "baseURL": "http://127.0.0.1:8080",
-          "trace": "on-first-retry",
-          "screenshot": "only-on-failure",
-          "video": "off",
-          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Safari/537.36",
-          "viewport": {
-            "width": 1366,
-            "height": 768
-          },
-          "screen": {
-            "width": 1920,
-            "height": 1080
-          },
-          "deviceScaleFactor": 1,
-          "isMobile": false,
-          "hasTouch": false,
-          "defaultBrowserType": "chromium"
-        },
-        "dependencies": [],
-        "ignoreSnapshots": false,
-        "__projectId": "Desktop 1366x768"
-      },
-      {
-        "grep": {},
-        "grepInvert": null,
-        "outputDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\test-results",
-        "repeatEach": 1,
-        "retries": 0,
-        "metadata": {
-          "actualWorkers": 2
-        },
         "name": "Desktop 1920x1080",
         "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
         "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
@@ -800,6 +326,550 @@
   },
   "suites": [
     {
+      "title": "01-layout-viewport.spec.mjs",
+      "file": "01-layout-viewport.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Layout & Responsive Viewport Audit",
+          "file": "01-layout-viewport.spec.mjs",
+          "line": 5,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Zero horizontal overflow & bounded client width across devices",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1337,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:16.310Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "03baa6ab3bdd64385f5b-0b8f1a209a4be093bbf6",
+              "file": "01-layout-viewport.spec.mjs",
+              "line": 19,
+              "column": 5
+            },
+            {
+              "title": "Header elements and Omnibar are fully visible and readable",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 693,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:17.763Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "03baa6ab3bdd64385f5b-d72377024046ec1fbefa",
+              "file": "01-layout-viewport.spec.mjs",
+              "line": 71,
+              "column": 5
+            },
+            {
+              "title": "Quick pills bar scrolls cleanly without breaking layout",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 974,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:16.310Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "03baa6ab3bdd64385f5b-f74844fb9507d003dae6",
+              "file": "01-layout-viewport.spec.mjs",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "02-map-leaflet.spec.mjs",
+      "file": "02-map-leaflet.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Leaflet Map & Cockpit Controls Audit",
+          "file": "02-map-leaflet.spec.mjs",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Leaflet map container initializes and renders tiles",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 999,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:17.407Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "c8f6e6c835bedb8da188-9eba934af91ff40c14a1",
+              "file": "02-map-leaflet.spec.mjs",
+              "line": 32,
+              "column": 5
+            },
+            {
+              "title": "Zoom controls (+ / -) are functional and clickable",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1822,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:18.416Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "c8f6e6c835bedb8da188-4a7ef95eff22c07af2a1",
+              "file": "02-map-leaflet.spec.mjs",
+              "line": 46,
+              "column": 5
+            },
+            {
+              "title": "Base layer switcher toggles between Nautical, Satellite and Radar modes",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1667,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:18.482Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "c8f6e6c835bedb8da188-a1a712e09fdb459ceba9",
+              "file": "02-map-leaflet.spec.mjs",
+              "line": 68,
+              "column": 5
+            },
+            {
+              "title": "Leaflet zoom controls are never covered by floating panels (Radar, Quedada)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1270,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:20.158Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "c8f6e6c835bedb8da188-dabb78978f69ee48d1b9",
+              "file": "02-map-leaflet.spec.mjs",
+              "line": 85,
+              "column": 5
+            },
+            {
+              "title": "Clicking on map displays Wind/Wave telemetry HUD with dismiss button",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1372,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:20.249Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "c8f6e6c835bedb8da188-299d180d66dbcaabcc4a",
+              "file": "02-map-leaflet.spec.mjs",
+              "line": 107,
+              "column": 5
+            },
+            {
+              "title": "Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1199,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:21.439Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "c8f6e6c835bedb8da188-81a5cf814c8f799ba57f",
+              "file": "02-map-leaflet.spec.mjs",
+              "line": 133,
+              "column": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "03-radar-panel.spec.mjs",
+      "file": "03-radar-panel.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Advanced Marine Radar Cockpit Suite",
+          "file": "03-radar-panel.spec.mjs",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Radar cockpit panel opens, closes and displays quick verdict",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1743,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:21.641Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e2eb9b9a40944036b32d-c92d5bef1c271b412414",
+              "file": "03-radar-panel.spec.mjs",
+              "line": 31,
+              "column": 5
+            },
+            {
+              "title": "Radar layer buttons toggle smoothly without runtime errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2074,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:22.657Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e2eb9b9a40944036b32d-6a25008f6a1a7463e66c",
+              "file": "03-radar-panel.spec.mjs",
+              "line": 57,
+              "column": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "04-scroll-navigation.spec.mjs",
+      "file": "04-scroll-navigation.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Mobile Scroll Hygiene & Bottom Dock Navigation",
+          "file": "04-scroll-navigation.spec.mjs",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Mobile view switches seamlessly between Parte and Ruta Pro without stacked page underneath",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 607,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:23.410Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5626a267fd0c88ce506e-679c382d4ad7be70a869",
+              "file": "04-scroll-navigation.spec.mjs",
+              "line": 10,
+              "column": 5
+            },
+            {
+              "title": "Zero nested scroll contexts or runaway overflow containers",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 632,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:24.028Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5626a267fd0c88ce506e-ad665a563a556dfa99c8",
+              "file": "04-scroll-navigation.spec.mjs",
+              "line": 59,
+              "column": 5
+            },
+            {
+              "title": "Desktop header navigation is strictly hidden on mobile and visible on desktop",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 619,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:24.670Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5626a267fd0c88ce506e-8da63c2cab3f0f1039a6",
+              "file": "04-scroll-navigation.spec.mjs",
+              "line": 75,
+              "column": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
       "title": "05-modals.spec.mjs",
       "file": "05-modals.spec.mjs",
       "column": 0,
@@ -821,1787 +891,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1494,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:01:52.873Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-4fa67e0ed99bddb463c8",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1499,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:01:52.858Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-58e41c0ee878cdeb65c4",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1489,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:01:54.448Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-1e5dd3064747ea8b4ac4",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1066,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:01:54.465Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-c59c961f681c3d165a68",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            },
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Landscape",
-                  "projectName": "iPhone SE - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 2,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1438,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:01:55.904Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-c23a41c73e585112a069",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Landscape",
-                  "projectName": "iPhone SE - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 3,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1396,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:01:56.361Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-968e30abd029db451de2",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Landscape",
-                  "projectName": "iPhone SE - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 2,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1362,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:01:57.438Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-3595b78fc53682a1c1f8",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Landscape",
-                  "projectName": "iPhone SE - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 3,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1058,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:01:57.842Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-223bff1c7efdc9009b3a",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            },
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 4,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2248,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:01:59.270Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-9146ab33ab89d00c6034",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 5,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2112,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:01:59.350Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-a3be98453e1df0ae3b68",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 5,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2364,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:01.564Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-253f81c2db80ea5bdbab",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Portrait",
-                  "projectName": "iPhone 12 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 4,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1487,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:01.608Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-724716d9b811e4c78eea",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            },
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Landscape",
-                  "projectName": "iPhone 12 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 6,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2113,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:03.554Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-791d35e66541670a4470",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Landscape",
-                  "projectName": "iPhone 12 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 7,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1921,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:04.418Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-85fdc2d09792637f3ec1",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Landscape",
-                  "projectName": "iPhone 12 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 6,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2108,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:05.761Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-f019fba988b4fc749ec8",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 12 - Landscape",
-                  "projectName": "iPhone 12 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 7,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1359,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:06.433Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-f7da2cc19e3daa911605",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            },
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Portrait",
-                  "projectName": "iPhone 14 Pro - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 8,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2175,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:08.194Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-5209d1934e59c89ce728",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Portrait",
-                  "projectName": "iPhone 14 Pro - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 9,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2158,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:08.290Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-ac29fb0a3958cd2c7f20",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Portrait",
-                  "projectName": "iPhone 14 Pro - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 8,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 3160,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:10.460Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-06712eb90d4fbfab536e",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Portrait",
-                  "projectName": "iPhone 14 Pro - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 9,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2374,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:10.546Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-65c9ff2ef3f397158e9b",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            },
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Landscape",
-                  "projectName": "iPhone 14 Pro - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 10,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2286,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:13.534Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-0241e353662791565faa",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Landscape",
-                  "projectName": "iPhone 14 Pro - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 11,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2120,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:14.263Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-222fd7f34665d0338c0c",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Landscape",
-                  "projectName": "iPhone 14 Pro - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 10,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2116,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:15.958Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-e431630ad5d9b8eda569",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 14 Pro - Landscape",
-                  "projectName": "iPhone 14 Pro - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 11,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1275,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:16.498Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-19c7edf273a2ea69f4d1",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            },
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Portrait",
-                  "projectName": "iPhone 15 Pro Max - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 12,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2582,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:18.207Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-7dce26cd42526d081048",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Portrait",
-                  "projectName": "iPhone 15 Pro Max - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 13,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2386,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:18.551Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-c6b8cfd23906748b334b",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Portrait",
-                  "projectName": "iPhone 15 Pro Max - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 12,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2505,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:20.891Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-58f3412481a7e7b9e437",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Portrait",
-                  "projectName": "iPhone 15 Pro Max - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 13,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1588,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:21.039Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-0d6911ebd726b12d3eb6",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            },
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Landscape",
-                  "projectName": "iPhone 15 Pro Max - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 14,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2397,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:23.072Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-9559130c3a92b5897c86",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Landscape",
-                  "projectName": "iPhone 15 Pro Max - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 15,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2214,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:23.911Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-1f1c88602ba7ea63dffd",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Landscape",
-                  "projectName": "iPhone 15 Pro Max - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 14,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2276,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:25.560Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-24863eed38916d51b7cd",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "iPhone 15 Pro Max - Landscape",
-                  "projectName": "iPhone 15 Pro Max - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 15,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1404,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:26.231Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-aba533ebbd2e447b04b1",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            },
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Portrait",
-                  "projectName": "Pixel 7 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 16,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2373,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:28.093Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-3c2dd42b5bbfc7fc9855",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Portrait",
-                  "projectName": "Pixel 7 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 17,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2522,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:28.333Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-73b8534d8186a37d8936",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Portrait",
-                  "projectName": "Pixel 7 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 16,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2721,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:30.564Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-45fa182382a3fe152119",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Portrait",
-                  "projectName": "Pixel 7 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 17,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1593,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:30.958Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-16f7e0608fa279a735f2",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            },
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Landscape",
-                  "projectName": "Pixel 7 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 18,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2108,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:33.021Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-3f059c8bc7ec85f61249",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Landscape",
-                  "projectName": "Pixel 7 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 19,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1923,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:33.804Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-acac92bf5c13ff89374a",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Landscape",
-                  "projectName": "Pixel 7 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 18,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2067,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:35.236Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-a6fcc5df1537c4a8b331",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Pixel 7 - Landscape",
-                  "projectName": "Pixel 7 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 19,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1308,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:35.828Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-4d44921a597ce7f6f7e9",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            },
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Portrait",
-                  "projectName": "Samsung Galaxy S23 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 20,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2332,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:37.624Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-c198456daae17b1cae91",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Portrait",
-                  "projectName": "Samsung Galaxy S23 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 21,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2238,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:37.838Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-556c0505842dba57cbeb",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Portrait",
-                  "projectName": "Samsung Galaxy S23 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 20,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 2511,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:40.058Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-b80bd8c2ffbfd6b18f2e",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Portrait",
-                  "projectName": "Samsung Galaxy S23 - Portrait",
-                  "results": [
-                    {
-                      "workerIndex": 21,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1579,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:40.176Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-6898bcd4d4d923d4e064",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            },
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Landscape",
-                  "projectName": "Samsung Galaxy S23 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 22,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2247,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:42.178Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-094009a80d2b8c64f0f6",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Landscape",
-                  "projectName": "Samsung Galaxy S23 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 23,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1991,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:43.006Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-cc8a9d95d32d603a7303",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Landscape",
-                  "projectName": "Samsung Galaxy S23 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 22,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2294,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:44.524Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-18d4581486d52d3ba1f3",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Samsung Galaxy S23 - Landscape",
-                  "projectName": "Samsung Galaxy S23 - Landscape",
-                  "results": [
-                    {
-                      "workerIndex": 23,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1374,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:45.094Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-f3153684c3587f03f718",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            },
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1366x768",
-                  "projectName": "Desktop 1366x768",
-                  "results": [
-                    {
-                      "workerIndex": 24,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1595,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:46.917Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-d7fdc849b5b94ac2141d",
-              "file": "05-modals.spec.mjs",
-              "line": 13,
-              "column": 5
-            },
-            {
-              "title": "Clubs & Community modal opens and closes via Escape key",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1366x768",
-                  "projectName": "Desktop 1366x768",
-                  "results": [
-                    {
-                      "workerIndex": 25,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1456,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:47.268Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-34be8a45ac8f1076a6b5",
-              "file": "05-modals.spec.mjs",
-              "line": 41,
-              "column": 5
-            },
-            {
-              "title": "Thermal wetsuit calculator modal opens, adjusts parameters and closes",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1366x768",
-                  "projectName": "Desktop 1366x768",
-                  "results": [
-                    {
-                      "workerIndex": 24,
-                      "parallelIndex": 1,
-                      "status": "passed",
-                      "duration": 1375,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:48.604Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-23630faae6d98035d4f2",
-              "file": "05-modals.spec.mjs",
-              "line": 70,
-              "column": 5
-            },
-            {
-              "title": "Tactical notes modal is outside tab-basico and not trapped in scroll context",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "Desktop 1366x768",
-                  "projectName": "Desktop 1366x768",
-                  "results": [
-                    {
-                      "workerIndex": 25,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1184,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-21T19:02:48.822Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "32150ec7b92884ed7a66-202b3f1870de46500b6b",
-              "file": "05-modals.spec.mjs",
-              "line": 100,
-              "column": 5
-            },
-            {
-              "title": "Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
                   "projectId": "Desktop 1920x1080",
                   "projectName": "Desktop 1920x1080",
                   "results": [
                     {
-                      "workerIndex": 26,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1859,
+                      "duration": 1979,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T19:02:50.379Z",
+                      "startTime": "2026-10-21T21:04:24.753Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2627,15 +929,15 @@
                   "projectName": "Desktop 1920x1080",
                   "results": [
                     {
-                      "workerIndex": 27,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1763,
+                      "duration": 1592,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T19:02:50.392Z",
+                      "startTime": "2026-10-21T21:04:25.304Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2661,15 +963,15 @@
                   "projectName": "Desktop 1920x1080",
                   "results": [
                     {
-                      "workerIndex": 27,
+                      "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1753,
+                      "duration": 1758,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T19:02:52.243Z",
+                      "startTime": "2026-10-21T21:04:26.740Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2695,15 +997,15 @@
                   "projectName": "Desktop 1920x1080",
                   "results": [
                     {
-                      "workerIndex": 26,
+                      "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1381,
+                      "duration": 1330,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T19:02:52.331Z",
+                      "startTime": "2026-10-21T21:04:26.906Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2719,13 +1021,472 @@
           ]
         }
       ]
+    },
+    {
+      "title": "06-accessibility-axe.spec.mjs",
+      "file": "06-accessibility-axe.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Accessibility & WCAG AA Audit (Axe-Core)",
+          "file": "06-accessibility-axe.spec.mjs",
+          "line": 6,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Home screen passes core WCAG AA accessibility standards",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1781,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:28.315Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af7a716a0c2ad3776347-c394a8edf5a77428d75b",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 13,
+              "column": 5
+            },
+            {
+              "title": "All interactive buttons have aria-label, title or accessible text",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 579,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:28.579Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af7a716a0c2ad3776347-70236e09aad4ea350018",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 41,
+              "column": 5
+            },
+            {
+              "title": "Keyboard Tab navigation reaches key interactive controls",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 661,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:29.167Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "af7a716a0c2ad3776347-52ae77f8eb7098a617a5",
+              "file": "06-accessibility-axe.spec.mjs",
+              "line": 71,
+              "column": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "07-weather-spots.spec.mjs",
+      "file": "07-weather-spots.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Weather & Spot Selection Engine (End-to-End)",
+          "file": "07-weather-spots.spec.mjs",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Caso 1: Denia -> Spot seleccionado, pronóstico cargado, cero ReferenceError",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4513,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:29.845Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "73a7e171b8ccf73f7b90-18b11c242e667b6b2385",
+              "file": "07-weather-spots.spec.mjs",
+              "line": 23,
+              "column": 5
+            },
+            {
+              "title": "Caso 2: Jávea -> Muestra información meteorológica válida sin excepciones",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 4459,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:30.121Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "73a7e171b8ccf73f7b90-ad9f26b75ad2ce159f8a",
+              "file": "07-weather-spots.spec.mjs",
+              "line": 61,
+              "column": 5
+            },
+            {
+              "title": "Caso 3: Moraira -> Selección y datos de viento y mar",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3175,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:34.366Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "73a7e171b8ccf73f7b90-da8c52c7f9032e501a86",
+              "file": "07-weather-spots.spec.mjs",
+              "line": 83,
+              "column": 5
+            },
+            {
+              "title": "Caso 4: Spot inexistente -> Muestra mensaje de validación amigable sin producir crash JS",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 942,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:34.588Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "73a7e171b8ccf73f7b90-4a024621f7dc4c6ecec4",
+              "file": "07-weather-spots.spec.mjs",
+              "line": 107,
+              "column": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "08-mobile-profile.spec.mjs",
+      "file": "08-mobile-profile.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Mobile Profile Navigation Suite (End-to-End)",
+          "file": "08-mobile-profile.spec.mjs",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Caso 1: Botón Perfil es visible y accesible en el dock inferior en móvil",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 609,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:35.547Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5ba6f74f6288c8eabd8e-0cc83086438ceeb28396",
+              "file": "08-mobile-profile.spec.mjs",
+              "line": 12,
+              "column": 5
+            },
+            {
+              "title": "Caso 2: Usuario no autenticado abre el flujo de autenticación existente al pulsar Perfil",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1044,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:36.168Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5ba6f74f6288c8eabd8e-cd2b4886561a41c79d0a",
+              "file": "08-mobile-profile.spec.mjs",
+              "line": 43,
+              "column": 5
+            },
+            {
+              "title": "Caso 3: Usuario autenticado / invitado muestra información completa de perfil",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1542,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:37.221Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5ba6f74f6288c8eabd8e-c441e242c3d133011e9d",
+              "file": "08-mobile-profile.spec.mjs",
+              "line": 76,
+              "column": 5
+            },
+            {
+              "title": "Caso 4: En pantalla de 320px (iPhone SE), Perfil es visible y sin scroll horizontal",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 849,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:37.561Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5ba6f74f6288c8eabd8e-ee5de2f5b54ec333da51",
+              "file": "08-mobile-profile.spec.mjs",
+              "line": 119,
+              "column": 5
+            },
+            {
+              "title": "Caso 5: En orientación Landscape, Perfil continúa accesible y el dock permanece ergonómico",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Desktop 1920x1080",
+                  "projectName": "Desktop 1920x1080",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 741,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:04:38.425Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5ba6f74f6288c8eabd8e-a3825a5891119df1a0cd",
+              "file": "08-mobile-profile.spec.mjs",
+              "line": 154,
+              "column": 5
+            }
+          ]
+        }
+      ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-21T19:01:52.366Z",
-    "duration": 61855.882000000005,
-    "expected": 56,
+    "startTime": "2026-10-21T21:04:15.610Z",
+    "duration": 23774.054,
+    "expected": 30,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0
