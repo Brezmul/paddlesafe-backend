@@ -1793,6 +1793,8 @@ export function detenerReplayRuta() {
  * @param {number} progreso0a1 Valor entre 0.0 y 1.0
  * @param {boolean} [desdeScrubber=false] Si proviene del slider de usuario
  */
+export const actualizarPosicionReplayPorgreso = (...args) => actualizarPosicionReplayProgreso(...args);
+
 export function actualizarPosicionReplayProgreso(progreso0a1, desdeScrubber = false) {
     const p = Math.max(0, Math.min(1, Number(progreso0a1) || 0));
     mapRuntime.replayProgress = p;
@@ -1908,6 +1910,7 @@ if (typeof window !== 'undefined') {
     window.togglePlayPauseReplayRuta = togglePlayPauseReplayRuta;
     window.detenerReplayRuta = detenerReplayRuta;
     window.actualizarPosicionReplayProgreso = actualizarPosicionReplayProgreso;
+    window.actualizarPosicionReplayPorgreso = actualizarPosicionReplayProgreso;
     window.cambiarVelocidadReplayRuta = cambiarVelocidadReplayRuta;
     window.toggleReplaySeguirCamara = toggleReplaySeguirCamara;
     window.obtenerInterpolacionProgreso = obtenerInterpolacionProgreso;

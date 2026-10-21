@@ -1765,6 +1765,7 @@ assert(typeof mapFacade.iniciarReplayRuta === 'function', 'map.js must re-export
 assert(typeof mapFacade.togglePlayPauseReplayRuta === 'function', 'map.js must re-export togglePlayPauseReplayRuta');
 assert(typeof mapFacade.detenerReplayRuta === 'function', 'map.js must re-export detenerReplayRuta');
 assert(typeof mapFacade.actualizarPosicionReplayProgreso === 'function', 'map.js must re-export actualizarPosicionReplayProgreso');
+assert(typeof mapFacade.actualizarPosicionReplayPorgreso === 'function', 'map.js must re-export actualizarPosicionReplayPorgreso');
 assert(typeof mapFacade.cambiarVelocidadReplayRuta === 'function', 'map.js must re-export cambiarVelocidadReplayRuta');
 assert(typeof mapFacade.toggleReplaySeguirCamara === 'function', 'map.js must re-export toggleReplaySeguirCamara');
 assert(typeof mapFacade.obtenerInterpolacionProgreso === 'function', 'map.js must re-export obtenerInterpolacionProgreso');

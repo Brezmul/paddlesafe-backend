@@ -13,7 +13,7 @@
     "orientationAngle": 0,
     "orientationType": "landscape-primary"
   },
-  "timestamp": "2026-10-21T18:16:15.813Z",
+  "timestamp": "2026-10-21T18:38:34.455Z",
   "url": "http://127.0.0.1:8080/",
   "toolOptions": {
     "runOnly": {
@@ -974,6 +974,46 @@
             }
           ],
           "impact": null,
+          "html": "<button type=\"button\" id=\"btnOpenThermalCalc\" onclick=\"window.abrirCalculad...\" class=\"ps-chip ps-quick-pil...\" title=\"Calculadora de Neopr...\" aria-label=\"Abrir calculadora de...\">",
+          "target": [
+            "#btnOpenThermalCalc"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-allowed-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attributes are used correctly for the defined role"
+            },
+            {
+              "id": "aria-allowed-attr-elm",
+              "data": null,
+              "relatedNodes": [],
+              "message": "ARIA attributes are allowed for this element",
+              "impact": "critical"
+            },
+            {
+              "id": "aria-no-deprecated-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "No deprecated ARIA attributes are used"
+            }
+          ],
+          "none": [
+            {
+              "id": "aria-unsupported-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute is supported"
+            }
+          ],
+          "impact": null,
           "html": "<div id=\"global-alert-container\" class=\"w-full flex flex-col gap-2\" aria-live=\"assertive\"></div>",
           "target": [
             "#global-alert-container"
@@ -1169,6 +1209,24 @@
           "html": "<select id=\"userLevel\" aria-label=\"Nivel de experiencia...\" class=\"w-full bg-slate-800/...\" data-spots-bound=\"true\">",
           "target": [
             "#userLevel"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-conditional-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnOpenThermalCalc\" onclick=\"window.abrirCalculad...\" class=\"ps-chip ps-quick-pil...\" title=\"Calculadora de Neopr...\" aria-label=\"Abrir calculadora de...\">",
+          "target": [
+            "#btnOpenThermalCalc"
           ]
         },
         {
@@ -1578,6 +1636,24 @@
             }
           ],
           "impact": null,
+          "html": "<button type=\"button\" id=\"btnOpenThermalCalc\" onclick=\"window.abrirCalculad...\" class=\"ps-chip ps-quick-pil...\" title=\"Calculadora de Neopr...\" aria-label=\"Abrir calculadora de...\">",
+          "target": [
+            "#btnOpenThermalCalc"
+          ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "aria-prohibited-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "impact": null,
           "html": "<div id=\"global-alert-container\" class=\"w-full flex flex-col gap-2\" aria-live=\"assertive\"></div>",
           "target": [
             "#global-alert-container"
@@ -1778,6 +1854,38 @@
           ],
           "none": [],
           "impact": null,
+          "html": "<button type=\"button\" id=\"btnOpenThermalCalc\" onclick=\"window.abrirCalculad...\" class=\"ps-chip ps-quick-pil...\" title=\"Calculadora de Neopr...\" aria-label=\"Abrir calculadora de...\">",
+          "target": [
+            "#btnOpenThermalCalc"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-valid-attr-value",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute values are valid"
+            },
+            {
+              "id": "aria-errormessage",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+            },
+            {
+              "id": "aria-level",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-level values are valid"
+            }
+          ],
+          "none": [],
+          "impact": null,
           "html": "<div id=\"global-alert-container\" class=\"w-full flex flex-col gap-2\" aria-live=\"assertive\"></div>",
           "target": [
             "#global-alert-container"
@@ -1949,6 +2057,24 @@
           "html": "<select id=\"userLevel\" aria-label=\"Nivel de experiencia...\" class=\"w-full bg-slate-800/...\" data-spots-bound=\"true\">",
           "target": [
             "#userLevel"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "aria-valid-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute name is valid"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button type=\"button\" id=\"btnOpenThermalCalc\" onclick=\"window.abrirCalculad...\" class=\"ps-chip ps-quick-pil...\" title=\"Calculadora de Neopr...\" aria-label=\"Abrir calculadora de...\">",
+          "target": [
+            "#btnOpenThermalCalc"
           ]
         },
         {
@@ -2517,6 +2643,13 @@
               "message": "Element has inner text that is visible to screen readers"
             },
             {
+              "id": "aria-label",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-label attribute exists and is not empty"
+            },
+            {
               "id": "non-empty-title",
               "data": null,
               "relatedNodes": [],
@@ -2527,7 +2660,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnOpenThermalCalc\" onclick=\"window.abrirCalculadoraTermica()\" class=\"ps-chip ps-quick-pill bg-sky-950/70 text-sky-300 border-sky-500/40 hover:bg-sky-500/20 active:scale-95 cursor-pointer shrink-0\" title=\"Calculadora de Neopreno y Sensación Térmica\">",
+          "html": "<button type=\"button\" id=\"btnOpenThermalCalc\" onclick=\"window.abrirCalculad...\" class=\"ps-chip ps-quick-pil...\" title=\"Calculadora de Neopr...\" aria-label=\"Abrir calculadora de...\">",
           "target": [
             "#btnOpenThermalCalc"
           ]
@@ -3958,6 +4091,78 @@
           "target": [
             "#inputSpotPeligrosLocales"
           ]
+        },
+        {
+          "any": [
+            {
+              "id": "duplicate-id-aria",
+              "data": "thermalModalTitle",
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Document has no elements referenced with ARIA or labels that share the same id attribute"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<h3 id=\"thermalModalTitle\" class=\"text-base sm:text-lg font-black text-white\">Calculadora Térmica &amp; Neopreno</h3>",
+          "target": [
+            "#thermalModalTitle"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "duplicate-id-aria",
+              "data": "sliderTempAgua",
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Document has no elements referenced with ARIA or labels that share the same id attribute"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<input type=\"range\" id=\"sliderTempAgua\" name=\"sliderTempAgua\" aria-label=\"Selector de temperat...\" min=\"10\" max=\"28\" step=\"0.5\" value=\"18\" oninput=\"window.actualizarVis...\" class=\"w-full h-2 bg-slate-...\">",
+          "target": [
+            "#sliderTempAgua"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "duplicate-id-aria",
+              "data": "sliderTempAire",
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Document has no elements referenced with ARIA or labels that share the same id attribute"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<input type=\"range\" id=\"sliderTempAire\" name=\"sliderTempAire\" aria-label=\"Selector de temperat...\" min=\"5\" max=\"38\" step=\"0.5\" value=\"21\" oninput=\"window.actualizarVis...\" class=\"w-full h-2 bg-slate-...\">",
+          "target": [
+            "#sliderTempAire"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "duplicate-id-aria",
+              "data": "sliderViento",
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Document has no elements referenced with ARIA or labels that share the same id attribute"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<input type=\"range\" id=\"sliderViento\" name=\"sliderVientoTermico\" aria-label=\"Selector de velocida...\" min=\"0\" max=\"35\" step=\"1\" value=\"8\" oninput=\"window.actualizarVis...\" class=\"w-full h-2 bg-slate-...\">",
+          "target": [
+            "#sliderViento"
+          ]
         }
       ]
     },
@@ -4928,7 +5133,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" id=\"btnOpenThermalCalc\" onclick=\"window.abrirCalculadoraTermica()\" class=\"ps-chip ps-quick-pill bg-sky-950/70 text-sky-300 border-sky-500/40 hover:bg-sky-500/20 active:scale-95 cursor-pointer shrink-0\" title=\"Calculadora de Neopreno y Sensación Térmica\">",
+          "html": "<button type=\"button\" id=\"btnOpenThermalCalc\" onclick=\"window.abrirCalculad...\" class=\"ps-chip ps-quick-pil...\" title=\"Calculadora de Neopr...\" aria-label=\"Abrir calculadora de...\">",
           "target": [
             "#btnOpenThermalCalc"
           ]
@@ -7865,9 +8070,9 @@
             {
               "id": "color-contrast",
               "data": {
-                "fgColor": "#269273",
-                "bgColor": "#0f2b35",
-                "contrastRatio": 3.83,
+                "fgColor": "#279775",
+                "bgColor": "#0f2c35",
+                "contrastRatio": 4.02,
                 "fontSize": "6.8pt (9px)",
                 "fontWeight": "bold",
                 "messageKey": null,
@@ -7888,7 +8093,7 @@
                 }
               ],
               "impact": "serious",
-              "message": "Element has insufficient color contrast of 3.83 (foreground color: #269273, background color: #0f2b35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
+              "message": "Element has insufficient color contrast of 4.02 (foreground color: #279775, background color: #0f2c35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
             }
           ],
           "all": [],
@@ -7898,7 +8103,7 @@
           "target": [
             ".ml-1"
           ],
-          "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.83 (foreground color: #269273, background color: #0f2b35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
+          "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.02 (foreground color: #279775, background color: #0f2c35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
         },
         {
           "any": [
