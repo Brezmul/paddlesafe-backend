@@ -468,3 +468,9 @@
 .ps-btn-secondary:active {
   transform: scale(0.97);
 }
+
+/* Mobile Viewport Safety & Collision Prevention */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
