@@ -62,3 +62,4 @@ jobs:
             docs/security/
             docs/dependencies/
           retention-days: 14
+

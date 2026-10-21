@@ -62,3 +62,4 @@ Se ha configurado [`.github/dependabot.yml`](../../.github/dependabot.yml) con l
    - Incorporar hashes criptográficos `integrity="sha384-..."` y `crossorigin=""` en las etiquetas `<script>` y `<link>` de Leaflet y Supabase para proteger contra alteraciones maliciosas de CDN en tránsito.
 2. **Copia Local de Respaldo (Fallback Offline):**
    - Para funcionamiento PWA 100% offline o en zonas marítimas sin cobertura 4G, almacenar una copia local de `leaflet.js` y `leaflet.css` en `public_html/vendor/leaflet/` servida mediante Service Worker.
+

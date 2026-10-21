@@ -29,3 +29,4 @@ updates:
       - "ci"
     commit-message:
       prefix: "ci(actions)"
+

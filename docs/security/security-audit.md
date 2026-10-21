@@ -76,3 +76,4 @@ El archivo [`.htaccess`](../../public_html/.htaccess) implementa políticas de d
    - `Strict-Transport-Security: max-age=31536000; includeSubDomains` (fuerza HTTPS en todo momento).
    - `Referrer-Policy: strict-origin-when-cross-origin`.
    - `Permissions-Policy: geolocation=(self)` (limita el acceso al GPS exclusivamente al origen de PaddleSafe).
+
