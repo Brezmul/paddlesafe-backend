@@ -1769,6 +1769,28 @@ const swFileContent = fs.readFileSync('public_html/sw.js', 'utf8');
 assert(swFileContent.includes('cartocdn.com'), 'sw.js must include cartocdn.com in TILE_HOSTS for offline caching');
 
 // ------------------------------------------------------------------------------
+// MOBILE UX & RESPONSIVE AUDIT CHECKS
+// ------------------------------------------------------------------------------
+console.log('--- [MOBILE UX] Responsive & Collision Prevention Audit ---');
+const indexHtmlContent = fs.readFileSync('public_html/index.html', 'utf8');
+assert(indexHtmlContent.includes('overflow-x-hidden'), 'body or html must enforce overflow-x-hidden');
+assert(indexHtmlContent.includes('flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1'), 'savedSpotsBar header must wrap cleanly on mobile');
+assert(indexHtmlContent.includes('grid grid-cols-1 sm:grid-cols-3 gap-2 lg:flex'), 'Omnibar responsive grid must adapt on mobile');
+assert(indexHtmlContent.includes('top-20 left-3 z-[400]'), 'leyendaMapa must be at top-20 left-3 to not overlap mapLayerSwitcher');
+assert(indexHtmlContent.includes('top-14 left-3 right-3 sm:top-3 sm:left-4 sm:right-auto sm:w-[340px] z-[450]'), 'panelQuedadaMap must have top-14 clearance on mobile');
+assert(indexHtmlContent.includes('max-h-[90vh] overflow-y-auto custom-scrollbar'), 'modalNotasTacticasSpot must support max-h-[90vh] and scrolling');
+
+const trackerJsContent = fs.readFileSync('public_html/js/map/map.tracker.js', 'utf8');
+assert(trackerJsContent.includes('z-[1200]'), 'modalSplitsKm must have z-[1200]');
+assert(trackerJsContent.includes('max-h-[90vh] overflow-y-auto'), 'modalSplitsKm must have max-h-[90vh]');
+
+const spotsJsContent = fs.readFileSync('public_html/js/map/map.spots.js', 'utf8');
+assert(spotsJsContent.includes('max-h-[90vh] overflow-y-auto'), 'modalReporteSpot must have max-h-[90vh]');
+
+const routesJsContent = fs.readFileSync('public_html/js/map/map.routes.js', 'utf8');
+assert(routesJsContent.includes("document.getElementById('mapWindWaveHud')?.classList.add('hidden')"), 'routes must hide mapWindWaveHud when drawing or replaying');
+
+// ------------------------------------------------------------------------------
 // FINAL RESULT SUMMARY
 // ------------------------------------------------------------------------------
 const summary = {

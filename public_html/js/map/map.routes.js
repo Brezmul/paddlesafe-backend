@@ -222,6 +222,7 @@ export function gestionarClicRutaLibre(l) {
 
     const toolbar = document.getElementById('multipuntoToolbar');
     if (toolbar) toolbar.classList.replace('hidden', 'flex');
+    document.getElementById('mapWindWaveHud')?.classList.add('hidden');
 
     if (mapRuntime.marcadoresRuta.length > 1) {
         const btnLibre = document.getElementById('btnRutaLibre');
@@ -1686,6 +1687,7 @@ export function iniciarReplayRuta(coordenadas, metadata = {}) {
     // Configurar y mostrar el HUD
     const hud = document.getElementById('routeReplayHud');
     if (hud) hud.classList.remove('hidden');
+    document.getElementById('mapWindWaveHud')?.classList.add('hidden');
 
     const titleEl = document.getElementById('replayRouteTitle');
     if (titleEl) titleEl.textContent = title;

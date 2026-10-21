@@ -759,9 +759,9 @@ export function mostrarModalSplitsKm(rutaId) {
 
     const modal = document.createElement('div');
     modal.id = 'modalSplitsKm';
-    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm';
+    modal.className = 'fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm';
     modal.innerHTML = `
-        <div class="bg-slate-900 border border-sky-500/40 rounded-2xl p-5 max-w-md w-full shadow-2xl flex flex-col gap-3">
+        <div class="bg-slate-900 border border-sky-500/40 rounded-2xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl flex flex-col gap-3">
             <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                 <div class="flex items-center gap-2">
                     <span class="text-xl">⚡</span>
