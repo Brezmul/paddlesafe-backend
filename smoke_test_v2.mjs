@@ -1483,6 +1483,7 @@ assert(sqlContentRoot.includes('clubs_invitaciones_select'), 'SQL must define cl
 assert(sqlContentBackend.includes('fn_sync_clubs_dual_columns'), 'Backend SQL must define fn_sync_clubs_dual_columns');
 assert(sqlContentBackend.includes('fn_sync_perfiles_dual_columns'), 'Backend SQL must define fn_sync_perfiles_dual_columns');
 
+// main.js validation
 const mainJsContent = fs.readFileSync('public_html/js/main.js', 'utf8');
 assert(mainJsContent.includes('eliminarRutaUsuario'), 'main.js must define and export eliminarRutaUsuario');
 assert(mainJsContent.includes('window.eliminarRutaUsuario = eliminarRutaUsuario'), 'main.js must bind eliminarRutaUsuario to window');
@@ -1847,6 +1848,30 @@ assert(verdictPeligro.nivel === 'no_recomendable', 'Severe conditions must be ra
 const mapFacadeRadar = await import('./public_html/js/map.js');
 assert(typeof mapFacadeRadar.calcularDerivaCosteraPaddle === 'function', 'map.js must re-export calcularDerivaCosteraPaddle');
 assert(typeof mapFacadeRadar.calcularValoracionRapidaPaddleSafe === 'function', 'map.js must re-export calcularValoracionRapidaPaddleSafe');
+
+// ------------------------------------------------------------------------------
+// MOBILE NAVIGATION & HIDDEN LAYER PREVENTION AUDIT
+// ------------------------------------------------------------------------------
+console.log('--- [MOBILE NAVIGATION] Single-Layer Mobile Cockpit Audit ---');
+const idxContent = fs.readFileSync('public_html/index.html', 'utf8');
+assert(idxContent.includes('hidden sm:block fixed inset-0'), 'ambient glow must be hidden on mobile screens to prevent background bleeding');
+assert(idxContent.includes('id="tab-pro" class="hidden lg:flex'), 'tab-pro must be hidden on mobile by default to prevent vertical stacking under tab-basico');
+
+// Ensure modalNotasTacticasSpot is located in the global modales section and NOT inside tab-basico
+const tabBasicoIdx = idxContent.indexOf('id="tab-basico"');
+const tabProIdx = idxContent.indexOf('id="tab-pro"');
+const modalNotasIdx = idxContent.indexOf('id="modalNotasTacticasSpot"');
+const modalesJsIdx = idxContent.indexOf('<!-- MODALES JS -->');
+
+assert(modalNotasIdx > modalesJsIdx, 'modalNotasTacticasSpot must be positioned under <!-- MODALES JS -->');
+assert(modalNotasIdx > tabProIdx, 'modalNotasTacticasSpot must not be nested inside tab-basico');
+
+// main.js validation
+// mainJsContent already loaded above
+assert(mainJsContent.includes("tabId === 'parte'"), 'main.js must handle parte tab in activarItemBottomNav');
+assert(mainJsContent.includes("tabId === 'pro'"), 'main.js must handle pro tab in activarItemBottomNav');
+assert(mainJsContent.includes("tabBasico.classList.remove('hidden')"), 'activarItemBottomNav must toggle tab-basico visibility on mobile');
+assert(mainJsContent.includes("tabPro.classList.remove('hidden')"), 'activarItemBottomNav must toggle tab-pro visibility on mobile');
 
 // ------------------------------------------------------------------------------
 // FINAL RESULT SUMMARY
