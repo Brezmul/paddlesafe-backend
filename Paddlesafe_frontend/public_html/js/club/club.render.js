@@ -78,13 +78,13 @@ export const ClubRender = {
         <div class="text-center w-full py-4">
             <span class="text-5xl block mb-2 opacity-40">🏴‍☠️</span>
             <h3 class="font-black text-marine dark:text-white mb-2 text-lg">Sin clubes</h3>
-            <p class="text-xs text-slate-400 mb-4">Aún no perteneces a ningún club náutico. ¡Funda el tuyo o únete a uno existente!</p>
+            <p class="text-xs text-slate-400 mb-4">Aún no perteneces a ningún club. ¡Funda el tuyo o únete a uno existente!</p>
             <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
                 <input type="text" id="newClubName" placeholder="Nombre de tu club" class="w-full h-12 px-4 rounded-xl mb-3 outline-none focus:ring-2 focus:ring-water bg-white dark:bg-slate-800 text-sm">
                 <button type="button" onclick="window.Club.onCreate()" class="w-full h-12 bg-water text-white font-bold rounded-xl active:scale-95 shadow cursor-pointer text-sm">➕ Fundar Club</button>
             </div>
             <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onclick="window.Club.cambiarTabClubs('buscar_club')" class="text-water text-xs font-bold hover:underline cursor-pointer">O busca clubes existentes en la flota →</button>
+                <button type="button" onclick="window.Club.cambiarTabClubs('buscar_club')" class="text-water text-xs font-bold hover:underline cursor-pointer">O busca clubes existentes en la comunidad →</button>
             </div>
         </div>`;
     },
@@ -134,7 +134,7 @@ export const ClubRender = {
         return `
         ${selectorHTML}
         <div class="w-full bg-white dark:bg-slate-800 rounded-2xl shadow-sm mb-4 overflow-hidden border border-slate-200 dark:border-slate-700">
-            <div id="cpvHeaderPortada" class="h-32 w-full bg-slate-200 bg-cover bg-center relative" style="background-image: url('${esc(safeUrl(cl.portada_url, ''))}')">
+            <div id="cpvHeaderPortada" class="h-32 w-full bg-slate-200 bg-cover bg-center relative" style="background-image: url('${esc(safeUrl(cl.portada_url || cl.banner_url, ''))}')">
                 ${isAdmin ? `<label class="absolute top-2 right-2 bg-marine/60 text-white px-3 py-1.5 rounded-lg cursor-pointer text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm">📷 Cambiar Portada <input type="file" class="hidden" accept="image/*" onchange="window.Club.onPhotoUpload(event, '${cl.club_id}', 'portada')"></label>` : ''}
             </div>
             <div class="px-5 pb-5 pt-3 relative">
@@ -151,10 +151,11 @@ export const ClubRender = {
                 ${extraFields}
                 ${dangerZoneCard}
                 <div class="flex gap-1.5 mt-5 pt-4 border-t border-slate-100 dark:border-slate-700 overflow-x-auto custom-scrollbar pb-1">
-                    <button type="button" id="btnClubTabTripulacion" onclick="window.Club.cambiarVistaInterna('tripulacion')" class="flex-1 min-w-[90px] px-3 py-2.5 rounded-xl bg-marine text-white font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">👥 Tripulación</button>
-                    <button type="button" id="btnClubTabChat" onclick="window.Club.cambiarVistaInterna('chat')" class="flex-1 min-w-[90px] px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">💬 Chat</button>
-                    <button type="button" id="btnClubTabEventos" onclick="window.Club.cambiarVistaInterna('eventos')" class="flex-1 min-w-[90px] px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">📅 Quedadas</button>
-                    ${isAdmin ? `<button type="button" id="btnClubTabGestion" onclick="window.Club.cambiarVistaInterna('gestion')" class="flex-1 min-w-[80px] px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider cursor-pointer transition-colors text-center">⚙️ Gestión</button>` : ''}
+                    <button type="button" id="btnClubTabTripulacion" onclick="window.Club.cambiarVistaInterna('tripulacion')" class="flex-1 min-w-[90px] ps-pill-tab ps-pill-tab-active text-center">👥 Miembros</button>
+                    <button type="button" id="btnClubTabChat" onclick="window.Club.cambiarVistaInterna('chat')" class="flex-1 min-w-[90px] ps-pill-tab text-center">💬 Chat</button>
+                    <button type="button" id="btnClubTabEventos" onclick="window.Club.cambiarVistaInterna('eventos')" class="flex-1 min-w-[90px] ps-pill-tab text-center">📅 Quedadas</button>
+                    <button type="button" id="btnClubTabRetos" onclick="window.Club.cambiarVistaInterna('retos')" class="flex-1 min-w-[90px] ps-pill-tab text-center">🏆 Retos</button>
+                    ${isAdmin ? `<button type="button" id="btnClubTabGestion" onclick="window.Club.cambiarVistaInterna('gestion')" class="flex-1 min-w-[80px] ps-pill-tab text-center">⚙️ Gestión</button>` : ''}
                 </div>
             </div>
         </div>
@@ -175,7 +176,7 @@ export const ClubRender = {
                 </div>
             </div>
             <div id="listaBusquedaClubs" class="space-y-3">
-                <p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando flota de clubes...</p>
+                <p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando directorio de clubes...</p>
             </div>`;
 
         await this.cargarListaClubs('');
@@ -332,7 +333,10 @@ export const ClubRender = {
                 return `
                     <div class="flex items-center justify-between p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm gap-3 hover:shadow-md transition-shadow">
                         <div class="flex items-center gap-3 min-w-0">
-                            <img src="${esc(avatar)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover bg-slate-100 shrink-0 border border-slate-100 dark:border-slate-700">
+                            <div class="relative shrink-0">
+                                <img src="${esc(avatar)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover bg-slate-100 border border-slate-100 dark:border-slate-700">
+                                <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 transition-colors duration-300" data-user-presence-id="${esc(p.id)}"></div>
+                            </div>
                             <div class="min-w-0">
                                 <h4 class="font-bold text-sm text-marine dark:text-white truncate">${esc(p.nombre || 'Paddler Anónimo')} ${vipTag}</h4>
                                 <p class="text-[10px] text-slate-400 font-bold truncate">Nivel ${p.nivel || 1} • ${p.puntos || 0} pts • ${Number(p.km_totales || 0).toFixed(1)} km</p>
@@ -341,6 +345,9 @@ export const ClubRender = {
                         <button type="button" onclick="if(window.navigateSPA) window.navigateSPA('/user/${esc(p.id)}'); else if(window.abrirPerfilPublicoSPA) window.abrirPerfilPublicoSPA('${esc(p.id)}'); if(window.Club) window.Club.cerrarModal();" class="px-3.5 py-1.5 bg-water hover:bg-sky-600 text-white rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform shrink-0 cursor-pointer">Ver Perfil</button>
                     </div>`;
             }).join('');
+            if (typeof window !== 'undefined' && typeof window.actualizarUIPresencia === 'function') {
+                window.actualizarUIPresencia();
+            }
         } catch (e) {
             console.error('[paddlers] error cargarListaPaddlers:', e);
             lista.innerHTML = `<div class="text-center py-6 text-red-500 text-xs font-bold">Error de conexión al buscar paddlers.</div>`;

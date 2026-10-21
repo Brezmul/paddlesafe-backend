@@ -2,11 +2,11 @@
 const cache = new Map();
 
 // --- FUNCIÓN PARA OBTENER COORDENADAS ---
-async function getCoords(location) {
+async function getCoords(location, apiKey = process.env.OPENCAGE_KEY) {
   const geoRes = await fetch(
     `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
       location
-    )}&key=${OPENCAGE_KEY}`
+    )}&key=${apiKey}`
   );
 
   const geoData = await geoRes.json();
@@ -19,10 +19,10 @@ async function getCoords(location) {
 }
 
 // --- FUNCIÓN PARA OBTENER CONDICIONES DE STORMGLASS ---
-async function getConditions(lat, lng) {
+async function getConditions(lat, lng, apiKey = process.env.STORMGLASS_KEY) {
   const stormRes = await fetch(
     `https://api.stormglass.io/v2/weather/point?lat=${lat}&lng=${lng}&params=waveHeight,wavePeriod,windSpeed,windDirection`,
-    { headers: { Authorization: STORMGLASS_KEY } }
+    { headers: { Authorization: apiKey } }
   );
 
   if (stormRes.status === 429) {
@@ -104,8 +104,8 @@ export default async function handler(req, res) {
     }
 
     // --- COORDENADAS ---
-    const coordsA = await getCoords(spotA);
-    const coordsB = await getCoords(spotB);
+    const coordsA = await getCoords(spotA, OPENCAGE_KEY);
+    const coordsB = await getCoords(spotB, OPENCAGE_KEY);
 
     if (!coordsA || !coordsB) {
       return res.status(404).json({
@@ -115,8 +115,8 @@ export default async function handler(req, res) {
     }
 
     // --- CONDICIONES ---
-    const condA = await getConditions(coordsA.lat, coordsA.lng);
-    const condB = await getConditions(coordsB.lat, coordsB.lng);
+    const condA = await getConditions(coordsA.lat, coordsA.lng, STORMGLASS_KEY);
+    const condB = await getConditions(coordsB.lat, coordsB.lng, STORMGLASS_KEY);
 
     // Límite excedido
     if (condA.error429 || condB.error429) {

@@ -2,16 +2,16 @@ DirectoryIndex index.html index.php
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /
 
-  # Seguridad estricta: bloqueo total contra peticiones a backend, lib o sql
+  # Seguridad estricta: bloqueo total contra peticiones a backend, lib, sql o archivos sensibles
   RewriteRule ^(api|lib|sql|\.git)(/|$) - [F,L]
-  RewriteRule \.(sql|env|log)$ - [F,L]
+  RewriteRule \.(sql|env|log|md|sh|bash|jsonl)$ - [F,L]
+  RewriteRule (^|/)\. - [F,L]
 
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
+  RewriteRule . index.html [L]
 </IfModule>
 
 # Impedir listado de directorios

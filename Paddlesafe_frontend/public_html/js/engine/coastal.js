@@ -1,0 +1,535 @@
+// ==============================================================================
+// PADDLESAFE NEXT-GEN - MOTOR GEOGRÁFICO Y DERIVA COSTERA (coastal.js)
+// Determina automáticamente la orientación de la costa, el vector de viento
+// (offshore/onshore/side-shore) y el Índice de Deriva PaddleSafe sin configuración manual.
+// ==============================================================================
+
+import { diferenciaAngular } from './consensus.js';
+
+/**
+ * Base de datos de rumbos a mar abierto (ángulo normal perpendicular a la costa, hacia el mar)
+ * para spots clave de España e islas.
+ */
+const SPOTS_CONOCIDOS = [
+    // Costa Blanca Norte y Giros Críticos (Dénia a Torrevieja)
+    { nombre: 'Dénia / Las Rotas', lat: 38.830, lon: 0.145, match: /denia|dénia|las rotas|les marines/i, seaward: 45, type: 'mar_abierto' },
+    { nombre: 'Cabo San Antonio / Jávea Bahía', lat: 38.805, lon: 0.190, match: /san antonio|javea bahia|xabia bahia|arenal javea|puerto javea|javea|xàbia/i, seaward: 95, type: 'bahia_protegida' },
+    { nombre: 'Cala Blanca / Portitxol / Cap Negre', lat: 38.750, lon: 0.230, match: /cala blanca|portitxol|portichol|cap negre|cabo negro/i, seaward: 115, type: 'mar_abierto' },
+    { nombre: 'Granadella / Benitatxell / Moraira', lat: 38.690, lon: 0.155, match: /granadella|benitatxell|cumbre del sol|moraira|el portet/i, seaward: 160, type: 'mar_abierto' },
+    { nombre: 'Calpe / Altea', lat: 38.625, lon: 0.025, match: /calpe|penon de ifach|peñón de ifach|altea|albir/i, seaward: 135, type: 'bahia_protegida' },
+    { nombre: 'Benidorm / Villajoyosa', lat: 38.530, lon: -0.150, match: /benidorm|poniente|levante benidorm|villajoyosa|la vila/i, seaward: 155, type: 'mar_abierto' },
+    { nombre: 'El Campello / San Juan', lat: 38.410, lon: -0.400, match: /campello|el campello|muchavista|san juan playa|playa de san juan|playa san juan/i, seaward: 120, type: 'mar_abierto' },
+    { nombre: 'Cabo Huertas / Postiguet', lat: 38.355, lon: -0.460, match: /cabo huertas|cabo de las huertas|postiguet|alicante/i, seaward: 135, type: 'mar_abierto' },
+    { nombre: 'Arenales / Santa Pola Este', lat: 38.240, lon: -0.525, match: /arenales|arenales del sol|carabassi|carabassí|santa pola este|cabo santa pola/i, seaward: 110, type: 'mar_abierto' },
+    { nombre: 'Santa Pola Sur / Guardamar / Torrevieja', lat: 38.050, lon: -0.650, match: /santa pola sur|playa lisa|guardamar|la mata|torrevieja/i, seaward: 125, type: 'mar_abierto' },
+    { nombre: 'Isla de Tabarca', lat: 38.165, lon: -0.475, match: /tabarca|isla tabarca/i, seaward: 135, type: 'mar_abierto' },
+
+    // Valencia / Castellón
+    { nombre: 'Valencia Malvarrosa / El Saler', lat: 39.480, lon: -0.320, match: /valencia|malvarrosa|patacona|saler/i, seaward: 90, type: 'mar_abierto' },
+    { nombre: 'Cullera / Gandía / Oliva', lat: 39.080, lon: -0.220, match: /cullera|gandia|oliva/i, seaward: 80, type: 'mar_abierto' },
+    { nombre: 'Castellón / Benicàssim / Peñíscola', lat: 40.030, lon: 0.050, match: /castellon|benicassim|oropesa|peñiscola/i, seaward: 100, type: 'mar_abierto' },
+
+    // Cantabria / Asturias / País Vasco
+    { nombre: 'Somo / Santander', lat: 43.460, lon: -3.750, match: /somo|loredo|pedreña|santander/i, seaward: 350, type: 'mar_abierto' },
+    { nombre: 'Suances / Los Locos', lat: 43.430, lon: -4.040, match: /suances|los locos/i, seaward: 340, type: 'mar_abierto' },
+    { nombre: 'Liencres / Valdearenas', lat: 43.450, lon: -3.960, match: /liencres|valdearenas/i, seaward: 340, type: 'mar_abierto' },
+    { nombre: 'Laredo / Noja / Santoña', lat: 43.420, lon: -3.420, match: /laredo|castro urdiales|noja|santoña/i, seaward: 0, type: 'mar_abierto' },
+    { nombre: 'Gijón San Lorenzo', lat: 43.540, lon: -5.650, match: /gijon|gijón|san lorenzo|roces/i, seaward: 10, type: 'mar_abierto' },
+    { nombre: 'Salinas / Avilés', lat: 43.580, lon: -5.960, match: /salinas|aviles|luanco/i, seaward: 350, type: 'mar_abierto' },
+    { nombre: 'Ribadesella / Llanes', lat: 43.460, lon: -5.060, match: /ribadesella|llanes/i, seaward: 0, type: 'mar_abierto' },
+    { nombre: 'Zarautz / San Sebastián / Mundaka', lat: 43.290, lon: -2.170, match: /zarautz|sopelana|mundaka|san sebastian|la concha/i, seaward: 350, type: 'mar_abierto' },
+
+    // Cataluña
+    { nombre: 'Barcelona Barceloneta', lat: 41.380, lon: 2.190, match: /barceloneta|bogatell|barcelona|mar bella/i, seaward: 130, type: 'mar_abierto' },
+    { nombre: 'Sitges / Castelldefels', lat: 41.250, lon: 1.900, match: /sitges|vilanova|castelldefels/i, seaward: 150, type: 'mar_abierto' },
+    { nombre: 'Tossa / Lloret / Blanes', lat: 41.720, lon: 2.930, match: /tossa|lloret|blanes|platja d'aro/i, seaward: 120, type: 'mar_abierto' },
+    { nombre: 'Roses / Cadaqués / Empuriabrava', lat: 42.260, lon: 3.180, match: /roses|cadaques|empuriabrava|costa brava/i, seaward: 100, type: 'mar_abierto' },
+
+    // Andalucía / Estrecho
+    { nombre: 'Tarifa / Valdevaqueros', lat: 36.030, lon: -5.630, match: /tarifa|valdevaqueros|los lances/i, seaward: 220, type: 'mar_abierto' },
+    { nombre: 'Cádiz Victoria / Cortadura', lat: 36.500, lon: -6.280, match: /cadiz|cádiz|cortadura|victoria/i, seaward: 250, type: 'mar_abierto' },
+    { nombre: 'El Palmar / Conil', lat: 36.230, lon: -6.070, match: /conil|palmar|el palmar|canos de meca/i, seaward: 240, type: 'mar_abierto' },
+    { nombre: 'Málaga / Marbella / Torremolinos', lat: 36.600, lon: -4.600, match: /malaga|málaga|marbella|torremolinos|fuengirola/i, seaward: 170, type: 'mar_abierto' },
+    { nombre: 'Cabo de Gata / Almería', lat: 36.750, lon: -2.250, match: /almeria|almería|cabo de gata|san jose/i, seaward: 150, type: 'mar_abierto' },
+    { nombre: 'Huelva Punta Umbría / Mazagón', lat: 37.150, lon: -6.900, match: /huelva|punta umbria|mazagon/i, seaward: 190, type: 'mar_abierto' },
+
+    // Baleares
+    { nombre: 'Palma Bahía / Can Pastilla', lat: 39.540, lon: 2.650, match: /palma|can pastilla|el arenal/i, seaward: 200, type: 'bahia_protegida' },
+    { nombre: 'Alcudia / Pollença', lat: 39.850, lon: 3.120, match: /alcudia|pollensa|pollença/i, seaward: 60, type: 'bahia_protegida' },
+    { nombre: 'Ibiza / San Antonio', lat: 38.900, lon: 1.420, match: /ibiza|eivissa|playa d'en bossa|san antonio/i, seaward: 180, type: 'mar_abierto' },
+    { nombre: 'Formentera Illetes', lat: 38.740, lon: 1.430, match: /formentera|illetes/i, seaward: 270, type: 'mar_abierto' },
+    { nombre: 'Menorca Fornells / Mahón', lat: 40.050, lon: 4.130, match: /menorca|fornells|ciutadella|mahon/i, seaward: 30, type: 'mar_abierto' },
+
+    // Galicia
+    { nombre: 'Ría de Vigo / Samil', lat: 42.210, lon: -8.770, match: /vigo|samil|cangas|baiona/i, seaward: 260, type: 'bahia_protegida' },
+    { nombre: 'Ría de Pontevedra / Sanxenxo', lat: 42.400, lon: -8.810, match: /coruna|coruña|riera|raxo|sanxenxo/i, seaward: 270, type: 'bahia_protegida' },
+
+    // Embalses y aguas interiores
+    { nombre: 'Aguas Interiores / Embalses', match: /pantano|embalse|lago|entrepeñas|buendia|iznajar|alange|valmayor/i, seaward: null, type: 'embalse_interior' }
+];
+
+/**
+ * Heurística geográfica geodésica para coordenadas en la Península Ibérica y archipiélagos
+ */
+export function estimarRumboCosteroGeodesico(lat, lon) {
+    if (lat === null || lon === null || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+        return 90; // Default Este
+    }
+
+    // Aguas interiores identificadas por coordenadas interiores distantes de la costa (>40 km)
+    // Meseta Norte y Sur:
+    if (lat >= 39.0 && lat <= 42.4 && lon >= -5.6 && lon <= -1.8) {
+        return null;
+    }
+    // Valle del Ebro interior:
+    if (lat >= 41.2 && lat <= 42.4 && lon >= -2.0 && lon <= 0.1) {
+        return null;
+    }
+    // Extremadura interior:
+    if (lat >= 38.5 && lat <= 40.2 && lon >= -7.2 && lon <= -5.5) {
+        return null;
+    }
+    // Andalucía interior:
+    if (lat >= 37.4 && lat <= 38.3 && lon >= -5.0 && lon <= -2.8) {
+        return null;
+    }
+
+    // Costa Norte (Cantábrico y Galicia Norte): mira al Norte (0°)
+    if (lat >= 43.3 && lon >= -8.0 && lon <= -1.7) return 0;
+    
+    // Costa Ártabra y Costa da Morte (Noroeste): mira al Noroeste (315°)
+    if (lat >= 42.9 && lat <= 43.8 && lon <= -8.8) return 315;
+
+    // Rías Baixas (Pontevedra, Vigo, Ría de Arousa): mira al Oeste-Suroeste (260°)
+    if (lat >= 41.9 && lat <= 42.9 && lon <= -8.6) return 260;
+
+    // Portugal Norte y Centro: mira al Oeste (270°)
+    if (lat >= 37.0 && lat <= 41.9 && lon <= -8.5) return 270;
+
+    // Portugal Algarve: mira al Sur (180°)
+    if (lat >= 36.9 && lat <= 37.3 && lon >= -9.0 && lon <= -7.4) return 180;
+
+    // Costa de la Luz / Golfo de Cádiz (Huelva, Cádiz): mira al Suroeste (220°)
+    if (lat <= 37.3 && lon >= -7.4 && lon <= -5.8) return 220;
+
+    // Estrecho de Gibraltar (Tarifa, Algeciras): mira al Suroeste-Sur (200°)
+    if (lat >= 35.9 && lat <= 36.3 && lon >= -5.8 && lon <= -5.3) return 200;
+
+    // Costa del Sol (Málaga, Marbella) y Costa Tropical (Granada): mira al Sur (175°)
+    if (lat >= 36.3 && lat <= 36.8 && lon >= -5.3 && lon <= -3.0) return 175;
+
+    // Costa de Almería (Cabo de Gata, Levante almeriense): mira al Sureste (135°)
+    if (lat >= 36.6 && lat <= 37.4 && lon >= -3.0 && lon <= -1.7) return 135;
+
+    // Costa Cálida (Murcia, Mazarrón, Águilas, Cartagena, Mar Menor): mira al Sureste-Este (115°)
+    if (lat >= 37.3 && lat <= 37.9 && lon >= -1.7 && lon <= -0.6) return 115;
+
+    // Costa Blanca Sur (Torrevieja, Guardamar, Santa Pola, Alicante): mira al Este-Sureste (120°)
+    if (lat >= 37.9 && lat <= 38.4 && lon >= -0.7 && lon <= -0.3) return 120;
+
+    // Costa Blanca Norte (Campello, Benidorm, Altea, Calpe, Jávea): mira al Este (90°)
+    if (lat >= 38.4 && lat <= 38.8 && lon >= -0.3 && lon <= 0.25) return 90;
+
+    // Cabo de la Nao / Denia / Gandía / Golfo de Valencia: mira al Este-Noreste (80°)
+    if (lat >= 38.8 && lat <= 39.7 && lon >= -0.4 && lon <= 0.3) return 80;
+
+    // Costa del Azahar (Castellón, Benicàssim, Peñíscola): mira al Este-Sureste (105°)
+    if (lat >= 39.7 && lat <= 40.6 && lon >= -0.1 && lon <= 0.6) return 105;
+
+    // Delta del Ebro: promedio Este (90°)
+    if (lat >= 40.6 && lat <= 40.9 && lon >= 0.5 && lon <= 0.9) return 90;
+
+    // Costa Daurada y Costa de Barcelona (Salou, Tarragona, Barcelona): mira al Sureste (135°)
+    if (lat >= 40.9 && lat <= 41.6 && lon >= 0.9 && lon <= 2.6) return 135;
+
+    // Costa Brava (Blanes, Tossa, Palamós, Begur, Roses, Cadaqués): mira al Este (100°)
+    if (lat >= 41.6 && lat <= 42.5 && lon >= 2.6 && lon <= 3.3) return 100;
+
+    // Baleares:
+    if (lat >= 38.5 && lat <= 40.3 && lon >= 1.1 && lon <= 4.5) {
+        if (lon >= 3.7) return lat >= 40.0 ? 0 : 180; // Menorca
+        if (lon >= 2.3 && lon < 3.7) return lat >= 39.7 ? 45 : 200; // Mallorca
+        return 140; // Ibiza / Formentera
+    }
+
+    // Canarias:
+    if (lat >= 27.5 && lat <= 29.5 && lon >= -18.2 && lon <= -13.3) {
+        if (lon >= -14.5) return 90; // Fuerteventura / Lanzarote
+        return lat >= 28.3 ? 0 : 180; // Tenerife / Gran Canaria
+    }
+
+    return 90;
+}
+
+function empaquetarOrientacionCostera(res) {
+    if (!res || typeof res !== 'object') return res;
+    return Object.assign(res, {
+        valueOf() { return this.seawardDeg ?? 0; },
+        [Symbol.toPrimitive](hint) { return this.seawardDeg ?? 0; }
+    });
+}
+
+/**
+ * Resuelve la orientación costera de un spot (soporta (nombreSpot, lat, lon) o (lat, lon, nombreSpot))
+ */
+export function resolverOrientacionCostera(arg1 = '', arg2 = null, arg3 = null) {
+    let nombreSpot = '';
+    let lat = null;
+    let lon = null;
+
+    if (typeof arg1 === 'number') {
+        lat = arg1;
+        lon = typeof arg2 === 'number' ? arg2 : null;
+        nombreSpot = typeof arg3 === 'string' ? arg3 : '';
+    } else {
+        nombreSpot = typeof arg1 === 'string' ? arg1 : '';
+        lat = typeof arg2 === 'number' ? arg2 : null;
+        lon = typeof arg3 === 'number' ? arg3 : null;
+    }
+
+    const spotNormalizado = String(nombreSpot || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    // 1. Si contiene palabras clave de embalse o lago, clasificar de inmediato como interior
+    if (/embalse|pantano|lago|laguna|rio|río|presa|reservoir|lake/i.test(spotNormalizado)) {
+        return empaquetarOrientacionCostera({
+            seawardDeg: null,
+            esCosta: false,
+            esEmbalse: true,
+            tipoEntorno: 'embalse_interior',
+            fuente: 'deteccion_interior'
+        });
+    }
+
+    // 2. Buscar en catálogo curado de costa por coincidencia de texto
+    const match = SPOTS_CONOCIDOS.find(s => s.match && s.match.test(spotNormalizado));
+    if (match) {
+        const esEmb = match.type === 'embalse_interior';
+        return empaquetarOrientacionCostera({
+            seawardDeg: match.seaward,
+            esCosta: !esEmb,
+            esEmbalse: esEmb,
+            tipoEntorno: match.type || 'mar_abierto',
+            fuente: 'catalogo_spots',
+            spotNombre: match.nombre || null
+        });
+    }
+
+    // 3. Soporte geodésico por coordenadas si no hubo coincidencia por texto
+    if (lat !== null && lon !== null && Number.isFinite(lat) && Number.isFinite(lon)) {
+        // Comprobar si las coordenadas pertenecen a zonas interiores reconocidas
+        const seawardGeo = estimarRumboCosteroGeodesico(lat, lon);
+        if (seawardGeo === null) {
+            return empaquetarOrientacionCostera({
+                seawardDeg: null,
+                esCosta: false,
+                esEmbalse: true,
+                tipoEntorno: 'embalse_interior',
+                fuente: 'geodesia_interior'
+            });
+        }
+
+        // Buscar el punto costero más cercano por distancia euclídea simple
+        let mejorSpot = null;
+        let menorDistSq = Infinity;
+        for (const spot of SPOTS_CONOCIDOS) {
+            if (spot.lat !== undefined && spot.lon !== undefined && spot.seaward !== null) {
+                const distSq = (spot.lat - lat) ** 2 + (spot.lon - lon) ** 2;
+                if (distSq < menorDistSq) {
+                    menorDistSq = distSq;
+                    mejorSpot = spot;
+                }
+            }
+        }
+
+        // Si se encuentra un punto clave costero en un radio aproximado de 0.45° (~45 km)
+        if (mejorSpot && menorDistSq <= 0.2025) {
+            return empaquetarOrientacionCostera({
+                seawardDeg: mejorSpot.seaward,
+                esCosta: true,
+                esEmbalse: false,
+                tipoEntorno: mejorSpot.type || 'mar_abierto',
+                fuente: 'geodesia_proximidad_costa',
+                spotCercano: mejorSpot.nombre || null
+            });
+        }
+
+        // Fallback a rumbo geodésico peninsular regional
+        return empaquetarOrientacionCostera({
+            seawardDeg: seawardGeo,
+            esCosta: true,
+            esEmbalse: false,
+            tipoEntorno: 'mar_abierto',
+            fuente: 'geodesia_coordenadas'
+        });
+    }
+
+    // 4. Fallback final si no hay coordenadas ni coincidencia de nombre
+    return empaquetarOrientacionCostera({
+        seawardDeg: 90,
+        esCosta: true,
+        esEmbalse: false,
+        tipoEntorno: 'mar_abierto',
+        fuente: 'fallback_defecto'
+    });
+}
+
+export function calcularComponenteVientoAuto(...args) {
+    let dirVientoDeg = null;
+    let seawardDeg = null;
+
+    if (args.length === 2 && (typeof args[0] === 'number' || args[0] === null) && (typeof args[1] === 'number' || args[1] === null)) {
+        dirVientoDeg = args[0];
+        seawardDeg = args[1];
+    } else {
+        let lat = null, lon = null, spot = '';
+        if (typeof args[0] === 'number' && typeof args[1] === 'number' && typeof args[2] === 'number') {
+            lat = args[0];
+            lon = args[1];
+            dirVientoDeg = args[2];
+            spot = typeof args[3] === 'string' ? args[3] : '';
+        } else if (typeof args[0] === 'number') {
+            dirVientoDeg = args[0];
+            if (typeof args[1] === 'number' && typeof args[2] === 'number') {
+                lat = args[1];
+                lon = args[2];
+                spot = typeof args[3] === 'string' ? args[3] : '';
+            }
+        }
+        const costa = resolverOrientacionCostera(lat, lon, spot);
+        seawardDeg = costa?.seawardDeg ?? null;
+    }
+
+    if (dirVientoDeg === null || seawardDeg === null || !Number.isFinite(dirVientoDeg) || !Number.isFinite(seawardDeg)) {
+        return {
+            componente: 'desconocida',
+            anguloRelativo: null,
+            descripcion: 'Orientación costera no aplicable (aguas interiores o sin referencia de costa).'
+        };
+    }
+
+    // El viento sopla HACIA: (dirVientoDeg + 180) % 360
+    // Mar abierto apunta hacia: seawardDeg
+    // Diferencia angular entre hacia dónde sopla el viento y mar abierto:
+    const haciaDondeSopla = (dirVientoDeg + 180) % 360;
+    const diff = diferenciaAngular(haciaDondeSopla, seawardDeg);
+
+    // Si el viento sopla en la misma dirección que mar abierto (diff <= 55°): OFFSHORE
+    if (diff <= 55) {
+        return {
+            componente: 'offshore',
+            anguloRelativo: Math.round(diff),
+            descripcion: 'Viento offshore (terral): sopla de tierra hacia mar abierto. Riesgo de deriva.'
+        };
+    }
+
+    // Si el viento sopla en dirección contraria a mar abierto (diff >= 125°): ONSHORE
+    if (diff >= 125) {
+        return {
+            componente: 'onshore',
+            anguloRelativo: Math.round(diff),
+            descripcion: 'Viento onshore: sopla desde el mar hacia la orilla. Menor deriva mar adentro.'
+        };
+    }
+
+    // Si el viento sopla lateral a la costa (55° < diff < 125°): SIDE-SHORE
+    return {
+        componente: 'side-shore',
+        anguloRelativo: Math.round(diff),
+        descripcion: 'Viento side-shore: sopla paralelo a la orilla. Provoca deriva lateral a lo largo de la costa.'
+    };
+}
+
+function empaquetarDeriva(res) {
+    if (!res || typeof res !== 'object') return res;
+    return Object.assign(res, {
+        valueOf() { return this.score ?? 0; },
+        [Symbol.toPrimitive](hint) { return this.score ?? 0; }
+    });
+}
+
+/**
+ * Calcula el Índice de Deriva PaddleSafe
+ */
+export function calcularIndiceDerivaPaddleSafe({
+    vientoKt = 0,
+    rachasKt = 0,
+    oleajeM = 0,
+    componente = 'side-shore',
+    esCosta = true,
+    driftMod = 1.0,
+    boardType = null
+}) {
+    if (!esCosta) {
+        let scoreInterior = Math.min(60, Math.round((vientoKt * 2.5) + (rachasKt * 1.2)));
+        if (Number.isFinite(driftMod) && driftMod > 0) {
+            scoreInterior = Math.min(80, Math.round(scoreInterior * driftMod));
+        }
+        let nivelInterior = scoreInterior > 40 ? 'Moderado' : 'Bajo';
+        return empaquetarDeriva({
+            score: scoreInterior,
+            nivel: nivelInterior,
+            descripcion: `Aguas interiores: deriva controlada por orillas (${nivelInterior.toLowerCase()}). Viento de ${vientoKt} kt.`
+        });
+    }
+
+    let score = 10;
+    if (vientoKt >= 20) score += 60;
+    else if (vientoKt >= 15) score += 45;
+    else if (vientoKt >= 10) score += 30;
+    else if (vientoKt >= 6) score += 15;
+
+    const deltaRacha = Math.max(0, rachasKt - vientoKt);
+    if (deltaRacha >= 8) score += 15;
+    else if (deltaRacha >= 4) score += 8;
+
+    if (oleajeM >= 1.5) score += 20;
+    else if (oleajeM >= 0.8) score += 10;
+
+    if (componente === 'offshore') {
+        score += 25;
+    } else if (componente === 'onshore') {
+        score = Math.max(5, score - 15);
+    } else if (componente === 'side-shore') {
+        score += 10;
+    }
+
+    // Aplicar modificador de deriva según tipo de tabla
+    if (Number.isFinite(driftMod) && driftMod > 0 && driftMod !== 1.0) {
+        score = score * driftMod;
+    }
+
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    let nivel = 'Bajo';
+    if (score >= 75) nivel = 'Muy Alto';
+    else if (score >= 50) nivel = 'Alto';
+    else if (score >= 25) nivel = 'Moderado';
+
+    let descripcion = componente === 'offshore'
+        ? `Riesgo ${nivel.toLowerCase()}: el viento offshore (${vientoKt} kt) aleja de la costa. Extrema la precaución.`
+        : componente === 'onshore'
+            ? `Riesgo ${nivel.toLowerCase()}: viento onshore hacia tierra; retorno seguro a la orilla facilitado.`
+            : `Riesgo ${nivel.toLowerCase()}: viento lateral (${vientoKt} kt) desplazando paralelamente a costa.`;
+
+    if (driftMod > 1.05) {
+        descripcion += ' Acentuado por mayor francobordo de tabla hinchable.';
+    }
+
+    return empaquetarDeriva({ score, nivel, descripcion, componente, driftMod });
+}
+
+export const CARDINALES_8 = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+
+export function anguloACardinal(deg) {
+    if (deg === null || deg === undefined || !Number.isFinite(Number(deg))) return 'N/D';
+    const idx = Math.round((((Number(deg) % 360) + 360) % 360) / 45) % 8;
+    return CARDINALES_8[idx];
+}
+
+/**
+ * Genera el perfil táctico de viento para un spot (vientos de abrigo, laterales y críticos)
+ */
+export function generarPerfilTacticoSpot(spotNombre = '', lat = null, lon = null, seawardInput = null) {
+    let seawardDeg = seawardInput;
+    let esCosta = true;
+    let esEmbalse = false;
+    let tipoEntorno = 'mar_abierto';
+
+    if (seawardDeg === null || seawardDeg === undefined) {
+        const orient = resolverOrientacionCostera(spotNombre, lat, lon);
+        seawardDeg = orient?.seawardDeg ?? null;
+        esCosta = orient?.esCosta ?? true;
+        esEmbalse = orient?.esEmbalse ?? false;
+        tipoEntorno = orient?.tipoEntorno ?? 'mar_abierto';
+    }
+
+    if (esEmbalse || seawardDeg === null) {
+        return {
+            spotNombre: spotNombre || 'Spot Interior / Embalse',
+            lat,
+            lon,
+            seawardDeg: null,
+            esCosta: false,
+            esEmbalse: true,
+            tipoEntorno: 'embalse_interior',
+            cardinalMar: 'Interior',
+            cardinalTierra: 'Perímetro',
+            rumboAbrigo: {
+                anguloCentro: null,
+                rango: [0, 360],
+                cardinal: 'Orillas protegidas',
+                texto: 'Sotavento de orillas y colinas',
+                descripcion: 'Agua calma cerca de márgenes arboladas y calas del embalse.'
+            },
+            rumboCross: {
+                angulos: [],
+                cardinales: ['Eje transversal'],
+                texto: 'Cruces entre orillas',
+                descripcion: 'Evitar el centro en horas de máxima insolación térmica.'
+            },
+            rumboCritico: {
+                onshore: {
+                    angulo: null,
+                    cardinal: 'Eje del Cañón',
+                    texto: 'Efecto túnel / Embudo',
+                    descripcion: 'Vientos encajonados en el vaso del pantano pueden acelerar súbitamente.'
+                },
+                offshoreDrift: {
+                    angulo: null,
+                    cardinal: 'Centro del embalse',
+                    texto: 'Deriva hacia la presa',
+                    descripcion: 'Mantener distancia de seguridad de aliviaderos y boyas de esclusa.'
+                }
+            }
+        };
+    }
+
+    const seaward = Number(seawardDeg);
+    const landward = (seaward + 180) % 360;
+    const side1 = (seaward - 90 + 360) % 360;
+    const side2 = (seaward + 90) % 360;
+
+    return {
+        spotNombre: spotNombre || 'Spot Costero',
+        lat,
+        lon,
+        seawardDeg: Math.round(seaward),
+        esCosta: true,
+        esEmbalse: false,
+        tipoEntorno,
+        cardinalMar: anguloACardinal(seaward),
+        cardinalTierra: anguloACardinal(landward),
+        rumboAbrigo: {
+            anguloCentro: Math.round(landward),
+            rango: [Math.round((landward - 45 + 360) % 360), Math.round((landward + 45) % 360)],
+            cardinal: anguloACardinal(landward),
+            texto: `Viento de tierra (${anguloACardinal(landward)} · ${Math.round(landward)}°)`,
+            descripcion: 'Agua plana protegida cerca de orilla con brisa suave (<9 kt). Alerta si sube >12 kt.'
+        },
+        rumboCross: {
+            angulos: [Math.round(side1), Math.round(side2)],
+            cardinales: [anguloACardinal(side1), anguloACardinal(side2)],
+            texto: `Laterales (${anguloACardinal(side1)} / ${anguloACardinal(side2)})`,
+            descripcion: 'Vientos paralelos a la playa. Óptimo para travesías costeras de ida y vuelta.'
+        },
+        rumboCritico: {
+            onshore: {
+                angulo: Math.round(seaward),
+                cardinal: anguloACardinal(seaward),
+                texto: `Mar directo (${anguloACardinal(seaward)} · ${Math.round(seaward)}°)`,
+                descripcion: 'Chop incómodo y rompiente en orilla. Entrada y salida exigentes.'
+            },
+            offshoreDrift: {
+                angulo: Math.round(landward),
+                cardinal: anguloACardinal(landward),
+                texto: `Deriva Mar Adentro (${anguloACardinal(landward)})`,
+                descripcion: 'Peligro de arrastre hacia mar abierto si el viento supera 12 kt.'
+            }
+        }
+    };
+}
+
+if (typeof window !== 'undefined') {
+    window.generarPerfilTacticoSpot = generarPerfilTacticoSpot;
+    window.anguloACardinal = anguloACardinal;
+}
+

@@ -62,8 +62,8 @@ CREATE POLICY "club_chat_select_members_only"
   TO authenticated
   USING (
     club_id IN (
-      SELECT m.club_id 
-      FROM public.memberships m 
+      SELECT m.club_id
+      FROM public.memberships m
       WHERE m.user_id = auth.uid()
     )
   );
@@ -77,8 +77,8 @@ CREATE POLICY "club_chat_insert_members_only"
   WITH CHECK (
     auth.uid() = user_id
     AND club_id IN (
-      SELECT m.club_id 
-      FROM public.memberships m 
+      SELECT m.club_id
+      FROM public.memberships m
       WHERE m.user_id = auth.uid()
     )
     AND visibility = 'club_only'
@@ -94,9 +94,9 @@ CREATE POLICY "club_chat_delete_author_or_admin"
     auth.uid() = user_id
     OR EXISTS (
       SELECT 1 
-      FROM public.memberships m 
-      WHERE m.club_id = club_chat.club_id 
-        AND m.user_id = auth.uid() 
+      FROM public.memberships m
+      WHERE m.club_id = club_chat.club_id
+        AND m.user_id = auth.uid()
         AND LOWER(m.rol) IN ('creador', 'admin')
     )
   );

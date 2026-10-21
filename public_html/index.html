@@ -1,0 +1,1773 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>PaddleSafe | Pronóstico y Comunidad</title>
+    
+    <!-- OpenGraph & Social Meta Tags -->
+    <meta property="og:title" content="PaddleSafe | Pronóstico, Spots y Comunidad SUP">
+    <meta property="og:description" content="Plataforma náutica para Stand Up Paddle: telemetría en vivo, mapas offline, spots seguros y red social de clubes.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://paddlesafe.app">
+    <meta property="og:image" content="/apple-touch-icon.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="PaddleSafe | Pronóstico y Comunidad SUP">
+    <meta name="twitter:description" content="Telemetría marítima táctica, análisis meteo en vivo y clubes de paddle surf.">
+    <meta name="twitter:image" content="/apple-touch-icon.png">
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Tailwind CSS (Compilado localmente para offline y rendimiento de producción) -->
+    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v68">
+
+    <!-- Leaflet CSS y JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- html2canvas -->
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Supabase JS -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        html, body { min-height: 100dvh; -webkit-tap-highlight-color: transparent; }
+        button, a, [role="button"] { touch-action: manipulation; }
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.2); border-radius: 10px; }
+        
+        .ruta-animada { stroke-dasharray: 12, 12; animation: fluirRuta 1.5s linear infinite; stroke-linecap: round; stroke-linejoin: round; }
+        @keyframes fluirRuta { 0% { stroke-dashoffset: 24; } 100% { stroke-dashoffset: 0; } }
+        
+        .wind-arrow { display: inline-flex; align-items: center; justify-content: center; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .dist-label-map { background-color: rgba(15, 23, 42, 0.9); color: white; font-size: 10px; font-weight: 900; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: center; }
+
+        /* Estabilidad de altura de mapa en móvil y escritorio */
+        #mapContainer { min-height: 350px; height: 60vh; }
+        #mapaInteractivo { min-height: 350px; height: 100%; width: 100%; }
+        @media (min-width: 640px) {
+            #mapContainer { min-height: 500px; height: 50vh; }
+            #mapaInteractivo { min-height: 500px; }
+        }
+        @media (max-width: 639px) {
+            .mobile-header-row.mobile-header-row { flex-wrap: nowrap; }
+            .mobile-header-row button { min-width: 44px; min-height: 44px; }
+            #btn-gps { min-height: 44px; padding-block: 0.5rem; }
+            #tabMiClub, #tabBuscarClub, #tabPaddlers,
+            #tabFeedGlobal, #tabFeedClubs, #tabFeedAmigos,
+            #tabMisAmigos, #tabSolicitudesAmistad,
+            [id^="tabRank"], #spaTabInsignias, #spaTabRutas,
+            #authToggleBtn, #btnRecuperarPass { min-height: 44px; }
+            #panelQuedadaMap button, #quedadaFormPanel button,
+            #quedadaFormPanel input, #quedadaFormPanel select { min-height: 44px; }
+            [id$="Modal"] button.w-10.h-10 { width: 44px; height: 44px; }
+        }
+        @media (max-width: 374px) {
+            .mobile-header-row .mobile-header-links { gap: 0.25rem; }
+            .mobile-header-row .mobile-header-actions { gap: 0.125rem; }
+        }
+        @media (max-width: 359px) {
+            .mobile-header-row.mobile-header-row { flex-wrap: wrap; row-gap: 0.5rem; }
+            .mobile-header-row .mobile-header-actions { margin-left: auto; }
+        }
+    </style>
+    <script>
+        // Handlers inmediatos y defensivos para modales de cabecera (evita ReferenceError si el usuario hace clic antes de cargar main.js)
+        window.abrirModalClubs = function() {
+            const m = document.getElementById('clubsModal');
+            if (m) {
+                m.classList.remove('hidden');
+                m.classList.remove('opacity-0');
+                const box = m.querySelector('div');
+                if (box) box.classList.remove('scale-95');
+            }
+            if (window.Club && typeof window.Club.abrirModal === 'function') {
+                window.Club.abrirModal();
+            } else if (typeof window.cambiarTabClubs === 'function') {
+                window.cambiarTabClubs('miclub');
+            }
+        };
+        window.cerrarModalClubs = function() {
+            const m = document.getElementById('clubsModal');
+            if (m) {
+                m.classList.add('opacity-0');
+                const box = m.querySelector('div');
+                if (box) box.classList.add('scale-95');
+                setTimeout(() => m.classList.add('hidden'), 300);
+            }
+            if (window.Club && typeof window.Club.cerrarModal === 'function') {
+                window.Club.cerrarModal();
+            }
+        };
+
+        window.abrirModalAuth = function() {
+            const m = document.getElementById('authModal');
+            if (m) {
+                m.classList.remove('hidden');
+                setTimeout(() => {
+                    m.classList.remove('opacity-0');
+                    const box = m.querySelector('div');
+                    if (box) box.classList.remove('scale-95');
+                }, 10);
+            }
+            if (typeof window.restaurarFormularioAuth === 'function') {
+                window.restaurarFormularioAuth();
+            }
+        };
+        window.cerrarModalAuth = function() {
+            const m = document.getElementById('authModal');
+            if (m) {
+                m.classList.add('opacity-0');
+                const box = m.querySelector('div');
+                if (box) box.classList.add('scale-95');
+                setTimeout(() => m.classList.add('hidden'), 300);
+            }
+        };
+
+        window.abrirModalRanking = function() {
+            const m = document.getElementById('rankingModal');
+            if (m) {
+                m.classList.remove('hidden');
+                setTimeout(() => {
+                    m.classList.remove('opacity-0');
+                    const box = m.querySelector('div');
+                    if (box) box.classList.remove('scale-95');
+                }, 10);
+            }
+            if (typeof window.cargarTopPaddlers === 'function') {
+                window.cargarTopPaddlers('diario');
+            }
+        };
+        window.cerrarModalRanking = function() {
+            const m = document.getElementById('rankingModal');
+            if (m) {
+                m.classList.add('opacity-0');
+                const box = m.querySelector('div');
+                if (box) box.classList.add('scale-95');
+                setTimeout(() => m.classList.add('hidden'), 300);
+            }
+        };
+
+        window.abrirModalFeed = function() {
+            const m = document.getElementById('socialFeedModal');
+            if (m) {
+                m.classList.remove('hidden');
+                setTimeout(() => {
+                    m.classList.remove('opacity-0');
+                    const box = m.querySelector('div');
+                    if (box) box.classList.remove('scale-95');
+                }, 10);
+            }
+            if (window.socialFeed && typeof window.socialFeed.abrirModal === 'function') {
+                window.socialFeed.abrirModal();
+            }
+        };
+        window.cerrarModalFeed = function() {
+            const m = document.getElementById('socialFeedModal');
+            if (m) {
+                m.classList.add('opacity-0');
+                const box = m.querySelector('div');
+                if (box) box.classList.add('scale-95');
+                setTimeout(() => m.classList.add('hidden'), 300);
+            }
+        };
+
+        window.mostrarPanelAvisos = function() {
+            const m = document.getElementById('notificationsModal');
+            if (m) {
+                m.classList.remove('hidden');
+                m.classList.add('flex');
+                setTimeout(() => {
+                    m.classList.remove('opacity-0');
+                    const box = m.querySelector('div');
+                    if (box) box.classList.remove('scale-95');
+                }, 10);
+            }
+            if (window.socialNotifications && typeof window.socialNotifications.cargarNotificaciones === 'function') {
+                window.socialNotifications.cargarNotificaciones();
+            }
+        };
+        window.cerrarPanelAvisos = function() {
+            const m = document.getElementById('notificationsModal');
+            if (m) {
+                m.classList.add('opacity-0');
+                const box = m.querySelector('div');
+                if (box) box.classList.add('scale-95');
+                setTimeout(() => {
+                    m.classList.add('hidden');
+                    m.classList.remove('flex');
+                }, 300);
+            }
+        };
+
+        window.activarItemBottomNav = function(tabId) {
+            if (typeof window._activarItemBottomNavImpl === 'function') {
+                return window._activarItemBottomNavImpl(tabId);
+            }
+            if (tabId === 'parte') {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (tabId === 'pro') {
+                if (window.togglePanelPro) window.togglePanelPro(true);
+                document.getElementById('mapaInteractivo')?.scrollIntoView({ behavior: 'smooth' });
+            } else if (tabId === 'muro') {
+                window.abrirModalFeed();
+            } else if (tabId === 'clubes') {
+                window.abrirModalClubs();
+            } else if (tabId === 'ranking') {
+                window.abrirModalRanking();
+            }
+        };
+    </script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-[100dvh] flex items-start sm:items-center justify-center p-0 sm:p-5 pb-24 md:pb-10 relative selection:bg-sky-500 selection:text-white" style="background-color: #0b1120; background-image: radial-gradient(ellipse at top, rgba(14, 165, 233, 0.12), transparent 60%);">
+
+    <!-- ATMOSPHERIC AMBIENT LIGHTING (DESIGN SYSTEM 4.0) -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div id="ambientGlowTop" class="ps-ambient-radial w-[600px] h-[600px] -top-48 left-1/2 -translate-x-1/2 bg-gradient-to-br from-sky-500/15 via-teal-500/10 to-transparent"></div>
+        <div id="ambientGlowBottom" class="ps-ambient-radial w-[500px] h-[500px] -bottom-32 right-10 bg-gradient-to-tl from-indigo-500/15 via-cyan-500/10 to-transparent"></div>
+    </div>
+
+    <div class="max-w-2xl lg:max-w-[1600px] w-full bg-slate-900/95 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-16 sm:pb-0 border border-slate-800 z-10 backdrop-blur-xl mx-auto">
+        
+        <!-- CABECERA PRINCIPAL -->
+        <div class="bg-marine p-4 sm:p-7 text-center relative flex flex-col items-center justify-center shadow-inner z-50 border-b border-slate-800/80">
+            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-water via-blue-400 to-emerald-400"></div>
+            
+            <div class="mobile-header-row w-full flex justify-between items-center relative z-20 mb-3 px-1 gap-2 flex-wrap">
+                <div class="mobile-header-links flex items-center gap-1.5 sm:gap-2">
+                    <button type="button" id="btnModalRanking" onclick="abrirModalRanking()" class="ps-chip text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95" title="Ranking de Paddlers">
+                        <span class="text-base drop-shadow">🏆</span>
+                        <span class="text-[11px] font-black uppercase tracking-wider">Ranking</span>
+                    </button>
+                    <button type="button" id="btnModalClubs" onclick="abrirModalClubs()" class="ps-chip text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95" title="Clubes y Comunidad">
+                        <span class="text-base drop-shadow">⛺</span>
+                        <span class="text-[11px] font-black uppercase tracking-wider">Comunidad</span>
+                    </button>
+                    <button type="button" id="btnModalFeed" onclick="abrirModalFeed()" class="ps-chip text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95" title="Muro Social">
+                        <span class="text-base drop-shadow">📰</span>
+                        <span class="text-[11px] font-black uppercase tracking-wider">Feed</span>
+                    </button>
+                </div>
+                <div class="mobile-header-actions flex items-center gap-1.5 sm:gap-2">
+                    <button type="button" id="btnAvisos" onclick="if(window.mostrarPanelAvisos) window.mostrarPanelAvisos()" class="ps-chip relative text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95" title="Notificaciones y Avisos">
+                        <span class="text-base drop-shadow">🔔</span>
+                        <span id="notifBadge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center border-2 border-marine"></span>
+                        <span class="text-[11px] font-black uppercase tracking-wider">Avisos</span>
+                    </button>
+                    <button type="button" id="btnCabeceraPerfil" onclick="abrirModalAuth()" class="ps-chip text-white/80 hover:text-white border-slate-700/80 bg-slate-800/60 transition-all hover:scale-105 active:scale-95" title="Mi Perfil">
+                        <svg class="h-4 w-4 drop-shadow-md text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span class="text-[11px] font-black uppercase tracking-wider">Perfil</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-center gap-2 relative z-10">
+                <span class="text-3xl sm:text-4xl">🏄</span>
+                <h1 class="text-3xl sm:text-4xl font-black text-white tracking-tight drop-shadow-lg">Paddle<span class="text-transparent bg-clip-text bg-gradient-to-r from-water to-blue-400">Safe</span></h1>
+                <span class="inline-flex items-center gap-1 ml-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm animate-pulse">Live</span>
+            </div>
+            <p class="text-slate-300 text-xs sm:text-sm mt-1 relative z-10 font-medium">Pronóstico de condiciones y seguridad marítima para tu ruta</p>
+        </div>
+
+        
+        <!-- COMMAND STRIP: SAVED SPOTS & MARINE OMNIBAR -->
+        <div class="px-4 sm:px-6 pt-4 pb-2 bg-slate-900/90 text-white space-y-3 border-b border-slate-800/60">
+            <div id="savedSpotsBar" class="w-full flex flex-col gap-2 p-3 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-700/70 transition-all shadow-md">
+                <div class="flex items-center justify-between gap-2 px-1">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                            <span>🏖️</span> Mis Spots
+                        </span>
+                        <span id="savedSpotsCount" class="text-[10px] text-slate-400 font-bold font-mono ps-tabular">0 spots</span>
+                        <span id="savedSpotsGuestPrompt" class="hidden text-[10px] text-amber-400 font-semibold">💡 Inicia sesión para sincronizar</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                        <button type="button" id="btnQuickSetup" onclick="window.abrirAsistenteConfiguracion()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full leading-tight text-emerald-300 hover:text-emerald-200 border-emerald-500/40 bg-emerald-500/10 active:scale-95 text-[11px]" title="Guía de inicio y packs de calas">
+                            <span class="shrink-0">✨</span> <span class="truncate">Guía / Packs</span>
+                        </button>
+                        <button type="button" id="btnToggleSaveSpot" onclick="guardarSpotActual()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full leading-tight text-amber-300 hover:text-amber-200 border-amber-500/40 bg-amber-500/10 active:scale-95 text-[11px]" title="Guardar spot actual en favoritos">
+                            <span id="btnToggleSaveSpotIcon" class="shrink-0">⭐</span> <span id="btnToggleSaveSpotText" class="truncate">Guardar Spot</span>
+                        </button>
+                        <button type="button" id="btnCompararMisSpots" onclick="window.compararSpotsGuardados()" class="hidden ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full leading-tight text-amber-300 hover:text-amber-200 border-amber-500/40 bg-amber-500/10 active:scale-95 text-[11px]" title="Comparar seguridad de mis spots">
+                            <span class="shrink-0">⚡</span> <span class="truncate">Comparar</span>
+                        </button>
+                        <button type="button" id="btnOpenGearSelector" onclick="window.toggleSelectorEquipoUsuario()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full leading-tight text-sky-300 hover:text-sky-200 border-sky-500/40 bg-sky-500/10 active:scale-95 text-[11px]" title="Ajustar tabla y ritmo personal">
+                            <span id="gearBadgeIcon" class="shrink-0">🏄</span> <span id="gearBadgeText" class="ps-tabular font-bold truncate">Mi Tabla</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="savedSpotsList" class="ps-scroll-snap flex items-center gap-2 pb-1 pt-0.5">
+                    <span class="text-xs text-slate-400 italic px-2 py-1">Aún no tienes spots guardados. Pulsa ⭐ Guardar Spot tras buscar una playa o tocar el mapa.</span>
+                </div>
+            </div>
+
+            <!-- PANEL COMPARADOR DE SPOTS FAVORITOS -->
+            <div id="spotsComparisonPanel" class="hidden w-full flex flex-col gap-3 p-4 bg-slate-900 border border-amber-500/40 rounded-2xl text-white shadow-xl transition-all">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">⚡</span>
+                        <div>
+                            <h4 class="text-xs sm:text-sm font-black text-amber-300 uppercase tracking-wider">Comparador y Ranking de Mis Spots</h4>
+                            <p class="text-[10px] text-slate-400">Ordenados de mayor a menor índice de seguridad según el pronóstico</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="document.getElementById('spotsComparisonPanel').classList.add('hidden')" class="text-slate-400 hover:text-white text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 font-bold transition-all cursor-pointer">✕ Cerrar</button>
+                </div>
+                <div id="spotsComparisonList" class="flex flex-col gap-2">
+                    <!-- Cards renderizadas dinámicamente -->
+                </div>
+            </div>
+
+            <!-- POPUP / SELECTOR DE EQUIPO Y RITMO PERSONAL (TABLA, FRANCOBORDO Y DERIVA) -->
+            <div id="userGearSelector" class="hidden w-full flex flex-col gap-3 p-4 bg-slate-900/95 backdrop-blur-xl border border-sky-500/50 rounded-2xl text-white shadow-2xl transition-all">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">🏄</span>
+                        <div>
+                            <h4 class="text-xs sm:text-sm font-black text-sky-300 uppercase tracking-wider">Mi Equipo y Ritmo de Remada</h4>
+                            <p class="text-[10px] text-slate-400">Ajusta la física de deriva y tiempos estimados según tu tabla real</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="window.toggleSelectorEquipoUsuario(false)" class="text-slate-400 hover:text-white text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 font-bold transition-all cursor-pointer">✕</button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                        <label for="userGearBoardType" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tipo de Tabla SUP</label>
+                        <select id="userGearBoardType" onchange="window.actualizarTipoTablaDesdeSelect(this.value)" class="w-full h-10 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:ring-2 focus:ring-sky-500">
+                            <option value="inflat_allround">Hinchable All-Round 10'6" (3.8 km/h · Deriva +20%)</option>
+                            <option value="inflat_touring">Hinchable Touring 12'6"-14' (4.7 km/h · Deriva +10%)</option>
+                            <option value="rigid_touring" selected>Rígida Touring / All-Water (5.2 km/h · Deriva neutra 1.0)</option>
+                            <option value="rigid_race">Rígida Race 14' (6.0 km/h · Deriva 0.95 · Chop penalty)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="userGearPaceInput" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Velocidad de Crucero Personal (km/h)</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="userGearPaceInput" min="1.5" max="15.0" step="0.1" value="4.5" onchange="window.actualizarVelocidadCruceroManual(this.value)" class="w-24 h-10 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:ring-2 focus:ring-sky-500 font-mono text-center ps-tabular">
+                            <button type="button" id="btnAutoCalibrarRitmo" onclick="window.autoCalibrarRitmoDesdeRutas()" class="flex-1 h-10 px-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1 cursor-pointer">
+                                <span>⚡</span> <span>Auto-calibrar con mis rutas</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="userGearPhysicsNotice" class="text-[11px] text-slate-300 bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60 leading-relaxed">
+                    <!-- Renderizado dinámicamente con detalles de física -->
+                </div>
+            </div>
+
+            <!-- UNIFIED MARINE OMNIBAR (.ps-omnibar) -->
+            <div class="ps-omnibar w-full rounded-2xl p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-0">
+                <!-- 1. Ubicación / Spot -->
+                <div class="flex-1 flex items-center px-3 py-1 relative min-w-0">
+                    <span class="text-slate-400 mr-2 text-base shrink-0">📍</span>
+                    <input type="text" id="location" placeholder="Busca un spot (ej. Cala Blanca, Jávea)" onchange="if(this.value && typeof window.buscarYCentrarMapa === 'function') window.buscarYCentrarMapa(this.value)" class="w-full bg-transparent text-white placeholder-slate-400 text-sm font-semibold outline-none truncate" />
+                    <button type="button" id="btn-gps" onclick="obtenerUbicacion()" class="ml-2 flex items-center gap-1 text-[11px] font-bold text-sky-400 hover:text-sky-300 shrink-0 px-2 py-1 rounded-lg hover:bg-slate-800/60 transition-colors cursor-pointer" title="Detectar mi ubicación GPS">
+                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" /></svg>
+                        <span class="hidden sm:inline">GPS</span>
+                    </button>
+                </div>
+
+                <!-- Divisor -->
+                <div class="hidden lg:block w-px h-8 bg-slate-700/60 my-auto"></div>
+
+                <!-- Grupo selectores responsivos -->
+                <div class="grid grid-cols-3 gap-2 lg:flex lg:items-center lg:gap-0 shrink-0">
+                    <!-- 2. Fecha -->
+                    <div class="flex items-center px-2 py-1 lg:py-0 min-w-0 lg:min-w-[135px]">
+                        <span class="hidden sm:inline text-slate-400 mr-1.5 text-xs shrink-0">📅</span>
+                        <input type="date" id="date" class="w-full bg-slate-800/80 lg:bg-transparent border border-slate-700/80 lg:border-none rounded-xl lg:rounded-none px-2 py-1.5 lg:py-1 text-xs sm:text-sm font-semibold text-white outline-none" />
+                    </div>
+
+                    <!-- Divisor -->
+                    <div class="hidden lg:block w-px h-8 bg-slate-700/60 my-auto"></div>
+
+                    <!-- 3. Franja Horaria -->
+                    <div class="flex items-center px-2 py-1 lg:py-0 min-w-0 lg:min-w-[145px]">
+                        <span class="hidden sm:inline text-slate-400 mr-1.5 text-xs shrink-0">🕒</span>
+                        <select id="timeRange" class="w-full bg-slate-800/80 lg:bg-transparent border border-slate-700/80 lg:border-none rounded-xl lg:rounded-none px-2 py-1.5 lg:py-1 text-xs sm:text-sm font-semibold text-white outline-none cursor-pointer">
+                            <option value="">Franja...</option>
+                            <option value="Mañana (06:00 - 12:00)">🌅 Mañana (06-12h)</option>
+                            <option value="Tarde (12:00 - 18:00)">☀️ Tarde (12-18h)</option>
+                            <option value="Ocaso (18:00 - 21:00)">🌇 Ocaso (18-21h)</option>
+                        </select>
+                    </div>
+
+                    <!-- Divisor -->
+                    <div class="hidden lg:block w-px h-8 bg-slate-700/60 my-auto"></div>
+
+                    <!-- 4. Nivel del Usuario -->
+                    <div class="flex items-center px-2 py-1 lg:py-0 min-w-0 lg:min-w-[130px]">
+                        <span class="hidden sm:inline text-slate-400 mr-1.5 text-xs shrink-0">🏄</span>
+                        <select id="userLevel" class="w-full bg-slate-800/80 lg:bg-transparent border border-slate-700/80 lg:border-none rounded-xl lg:rounded-none px-2 py-1.5 lg:py-1 text-xs sm:text-sm font-semibold text-white outline-none cursor-pointer">
+                            <option value="">Nivel...</option>
+                            <option value="Principiante">🟢 Principiante</option>
+                            <option value="Intermedio">🟡 Intermedio</option>
+                            <option value="Avanzado">🔴 Avanzado</option>
+                            <option value="Competición">🏆 Competición</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 5. CTA Evaluar -->
+                <button type="button" id="btn-consultar" onclick="consultarBasico()" class="h-11 lg:h-12 px-5 bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-black rounded-xl shadow-lg hover:shadow-glow transition-all active:scale-95 flex justify-center items-center gap-2 text-xs sm:text-sm uppercase tracking-wider shrink-0 cursor-pointer lg:ml-2">
+                    <svg id="spinner" class="animate-spin hidden -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span id="btn-text">Evaluar Spot</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- RESPONSIVE SPLIT-SCREEN COCKPIT GRID (UI 5.0) -->
+        <div class="w-full lg:grid lg:grid-cols-12 lg:gap-5 lg:items-start p-3 sm:p-5">
+            <!-- LEFT TACTICAL COLUMN (lg:col-span-5 xl:col-span-5 space-y-4) -->
+            <div id="tab-basico" class="lg:col-span-5 xl:col-span-5 space-y-4 text-white">
+                <div id="global-alert-container" class="w-full flex flex-col gap-2" aria-live="assertive"></div>
+
+            <!-- BENTO WEATHER GRID: 4-COLUMN METRIC CARDS -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <!-- METRIC 1: VIENTO -->
+                <div class="ps-bento-card p-3.5 flex flex-col items-center justify-between text-center relative overflow-hidden">
+                    <div class="w-full flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-700/50 pb-1">
+                        <span>💨 Viento</span>
+                        <span id="basicWindGust" class="hidden text-[9px] font-bold text-amber-300 bg-amber-500/20 px-1 py-0.5 rounded border border-amber-500/40 font-mono ps-tabular"></span>
+                    </div>
+                    <div class="my-2 flex flex-col items-center">
+                        <span id="basicWindSpeed" class="text-2xl sm:text-3xl font-black text-white ps-tabular drop-shadow">--</span>
+                        <div id="basicWindDir" class="text-xs text-sky-400 font-bold mt-0.5 flex items-center gap-1">--</div>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                        <div id="basicWindBar" class="bg-gradient-to-r from-emerald-500 via-sky-500 to-rose-500 h-full w-0 transition-all duration-500"></div>
+                    </div>
+                </div>
+
+                <!-- METRIC 2: OLEAJE & PERIODO -->
+                <div class="ps-bento-card p-3.5 flex flex-col items-center justify-between text-center relative overflow-hidden">
+                    <div class="w-full flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-700/50 pb-1">
+                        <span>🌊 Oleaje</span>
+                        <span id="basicWaveBadge" class="text-[9px] font-bold text-sky-300 bg-sky-500/20 px-1 py-0.5 rounded border border-sky-500/40">Swell</span>
+                    </div>
+                    <div class="my-2 flex flex-col items-center">
+                        <span id="basicWave" class="text-2xl sm:text-3xl font-black text-white ps-tabular drop-shadow">--</span>
+                        <div id="basicWaveSub" class="text-xs text-sky-400 font-bold mt-0.5 flex flex-col items-center gap-0.5">
+                            <span id="basicWaveHeightLabel" class="text-[10px] text-slate-400">Altura M.</span>
+                            <span id="basicWavePeriod" class="text-[10px] text-teal-300 font-mono font-bold ps-tabular"></span>
+                        </div>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                        <div id="basicWaveBar" class="bg-gradient-to-r from-teal-500 via-sky-500 to-indigo-500 h-full w-0 transition-all duration-500"></div>
+                    </div>
+                </div>
+
+                <!-- METRIC 3: SOLAR & PRECIPITACIÓN -->
+                <div class="ps-bento-card p-3.5 flex flex-col items-center justify-between text-center relative overflow-hidden">
+                    <div class="w-full flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-700/50 pb-1">
+                        <span>☀️ Sol / Lluvia</span>
+                        <span id="basicSolarPill" class="text-[9px] font-bold text-amber-300">Día</span>
+                    </div>
+                    <div class="my-2 flex flex-col items-center">
+                        <span id="basicPrecip" class="text-2xl sm:text-3xl font-black text-white ps-tabular drop-shadow">--</span>
+                        <span id="basicPrecipProb" class="text-xs text-sky-400 font-bold mt-0.5 ps-tabular">Prob: --</span>
+                    </div>
+                    <div class="w-full text-[9px] text-slate-400 truncate text-center" id="basicSolarTimes">
+                        🌅 --:-- · 🌇 --:--
+                    </div>
+                </div>
+
+                <!-- METRIC 4: DERIVA & ORIENTACIÓN -->
+                <div class="ps-bento-card p-3.5 flex flex-col items-center justify-between text-center relative overflow-hidden">
+                    <div class="w-full flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-700/50 pb-1">
+                        <span>🧭 Deriva</span>
+                        <span id="basicCostalBadge" class="text-[9px] font-bold text-emerald-300 bg-emerald-500/20 px-1 py-0.5 rounded border border-emerald-500/40">Costa</span>
+                    </div>
+                    <div class="my-2 flex flex-col items-center">
+                        <span id="basicDriftScore" class="text-2xl sm:text-3xl font-black text-white ps-tabular drop-shadow">--</span>
+                        <span id="basicDriftText" class="text-xs text-emerald-400 font-bold mt-0.5 truncate max-w-[120px]">Índice Deriva</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                        <div id="basicDriftBar" class="bg-gradient-to-r from-emerald-500 to-rose-500 h-full w-0 transition-all duration-500"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RESULTADO TEXTUAL / CONSOLA RESUMEN -->
+            <div id="resultado" class="text-xs font-mono text-slate-300 bg-slate-950/60 p-4 rounded-2xl border border-slate-800 whitespace-pre-wrap leading-relaxed min-h-[60px]">Completa los datos arriba para ver el reporte básico.</div>
+
+            <!-- Reportes en Vivo del Spot (Waze for SUP) -->
+            <div id="spotLiveReportsContainer" class="hidden p-3.5 bg-gradient-to-r from-amber-950/70 via-slate-900 to-amber-950/70 border border-amber-500/40 rounded-2xl text-xs text-amber-200 flex flex-col gap-2 shadow-lg"></div>
+
+            <!-- HERO VERDICT HEADER & RESUMEN EXPERTO -->
+            <section id="basicExpertSummary" class="hidden rounded-2xl border border-slate-700/80 bg-slate-900/95 p-4 sm:p-5 flex flex-col gap-3 text-white shadow-xl" aria-live="polite">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-3">
+                        <div id="basicVerdictScoreBadge" class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/30 border border-emerald-500/50 flex flex-col items-center justify-center shrink-0 shadow-inner">
+                            <span id="basicScoreNumber" class="text-base font-black text-emerald-300 ps-tabular">--</span>
+                            <span class="text-[8px] font-bold text-emerald-400 uppercase tracking-tighter">Score</span>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 class="text-xs font-black uppercase tracking-wider text-slate-400">Resumen Experto</h3>
+                                <div id="basicLevel" class="text-xs sm:text-sm font-black text-white px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700">Esperando...</div>
+                                <span id="basicOrientationPill" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">Offshore</span>
+                            </div>
+                            <p id="basicConfidence" class="text-[11px] font-bold text-slate-400 mt-0.5">Confianza del análisis: --%</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" id="btnReportarEstadoSpot" onclick="window.abrirModalReporteSpot()" class="ps-chip text-amber-300 border-amber-500/40 bg-amber-500/15 hover:bg-amber-500/25 active:scale-95" title="Reportar condiciones reales en este spot">
+                            <span>📣</span> <span>Reportar Estado</span>
+                        </button>
+                        <button type="button" onclick="abrirSpotActualEnPlanificadorPro()" class="ps-chip text-emerald-300 border-emerald-500/40 bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95" title="Abrir en Planificador Pro">
+                            <span>🧭</span> <span>Trazar Ruta Pro</span>
+                        </button>
+                    </div>
+                </div>
+                <p id="basicExpertMessage" class="text-sm leading-relaxed text-slate-200"></p>
+                <p id="basicExpertDrift" class="text-xs leading-relaxed text-slate-400"></p>
+                <ul id="basicExpertInsights" class="list-disc list-inside space-y-1 text-xs leading-relaxed text-slate-300"></ul>
+            </section>
+            
+            <!-- Coach - Resumen Básico -->
+            <div id="basicCoachContainer" class="hidden p-4 bg-gradient-to-br from-slate-900 to-slate-950 rounded-2xl border border-emerald-500/30 text-white shadow-lg transition-all duration-300"></div>
+
+            
+            <!-- SEGMENTED SUB-VIEW SWITCHER (UI 5.0) -->
+            <div id="spotSubViewSwitcher" class="flex items-center justify-between gap-1 p-1 bg-slate-800/80 backdrop-blur-md rounded-xl border border-slate-700/60 text-xs font-bold w-full">
+                <button type="button" data-subview="todas" onclick="window.cambiarSubVistaSpot('todas')" class="ps-subview-tab ps-subview-tab-active flex-1 py-1.5 px-2 rounded-lg text-center transition-all cursor-pointer">
+                    <span>🌐</span> <span>Todas</span>
+                </button>
+                <button type="button" data-subview="meteo" onclick="window.cambiarSubVistaSpot('meteo')" class="ps-subview-tab flex-1 py-1.5 px-2 rounded-lg text-center transition-all cursor-pointer">
+                    <span>📊</span> <span>Meteo & Horas</span>
+                </button>
+                <button type="button" data-subview="inteligencia" onclick="window.cambiarSubVistaSpot('inteligencia')" class="ps-subview-tab flex-1 py-1.5 px-2 rounded-lg text-center transition-all cursor-pointer">
+                    <span>🧠</span> <span>Inteligencia</span>
+                </button>
+                <button type="button" data-subview="coach" onclick="window.cambiarSubVistaSpot('coach')" class="ps-subview-tab flex-1 py-1.5 px-2 rounded-lg text-center transition-all cursor-pointer">
+                    <span>🤖</span> <span>Coach IA</span>
+                </button>
+            </div>
+
+<!-- TIMELINE DIARIO COMPLETO Y COACH HORARIO DEL SPOT -->
+            <div id="fullDaySpotTimeline" class="hidden flex flex-col gap-3 rounded-2xl bg-slate-900 border border-slate-700/80 p-4 sm:p-5 text-white shadow-xl">
+                <!-- Encabezado del Spot -->
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">🏖️</span>
+                        <div>
+                            <h3 id="timelineSpotTitle" class="text-sm sm:text-base font-black text-white">Spot: --</h3>
+                            <p id="timelineSpotSubtitle" class="text-[11px] text-slate-400 font-medium">Evolución horaria completa de 06:00 a 21:00</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" id="btnTimelineAbrirPro" onclick="abrirSpotActualEnPlanificadorPro()" class="ps-chip text-emerald-300 border-emerald-500/40 bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95">
+                            <span>🗺️</span> <span>Abrir en Planificador Pro</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- (A) Banner Mejor Ventana Diaria -->
+                <div id="spotBestWindowBanner" class="w-full p-3.5 rounded-xl border border-emerald-500/40 bg-emerald-950/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                    <!-- Renderizado dinámicamente -->
+                </div>
+
+                <!-- (A2) Banner Mejores Ventanas 72h (Batch #19) -->
+                <div id="bestWindows72hBanner" class="hidden w-full flex flex-col gap-2 p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700/80 shadow-md">
+                    <!-- Renderizado dinámicamente -->
+                </div>
+
+                <!-- Indicador de hora activa seleccionada -->
+                <div id="timelineActiveHourBadge" class="hidden w-full px-3 py-2 rounded-xl bg-sky-950/80 border border-sky-500/50 text-sky-200 text-xs font-bold flex items-center justify-between gap-2">
+                    <span id="timelineActiveHourText">🕒 Viendo pronóstico y Coach para las --:--</span>
+                    <span class="text-[10px] text-sky-400 uppercase tracking-wider font-mono">Toca otra hora para cambiar</span>
+                </div>
+
+                <!-- (B) Tira Horaria Interactiva (06:00 - 21:00) -->
+                <div class="w-full flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between text-[11px] font-bold text-slate-400 px-1">
+                        <span>EVOLUCIÓN HORARIA (06:00 - 21:00)</span>
+                        <span class="text-sky-400 text-[10px]">Toca una hora para ver su Coach</span>
+                    </div>
+                    <div id="spotHourlyMatrix" class="ps-scroll-snap flex gap-2.5 pb-2 pt-1">
+                        <!-- Cards horarias renderizadas dinámicamente -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- BENTO SPOT INTELLIGENCE & CONDITIONS LOGBOOK (BATCH #17) -->
+            <section id="spotIntelligenceBento" class="ps-bento-card p-4 sm:p-5 text-white hidden flex-col gap-3.5 shadow-xl">
+                <!-- 1. Header Bar -->
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/60 pb-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-2xl shrink-0">🧠</span>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 id="spotIntelTitle" class="text-sm sm:text-base font-black text-white">Spot Intelligence: --</h3>
+                                <span id="spotIntelOrientation" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">🌊 Mar hacia --°</span>
+                            </div>
+                            <div id="spotIntelStatsPills" class="flex items-center gap-2 mt-1 text-[11px] text-slate-300 font-medium flex-wrap">
+                                <span class="ps-chip text-slate-300">🏄 0 sesiones tuyas aquí</span>
+                                <span class="ps-chip text-slate-300">📏 0.0 km</span>
+                                <span class="ps-chip text-slate-300">⚡ PR: --</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" id="btnAbrirFormBitacoraSpot" onclick="window.toggleFormBitacoraSpot()" class="ps-chip text-sky-300 border-sky-500/40 bg-sky-500/15 hover:bg-sky-500/25 active:scale-95 cursor-pointer" title="Añadir reporte de sensaciones y sesgo del viento">
+                            <span>📓</span> <span>+ Entrada Bitácora</span>
+                        </button>
+                        <button type="button" id="btnEditarNotasSpot" onclick="window.abrirModalNotasTacticasSpot()" class="ps-chip text-amber-300 border-amber-500/40 bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 cursor-pointer" title="Ver o editar notas tácticas y acceso al agua">
+                            <span>📝</span> <span>Notas del Spot</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Smart Match Banner -->
+                <div id="spotSmartMatchBanner" class="hidden w-full p-3.5 rounded-xl border border-teal-500/40 bg-gradient-to-r from-teal-950/80 to-slate-900/90 text-xs flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+                    <!-- Renderizado dinámicamente con sesión pasada casi idéntica o sesgo térmico -->
+                </div>
+
+                <!-- 3. 3-Column Tactical Rose Pills & Local Hazards -->
+                <div id="spotTacticalRoseGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <!-- Abrigo -->
+                    <div id="spotRumboAbrigoCard" class="bg-slate-900/80 border border-emerald-500/30 rounded-xl p-3 flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-emerald-400 mb-1">
+                            <span>🟢 Vientos de Abrigo</span>
+                            <span id="spotRumboAbrigoCardinal" class="font-mono bg-emerald-950/80 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/40">--</span>
+                        </div>
+                        <p id="spotRumboAbrigoDesc" class="text-xs text-slate-300 leading-snug">Viento de tierra suave. Agua plana cerca de orilla.</p>
+                    </div>
+                    <!-- Cross / Side -->
+                    <div id="spotRumboCrossCard" class="bg-slate-900/80 border border-amber-500/30 rounded-xl p-3 flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-amber-400 mb-1">
+                            <span>🟡 Rumbos Laterales</span>
+                            <span id="spotRumboCrossCardinal" class="font-mono bg-amber-950/80 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/40">--</span>
+                        </div>
+                        <p id="spotRumboCrossDesc" class="text-xs text-slate-300 leading-snug">Viento paralelo a la orilla. Ideal travesías costeras.</p>
+                    </div>
+                    <!-- Crítico -->
+                    <div id="spotRumboCriticoCard" class="bg-slate-900/80 border border-rose-500/30 rounded-xl p-3 flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-rose-400 mb-1">
+                            <span>🔴 Rumbos de Precaución</span>
+                            <span id="spotRumboCriticoCardinal" class="font-mono bg-rose-950/80 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/40">--</span>
+                        </div>
+                        <p id="spotRumboCriticoDesc" class="text-xs text-slate-300 leading-snug">Mar directo (shorebreak) o tierra fuerte (deriva).</p>
+                    </div>
+                </div>
+
+                <!-- Notas y Peligros Locales si existen -->
+                <div id="spotNotasTacticasContainer" class="hidden text-xs bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 flex-col gap-1.5 text-slate-200"></div>
+
+                <!-- 4. Quick Entry Form (Collapsible) -->
+                <div id="spotLogbookFormPanel" class="hidden p-3.5 bg-slate-900/95 rounded-xl border border-sky-500/40 flex-col gap-3 shadow-lg">
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                        <span class="text-xs font-black uppercase tracking-wider text-sky-300 flex items-center gap-1.5">
+                            <span>📓</span> Nueva Entrada en Bitácora del Spot
+                        </span>
+                        <button type="button" onclick="window.toggleFormBitacoraSpot(false)" class="ps-modal-close-btn !w-7 !h-7 !text-xs cursor-pointer" title="Cerrar">✕</button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Comportamiento Real del Viento (Sesgo Térmico)</label>
+                            <div class="flex items-center gap-1.5 flex-wrap" id="spotBiasSelectorGroup">
+                                <button type="button" data-bias="exacto" onclick="window.seleccionarBiasLogbook('exacto')" class="ps-chip ps-chip-active text-[11px] font-bold cursor-pointer">🎯 Exacto</button>
+                                <button type="button" data-bias="mas_viento" onclick="window.seleccionarBiasLogbook('mas_viento')" class="ps-chip text-[11px] font-bold cursor-pointer">💨 +Térmico</button>
+                                <button type="button" data-bias="menos_viento" onclick="window.seleccionarBiasLogbook('menos_viento')" class="ps-chip text-[11px] font-bold cursor-pointer">🌊 +Calmado</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Sensación General / Rating del Spot</label>
+                            <div class="flex items-center gap-1" id="spotRatingStarsGroup">
+                                <button type="button" onclick="window.setLogbookRating(1)" class="text-lg hover:scale-125 active:scale-95 transition-all cursor-pointer p-0.5 select-none focus:outline-none">⭐</button>
+                                <button type="button" onclick="window.setLogbookRating(2)" class="text-lg hover:scale-125 active:scale-95 transition-all cursor-pointer p-0.5 select-none focus:outline-none">⭐</button>
+                                <button type="button" onclick="window.setLogbookRating(3)" class="text-lg hover:scale-125 active:scale-95 transition-all cursor-pointer p-0.5 select-none focus:outline-none">⭐</button>
+                                <button type="button" onclick="window.setLogbookRating(4)" class="text-lg hover:scale-125 active:scale-95 transition-all cursor-pointer p-0.5 select-none focus:outline-none">⭐</button>
+                                <button type="button" onclick="window.setLogbookRating(5)" class="text-lg hover:scale-125 active:scale-95 transition-all cursor-pointer p-0.5 select-none focus:outline-none">⭐</button>
+                                <span id="spotLogbookRatingLabel" class="text-xs font-bold text-amber-300 ml-2 ps-tabular">5/5</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="inputNotaBitacoraSpot" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nota Táctica / Estado del Mar / Entrada al agua</label>
+                        <input type="text" id="inputNotaBitacoraSpot" placeholder="Ej. Rompiente baja a las 11h, fondo de arena sin piedras, térmico entró del SE a las 13h." class="w-full h-10 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="window.toggleFormBitacoraSpot(false)" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer">Cancelar</button>
+                        <button type="button" id="btnGuardarLogbookSpot" onclick="window.guardarEntradaBitacoraSpot()" class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-black shadow-md active:scale-95 cursor-pointer">Guardar en Bitácora</button>
+                    </div>
+                </div>
+
+                <!-- 5. Logbook Feed -->
+                <div id="spotLogbookFeedSection" class="flex flex-col gap-2 pt-2 border-t border-slate-800/80">
+                    <div class="flex items-center justify-between text-[11px] font-bold text-slate-400 px-0.5">
+                        <span>BITÁCORA HISTÓRICA DEL SPOT</span>
+                        <span id="spotLogbookCountBadge" class="text-sky-400 text-[10px] ps-tabular">0 entradas</span>
+                    </div>
+                    <div id="spotLogbookList" class="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+                        <!-- Entradas renderizadas dinámicamente -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- MODAL DE NOTAS TÁCTICAS DEL SPOT -->
+            <div id="modalNotasTacticasSpot" class="fixed inset-0 z-[1200] ps-modal-backdrop hidden items-center justify-center p-3 sm:p-4">
+                <div class="ps-bento-card bg-slate-900 border border-slate-700/80 w-full max-w-lg p-5 rounded-2xl shadow-2xl flex flex-col gap-4 text-white">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="text-2xl shrink-0">📝</span>
+                            <div>
+                                <h3 class="text-sm sm:text-base font-black text-white flex items-center gap-2">Notas Tácticas y Acceso al Spot</h3>
+                                <p class="text-[10px] text-slate-400 font-semibold">Consejos de seguridad, rampas de arena y peligros locales</p>
+                            </div>
+                        </div>
+                        <button type="button" aria-label="Cerrar notas" onclick="window.cerrarModalNotasTacticasSpot()" class="ps-modal-close-btn" title="Cerrar">✕</button>
+                    </div>
+                    <div class="flex flex-col gap-3 text-xs">
+                        <div>
+                            <label for="inputSpotNotasTacticas" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Notas Tácticas / Consejos de Navegación</label>
+                            <textarea id="inputSpotNotasTacticas" rows="3" placeholder="Ej. Con viento de tierra salir por la orilla norte detrás del espigón..." class="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-sky-500"></textarea>
+                        </div>
+                        <div>
+                            <label for="inputSpotAccesoParking" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Acceso, Parking y Entrada al Agua</label>
+                            <input type="text" id="inputSpotAccesoParking" placeholder="Ej. Parking gratuito a 50m, acceso por rampa de arena suave..." class="w-full h-10 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div>
+                            <label for="inputSpotPeligrosLocales" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Peligros Locales / Fondos Rocosos / Corrientes</label>
+                            <input type="text" id="inputSpotPeligrosLocales" placeholder="Ej. Rocas sumergidas a la derecha de la cala con marea baja..." class="w-full h-10 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-rose-500">
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                        <button type="button" onclick="window.cerrarModalNotasTacticasSpot()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer transition-colors">Cerrar</button>
+                        <button type="button" onclick="window.confirmarGuardarNotasTacticas()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-md active:scale-95 cursor-pointer transition-transform">Guardar Notas</button>
+                    </div>
+                </div>
+            </div>
+            </div>
+
+            <!-- RIGHT INTERACTIVE MAP & PRO ROUTE COLUMN (lg:col-span-7 xl:col-span-7 lg:sticky lg:top-6 space-y-4) -->
+            <!-- ========================================== -->
+        <!-- VERSIÓN PRO: MAPA AMPLIADO Y COPILOTO (TAB-PRO) -->
+        <!-- ========================================== -->
+        <div id="tab-pro" class="bg-premium lg:bg-transparent border-t lg:border-t-0 border-slate-800 p-4 sm:p-6 lg:p-0 flex flex-col flex-1 lg:col-span-7 xl:col-span-7 lg:sticky lg:top-6 space-y-4">
+            <button type="button" id="btnPro" onclick="togglePanelPro()" class="lg:hidden relative z-10 w-full min-h-[52px] bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black px-5 rounded-xl shadow-lg hover:shadow-glow-pro transition-all flex justify-between items-center group cursor-pointer mb-2">
+                <span class="flex items-center gap-2 sm:text-lg"><span>✨</span> Copiloto Inteligente Pro</span>
+                <svg id="btnProIcon" class="transition-transform duration-300 text-white/70 group-hover:text-white" viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.5" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+
+            <div id="panelPro" class="grid transition-all duration-300 ease-in-out w-full lg:!grid-rows-[1fr]" style="grid-template-rows: 0fr;">
+                <div class="overflow-hidden min-h-0 w-full">
+                    <div class="pt-5 flex flex-col gap-5 w-full">
+                        
+                        <!-- MAPA INTERACTIVO PRO -->
+                        <div class="flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-slate-700 bg-slate-800 relative w-full">
+                            <div class="bg-slate-900 p-4 flex flex-col gap-3 border-b border-slate-700 w-full">
+                                <div class="flex flex-col sm:flex-row justify-between items-center gap-3 w-full">
+                                    <div class="flex w-full sm:w-auto gap-2 flex-wrap">
+                                        <button type="button" id="btnTravesia" onclick="toggleModoTravesia()" class="flex-1 sm:w-auto bg-teal-500 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-md hover:bg-teal-400 active:scale-95 transition-colors cursor-pointer">🗺️ Trazar (A ➔ B)</button>
+                                        <button type="button" id="btnRutaLibre" onclick="toggleRutaLibre()" class="flex-1 sm:w-auto bg-teal-600 text-white h-11 px-3 rounded-xl text-sm font-bold shadow-sm hover:bg-teal-500 active:scale-95 transition-colors cursor-pointer">✍️ Multipunto</button>
+                                        <button type="button" id="btnQuedadaClub" onclick="iniciarCreacionQuedadaClub()" class="flex-1 sm:w-auto bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white h-11 px-3.5 rounded-xl text-xs sm:text-sm font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer">⛵ Quedada Club</button>
+                                        <button type="button" id="btnDescargarMapaOffline" onclick="descargarZonaMapaOffline()" class="flex-1 sm:w-auto bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 h-11 px-3 rounded-xl text-xs sm:text-sm font-bold shadow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer">📥 Mapa Offline</button>
+                                        <button type="button" id="btnExportarGpxPro" onclick="exportarRutaPlanificadaGPX()" class="flex-1 sm:w-auto bg-emerald-700 hover:bg-emerald-600 text-emerald-100 border border-emerald-500/30 h-11 px-3 rounded-xl text-xs sm:text-sm font-bold shadow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer">📲 GPX</button>
+                                        <button type="button" id="btnImportarGpxPro" onclick="document.getElementById('inputImportarGpxPro')?.click()" class="flex-1 sm:w-auto bg-sky-800 hover:bg-sky-700 text-sky-100 border border-sky-500/30 h-11 px-3 rounded-xl text-xs sm:text-sm font-bold shadow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer">📥 Importar GPX</button>
+                                        <button type="button" id="btnProMisSpots" onclick="document.getElementById('savedSpotsBar')?.scrollIntoView({behavior:'smooth'})" class="flex-1 sm:w-auto bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 h-11 px-3 rounded-xl text-xs sm:text-sm font-bold shadow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer">⭐ Mis Spots</button>
+                                        <button type="button" id="btnProGear" onclick="window.toggleSelectorEquipoUsuario(true)" class="flex-1 sm:w-auto bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 h-11 px-3 rounded-xl text-xs sm:text-sm font-bold shadow-sm active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer">🏄 Mi Tabla</button>
+                                    </div>
+                                    <button type="button" id="btnIniciarLive" onclick="iniciarTravesia()" class="w-full sm:w-auto bg-emerald-500 text-slate-900 h-11 px-5 rounded-xl text-sm font-black shadow hover:bg-emerald-400 active:scale-95 transition-colors cursor-pointer">🔴 Live GPS</button>
+                                </div>
+                                <div id="mapMsg" class="text-xs font-bold text-white bg-teal-600 h-10 px-4 rounded-xl border border-teal-500 shadow-md flex items-center justify-center transition-colors">👆 Toca el mar para Punto Fijo o Traza Ruta Completa</div>
+                            </div>
+
+                            <div id="mapContainer" class="h-[460px] lg:h-[640px] w-full relative z-0 bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-700/80">
+                                <input type="file" id="inputImportarGpxPro" accept=".gpx" class="hidden" onchange="window.importarRutaGPXPro ? window.importarRutaGPXPro(event) : null">
+
+                                <div id="leyendaMapa" class="absolute top-4 right-4 z-[400] bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl p-3 shadow-2xl text-[10px] sm:text-xs pointer-events-none hidden flex-col gap-1.5 w-[140px]">
+                                    <p class="font-black text-slate-300 border-b border-slate-700 pb-1 mb-1 uppercase tracking-widest text-center">Resistencia</p>
+                                    <div class="flex items-center gap-2"><span class="w-5 h-1 border-t-2 border-dashed border-emerald-500"></span><span class="text-white font-bold">A favor 🟢</span></div>
+                                    <div class="flex items-center gap-2"><span class="w-5 h-1 border-t-2 border-dashed border-yellow-500"></span><span class="text-white font-bold">Lateral 🟡</span></div>
+                                    <div class="flex items-center gap-2"><span class="w-5 h-1 border-t-2 border-dashed border-red-500"></span><span class="text-white font-bold">En contra 🔴</span></div>
+                                </div>
+                                
+                                <!-- BARRA SEGMENTADA MULTIPUNTO DESIGN SYSTEM 3.0 -->
+                                <div id="multipuntoToolbar" class="hidden absolute bottom-6 left-1/2 transform -translate-x-1/2 z-[400] ps-bento-card ps-map-dock p-1.5 gap-1.5 border border-slate-700/80 flex items-center shadow-2xl backdrop-blur-xl max-w-[95%] overflow-x-auto">
+                                    <!-- Grupo Ruta -->
+                                    <div class="flex items-center gap-1 shrink-0">
+                                        <button type="button" id="btnIdaYVueltaMultipunto" onclick="cerrarIdaYVueltaMultipunto()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-white bg-teal-600/80 hover:bg-teal-500 border-teal-500/40 shadow-sm shrink-0" title="Convertir ruta a ida y vuelta">
+                                            <span class="shrink-0">🔄</span> <span class="truncate">Ida y Vuelta</span>
+                                        </button>
+                                        <button type="button" onclick="deshacerUltimoPunto()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-slate-200 bg-slate-800/80 hover:bg-slate-700 border-slate-700 shrink-0" title="Deshacer último punto marcado">
+                                            <span class="shrink-0">↩️</span> <span class="truncate">Deshacer</span>
+                                        </button>
+                                        <button type="button" onclick="reiniciarRutaMultipunto()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-rose-300 bg-rose-950/50 hover:bg-rose-900/60 border-rose-500/30 shrink-0" title="Limpiar todo el trazado">
+                                            <span class="shrink-0">🗑️</span> <span class="truncate">Limpiar</span>
+                                        </button>
+                                    </div>
+
+                                    <!-- Divisor sutil -->
+                                    <div class="h-6 w-px bg-slate-700/80 mx-0.5 shrink-0"></div>
+
+                                    <!-- Grupo Táctico -->
+                                    <div class="flex items-center gap-1 shrink-0">
+                                        <button type="button" id="btnExportarGpxMultipunto" onclick="exportarRutaPlanificadaGPX()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-emerald-200 bg-emerald-800/60 hover:bg-emerald-700 border-emerald-500/40 shrink-0" title="Exportar ruta a archivo GPX">
+                                            <span class="shrink-0">📲</span> <span class="truncate">GPX</span>
+                                        </button>
+                                        <button type="button" onclick="document.getElementById('inputImportarGpxPro')?.click()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-sky-200 bg-sky-900/50 hover:bg-sky-800 border-sky-500/40 shrink-0" title="Importar trazado desde archivo GPX">
+                                            <span class="shrink-0">📥</span> <span class="truncate">Importar</span>
+                                        </button>
+                                        <button type="button" id="btnDescargarMapaOfflineMultipunto" onclick="descargarZonaMapaOffline()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-cyan-200 bg-slate-800/80 hover:bg-slate-700 border-cyan-500/30 shrink-0" title="Guardar mapa de la zona offline">
+                                            <span class="shrink-0">📥</span> <span class="truncate">Offline</span>
+                                        </button>
+                                        <button type="button" onclick="iniciarCreacionQuedadaClub()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-indigo-200 bg-indigo-900/50 hover:bg-indigo-800 border-indigo-500/40 shrink-0" title="Crear quedada con este recorrido">
+                                            <span class="shrink-0">⛵</span> <span class="truncate">Quedada</span>
+                                        </button>
+                                        <button type="button" onclick="document.getElementById('savedSpotsBar')?.scrollIntoView({behavior:'smooth'})" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-amber-200 bg-amber-900/40 hover:bg-amber-800 border-amber-500/30 shrink-0" title="Ir a mis spots favoritos">
+                                            <span class="shrink-0">⭐</span> <span class="truncate">Spots</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div id="panelQuedadaMap" class="hidden absolute top-3 left-3 right-3 sm:left-4 sm:right-auto sm:w-[340px] z-[450] bg-slate-900/95 backdrop-blur-md border border-indigo-500/50 rounded-2xl p-3 shadow-2xl text-white">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <h4 class="text-[11px] font-black uppercase tracking-wider text-water">⛵ Planificar quedada</h4>
+                                            <p id="quedadaIndicacionMapa" class="text-[10px] text-slate-300 mt-0.5">Toca el mapa para marcar el primer punto</p>
+                                        </div>
+                                        <button type="button" onclick="cancelarCreacionQuedadaClub()" aria-label="Cancelar quedada" class="shrink-0 w-10 h-10 text-slate-300 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer">✕</button>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-2 mt-2">
+                                        <div class="flex items-center gap-3 text-[10px] font-bold">
+                                            <span><span id="quedadaPuntosCount" class="text-water">0</span> <span id="quedadaPuntosLabel">puntos</span></span>
+                                            <span id="quedadaDistanciaKm" class="text-emerald-400">0.00 km</span>
+                                            <span id="quedadaTiempoMin" class="text-amber-400">0 min</span>
+                                        </div>
+                                        <button type="button" onclick="mostrarFormularioQuedada()" class="shrink-0 px-3 h-10 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wide rounded-xl transition-colors cursor-pointer">
+                                            Datos
+                                        </button>
+                                    </div>
+                                </div>
+
+                                
+                                <!-- FLOATING BASE LAYER SWITCHER (UI 5.0) -->
+                                <div id="mapLayerSwitcher" class="absolute top-3 right-3 z-[400] flex items-center p-1 bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-700/80 shadow-2xl text-[11px] font-bold">
+                                    <button type="button" data-map-layer="nautico" onclick="window.cambiarCapaBaseMapa('nautico')" class="ps-map-layer-pill px-2.5 py-1 rounded-lg transition-all cursor-pointer bg-sky-500/30 text-sky-300 border border-sky-400 font-bold" title="Carta náutica OpenSeaMap">
+                                        <span>🗺️</span> <span>Mapa</span>
+                                    </button>
+                                    <button type="button" data-map-layer="satelite" onclick="window.cambiarCapaBaseMapa('satelite')" class="ps-map-layer-pill px-2.5 py-1 rounded-lg transition-all cursor-pointer text-slate-300 border border-transparent hover:text-white font-medium" title="Fotografía satélite costera de alta resolución">
+                                        <span>🛰️</span> <span>Satélite</span>
+                                    </button>
+                                    <button type="button" data-map-layer="oscuro" onclick="window.cambiarCapaBaseMapa('oscuro')" class="ps-map-layer-pill px-2.5 py-1 rounded-lg transition-all cursor-pointer text-slate-300 border border-transparent hover:text-white font-medium" title="Modo táctico de alto contraste / radar">
+                                        <span>🌑</span> <span>Radar</span>
+                                    </button>
+                                </div>
+                                <div id="mapWindWaveHud" class="hidden absolute top-14 right-3 z-[400] bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 shadow-2xl text-white pointer-events-auto flex flex-col gap-1 min-w-[130px] max-w-[170px] transition-all">
+                                    <div class="flex items-center justify-between border-b border-slate-700/60 pb-1 text-[10px] font-bold text-slate-300">
+                                        <span class="flex items-center gap-1">🧭 <span id="hudPointName" class="truncate max-w-[75px]">Spot</span></span>
+                                        <span id="hudCostalBadge" class="px-1 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-300">Costa</span>
+                                    </div>
+                                    <div class="flex items-center justify-between text-xs font-bold">
+                                        <span class="flex items-center gap-1"><span id="hudWindArrow" class="inline-block transition-transform">💨</span> <span id="hudWindSpeed">-- kt</span></span>
+                                        <span id="hudWindGust" class="text-[10px] text-amber-400 font-mono"></span>
+                                    </div>
+                                    <div class="flex items-center justify-between text-[11px] text-slate-300">
+                                        <span id="hudWaveHeight">🌊 -- m</span>
+                                        <span id="hudWavePeriod" class="font-mono text-[10px] text-sky-400"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Garmin / Apple Watch Ultra Marine Telemetry HUD Cockpit (Batch #21) -->
+                                <div id="liveTrackingPanel" data-alias="liveTrackerPanel panelTravesia" class="hidden absolute top-3 left-3 right-3 z-[400] ps-live-hud rounded-2xl p-4 shadow-2xl text-white max-w-xl mx-auto"></div>
+                                <div id="liveTrackerPanel" class="hidden pointer-events-none" aria-hidden="true"></div>
+                                <div id="panelTravesia" class="hidden pointer-events-none" aria-hidden="true"></div>
+                                <span id="trackerDist" class="hidden" aria-hidden="true">0.00</span>
+                                <span id="trackerSpeed" class="hidden" aria-hidden="true">0.0</span>
+                                <span id="trackerTime" class="hidden" aria-hidden="true">00:00:00</span>
+                                <span id="liveRtlHud" class="hidden" aria-hidden="true">--° --</span>
+                                <div id="mapaInteractivo" class="w-full h-full min-h-[460px] lg:min-h-[640px] z-0 relative"></div>
+                            </div>
+                        </div>
+
+                        <section id="quedadaFormPanel" class="hidden scroll-mt-4 bg-slate-900 rounded-2xl border border-indigo-500/40 p-4 sm:p-5 shadow-xl text-white">
+                            <div class="flex items-start justify-between gap-3 mb-4">
+                                <div>
+                                    <h3 class="text-sm font-black uppercase tracking-wider text-water">Detalles de la quedada</h3>
+                                    <p class="text-xs text-slate-400 mt-1">Completa la información de la salida. La ruta se marca directamente en el mapa.</p>
+                                </div>
+                                <button type="button" onclick="volverAlMapaQuedada()" class="shrink-0 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white transition-colors">
+                                    Volver al mapa
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div class="sm:col-span-2">
+                                    <label for="quedadaClubSelect" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Club destinatario</label>
+                                    <select id="quedadaClubSelect" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white outline-none focus:ring-2 focus:ring-water"></select>
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label for="quedadaTituloInput" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Nombre de la travesía</label>
+                                    <input type="text" id="quedadaTituloInput" placeholder="Ej: Travesía a la Cueva del Lobo" maxlength="80" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-water placeholder:text-slate-500">
+                                </div>
+                                <div>
+                                    <label for="quedadaFechaInput" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Fecha (máx. 7 días)</label>
+                                    <input type="date" id="quedadaFechaInput" onchange="evaluarMeteoParaQuedada()" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white outline-none focus:ring-2 focus:ring-water">
+                                </div>
+                                <div>
+                                    <label for="quedadaHoraInput" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Hora de salida</label>
+                                    <input type="time" id="quedadaHoraInput" value="10:00" onchange="evaluarMeteoParaQuedada()" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white outline-none focus:ring-2 focus:ring-water">
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label for="quedadaDescInput" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Notas / material (opcional)</label>
+                                    <input type="text" id="quedadaDescInput" placeholder="Chaleco, agua, dificultad media..." maxlength="120" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-water placeholder:text-slate-500">
+                                </div>
+                                <div id="quedadaMeteoPreview" class="hidden sm:col-span-2"></div>
+                            </div>
+                            <div class="flex flex-col-reverse sm:flex-row gap-2 mt-4">
+                                <button type="button" onclick="deshacerUltimoPuntoQuedada()" class="sm:flex-1 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors">↩️ Deshacer punto</button>
+                                <button type="button" onclick="reiniciarPuntosQuedada()" class="sm:flex-1 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-400 font-bold text-xs transition-colors">🗑️ Limpiar ruta</button>
+                                <button type="button" id="btnGuardarQuedadaMap" onclick="guardarQuedadaDesdeMapa()" class="sm:flex-[2] px-5 rounded-xl bg-gradient-to-r from-water to-sky-600 hover:from-sky-500 hover:to-sky-700 text-white font-black text-xs uppercase tracking-wider shadow-md active:scale-95 transition-all">
+                                    🚀 Publicar quedada
+                                </button>
+                            </div>
+                        </section>
+
+                        <!-- PLANIFICADOR PRO -->
+                        <div id="proPlanificador" class="bg-slate-800 rounded-2xl p-5 shadow-lg border border-slate-700 flex flex-col gap-4">
+                            <h3 class="text-white font-black flex items-center gap-2 text-sm uppercase tracking-widest border-b border-slate-700 pb-2">
+                                🧭 Detalles de Exploración
+                            </h3>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div class="flex flex-col col-span-2 sm:col-span-1">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Coordenadas</label>
+                                    <input type="text" id="proLocation" readonly placeholder="Toca en el mapa" class="h-11 px-2 bg-slate-900 border border-slate-700 text-emerald-400 font-bold rounded-xl text-xs outline-none cursor-not-allowed">
+                                </div>
+                                <div class="flex flex-col">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Fecha</label>
+                                    <input type="date" id="proDate" class="h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors">
+                                </div>
+                                <div class="flex flex-col">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Hora Salida</label>
+                                    <input type="time" id="proTime" class="h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors">
+                                </div>
+                                <div class="flex flex-col col-span-2 sm:col-span-1">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Tu Nivel</label>
+                                    <select id="proLevelOption" class="h-11 px-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:border-emerald-500 outline-none transition-colors">
+                                        <option value="Principiante">Principiante</option>
+                                        <option value="Intermedio" selected>Intermedio</option>
+                                        <option value="Avanzado">Avanzado</option>
+                                        <option value="Competición">Competición</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="proAlertContainer" class="hidden w-full"></div>
+                            <button type="button" onclick="consultarRutaPro()" id="btnCalcPro" class="w-full h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all text-xs flex justify-center items-center gap-2 mt-1 cursor-pointer">
+                                ✨ Procesar Análisis Pro
+                            </button>
+                        </div>
+
+                        <!-- DASHBOARD PREMIUM -->
+                        <div id="proDashboardResumen" class="bg-slate-900 rounded-2xl p-1 shadow-2xl border border-slate-700 hidden flex-col w-full">
+                            
+                            <!-- CONTENEDOR SUPERIOR DE ALERTAS OFICIALES AEMET / 112 CV -->
+                            <div id="proAlertTopContainer" class="w-full flex flex-col gap-2 p-4 pb-0 empty:hidden" aria-live="assertive"></div>
+                            
+                            <!-- BADGE DE EVOLUCIÓN HORARIA TÁCTICA DE LA RUTA (BATCH #19) -->
+                            <div id="proRouteWeatherEvolutionBadge" class="hidden mx-4 mt-3 p-3 rounded-xl border border-amber-500/60 bg-amber-950/80 text-amber-200 text-xs font-bold items-center gap-2 shadow-lg"></div>
+                            
+                            <div class="p-5 grid grid-cols-3 gap-2 sm:gap-4 text-center w-full border-b border-slate-800">
+                                <div class="bg-slate-800/80 rounded-xl p-3 flex flex-col items-center justify-center border border-slate-700/50">
+                                    <p class="text-2xl sm:text-3xl mb-1 drop-shadow-md" id="proIconoClima">☀️</p>
+                                    <p class="text-[9px] sm:text-[11px] text-slate-400 font-black tracking-widest uppercase truncate" id="proTextoClima">SOL</p>
+                                </div>
+                                <div class="bg-slate-800/80 rounded-xl p-3 flex flex-col items-center justify-center border border-slate-700/50">
+                                    <p class="text-xl font-black text-white mb-1 mt-1" id="proTempAmbiente">--°</p>
+                                    <p class="text-[9px] sm:text-[11px] text-slate-400 font-black tracking-widest uppercase">AIRE</p>
+                                </div>
+                                <div class="bg-slate-800/80 rounded-xl p-3 flex flex-col items-center justify-center border border-slate-700/50">
+                                    <p class="text-xl font-black text-sky-400 mb-1 mt-1" id="proTempAgua">--°</p>
+                                    <p class="text-[9px] sm:text-[11px] text-slate-400 font-black tracking-widest uppercase">AGUA</p>
+                                </div>
+                            </div>
+
+                            <div class="p-5 grid grid-cols-2 sm:grid-cols-5 gap-3 w-full border-b border-slate-800">
+                                <div class="bg-slate-800 rounded-xl py-3 px-2 flex flex-col items-center justify-center border border-slate-700/50 w-full relative overflow-hidden">
+                                    <div class="absolute top-0 right-0 w-1.5 h-full bg-red-500/20"></div>
+                                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-widest">Viento</p>
+                                    <p class="font-black text-lg text-white" id="proDashWind">--</p>
+                                    <p class="text-[9px] text-red-400 font-bold mt-0.5" id="proDashGusts">Rachas: --</p>
+                                </div>
+                                <div class="bg-slate-800 rounded-xl py-3 px-2 flex flex-col items-center justify-center border border-slate-700/50 w-full">
+                                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-widest">Dirección</p>
+                                    <div class="flex items-center gap-1.5 mt-1">
+                                        <div id="proDashDirIcon" class="wind-arrow text-emerald-400 drop-shadow">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M12 2.25a.75.75 0 0 1 .75.75v16.19l4.72-4.72a.75.75 0 1 1 1.06 1.06l-6 6a.75.75 0 0 1-1.06 0l-6-6a.75.75 0 1 1 1.06-1.06l4.72 4.72V3a.75.75 0 0 1 .75-.75Z" /></svg>
+                                        </div>
+                                        <span class="font-black text-lg text-white" id="proDashDirText">--°</span>
+                                    </div>
+                                </div>
+                                <div class="bg-slate-800 rounded-xl py-3 px-2 flex flex-col items-center justify-center border border-slate-700/50 w-full relative">
+                                    <div class="absolute top-0 left-0 w-1.5 h-full bg-sky-500/20"></div>
+                                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-widest">Ola</p>
+                                    <p class="font-black text-lg text-sky-400" id="proDashWave">--</p>
+                                    <p class="text-[9px] text-teal-400 font-bold mt-0.5" id="proDashWavePeriod">Periodo: -- s</p>
+                                </div>
+                                <div class="bg-slate-800 rounded-xl py-3 px-2 flex flex-col items-center justify-center border border-slate-700/50 w-full">
+                                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-widest">Lluvia</p>
+                                    <p class="font-black text-lg text-indigo-400" id="proDashPrecip">--%</p>
+                                    <p class="text-[9px] text-indigo-300 font-bold mt-0.5" id="proDashPrecipMM">-- mm</p>
+                                </div>
+                                <div class="bg-slate-800 rounded-xl py-3 px-2 flex flex-col items-center justify-center border border-slate-700/50 w-full sm:col-span-1 col-span-2">
+                                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-widest">Índice UV</p>
+                                    <p class="font-black text-lg text-amber-400 ps-tabular" id="proDashUV">--</p>
+                                    <p class="text-[9px] text-amber-200 font-bold mt-0.5" id="proDashUVText">--</p>
+                                </div>
+                            </div>
+
+                            <!-- GRAFICO INTERACTIVO DE PERFIL DE VIENTO Y VELOCIDAD DE REMADA (KOMOOT / WINDY) -->
+                            <div id="proRouteWindChartContainer" class="p-4 border-b border-slate-800 bg-slate-950/40 w-full hidden flex-col gap-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                        <span>📈</span> Perfil de Viento y Velocidad de Remada (Komoot / Windy)
+                                    </span>
+                                    <span class="text-[9px] text-slate-500 font-mono">Toca un tramo para centrar en el mapa</span>
+                                </div>
+                                <div id="proRouteWindChart" class="w-full overflow-hidden rounded-xl bg-slate-900/80 border border-slate-800/80 p-2"></div>
+                            </div>
+
+                            <!-- BIOMETRÍA Y CHECKLIST DE SEGURIDAD -->
+                            <div id="proBiometricsBar" class="p-3.5 border-b border-slate-800 bg-slate-950/60 w-full hidden flex-col gap-2"></div>
+
+                            <div class="p-5 border-b border-slate-800 bg-slate-900 w-full">
+                                <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-800 pb-1">Previsión Hora a Hora</h4>
+                                <div id="proDashHorasContainer" class="flex overflow-x-auto gap-3 pb-2 custom-scrollbar">
+                                    <p class="text-xs text-slate-500 font-mono py-2">Esperando datos horarios del backend...</p>
+                                </div>
+                            </div>
+
+                            <section id="proExpertSummary" class="hidden p-5 border-b border-slate-800 bg-slate-800/40 flex flex-col gap-3" aria-live="polite">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <h3 class="text-xs font-black uppercase tracking-wider text-slate-300">Resumen experto</h3>
+                                    <div id="proLevel" class="text-sm font-black text-center px-2">--</div>
+                                </div>
+                                <p id="proConfidence" class="text-xs font-bold text-slate-300">Confianza del análisis: --%</p>
+                                <p id="proExpertMessage" class="text-sm leading-relaxed text-slate-200"></p>
+                                <p id="proExpertDrift" class="text-xs leading-relaxed text-slate-300"></p>
+                                <ul id="proExpertInsights" class="list-disc list-inside space-y-1 text-xs leading-relaxed text-slate-300"></ul>
+                            </section>
+
+                            <div id="proContainerNavegacion" class="p-5 flex justify-between items-center w-full border-b border-slate-800 bg-slate-800/30">
+                                 <div class="text-left flex flex-col min-w-0 flex-1">
+                                     <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 truncate">Salida Estimada</span>
+                                     <span class="text-white font-black text-xl truncate" id="proSalidaHora">--:--</span>
+                                 </div>
+                                 <div class="flex flex-col items-center px-4">
+                                    <span class="text-[10px] font-bold text-teal-400 mb-1" id="proDistanciaTotal">-- km</span>
+                                    <div class="w-16 h-px bg-slate-600 relative">
+                                        <span class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-slate-400 text-xs">➔</span>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-slate-500 mt-1" id="proTiempoTotal">-- min</span>
+                                 </div>
+                                 <div class="text-right flex flex-col min-w-0 flex-1">
+                                     <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 truncate">Llegada Estimada</span>
+                                     <span class="text-emerald-400 font-black text-xl truncate" id="proLlegadaHora">--:--</span>
+                                 </div>
+                            </div>
+
+                            <!-- COACH PRO -->
+                            <div id="proCoachContainer" class="p-5 border-b border-slate-800 bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950 w-full flex flex-col gap-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm">
+                                            <span class="animate-pulse">✨</span> Coach
+                                        </span>
+                                        <span id="proCoachLevelBadge" class="text-[10px] font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-md border border-slate-700/60 uppercase">Nivel: Intermedio</span>
+                                    </div>
+                                    <div id="proCoachScoreBadge" class="text-xs font-black font-mono px-2.5 py-1 rounded-lg bg-emerald-950/60 text-emerald-300 border border-emerald-500/30">
+                                        Score: --
+                                    </div>
+                                </div>
+                                <div id="proCoachBody" class="flex flex-col gap-3 w-full">
+                                    <div class="bg-slate-800/70 rounded-xl p-3.5 border border-slate-700/60 flex items-center gap-3">
+                                        <span class="text-2xl">🧭</span>
+                                        <div class="flex-1">
+                                            <p class="text-xs text-emerald-400 font-bold">Coach Listo para Asesorarte</p>
+                                            <p class="text-[11px] text-slate-300 mt-0.5">Calculando dureza del recorrido, tramos con viento a favor y análisis orográfico de la zona...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-5 w-full bg-slate-900 rounded-b-xl">
+                                <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-800 pb-1" id="proTituloTramos">Análisis por Tramos</h4>
+                                <div id="proDashTramosContainer" class="flex flex-col gap-2 w-full mb-4"></div>
+                                <button type="button" onclick="volverPlanificadorPro()" class="w-full h-11 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs uppercase tracking-widest active:scale-95 transition-colors border border-slate-700 cursor-pointer">🔄 Modificar Ruta o Salida</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    </div>
+
+    <!-- MODALES JS -->
+
+    <!-- Modal de Autenticación / Perfil Propio -->
+    <div id="authModal" class="fixed inset-0 z-[100] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 dark:border-slate-800 max-h-[90vh] overflow-hidden">
+            <div class="sticky top-0 z-20 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border-b border-slate-100 dark:border-slate-800 p-4 sm:p-5 flex items-center justify-between gap-3 w-full">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <span class="text-2xl drop-shadow shrink-0">🏄</span>
+                    <div class="min-w-0">
+                        <h2 class="text-lg sm:text-xl font-black text-marine dark:text-white truncate">Tu Cuenta</h2>
+                        <p class="text-[10px] font-semibold text-slate-400 truncate">Gestiona tu sesión y perfil de paddler</p>
+                    </div>
+                </div>
+                <button type="button" aria-label="Cerrar perfil" onclick="cerrarModalAuth()" class="ps-modal-close-btn" title="Cerrar">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-5 custom-scrollbar w-full" id="authModalContent">
+                <!-- Se inyecta con JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Comunidad / Clubs -->
+    <div id="clubsModal" class="fixed inset-0 z-[100] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 dark:border-slate-800 max-h-[88vh] overflow-hidden">
+            <!-- Header Sticky Top Glass Bar -->
+            <div class="sticky top-0 z-20 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border-b border-slate-100 dark:border-slate-800 p-4 sm:p-5 flex flex-col gap-3 w-full">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="text-2xl drop-shadow shrink-0">🛡️</span>
+                        <div class="min-w-0">
+                            <h2 class="text-lg sm:text-xl font-black text-marine dark:text-white truncate">Comunidad y Clubes</h2>
+                            <p class="text-[10px] font-semibold text-slate-400 truncate">Encuentra tu equipo o compite en desafíos</p>
+                        </div>
+                    </div>
+                    <button type="button" aria-label="Cerrar comunidad" onclick="cerrarModalClubs()" class="ps-modal-close-btn" title="Cerrar">✕</button>
+                </div>
+                <!-- Tabs -->
+                <div class="flex justify-center gap-1 sm:gap-2 w-full">
+                    <button type="button" onclick="cambiarTabClubs('miclub')" id="tabMiClub" class="h-9 px-3 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-xl shadow flex-1 cursor-pointer transition-all">Mi Club</button>
+                    <button type="button" onclick="cambiarTabClubs('buscar_club')" id="tabBuscarClub" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-all">Clubes</button>
+                    <button type="button" onclick="cambiarTabClubs('paddlers')" id="tabPaddlers" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-all">Paddlers</button>
+                </div>
+            </div>
+            <div id="clubsContent" class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full"></div>
+            <div id="clubChallengesContainer" class="hidden"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Feed Social -->
+    <div id="socialFeedModal" class="fixed inset-0 z-[100] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 dark:border-slate-800 max-h-[88vh] overflow-hidden">
+            <!-- Header Sticky Top Glass Bar -->
+            <div class="sticky top-0 z-20 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border-b border-slate-100 dark:border-slate-800 p-4 sm:p-5 flex flex-col gap-3 w-full">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="text-2xl drop-shadow shrink-0">📡</span>
+                        <div class="min-w-0">
+                            <h2 class="text-lg sm:text-xl font-black text-marine dark:text-white truncate">Muro Social</h2>
+                            <p class="text-[10px] font-semibold text-slate-400 truncate">Actividad y travesías de la comunidad</p>
+                        </div>
+                    </div>
+                    <button type="button" aria-label="Cerrar feed" onclick="cerrarModalFeed()" class="ps-modal-close-btn" title="Cerrar">✕</button>
+                </div>
+                <!-- Tabs -->
+                <div class="flex justify-center gap-1 sm:gap-2 w-full">
+                    <button type="button" onclick="socialFeed.cambiarFiltro('global')" id="tabFeedGlobal" class="h-9 px-3 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-xl shadow flex-1 cursor-pointer transition-colors">Global</button>
+                    <button type="button" onclick="socialFeed.cambiarFiltro('mis_clubs')" id="tabFeedClubs" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors">Mis Clubes</button>
+                    <button type="button" onclick="socialFeed.cambiarFiltro('mis_amigos')" id="tabFeedAmigos" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors">Amigos</button>
+                </div>
+            </div>
+            <div id="feedContainerList" class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Ranking -->
+    <div id="rankingModal" class="fixed inset-0 z-[100] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 dark:border-slate-800 max-h-[88vh] overflow-hidden">
+            <!-- Header Sticky Top Glass Bar -->
+            <div class="sticky top-0 z-20 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border-b border-slate-100 dark:border-slate-800 p-4 pb-3 flex flex-col gap-2 w-full">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="text-2xl drop-shadow shrink-0">🏆</span>
+                        <div class="min-w-0">
+                            <h2 class="text-lg sm:text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-400 truncate">Top Paddlers</h2>
+                            <p class="text-[10px] font-semibold text-slate-400 truncate">Clasificación oficial, récords y desafíos</p>
+                        </div>
+                    </div>
+                    <button type="button" aria-label="Cerrar ranking" onclick="cerrarModalRanking()" class="ps-modal-close-btn" title="Cerrar">✕</button>
+                </div>
+                
+                <!-- Period Selector -->
+                <div class="flex justify-start sm:justify-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar w-full px-0.5">
+                    <button type="button" onclick="cargarTopPaddlers('diario')" id="tabRankDiario" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Hoy</button>
+                    <button type="button" onclick="cargarTopPaddlers('semanal')" id="tabRankSemanal" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Semana</button>
+                    <button type="button" onclick="cargarTopPaddlers('mensual')" id="tabRankMensual" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Mes</button>
+                    <button type="button" onclick="cargarTopPaddlers('anual')" id="tabRankAnual" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Año</button>
+                    <button type="button" onclick="cargarTopPaddlers('historico')" id="tabRankHistorico" class="h-8 px-2.5 bg-marine dark:bg-water text-white text-[10px] font-bold rounded-lg shadow flex-shrink-0 cursor-pointer transition-colors">Total</button>
+                    <button type="button" onclick="cargarTopPaddlers('clubes')" id="tabRankClubes" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-amber-600 dark:text-amber-400 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Clubes</button>
+                </div>
+
+                <!-- Scope Selector Strip (#rankingScopeTabs) -->
+                <div id="rankingScopeTabs" class="flex justify-start sm:justify-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar w-full px-0.5 border-t border-slate-100 dark:border-slate-800 pt-1.5">
+                    <button type="button" onclick="cambiarAmbitoRanking('global')" id="scopeRankGlobal" class="h-7 px-2.5 bg-marine dark:bg-water text-white text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer shadow-sm transition-colors">🌍 Global</button>
+                    <button type="button" onclick="cambiarAmbitoRanking('mi_club')" id="scopeRankMiClub" class="h-7 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">🛡️ Mi Club</button>
+                    <button type="button" onclick="cambiarAmbitoRanking('amigos')" id="scopeRankAmigos" class="h-7 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">🤝 Amigos</button>
+                    <button type="button" onclick="cambiarAmbitoRanking('liga_clubes')" id="scopeRankLigaClubes" class="h-7 px-2.5 bg-slate-100 dark:bg-slate-800 text-amber-600 hover:bg-amber-100 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">🏆 Liga de Clubes</button>
+                </div>
+
+                <!-- Category Selector Strip (#rankingCategoryTabs) -->
+                <div id="rankingCategoryTabs" class="flex justify-start sm:justify-center gap-1 overflow-x-auto pb-0.5 custom-scrollbar w-full px-0.5">
+                    <button type="button" onclick="cambiarCategoriaRanking('km_total')" id="catRankKmTotal" class="h-7 px-2 bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-700 text-[9px] font-black rounded-lg flex-shrink-0 cursor-pointer transition-colors">📏 Distancia Total</button>
+                    <button type="button" onclick="cambiarCategoriaRanking('max_route')" id="catRankMaxRoute" class="h-7 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 text-[9px] font-black rounded-lg flex-shrink-0 cursor-pointer transition-colors">🔱 Mayor Travesía</button>
+                    <button type="button" onclick="cambiarCategoriaRanking('best_speed')" id="catRankBestSpeed" class="h-7 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 text-[9px] font-black rounded-lg flex-shrink-0 cursor-pointer transition-colors">⚡ Velocidad Media</button>
+                    <button type="button" onclick="cambiarCategoriaRanking('xp_total')" id="catRankXpTotal" class="h-7 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 text-[9px] font-black rounded-lg flex-shrink-0 cursor-pointer transition-colors">🏅 XP / Nivel</button>
+                </div>
+            </div>
+
+            <!-- Scrollable Leaderboard Area -->
+            <div class="flex-1 overflow-y-auto p-4 custom-scrollbar w-full bg-slate-50 dark:bg-slate-900/50">
+                <div id="rankingClubChallengeBanner" class="w-full mb-3 hidden"></div>
+                <div id="rankingPodioContainer" class="w-full mb-3 empty:hidden"></div>
+                <div id="rankingLista" class="space-y-2 w-full"></div>
+            </div>
+
+            <!-- Sticky User Position Bar (#rankingMiPosicionBar) -->
+            <div id="rankingMiPosicionBar" class="p-3 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 w-full z-10 flex items-center justify-between text-xs"></div>
+        </div>
+    </div>
+
+    <!-- Modal Perfil Público SPA (/user/:id) -->
+    <div id="userProfileModal" class="fixed inset-0 z-[100] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 dark:border-slate-800 max-h-[88vh] overflow-hidden">
+            <!-- Header Sticky Top Glass Bar -->
+            <div class="sticky top-0 z-20 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border-b border-slate-100 dark:border-slate-800 p-4 sm:p-5 flex flex-col items-center text-center w-full relative">
+                <button type="button" aria-label="Cerrar perfil" onclick="goBackSPA()" class="absolute top-4 left-4 ps-modal-close-btn" title="Volver">
+                    <svg class="w-5 h-5 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <img id="spaAvatar" src="" class="w-20 h-20 rounded-full mx-auto mb-2 object-cover border-4 border-white dark:border-slate-800 shadow-md">
+                <h2 id="modalUserName" class="text-xl sm:text-2xl font-black text-marine dark:text-white mt-1">Cargando...</h2>
+                <p id="spaUserLevel" class="text-[10px] font-bold text-water uppercase tracking-widest mt-0.5 mb-2">Nivel --</p>
+                <div id="spaBtnContainer" class="flex justify-center items-center gap-2 mt-1 mb-3 empty:hidden"></div>
+                <div class="flex justify-center gap-1 sm:gap-2 w-full">
+                    <button type="button" onclick="cambiarTabPerfilSPA('insignias')" id="spaTabInsignias" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors">Insignias</button>
+                    <button type="button" onclick="cambiarTabPerfilSPA('rutas')" id="spaTabRutas" class="h-9 px-3 bg-marine dark:bg-water text-white shadow text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors">Rutas</button>
+                </div>
+            </div>
+            <div id="userProfileContent" class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full bg-slate-50 dark:bg-slate-900/60">
+                <div id="profileWeeklyChart" class="hidden"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Vista de Perfil de Club Público (clubProfileView) -->
+    <div id="clubProfileViewModal" class="fixed inset-0 z-[100] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 dark:border-slate-800 max-h-[88vh] overflow-hidden">
+            <!-- Cabecera del Club -->
+            <div class="sticky top-0 z-20 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border-b border-slate-100 dark:border-slate-800 p-6 pb-4 relative text-center w-full">
+                <button type="button" onclick="goBackSPA()" class="absolute top-4 left-4 ps-modal-close-btn" title="Volver">
+                    <svg class="w-5 h-5 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                
+                <img id="cpvLogo" src="https://via.placeholder.com/150" class="w-24 h-24 rounded-3xl mx-auto mb-3 object-cover border-4 border-white dark:border-slate-800 shadow-md bg-slate-50 dark:bg-slate-800">
+                <h2 id="cpvName" class="text-2xl sm:text-3xl font-black text-marine dark:text-white mt-1 truncate px-2">Cargando...</h2>
+                <p id="cpvStats" class="text-[10px] font-bold text-water uppercase tracking-widest mt-1 mb-2">Nivel -- • -- pts • -- Miembros</p>
+                
+                <p id="cpvDescription" class="text-xs text-slate-500 dark:text-slate-400 px-4 line-clamp-3 mb-4 leading-relaxed h-[3.5rem] flex items-center justify-center italic">Cargando descripción...</p>
+                
+                <!-- Botón de Unirse -->
+                <button id="cpvJoinBtn" class="w-full h-11 bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-bold rounded-xl shadow-md active:scale-95 transition-transform uppercase tracking-widest text-[11px] cursor-pointer">
+                    🌊 Unirse al club
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full bg-slate-50 dark:bg-slate-900/50">
+                <h3 class="text-[11px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+                    🧭 Rutas Registradas
+                </h3>
+                <div id="cpvRoutesContainer" class="space-y-3">
+                    <!-- JS inyecta rutas y vitrina pública aquí -->
+                </div>
+
+                <!-- TABS DEL PERFIL DEL CLUB -->
+                <div class="mt-4 w-full">
+                    <div class="flex justify-center gap-1 sm:gap-2 mb-4 overflow-x-auto pb-1 custom-scrollbar">
+                        <button type="button" onclick="cambiarTabClub('info')" id="cpvTabInfo" class="h-10 px-3 bg-marine text-white text-[11px] font-bold rounded-lg shadow flex-1 min-w-[70px] cursor-pointer">Info</button>
+                        <button type="button" onclick="cambiarTabClub('miembros')" id="cpvTabMiembros" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[75px] cursor-pointer">Miembros</button>
+                        <button type="button" onclick="cambiarTabClub('eventos')" id="cpvTabEventos" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[75px] cursor-pointer">Eventos</button>
+                        <button type="button" onclick="cambiarTabClub('rutas')" id="cpvTabRutas" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[70px] cursor-pointer">Rutas</button>
+                        <button type="button" onclick="cambiarTabClub('vitrina')" id="cpvTabVitrina" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[70px] cursor-pointer">Vitrina</button>
+                        <button type="button" onclick="cambiarTabClub('chat')" id="cpvTabChat" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[70px] cursor-pointer">Chat</button>
+                        <button type="button" onclick="cambiarTabClub('admin')" id="cpvTabAdmin" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[70px] cursor-pointer hidden">Admin</button>
+                        <button type="button" onclick="cambiarTabClub('solicitudes')" id="cpvTabSolicitudes" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[85px] cursor-pointer hidden">Solicitudes</button>
+                    </div>
+
+                    <!-- CONTENEDOR PRINCIPAL TABS -->
+                    <div id="cpvTabContentWrapper" class="w-full">
+                        <div id="cpvInfoContainer" class="space-y-3"></div>
+                        <div id="cpvMembersContainer" class="space-y-3 hidden"></div>
+                        <div id="cpvEventsContainer" class="space-y-3 hidden"></div>
+                        <div id="cpvRoutesContainerFull" class="space-y-3 hidden"></div>
+                        <div id="cpvShowcaseContainer" class="space-y-3 hidden"></div>
+                        <div id="cpvChatContainer" class="space-y-3 hidden"></div>
+                        <div id="cpvRolesContainer" class="space-y-3 hidden"></div>
+                        <div id="cpvAdminPanel" class="space-y-3 hidden"></div>
+                        <div id="cpvRequestsContainer" class="space-y-3 hidden"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- PANEL DE ADMINISTRACIÓN DE SOLICITUDES -->
+    <div id="clubAdminRequestsModal" class="fixed inset-0 z-[110] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 dark:border-slate-800 max-h-[88vh] overflow-hidden">
+            <div class="sticky top-0 z-20 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border-b border-slate-100 dark:border-slate-800 p-6 pb-4 relative text-center w-full">
+                <button type="button" onclick="cerrarPanelSolicitudes()" class="absolute top-4 left-4 ps-modal-close-btn" title="Cerrar">
+                    <svg class="w-5 h-5 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <div class="w-14 h-14 bg-indigo-50 dark:bg-indigo-950/60 rounded-2xl flex items-center justify-center mx-auto mb-2 shadow-inner border border-indigo-100 dark:border-indigo-800/60">
+                    <span class="text-2xl drop-shadow-sm">📋</span>
+                </div>
+                <h2 class="text-xl sm:text-2xl font-black text-marine dark:text-white mt-1 truncate px-2">Solicitudes</h2>
+                <p class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mt-0.5">Panel de Administración</p>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full bg-slate-50 dark:bg-slate-900/50">
+                <div id="adminRequestsContainer" class="space-y-3">
+                    <!-- JS inyectará solicitudes -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SISTEMA DE AMISTADES -->
+    <div id="friendSystemModal" class="fixed inset-0 z-[120] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 dark:border-slate-800 max-h-[88vh] overflow-hidden">
+            <div class="sticky top-0 z-20 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border-b border-slate-100 dark:border-slate-800 p-6 pb-4 relative text-center w-full">
+                <button type="button" onclick="cerrarPanelMisAmigos()" class="absolute top-4 left-4 ps-modal-close-btn" title="Cerrar">
+                    <svg class="w-5 h-5 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <div class="w-14 h-14 bg-sky-50 dark:bg-sky-950/60 rounded-2xl flex items-center justify-center mx-auto mb-2 shadow-inner border border-sky-100 dark:border-sky-800/60">
+                    <span class="text-2xl drop-shadow-sm">🤝</span>
+                </div>
+                <h2 class="text-xl sm:text-2xl font-black text-marine dark:text-white mt-1 truncate px-2">Amigos</h2>
+                
+                <div class="flex justify-center gap-1 sm:gap-2 w-full mt-3">
+                    <button type="button" onclick="cambiarTabAmistades('lista')" id="tabMisAmigos" class="h-9 px-3 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-xl shadow flex-1 cursor-pointer transition-colors">Mis Amigos</button>
+                    <button type="button" onclick="cambiarTabAmistades('solicitudes')" id="tabSolicitudesAmistad" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors relative">
+                        Solicitudes
+                        <span id="badgeSolicitudesAmistad" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-5 h-5 flex items-center justify-center rounded-full hidden border-2 border-white">0</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="friendSystemContent" class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full bg-slate-50 dark:bg-slate-900/50">
+                <!-- Se inyecta la lista o las solicitudes con JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DETALLE DE RUTA Y ENTRENADOR DEPORTIVO IA -->
+    <div id="rutaDetalleModal" class="fixed inset-0 z-[125] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] flex flex-col shadow-2xl relative transform scale-95 transition-transform duration-300 border border-slate-100 dark:border-slate-800 max-h-[88vh] overflow-hidden">
+            <div class="sticky top-0 z-20 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border-b border-slate-100 dark:border-slate-800 p-5 sm:p-6 pb-4 relative flex items-center justify-between">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 text-emerald-500 dark:text-emerald-400 flex items-center justify-center text-2xl border border-emerald-500/30 shadow-inner shrink-0">
+                        🧠
+                    </div>
+                    <div class="min-w-0">
+                        <h3 id="modalRutaTitulo" class="text-base sm:text-lg font-black text-marine dark:text-white truncate">Detalle de Ruta</h3>
+                        <p id="modalRutaFecha" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-0.5 truncate">--</p>
+                    </div>
+                </div>
+                <button type="button" aria-label="Cerrar detalles de ruta" onclick="cerrarModalDetallesRuta()" class="ps-modal-close-btn shrink-0" title="Cerrar">
+                    ✕
+                </button>
+            </div>
+            <div id="modalRutaContenido" class="flex-1 overflow-y-auto p-5 sm:p-6 custom-scrollbar space-y-5 text-left bg-slate-50/50 dark:bg-slate-900/50">
+                <!-- Se inyecta telemetría, splits y los 3 puntos de feedback de la IA -->
+            </div>
+        </div>
+    </div>
+
+    <!-- LIGHTBOX POSTER FINISHER FULLSCREEN -->
+    <div id="posterFinisherLightbox" class="fixed inset-0 z-[130] hidden bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div id="posterFinisherContent" class="relative max-w-xl w-full flex flex-col items-center gap-3"></div>
+    </div>
+
+    <!-- MODAL DE CONFIGURACIÓN RÁPIDA & PACKS DE CALAS (BATCH #19) -->
+    <div id="quickSetupModal" class="fixed inset-0 z-[140] hidden ps-modal-backdrop flex items-center justify-center p-4">
+        <div class="ps-bento-card bg-slate-900 border border-emerald-500/40 rounded-3xl p-5 sm:p-6 max-w-xl w-full shadow-2xl text-white flex flex-col gap-4 max-h-[90vh] overflow-y-auto custom-scrollbar animate-fadeIn">
+            <!-- Header -->
+            <div class="flex items-start justify-between border-b border-slate-800 pb-3 gap-2">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-2xl sm:text-3xl">✨</span>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-black text-white uppercase tracking-wider flex items-center gap-2">
+                            <span>Packs de Calas & Setup Rápido</span>
+                            <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">100% Free</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-400 font-medium">Configura tu tabla y carga los mejores spots en 1 tap</p>
+                    </div>
+                </div>
+                <button type="button" onclick="window.cerrarAsistenteConfiguracion(true)" aria-label="Cerrar asistente" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white font-bold cursor-pointer transition-colors">&times;</button>
+            </div>
+
+            <!-- Paso 1: Tipo de Tabla -->
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-black uppercase tracking-wider text-amber-300">1. Tu Tabla de Paddle Surf</span>
+                    <span class="text-[10px] text-slate-400">Calibra deriva y velocidad crucero</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2" id="quickSetupBoardsList">
+                    <button type="button" onclick="window.seleccionarTablaAsistente('inflat_allround')" data-board="inflat_allround" class="quick-board-btn text-left p-3 rounded-2xl border border-slate-700 bg-slate-800/80 hover:bg-slate-750 transition-all cursor-pointer flex flex-col gap-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">🏄</span>
+                            <span class="text-[10px] font-mono text-slate-400">3.8 km/h</span>
+                        </div>
+                        <span class="text-xs font-black text-white">All-Round 10'6"</span>
+                        <span class="text-[10px] text-slate-400 leading-tight">Paseo, recreo, iniciación. Deriva +20%.</span>
+                    </button>
+                    <button type="button" onclick="window.seleccionarTablaAsistente('rigid_touring')" data-board="rigid_touring" class="quick-board-btn text-left p-3 rounded-2xl border border-slate-700 bg-slate-800/80 hover:bg-slate-750 transition-all cursor-pointer flex flex-col gap-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">🛶</span>
+                            <span class="text-[10px] font-mono text-slate-400">5.2 km/h</span>
+                        </div>
+                        <span class="text-xs font-black text-white">Touring 12'6"–14'</span>
+                        <span class="text-[10px] text-slate-400 leading-tight">Travesía, velocidad constante, neutra.</span>
+                    </button>
+                    <button type="button" onclick="window.seleccionarTablaAsistente('rigid_race')" data-board="rigid_race" class="quick-board-btn text-left p-3 rounded-2xl border border-slate-700 bg-slate-800/80 hover:bg-slate-750 transition-all cursor-pointer flex flex-col gap-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">⚡</span>
+                            <span class="text-[10px] font-mono text-slate-400">6.0 km/h</span>
+                        </div>
+                        <span class="text-xs font-black text-white">Race 14'</span>
+                        <span class="text-[10px] text-slate-400 leading-tight">Competición, proa afilada, máxima inercia.</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Paso 2: Packs de Spots Costeros -->
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-black uppercase tracking-wider text-emerald-300">2. Carga un Pack Costero (1 Tap)</span>
+                    <span class="text-[10px] text-slate-400">Se añadirán a tus Spots Guardados</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div class="p-3 rounded-2xl border border-slate-700/80 bg-slate-800/60 flex flex-col justify-between gap-2.5">
+                        <div>
+                            <div class="flex items-center gap-1.5 text-xs font-black text-sky-300">
+                                <span>🌊</span> <span>Marina Alta</span>
+                            </div>
+                            <p class="text-[10px] text-slate-300 mt-0.5">Dénia, Jávea, Moraira (Granadella, Portitxol, El Portet...)</p>
+                        </div>
+                        <button type="button" onclick="window.cargarPackYFinalizarAsistente('costa_blanca_norte')" class="w-full py-2 bg-sky-600 hover:bg-sky-500 active:scale-95 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-md">
+                            + Cargar Marina Alta (5 Calas)
+                        </button>
+                    </div>
+                    <div class="p-3 rounded-2xl border border-slate-700/80 bg-slate-800/60 flex flex-col justify-between gap-2.5">
+                        <div>
+                            <div class="flex items-center gap-1.5 text-xs font-black text-amber-300">
+                                <span>☀️</span> <span>Alicante & Tabarca</span>
+                            </div>
+                            <p class="text-[10px] text-slate-300 mt-0.5">Campello, Coveta Fumà, Baños de la Reina, Tabarca</p>
+                        </div>
+                        <button type="button" onclick="window.cargarPackYFinalizarAsistente('alicante_campello')" class="w-full py-2 bg-amber-600 hover:bg-amber-500 active:scale-95 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-md">
+                            + Cargar Alicante (4 Spots)
+                        </button>
+                    </div>
+                    <div class="p-3 rounded-2xl border border-slate-700/80 bg-slate-800/60 flex flex-col justify-between gap-2.5">
+                        <div>
+                            <div class="flex items-center gap-1.5 text-xs font-black text-emerald-300">
+                                <span>🏖️</span> <span>Valencia · Cullera · Gandía</span>
+                            </div>
+                            <p class="text-[10px] text-slate-300 mt-0.5">Les Deveses, Faro Cullera, Puerto Gandía, Malvarrosa</p>
+                        </div>
+                        <button type="button" onclick="window.cargarPackYFinalizarAsistente('valencia_gandia')" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-md">
+                            + Cargar Valencia (4 Spots)
+                        </button>
+                    </div>
+                    <div class="p-3 rounded-2xl border border-slate-700/80 bg-slate-800/60 flex flex-col justify-between gap-2.5">
+                        <div>
+                            <div class="flex items-center gap-1.5 text-xs font-black text-purple-300">
+                                <span>🏝️</span> <span>Baleares & Costa Brava</span>
+                            </div>
+                            <p class="text-[10px] text-slate-300 mt-0.5">Cap de Formentor, Cala Galdana, Aiguablava Begur</p>
+                        </div>
+                        <button type="button" onclick="window.cargarPackYFinalizarAsistente('baleares_brava')" class="w-full py-2 bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-md">
+                            + Cargar Islas & Brava (3 Calas)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-between border-t border-slate-800 pt-3 gap-2">
+                <span class="text-[10px] text-slate-400">Podrás cambiar tu tabla o añadir más spots en cualquier momento.</span>
+                <button type="button" onclick="window.cerrarAsistenteConfiguracion(true)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase rounded-xl transition-all cursor-pointer shrink-0">
+                    Omitir por ahora
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SISTEMA DE ACTUALIZACIÓN AUTOMÁTICA (OTA)  -->
+    <!-- ========================================== -->
+    <script>
+        let _lastToggleProInline = 0;
+        window.togglePanelPro = window.togglePanelPro || function(forceState) {
+            const now = Date.now();
+            if (typeof forceState !== 'boolean' && (now - _lastToggleProInline < 300)) return;
+            _lastToggleProInline = now;
+
+            const p = document.getElementById("panelPro");
+            const icon = document.getElementById("btnProIcon");
+            if (!p) return;
+            const isOpen = p.style.gridTemplateRows === "1fr";
+            const next = typeof forceState === "boolean" ? forceState : !isOpen;
+            p.style.gridTemplateRows = next ? "1fr" : "0fr";
+            if (icon) {
+                if (next) icon.classList.add("rotate-180");
+                else icon.classList.remove("rotate-180");
+            }
+            if (next) {
+                setTimeout(() => {
+                    if (window.inicializarMapa) window.inicializarMapa();
+                    if (window.map) window.map.invalidateSize();
+                }, 150);
+                setTimeout(() => {
+                    if (window.map) window.map.invalidateSize();
+                }, 350);
+            }
+        };
+
+        (async function() {
+            const APP_FILES = ['/js/main.js']; 
+            const CACHE_REPAIR_KEY = 'paddlesafe_cache_repair_v1';
+            let appVersion = null;
+            let appRecoveryAttempted = false;
+            let cacheRepairPending = false;
+
+            async function limpiarCachesPaddleSafe() {
+                if ('caches' in window) {
+                    const cacheKeys = await caches.keys();
+                    await Promise.all(cacheKeys
+                        .filter(key => key.startsWith('paddlesafe-'))
+                        .map(key => caches.delete(key)));
+                }
+
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    const registroPaddleSafe = registrations.filter(registration =>
+                        [registration.active, registration.waiting, registration.installing]
+                            .filter(Boolean)
+                            .some(worker => {
+                                const workerUrl = new URL(worker.scriptURL);
+                                return workerUrl.origin === window.location.origin && workerUrl.pathname === '/sw.js';
+                            })
+                    );
+                    await Promise.all(registroPaddleSafe.map(registration => registration.unregister()));
+                }
+            }
+
+            function mostrarErrorCargaApp() {
+                if (document.getElementById('appLoadError')) return;
+                const panel = document.createElement('div');
+                panel.id = 'appLoadError';
+                panel.setAttribute('role', 'alert');
+                panel.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;background:#0f172a;color:#fff;font:16px/1.5 system-ui,sans-serif;text-align:center';
+
+                const contenido = document.createElement('div');
+                const mensaje = document.createElement('p');
+                mensaje.textContent = 'PaddleSafe no ha podido cargar sus funciones. Comprueba la conexión y vuelve a intentarlo.';
+                const boton = document.createElement('button');
+                boton.type = 'button';
+                boton.textContent = 'Volver a cargar';
+                boton.style.cssText = 'margin-top:16px;padding:12px 20px;border:0;border-radius:12px;background:#0ea5e9;color:#fff;font-weight:700';
+                boton.addEventListener('click', () => window.location.reload());
+                contenido.append(mensaje, boton);
+                panel.appendChild(contenido);
+                document.body.appendChild(panel);
+            }
+
+            function cargarModuloApp(file, retry = false) {
+                const script = document.createElement('script');
+                script.type = 'module';
+                const query = appVersion
+                    ? `?v=${encodeURIComponent(appVersion)}${retry ? `&retry=${Date.now()}` : ''}`
+                    : `?retry=${Date.now()}`;
+                script.src = `${file}${query}`;
+                script.onload = () => {
+                    if (appVersion) {
+                        try {
+                            localStorage.setItem('paddlesafe_version', appVersion);
+                            if (cacheRepairPending) localStorage.setItem(CACHE_REPAIR_KEY, 'done');
+                        } catch (error) {
+                            console.error('[app] No se pudo guardar la versión cargada:', error);
+                        }
+                    }
+                    appRecoveryAttempted = false;
+                };
+                script.onerror = () => {
+                    console.error(`[app] No se pudo cargar el módulo ${file}.`);
+                    if (appRecoveryAttempted) {
+                        mostrarErrorCargaApp();
+                        return;
+                    }
+
+                    appRecoveryAttempted = true;
+                    limpiarCachesPaddleSafe()
+                        .then(() => {
+                            try {
+                                localStorage.removeItem('paddlesafe_version');
+                            } catch (error) {
+                                console.error('[app] No se pudo invalidar la versión local:', error);
+                            }
+                            cargarModuloApp(file, true);
+                        })
+                        .catch(error => {
+                            console.error('[app] No se pudo limpiar la caché local:', error);
+                            mostrarErrorCargaApp();
+                        });
+                };
+                document.body.appendChild(script);
+            }
+            
+            try {
+                // 1. Consultar version.json evadiendo caché del navegador
+                const timestamp = new Date().getTime();
+                const response = await fetch(`/version.json?t=${timestamp}`, { cache: "no-store" });
+                if (!response.ok) throw new Error(`version.json devolvió HTTP ${response.status}.`);
+                const data = await response.json();
+                if (typeof data.hash !== 'string' || !data.hash) throw new Error('version.json no contiene un hash válido.');
+                appVersion = data.hash;
+                
+                // 2. Comprobar versión instalada
+                const currentHash = localStorage.getItem('paddlesafe_version');
+                const necesitaRepararCache = localStorage.getItem(CACHE_REPAIR_KEY) !== 'done';
+                
+                if (necesitaRepararCache || (currentHash && currentHash !== appVersion)) {
+                    console.info(`[app] Reparando caché local de PaddleSafe${currentHash && currentHash !== appVersion ? ` (${currentHash} → ${appVersion})` : ''}.`);
+                    await limpiarCachesPaddleSafe();
+                    cacheRepairPending = true;
+                    if (currentHash && currentHash !== appVersion) {
+                        localStorage.removeItem('paddlesafe_version');
+                    }
+                }
+
+                // 3. Inyectar archivos dinámicamente con el Hash de versión
+                APP_FILES.forEach(file => {
+                    if (file.endsWith('.js')) {
+                        cargarModuloApp(file);
+                    } else if (file.endsWith('.css')) {
+                        const link = document.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.href = `${file}?v=${appVersion}`;
+                        document.head.appendChild(link);
+                    }
+                });
+
+                // Función global para forzar actualización manual o desde ajustes
+                window.forzarActualizacion = async () => {
+                    try {
+                        await limpiarCachesPaddleSafe();
+                        localStorage.removeItem('paddlesafe_version');
+                    } catch (error) {
+                        console.error('[app] No se pudo limpiar la caché para actualizar:', error);
+                        mostrarErrorCargaApp();
+                        return;
+                    }
+                    const destUrl = new URL(window.location.href);
+                    destUrl.searchParams.set('force_update', Date.now().toString());
+                    window.location.replace(destUrl.toString());
+                };
+
+                // 4. Registrar el Service Worker
+                if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', () => {
+                        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
+                            if (typeof reg.update === 'function') {
+                                reg.update().catch(() => {});
+                            }
+                            // Escuchar cuando el SW detecta una nueva versión byte a byte
+                            reg.onupdatefound = () => {
+                                const installingWorker = reg.installing;
+                                if (!installingWorker) return;
+                                installingWorker.onstatechange = () => {
+                                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        // Nueva versión detectada por el navegador. Forzamos chequeo de version.json
+                                        fetch(`/version.json?t=${new Date().getTime()}`, { cache: "no-store" })
+                                            .then(r => r.json())
+                                            .then(async newData => {
+                                                if (newData.hash && newData.hash !== localStorage.getItem('paddlesafe_version')) {
+                                                    if ('caches' in window) {
+                                                        const cacheKeys = await caches.keys();
+                                                        await Promise.all(cacheKeys
+                                                            .filter(key => key.startsWith('paddlesafe-'))
+                                                            .map(key => caches.delete(key)));
+                                                    }
+                                                    localStorage.removeItem('paddlesafe_version');
+                                                    const destUrl = new URL(window.location.href);
+                                                    destUrl.searchParams.set('v', newData.hash);
+                                                    window.location.replace(destUrl.toString());
+                                                }
+                                            });
+                                    }
+                                };
+                            };
+                        });
+                    });
+                }
+
+            } catch (e) {
+                console.warn("[app] No se pudo comprobar version.json; intentando cargar el módulo con recuperación:", e);
+                // Fallback para modo offline
+                APP_FILES.forEach(file => {
+                    if (file.endsWith('.js')) {
+                        cargarModuloApp(file);
+                    }
+                });
+                
+                if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', () => {
+                        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+                            .then(reg => { if (typeof reg.update === 'function') reg.update().catch(() => {}); })
+                            .catch(error => console.error('[app] No se pudo registrar el service worker:', error));
+                    });
+                }
+            }
+        })();
+    </script>
+
+    <!-- DOCK ERGONÓMICO INFERIOR PARA MÓVIL (DESIGN SYSTEM 4.0) -->
+    <nav id="mobileBottomNav" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950/92 backdrop-blur-2xl border-t border-slate-800/80 px-2 py-1.5 flex justify-around items-center" aria-label="Navegación Móvil">
+        <button type="button" id="btnNavParte" onclick="activarItemBottomNav('parte')" class="flex flex-col items-center justify-center flex-1 py-1 text-sky-400 transition-all cursor-pointer active:scale-90 group relative scale-105">
+            <span class="nav-indicator w-6 h-1 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.9)] opacity-100 transition-all duration-300 mb-0.5"></span>
+            <span class="text-lg drop-shadow group-hover:scale-110 transition-transform">🌊</span>
+            <span class="text-[10px] font-bold tracking-tight">Parte</span>
+        </button>
+        <button type="button" id="btnNavPro" onclick="activarItemBottomNav('pro')" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-200 transition-all cursor-pointer active:scale-90 group relative">
+            <span class="nav-indicator w-6 h-1 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.9)] opacity-0 transition-all duration-300 mb-0.5"></span>
+            <span class="text-lg drop-shadow group-hover:scale-110 transition-transform">🧭</span>
+            <span class="text-[10px] font-bold tracking-tight">Ruta Pro</span>
+        </button>
+        <button type="button" id="btnNavMuro" onclick="activarItemBottomNav('muro')" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-200 transition-all cursor-pointer active:scale-90 group relative">
+            <span class="nav-indicator w-6 h-1 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.9)] opacity-0 transition-all duration-300 mb-0.5"></span>
+            <span class="text-lg drop-shadow group-hover:scale-110 transition-transform">📡</span>
+            <span class="text-[10px] font-bold tracking-tight">Muro</span>
+        </button>
+        <button type="button" id="btnNavClubes" onclick="activarItemBottomNav('clubes')" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-200 transition-all cursor-pointer active:scale-90 group relative">
+            <span class="nav-indicator w-6 h-1 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.9)] opacity-0 transition-all duration-300 mb-0.5"></span>
+            <span class="text-lg drop-shadow group-hover:scale-110 transition-transform">🛡️</span>
+            <span class="text-[10px] font-bold tracking-tight">Clubes</span>
+        </button>
+        <button type="button" id="btnNavRanking" onclick="activarItemBottomNav('ranking')" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-200 transition-all cursor-pointer active:scale-90 group relative">
+            <span class="nav-indicator w-6 h-1 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.9)] opacity-0 transition-all duration-300 mb-0.5"></span>
+            <span class="text-lg drop-shadow group-hover:scale-110 transition-transform">🏆</span>
+            <span class="text-[10px] font-bold tracking-tight">Ranking</span>
+        </button>
+    </nav>
+</body>
+</html>

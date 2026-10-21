@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^git --no-pager reflog --date=iso-strict -20$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

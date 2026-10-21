@@ -5,8 +5,8 @@
 <title>PaddleSafe – Panel de Control</title>
 
 <!-- ICONOS PWA -->
-<link rel="icon" type="image/png" href="/icon-192.png">
-<link rel="apple-touch-icon" href="/icon-512.png">
+<link rel="icon" type="image/x-icon" href="/icons/favicon.ico">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.json">
 
 <style>
@@ -27,7 +27,7 @@ input { padding: 10px; width: 100%; margin-bottom: 10px; }
 <body>
 
 <!-- ICONO DEL PANEL -->
-<img id="panel-icon" src="/icon-192.png" alt="PaddleSafe Icon">
+<img id="panel-icon" src="/icons/PaddleSafe_192x192.png" alt="PaddleSafe Icon">
 
 <h1>PaddleSafe – Panel de Control</h1>
 
@@ -46,8 +46,7 @@ input { padding: 10px; width: 100%; margin-bottom: 10px; }
 
 <div class="card">
   <h2>Logs del Servidor</h2>
-  <button onclick="viewLogs()">Ver logs</button>
-  <pre id="logsOutput">Esperando...</pre>
+  <p>Los registros del backend no se exponen desde el sitio público. Consúltalos en el panel autenticado del proveedor de alojamiento.</p>
 </div>
 
 <script>
@@ -68,12 +67,7 @@ function backendEndpoint(endpoint) {
   return url.href;
 }
 
-function writeLog(message) {
-  fetch("logs.php?msg=" + encodeURIComponent(message)).catch(() => {});
-}
-
 async function checkStatus() {
-  writeLog("checkStatus ejecutado");
   try {
     const res = await fetch(backendEndpoint("/api/backend?action=status"));
     if (!res.ok) throw new Error("Endpoint /api/backend?action=status no responde");
@@ -86,7 +80,6 @@ async function checkStatus() {
 
 async function testEndpoint() {
   const ep = document.getElementById("endpoint").value;
-  writeLog("testEndpoint ejecutado: " + ep);
   try {
     const res = await fetch(backendEndpoint(ep));
     if (!res.ok) throw new Error(`El endpoint respondió con status ${res.status}`);
@@ -97,16 +90,6 @@ async function testEndpoint() {
   }
 }
 
-async function viewLogs() {
-  writeLog("viewLogs ejecutado");
-  try {
-    const res = await fetch("logs.txt");
-    const text = await res.text();
-    document.getElementById("logsOutput").textContent = text;
-  } catch (err) {
-    document.getElementById("logsOutput").textContent = "Error: " + err.message;
-  }
-}
 </script>
 
 </body>

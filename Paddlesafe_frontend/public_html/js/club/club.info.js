@@ -43,7 +43,16 @@ export const ClubInfo = {
             await ClubAPI.updateField(clubId, payload);
             
             // Actualizar memoria RAM
+            if (!ClubState.lastSaved[clubId]) ClubState.lastSaved[clubId] = {};
             ClubState.lastSaved[clubId][dbColumn] = newValue;
+
+            if (Array.isArray(ClubState.myClubs)) {
+                const cl = ClubState.myClubs.find(c => c.club_id === clubId || c.id === clubId);
+                if (cl) cl[dbColumn] = newValue;
+            }
+            if (ClubState.currentClubData && (ClubState.currentClubData.id === clubId || ClubState.currentClubData.club_id === clubId)) {
+                ClubState.currentClubData[dbColumn] = newValue;
+            }
             
             // Actualizar selector visual si es el nombre
             if (dbColumn === 'nombre') {

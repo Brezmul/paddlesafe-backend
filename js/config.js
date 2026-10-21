@@ -2,10 +2,29 @@
 // js/config.js - CONFIGURACIÓN Y ESTADO GLOBAL SEGURO
 // ====================================================
 
-const supabaseUrl = 'https://amgmvnnwlraulbutgemx.supabase.co';
-const supabaseKey = 'sb_publishable_bMJMhbAMO932NzZR8QyxAw_T6JF76Kq';
+export const supabaseUrl = 'https://amgmvnnwlraulbutgemx.supabase.co';
+export const supabaseKey = 'sb_publishable_bMJMhbAMO932NzZR8QyxAw_T6JF76Kq';
+export const BACKEND_API_URL = 'https://paddlesafe-backend.vercel.app/api/backend';
 
-export const supabaseClient = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+let _rawClient = (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function')
+    ? window.supabase.createClient(supabaseUrl, supabaseKey)
+    : null;
+
+export function getSupabase() {
+    if (!_rawClient && typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
+        _rawClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+    }
+    return _rawClient;
+}
+
+export const supabaseClient = new Proxy({}, {
+    get(target, prop) {
+        const client = getSupabase();
+        if (!client) return undefined;
+        const val = client[prop];
+        return typeof val === 'function' ? val.bind(client) : val;
+    }
+});
 
 // Patrón de estado con Proxy para reactividad básica (evita mutaciones descontroladas)
 const state = {
@@ -14,7 +33,8 @@ const state = {
     perfilUsuario: null,
     esInvitado: false,
     invitadoId: 'guest_' + Math.floor(Math.random() * 100000),
-    spaCurrentUser: null
+    spaCurrentUser: null,
+    onlineUsers: {}
 };
 
 export const appState = new Proxy(state, {
@@ -24,6 +44,10 @@ export const appState = new Proxy(state, {
         return true;
     }
 });
+
+if (typeof window !== 'undefined') {
+    window.appState = appState;
+}
 
 export const mapState = {
     map: null,

@@ -6,7 +6,7 @@ import { ClubEvents } from './club.events.js';
 
 export const ClubPublic = {
     async open(clubId) {
-        const modal = document.getElementById('clubPublicViewModal');
+        const modal = document.getElementById('clubProfileViewModal') || document.getElementById('clubPublicViewModal');
         if (!modal) return;
 
         ClubState.publicId = clubId;
@@ -48,6 +48,12 @@ export const ClubPublic = {
 
         if (myId) {
             try {
+                // Comprobar si es el creador registrado en la tabla clubs
+                if (club.creador_id && club.creador_id === myId) {
+                    miRol = 'creador';
+                    esMiembro = true;
+                }
+
                 const { data: cu } = await supabaseClient
                     .from('clubs_usuarios')
                     .select('rol')
@@ -55,9 +61,9 @@ export const ClubPublic = {
                     .eq('user_id', myId)
                     .maybeSingle();
                 if (cu) {
-                    miRol = cu.rol;
+                    miRol = cu.rol || miRol || 'miembro';
                     esMiembro = true;
-                } else {
+                } else if (!esMiembro) {
                     const { data: sol } = await supabaseClient
                         .from('clubs_solicitudes')
                         .select('id')
@@ -80,19 +86,22 @@ export const ClubPublic = {
                 joinBtn.textContent = rolTexto;
                 joinBtn.className = "w-full h-11 bg-emerald-600 text-white font-bold rounded-xl shadow-md uppercase tracking-widest text-[11px] cursor-default flex items-center justify-center";
                 joinBtn.onclick = null;
+                joinBtn.disabled = true;
             } else if (tieneSolicitud) {
                 joinBtn.textContent = '⏳ Solicitud Pendiente';
                 joinBtn.className = "w-full h-11 bg-amber-500 text-white font-bold rounded-xl shadow-md uppercase tracking-widest text-[11px] cursor-default flex items-center justify-center";
                 joinBtn.onclick = null;
+                joinBtn.disabled = true;
             } else {
                 joinBtn.textContent = '🌊 Unirse al Club';
                 joinBtn.className = "w-full h-11 bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-bold rounded-xl shadow-md active:scale-95 transition-transform uppercase tracking-widest text-[11px] cursor-pointer flex items-center justify-center";
+                joinBtn.disabled = false;
                 joinBtn.onclick = () => window.Club.solicitarUnirseClub(clubId);
             }
         }
 
         // 5. Visibilidad de pestañas de administración
-        const esAdmin = miRol === 'creador' || miRol === 'admin';
+        const esAdmin = miRol === 'creador' || miRol === 'admin' || (club.creador_id && club.creador_id === myId);
         const tabAdmin = document.getElementById('cpvTabAdmin');
         const tabSol = document.getElementById('cpvTabSolicitudes');
         if (tabAdmin) tabAdmin.classList.toggle('hidden', !esAdmin);
@@ -104,7 +113,7 @@ export const ClubPublic = {
 
     close() {
         ClubChat.desuscribirRealtime();
-        const modal = document.getElementById('clubPublicViewModal');
+        const modal = document.getElementById('clubProfileViewModal') || document.getElementById('clubPublicViewModal');
         if (modal) {
             modal.classList.add('opacity-0');
             const box = modal.querySelector('div');
@@ -125,9 +134,9 @@ export const ClubPublic = {
             const btn = document.getElementById(`cpvTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
             if (btn) {
                 if (t === tab) {
-                    btn.className = "h-10 px-3 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-lg shadow flex-1 cursor-pointer transition-colors";
+                    btn.className = "h-10 px-3 ps-pill-tab ps-pill-tab-active text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors";
                 } else {
-                    btn.className = "h-10 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors";
+                    btn.className = "h-10 px-3 ps-pill-tab text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors";
                 }
             }
         });
@@ -166,7 +175,7 @@ export const ClubPublic = {
         } else if (tab === 'miembros') {
             const c = containers.miembros;
             if (c) {
-                c.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando tripulación...</p>';
+                c.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando miembros...</p>';
                 try {
                     const { data: miembros } = await supabaseClient.rpc('obtener_miembros_club', { p_club_id: clubId });
                     if (!miembros || miembros.length === 0) {
@@ -181,7 +190,10 @@ export const ClubPublic = {
                                     return `
                                         <div onclick="if(window.navigateSPA) window.navigateSPA('/user/${esc(m.user_id)}')" class="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 cursor-pointer hover:shadow-md transition-shadow">
                                             <div class="flex items-center gap-3 min-w-0">
-                                                <img src="${esc(safeUrl(m.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-10 h-10 rounded-full object-cover shrink-0">
+                                                <div class="relative shrink-0">
+                                                    <img src="${esc(safeUrl(m.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-10 h-10 rounded-full object-cover shrink-0">
+                                                    <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 transition-colors duration-300" data-user-presence-id="${esc(m.user_id)}"></div>
+                                                </div>
                                                 <div class="min-w-0">
                                                     <p class="font-bold text-sm text-marine dark:text-white truncate">${esc(m.nombre || 'Paddler')}</p>
                                                     <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold ${badgeColor}">${badgeTexto}</span>
@@ -191,9 +203,10 @@ export const ClubPublic = {
                                         </div>`;
                                 }).join('')}
                             </div>`;
+                        window.actualizarUIPresencia?.();
                     }
                 } catch (e) {
-                    c.innerHTML = '<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar tripulación.</p>';
+                    c.innerHTML = '<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar miembros.</p>';
                 }
             }
         } else if (tab === 'rutas') {
@@ -201,35 +214,69 @@ export const ClubPublic = {
             if (c) {
                 c.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold animate-pulse">Cargando rutas...</p>';
                 try {
-                    const { data: rutas } = await supabaseClient
+                    const { data: clubRutasData, error: crErr } = await supabaseClient
                         .from('club_rutas')
-                        .select('created_at, rutas(id, ubicacion, distancia_km, tiempo_minutos, fecha, imagen_url)')
+                        .select('created_at, ruta_id')
                         .eq('club_id', clubId)
                         .order('created_at', { ascending: false })
                         .limit(20);
-                    if (!rutas || rutas.length === 0) {
+                    if (crErr) throw crErr;
+
+                    if (!clubRutasData || clubRutasData.length === 0) {
                         c.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold">Sin rutas registradas por el club.</p>';
                     } else {
-                        c.innerHTML = `
-                            <div class="space-y-2.5">
-                                ${rutas.map(r => {
-                                    const ruta = r.rutas;
-                                    if (!ruta) return '';
-                                    return `
-                                        <div class="flex items-center justify-between p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
-                                            <div class="flex items-center gap-3 min-w-0">
-                                                <div class="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-900/30 flex items-center justify-center text-xl shrink-0">🗺️</div>
-                                                <div class="min-w-0">
-                                                    <p class="font-bold text-sm text-marine dark:text-white truncate">${esc(ruta.ubicacion || 'Travesía GPS')}</p>
-                                                    <p class="text-[10px] text-slate-400">${ruta.fecha ? new Date(ruta.fecha).toLocaleDateString() : ''} • ${ruta.tiempo_minutos || 0} min</p>
+                        const rutaIds = Array.from(new Set(clubRutasData.map(cr => cr.ruta_id).filter(Boolean)));
+                        const rutas = [];
+                        if (rutaIds.length > 0) {
+                            const [resLeg, resUr] = await Promise.allSettled([
+                                supabaseClient
+                                    .from('rutas')
+                                    .select('id, user_id, ubicacion, distancia_km, tiempo_minutos, avg_speed_kmh, fecha, created_at, imagen_url, ruta_json, splits_data, weather_snapshot, wind_speed_kt, wave_height_m, conditions_score')
+                                    .in('id', rutaIds),
+                                supabaseClient
+                                    .from('user_routes')
+                                    .select('id, user_id, title, distance_km, duration_seconds, avg_speed, created_at, route_coordinates, splits_data, weather_snapshot, wind_speed_kt, wave_height_m, conditions_score')
+                                    .in('id', rutaIds)
+                            ]);
+                            if (resLeg.status === 'fulfilled' && resLeg.value?.data) {
+                                rutas.push(...resLeg.value.data);
+                            }
+                            if (resUr.status === 'fulfilled' && resUr.value?.data) {
+                                resUr.value.data.forEach(ur => {
+                                    if (!rutas.some(r => String(r.id) === String(ur.id))) {
+                                        rutas.push(ur);
+                                    }
+                                });
+                            }
+                        }
+
+                        if (rutas.length === 0) {
+                            c.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs font-bold">Sin rutas registradas por el club.</p>';
+                        } else {
+                            c.innerHTML = `
+                                <div class="space-y-3">
+                                    ${rutas.map(ruta => {
+                                        if (!ruta) return '';
+                                        if (typeof window.renderTarjetaRutaSocial === 'function') {
+                                            return `<div class="p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">${window.renderTarjetaRutaSocial(ruta, null)}</div>`;
+                                        }
+                                        return `
+                                            <div class="flex items-center justify-between p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                                                <div class="flex items-center gap-3 min-w-0">
+                                                    <div class="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-900/30 flex items-center justify-center text-xl shrink-0">🗺️</div>
+                                                    <div class="min-w-0">
+                                                        <p class="font-bold text-sm text-marine dark:text-white truncate">${esc(ruta.ubicacion || ruta.title || 'Travesía GPS')}</p>
+                                                        <p class="text-[10px] text-slate-400">${ruta.fecha || ruta.created_at ? new Date(ruta.fecha || ruta.created_at).toLocaleDateString() : ''} • ${ruta.tiempo_minutos || (ruta.duration_seconds ? Math.round(ruta.duration_seconds / 60) : 0)} min</p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <span class="px-2.5 py-1 bg-water/10 text-water dark:bg-sky-500/20 dark:text-sky-400 rounded-lg text-xs font-black shrink-0">${ruta.distancia_km || 0} km</span>
-                                        </div>`;
-                                }).join('')}
-                            </div>`;
+                                                <span class="px-2.5 py-1 bg-water/10 text-water dark:bg-sky-500/20 dark:text-sky-400 rounded-lg text-xs font-black shrink-0">${Number(ruta.distancia_km || ruta.distance_km || 0).toFixed(2)} km</span>
+                                            </div>`;
+                                    }).join('')}
+                                </div>`;
+                        }
                     }
                 } catch (e) {
+                    console.warn('[club.public] Error al cargar rutas del club:', e);
                     c.innerHTML = '<p class="text-center text-red-500 py-6 text-xs font-bold">Error al cargar rutas.</p>';
                 }
             }
@@ -292,7 +339,7 @@ export const ClubPublic = {
                 const myId = appState.sesionActual?.user?.id;
                 let esMiembro = false;
                 if (myId) {
-                    const { data: cu } = await supabaseClient.from('clubs_usuarios').select('id').eq('club_id', clubId).eq('user_id', myId).maybeSingle();
+                    const { data: cu } = await supabaseClient.from('clubs_usuarios').select('user_id, rol').eq('club_id', clubId).eq('user_id', myId).maybeSingle();
                     if (cu) esMiembro = true;
                 }
                 await ClubChat.render(c, clubId, esMiembro);
@@ -341,7 +388,7 @@ export const ClubPublic = {
                                     const sId = s.solicitud_id || s.id;
                                     const uId = s.user_id || s.id;
                                     return `
-                                        <div class="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                                        <div data-solicitud-id="${esc(sId)}" class="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
                                             <div class="flex items-center gap-3 min-w-0">
                                                 <img src="${esc(safeUrl(s.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-10 h-10 rounded-full object-cover shrink-0">
                                                 <div class="min-w-0">
@@ -371,6 +418,12 @@ export const ClubPublic = {
 
     async enviarMensaje(clubId) {
         await ClubChat.enviarMensaje(clubId);
+    },
+
+    async solicitarUnirseClub(clubId) {
+        if (window.Club && typeof window.Club.solicitarUnirseClub === 'function') {
+            return await window.Club.solicitarUnirseClub(clubId);
+        }
     }
 };
 

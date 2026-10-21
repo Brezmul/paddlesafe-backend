@@ -1,8 +1,28 @@
 import { supabaseClient, appState } from '../config.js';
-import { esc, safeUrl, IMG_FALLBACK } from '../utils.js';
+import {
+    esc,
+    safeUrl,
+    IMG_FALLBACK,
+    kmhANudos,
+    calcularMotorExpertoPaddleSafe
+} from '../utils.js';
 
 // Cache ligero en memoria para no saturar APIs meteorológicas en la misma sesión
 const weatherCache = new Map();
+const ICONOS_SEGURIDAD = {
+    'SEGURO': '🟢',
+    'PRECAUCIÓN': '🟡',
+    'RIESGO ELEVADO': '🟠',
+    'PELIGROSO': '🔴',
+    'RIESGO EXTREMO': '⛔'
+};
+const ICONOS_DERIVA = {
+    'BAJO': '🟢',
+    'MODERADO': '🟡',
+    'ALTO': '🟠',
+    'MUY ALTO': '🔴',
+    'EXTREMO': '⛔'
+};
 
 export const ClubEvents = {
     async render(container, clubId, isMember = true, isAdmin = false) {
@@ -14,7 +34,7 @@ export const ClubEvents = {
                 <div class="bg-gradient-to-r from-marine to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3">
                     <div class="text-center sm:text-left">
                         <h4 class="text-xs font-black uppercase tracking-wider text-water flex items-center gap-1.5 justify-center sm:justify-start">
-                            <span>📅</span> Quedadas y Rutas de la Flota
+                            <span>📅</span> Quedadas y Rutas del Club
                         </h4>
                         <p class="text-[11px] text-slate-300 mt-0.5">Organiza salidas con fecha, hora y previsión marina en tiempo real.</p>
                     </div>
@@ -25,7 +45,7 @@ export const ClubEvents = {
 
                 <!-- Lista de Quedadas -->
                 <div id="clubEventsList" class="space-y-4">
-                    <p class="text-center text-slate-400 py-8 text-xs font-bold animate-pulse">Cargando quedadas de la tripulación...</p>
+                    <p class="text-center text-slate-400 py-8 text-xs font-bold animate-pulse">Cargando quedadas del club...</p>
                 </div>
             </div>`;
 
@@ -140,14 +160,14 @@ export const ClubEvents = {
         const horaLabel = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
         return `
-            <div id="card-evento-${ev.id}" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden transition-all hover:shadow-md">
+            <div id="card-evento-${ev.id}" class="ps-bento-card bg-slate-900/90 rounded-2xl border border-slate-700/80 shadow-md overflow-hidden transition-all hover:shadow-lg">
                 <!-- Cabecera de la Tarjeta -->
                 <div class="p-4 border-b border-slate-100 dark:border-slate-700/60">
                     <div class="flex items-start justify-between gap-3 mb-2">
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap mb-1">
                                 ${badgeTiempo}
-                                <span class="text-xs font-black text-slate-700 dark:text-slate-300 capitalize">${fechaLabel} • ${horaLabel} h</span>
+                                <span class="text-xs font-black text-slate-300 capitalize ps-tabular">${fechaLabel} • ${horaLabel} h</span>
                             </div>
                             <h4 class="text-base font-black text-marine dark:text-white truncate">${esc(ev.nombre)}</h4>
                         </div>
@@ -191,11 +211,11 @@ export const ClubEvents = {
                 <div class="p-3.5 flex items-center justify-between gap-3 bg-white dark:bg-slate-800">
                     <div class="flex items-center gap-1.5">
                         <span class="text-base">👥</span>
-                        <span class="text-xs font-bold text-slate-700 dark:text-slate-200">${totalAsistentes} palistas confirmados</span>
+                        <span id="evento-count-${esc(ev.id)}" class="text-xs font-bold text-slate-200 ps-tabular">${totalAsistentes} palistas confirmados</span>
                     </div>
 
                     ${!esPasado ? `
-                        <button type="button" onclick="window.Club.toggleAsistenciaEvento('${esc(ev.id)}', '${esc(clubId)}')" class="px-4 py-2 ${esAsistente ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300' : 'bg-water hover:bg-sky-600 text-white shadow-sm'} font-black text-xs rounded-xl active:scale-95 transition-all cursor-pointer">
+                        <button id="btn-asistir-${esc(ev.id)}" type="button" onclick="window.Club.toggleAsistenciaEvento('${esc(ev.id)}', '${esc(clubId)}')" class="px-4 py-2 ${esAsistente ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300' : 'bg-water hover:bg-sky-600 text-white shadow-sm'} font-black text-xs rounded-xl active:scale-95 transition-all cursor-pointer">
                             ${esAsistente ? '✅ Asistiré' : '🙋‍♂️ Me apunto'}
                         </button>` : `
                         <span class="text-[11px] font-bold text-slate-400">Ruta celebrada</span>`}
@@ -290,7 +310,14 @@ export const ClubEvents = {
                 return;
             }
 
-            const verdictClass = data.veredictoNivel === 'seguro' ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800' : (data.veredictoNivel === 'alerta' ? 'text-rose-500 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800' : 'text-amber-500 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800');
+            const verdictClass = {
+                'SEGURO': 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800',
+                'PRECAUCIÓN': 'text-amber-500 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800',
+                'RIESGO ELEVADO': 'text-orange-500 bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800',
+                'PELIGROSO': 'text-rose-500 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800',
+                'RIESGO EXTREMO': 'text-red-700 bg-red-100 dark:bg-red-950/40 border-red-300 dark:border-red-800'
+            }[data.veredictoNivel];
+            const vientoNudos = kmhANudos(data.viento);
 
             weatherEl.innerHTML = `
                 <div class="flex items-center justify-between gap-2 flex-wrap">
@@ -298,13 +325,17 @@ export const ClubEvents = {
                         <span class="text-base">${data.iconoClima}</span>
                         <span class="font-black text-slate-700 dark:text-slate-200">${data.temp}°C</span>
                         <span class="text-slate-300 dark:text-slate-600">•</span>
-                        <span class="font-bold text-slate-600 dark:text-slate-300">🌬️ ${data.viento} km/h (${data.dirViento})</span>
+                        <span class="font-bold text-slate-600 dark:text-slate-300">🌬️ ${vientoNudos === null ? 'N/D' : `${vientoNudos.toFixed(1)} kt`} (${data.dirViento})</span>
+                        ${data.rachasNudos !== null ? `<span class="font-bold text-rose-500">Rachas ${data.rachasNudos.toFixed(1)} kt</span>` : ''}
                         ${data.oleaje ? `<span class="text-slate-300 dark:text-slate-600">•</span><span class="font-bold text-sky-500">🌊 ${data.oleaje} m</span>` : ''}
                     </div>
                     <span class="px-2 py-0.5 rounded text-[10px] font-black border uppercase tracking-wider ${verdictClass}">
                         ${data.veredictoTexto}
                     </span>
-                </div>`;
+                </div>
+                <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                    ${ICONOS_DERIVA[data.riesgoDeriva.nivel]} Deriva ${esc(data.riesgoDeriva.nivel)} (${data.riesgoDeriva.score}/100): ${esc(data.riesgoDeriva.descripcion)}
+                </p>`;
         } catch (err) {
             console.warn('[club.events] fallo previsão:', err);
             weatherEl.innerHTML = `<span class="text-[10px] text-slate-400 font-bold">Previsión marina temporalmente fuera de cobertura.</span>`;
@@ -347,6 +378,8 @@ export const ClubEvents = {
         });
 
         const wind = Number(wxData.hourly.windspeed_10m[idx] || 0);
+        const gustRaw = wxData.hourly.windgusts_10m[idx];
+        const gusts = gustRaw === null || gustRaw === undefined ? null : Number(gustRaw);
         const windDirDeg = Number(wxData.hourly.winddirection_10m[idx] || 0);
         const temp = Math.round(Number(wxData.hourly.temperature_2m[idx] || 20));
         const code = Number(wxData.hourly.weathercode[idx] || 0);
@@ -370,27 +403,25 @@ export const ClubEvents = {
         else if ([80, 81, 82].includes(code)) iconoClima = '🌦️';
         else if ([95, 96, 99].includes(code)) iconoClima = '⛈️';
 
-        // Veredicto
-        let veredictoNivel = 'seguro';
-        let veredictoTexto = '🟢 Mar Apto';
-        const waveNum = wave ? parseFloat(wave) : 0;
-
-        if (wind > 18 || waveNum > 0.9) {
-            veredictoNivel = 'alerta';
-            veredictoTexto = '🔴 Desaconsejado';
-        } else if (wind > 12 || waveNum > 0.5) {
-            veredictoNivel = 'precaucion';
-            veredictoTexto = '🟡 Precaución';
-        }
+        const motor = calcularMotorExpertoPaddleSafe({
+            vientoKmh: wind,
+            rachasKmh: gusts,
+            olaM: wave === null ? null : Number(wave),
+            direccionViento: windDirDeg,
+            tormenta: [95, 96, 99].includes(code) ? 'posible' : null
+        });
 
         const res = {
             viento: wind.toFixed(0),
+            rachasNudos: kmhANudos(gusts),
             dirViento,
             temp,
             oleaje: wave,
             iconoClima,
-            veredictoNivel,
-            veredictoTexto
+            veredictoNivel: motor.seguridad.nivel,
+            veredictoTexto: `${ICONOS_SEGURIDAD[motor.seguridad.nivel]} ${motor.seguridad.nivel} · ${motor.seguridad.score}/100`,
+            seguridad: motor.seguridad,
+            riesgoDeriva: motor.riesgoDeriva
         };
 
         weatherCache.set(cacheKey, res);
@@ -405,6 +436,9 @@ export const ClubEvents = {
         }
 
         const myId = appState.sesionActual.user.id;
+        const btn = document.getElementById(`btn-asistir-${eventoId}`);
+        const countSpan = document.getElementById(`evento-count-${eventoId}`);
+
         try {
             // Comprobar si ya está inscrito
             const { data: existente } = await supabaseClient
@@ -422,6 +456,16 @@ export const ClubEvents = {
                     .eq('evento_id', eventoId)
                     .eq('user_id', myId);
                 if (error) throw error;
+
+                // Actualizar UI inmediatamente
+                if (btn) {
+                    btn.className = "px-4 py-2 bg-water hover:bg-sky-600 text-white shadow-sm font-black text-xs rounded-xl active:scale-95 transition-all cursor-pointer";
+                    btn.innerHTML = '🙋‍♂️ Me apunto';
+                }
+                if (countSpan) {
+                    const c = Math.max(0, parseInt(countSpan.textContent || '0', 10) - 1);
+                    countSpan.textContent = `${c} palistas confirmados`;
+                }
             } else {
                 // Apuntarse
                 const { error } = await supabaseClient
@@ -431,12 +475,21 @@ export const ClubEvents = {
                         user_id: myId
                     }]);
                 if (error) throw error;
-            }
 
-            await this.cargarEventos(clubId, false);
+                // Actualizar UI inmediatamente
+                if (btn) {
+                    btn.className = "px-4 py-2 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 font-black text-xs rounded-xl active:scale-95 transition-all cursor-pointer";
+                    btn.innerHTML = '✅ Asistiré';
+                }
+                if (countSpan) {
+                    const c = parseInt(countSpan.textContent || '0', 10) + 1;
+                    countSpan.textContent = `${c} palistas confirmados`;
+                }
+            }
         } catch (err) {
             console.error('[club.events] error toggle asistencia:', err);
             alert("Error al actualizar asistencia: " + (err.message || err));
+            await this.cargarEventos(clubId, false);
         }
     },
 
@@ -460,4 +513,3 @@ export const ClubEvents = {
         }
     }
 };
-

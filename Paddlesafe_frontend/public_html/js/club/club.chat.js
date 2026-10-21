@@ -16,7 +16,7 @@ export const ClubChat = {
             container.innerHTML = `
                 <div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700 p-6">
                     <span class="text-4xl block mb-2 opacity-50">🔒</span>
-                    <h3 class="font-black text-marine dark:text-white mb-1 text-sm uppercase tracking-wider">Chat Exclusivo de Tripulación</h3>
+                    <h3 class="font-black text-marine dark:text-white mb-1 text-sm uppercase tracking-wider">Chat Exclusivo del Club</h3>
                     <p class="text-xs text-slate-400 mb-4">Solo los miembros confirmados del club pueden leer y escribir en esta frecuencia privada.</p>
                     <button type="button" onclick="window.Club.solicitarUnirseClub('${esc(clubId)}')" class="px-5 py-2.5 bg-water text-white font-bold text-xs rounded-xl shadow active:scale-95 transition-transform cursor-pointer">
                         🌊 Solicitar Ingreso al Club
@@ -43,7 +43,7 @@ export const ClubChat = {
 
                 <!-- Barra de Entrada de Mensaje -->
                 <div class="p-3 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 flex items-center gap-2">
-                    <input type="text" id="clubChatInput" placeholder="Escribe un mensaje a la tripulación..." maxlength="500" class="flex-1 h-11 px-4 bg-slate-50 dark:bg-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-water border border-slate-200 dark:border-slate-600 dark:text-white transition-all" onkeydown="if(event.key==='Enter') window.Club.enviarMensajeChat('${esc(clubId)}')">
+                    <input type="text" id="clubChatInput" placeholder="Escribe un mensaje al club..." maxlength="500" class="flex-1 h-11 px-4 bg-slate-50 dark:bg-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-water border border-slate-200 dark:border-slate-600 dark:text-white transition-all" onkeydown="if(event.key==='Enter') window.Club.enviarMensajeChat('${esc(clubId)}')">
                     <button type="button" id="btnSendClubChat" onclick="window.Club.enviarMensajeChat('${esc(clubId)}')" class="h-11 px-4 bg-marine dark:bg-water text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md active:scale-95 transition-transform flex items-center gap-1.5 cursor-pointer shrink-0">
                         <span>Enviar</span>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
@@ -60,12 +60,13 @@ export const ClubChat = {
         if (!list) return;
 
         try {
-            const { data: msgs, error } = await supabaseClient
+            const { data: rawMsgs, error } = await supabaseClient
                 .from('club_chat')
                 .select('id, user_id, mensaje, visibility, is_public, created_at, perfiles(nombre, avatar_url)')
                 .eq('club_id', clubId)
-                .order('created_at', { ascending: true })
+                .order('created_at', { ascending: false })
                 .limit(60);
+            const msgs = Array.isArray(rawMsgs) ? [...rawMsgs].reverse() : [];
 
             if (error) {
                 console.error('[club.chat] error al cargar mensajes:', error);
