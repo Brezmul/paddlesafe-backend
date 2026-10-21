@@ -1383,21 +1383,21 @@ assert(mockBadges[3].className.includes('bg-slate-500/70'), 'Offline badge must 
 console.log('--- [TASK 4] Backend & SQL Audit ---');
 
 // 4.1 Backend rate limiter check
-const backendApiPath = 'paddlesafe-backend-main/api/backend.js';
+const backendApiPath = fs.existsSync('paddlesafe-backend-main/api/backend.js') ? 'paddlesafe-backend-main/api/backend.js' : 'api/backend.js';
 assert(fs.existsSync(backendApiPath), `${backendApiPath} must exist`);
 const backendApiContent = fs.readFileSync(backendApiPath, 'utf8');
 assert(backendApiContent.includes('rateLimitMap') && backendApiContent.includes('RATE_LIMIT_WINDOW_MS'), 'backend.js must implement rate limiting with window and map');
 
 // 4.2 Forecast requests wind_gusts_10m and wave_period
-const forecastPath = 'paddlesafe-backend-main/forecast.js';
+const forecastPath = fs.existsSync('paddlesafe-backend-main/forecast.js') ? 'paddlesafe-backend-main/forecast.js' : 'forecast.js';
 assert(fs.existsSync(forecastPath), `${forecastPath} must exist`);
 const forecastContent = fs.readFileSync(forecastPath, 'utf8');
 assert(forecastContent.includes('wind_gusts_10m'), 'forecast.js must request wind_gusts_10m');
 assert(forecastContent.includes('wave_period'), 'forecast.js must request wave_period');
 
 // 4.3 Coach & route_coach target gemini-2.5-flash
-const coachPath = 'paddlesafe-backend-main/lib/handlers/coach.js';
-const routeCoachPath = 'paddlesafe-backend-main/lib/handlers/route_coach.js';
+const coachPath = fs.existsSync('paddlesafe-backend-main/lib/handlers/coach.js') ? 'paddlesafe-backend-main/lib/handlers/coach.js' : 'lib/handlers/coach.js';
+const routeCoachPath = fs.existsSync('paddlesafe-backend-main/lib/handlers/route_coach.js') ? 'paddlesafe-backend-main/lib/handlers/route_coach.js' : 'lib/handlers/route_coach.js';
 assert(fs.existsSync(coachPath), `${coachPath} must exist`);
 assert(fs.existsSync(routeCoachPath), `${routeCoachPath} must exist`);
 
@@ -1577,13 +1577,16 @@ assert(routesJsUpdated.includes('parsed?.coordinates || parsed?.points'), 'map.r
 const chatJsUpdated = fs.readFileSync('public_html/js/club/club.chat.js', 'utf8');
 assert(chatJsUpdated.includes("order('created_at', { ascending: false })"), 'club.chat.js must order descending to fetch latest messages');
 
-const compareJsUpdated = fs.readFileSync('paddlesafe-backend-main/lib/handlers/compare.js', 'utf8');
+const compareJsPath = fs.existsSync('paddlesafe-backend-main/lib/handlers/compare.js') ? 'paddlesafe-backend-main/lib/handlers/compare.js' : 'lib/handlers/compare.js';
+const compareJsUpdated = fs.readFileSync(compareJsPath, 'utf8');
 assert(compareJsUpdated.includes('apiKey = process.env.OPENCAGE_KEY'), 'compare.js must declare apiKey parameter or module-scoped fallback');
 
-const historyJsUpdated = fs.readFileSync('paddlesafe-backend-main/lib/handlers/history.js', 'utf8');
+const historyJsPath = fs.existsSync('paddlesafe-backend-main/lib/handlers/history.js') ? 'paddlesafe-backend-main/lib/handlers/history.js' : 'lib/handlers/history.js';
+const historyJsUpdated = fs.readFileSync(historyJsPath, 'utf8');
 assert(historyJsUpdated.includes('fechas.splice(7)'), 'history.js must cap date range to max 7 days');
 
-const coachJsUpdated = fs.readFileSync('paddlesafe-backend-main/lib/handlers/coach.js', 'utf8');
+const coachJsPath = fs.existsSync('paddlesafe-backend-main/lib/handlers/coach.js') ? 'paddlesafe-backend-main/lib/handlers/coach.js' : 'lib/handlers/coach.js';
+const coachJsUpdated = fs.readFileSync(coachJsPath, 'utf8');
 assert(coachJsUpdated.includes('cond.sinDatos'), 'coach.js must handle missing weather data');
 
 assert(!indexHtml.includes('https://cdn.tailwindcss.com'), 'index.html must not load duplicate CDN tailwind script');
