@@ -13,7 +13,7 @@
     "orientationAngle": 0,
     "orientationType": "landscape-primary"
   },
-  "timestamp": "2026-10-21T14:31:53.407Z",
+  "timestamp": "2026-10-21T16:03:32.462Z",
   "url": "http://127.0.0.1:8080/",
   "toolOptions": {
     "runOnly": {
@@ -7865,9 +7865,9 @@
             {
               "id": "color-contrast",
               "data": {
-                "fgColor": "#269071",
-                "bgColor": "#0f2b35",
-                "contrastRatio": 3.74,
+                "fgColor": "#279775",
+                "bgColor": "#0f2c35",
+                "contrastRatio": 4.02,
                 "fontSize": "6.8pt (9px)",
                 "fontWeight": "bold",
                 "messageKey": null,
@@ -7888,7 +7888,7 @@
                 }
               ],
               "impact": "serious",
-              "message": "Element has insufficient color contrast of 3.74 (foreground color: #269071, background color: #0f2b35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
+              "message": "Element has insufficient color contrast of 4.02 (foreground color: #279775, background color: #0f2c35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
             }
           ],
           "all": [],
@@ -7898,7 +7898,7 @@
           "target": [
             ".ml-1"
           ],
-          "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.74 (foreground color: #269071, background color: #0f2b35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
+          "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.02 (foreground color: #279775, background color: #0f2c35, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1"
         },
         {
           "any": [

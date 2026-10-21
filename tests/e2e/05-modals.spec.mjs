@@ -11,8 +11,13 @@ test.describe('Modal Architecture & Isolation Suite', () => {
     });
 
     test('Ranking modal opens, displays leaderboard tabs and closes cleanly via ✕', async ({ page }) => {
-        const btnRanking = page.locator('#btnModalRanking');
-        await btnRanking.click({ force: true });
+        const btnNavRanking = page.locator('#btnNavRanking');
+        if (await btnNavRanking.isVisible()) {
+            await btnNavRanking.click();
+        } else {
+            const btnRanking = page.locator('#btnModalRanking');
+            await btnRanking.click();
+        }
         await page.waitForTimeout(300);
 
         const modal = page.locator('#rankingModal');
@@ -34,8 +39,13 @@ test.describe('Modal Architecture & Isolation Suite', () => {
     });
 
     test('Clubs & Community modal opens and closes via Escape key', async ({ page }) => {
-        const btnClubs = page.locator('#btnModalClubs');
-        await btnClubs.click({ force: true });
+        const btnNavClubs = page.locator('#btnNavClubes');
+        if (await btnNavClubs.isVisible()) {
+            await btnNavClubs.click();
+        } else {
+            const btnClubs = page.locator('#btnModalClubs');
+            await btnClubs.click();
+        }
         await page.waitForTimeout(300);
 
         const modal = page.locator('#clubsModal');

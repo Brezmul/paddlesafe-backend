@@ -71,5 +71,31 @@ test.describe('Mobile Scroll Hygiene & Bottom Dock Navigation', () => {
 
         expect(bodyOverflow.overflowX).toBe('hidden');
     });
+
+    test('Desktop header navigation is strictly hidden on mobile and visible on desktop', async ({ page, isMobile }) => {
+        await page.goto('/');
+        await page.waitForLoadState('domcontentloaded');
+
+        const desktopNav = page.locator('#desktopHeaderNav');
+        const mobileNav = page.locator('#mobileBottomNav');
+
+        if (isMobile) {
+            // Mobile assertions:
+            // 1. Desktop navigation header must be completely hidden (0px height, display: none)
+            await expect(desktopNav).toBeHidden();
+            const navBox = await desktopNav.boundingBox();
+            expect(navBox === null || navBox.height === 0).toBe(true);
+
+            // 2. Mobile bottom dock must be visible
+            await expect(mobileNav).toBeVisible();
+        } else {
+            // Desktop assertions:
+            // 1. Desktop navigation header must be visible and accessible
+            await expect(desktopNav).toBeVisible();
+
+            // 2. Mobile bottom dock must be hidden
+            await expect(mobileNav).toBeHidden();
+        }
+    });
 });
 
