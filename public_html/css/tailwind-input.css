@@ -537,13 +537,39 @@ html, body {
 }
 
 /* Floating map cockpit controls & HUD z-index elevation */
+/* Floating map cockpit controls & HUD z-index elevation */
 #radarCockpitPanel,
 #panelQuedadaMap,
-#mapLayerSwitcher,
 #mapWindWaveHud,
 #multipuntoToolbar,
 #leyendaMapa {
   z-index: 1000 !important;
+}
+
+/* Layer Switcher top-priority z-index (permanently accessible above all telemetry/cockpits) */
+#mapLayerSwitcher {
+  z-index: 1100 !important;
+}
+
+/* Ergonomic Bottom-Right Anchor for Floating Map Telemetry HUD (#mapWindWaveHud) */
+#mapWindWaveHud,
+.ps-map-telemetry-hud {
+  position: absolute !important;
+  top: auto !important;
+  left: auto !important;
+  bottom: 1.5rem !important;
+  right: 0.75rem !important;
+  max-width: calc(100% - 1.5rem) !important;
+  z-index: 1000 !important;
+}
+
+@media (min-width: 640px) {
+  #mapWindWaveHud,
+  .ps-map-telemetry-hud {
+    bottom: 1.5rem !important;
+    right: 1rem !important;
+    max-width: 220px !important;
+  }
 }
 
 #radarCockpitPanel {
