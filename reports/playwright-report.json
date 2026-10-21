@@ -4,7 +4,7 @@
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\node_modules\\@playwright\\test\\cli.js",
       "test",
-      "--project=iPhone SE - Portrait"
+      "--project=iPhone 12 - Portrait"
     ],
     "configFile": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\playwright.config.mjs",
     "rootDir": "C:/Users/Usuario/Desktop/WEBS/PaddleSafe/tests/e2e",
@@ -257,7 +257,7 @@
         "metadata": {
           "actualWorkers": 2
         },
-        "name": "iPhone SE - Portrait",
+        "name": "iPhone 12 - Portrait",
         "testDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
         "snapshotDir": "C:\\Users\\Usuario\\Desktop\\WEBS\\PaddleSafe\\tests\\e2e",
         "testIgnore": [],
@@ -268,18 +268,23 @@
           "trace": "on-first-retry",
           "screenshot": "only-on-failure",
           "video": "off",
+          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
           "viewport": {
-            "width": 320,
-            "height": 568
+            "width": 390,
+            "height": 664
           },
-          "deviceScaleFactor": 2,
+          "screen": {
+            "width": 390,
+            "height": 844
+          },
+          "deviceScaleFactor": 3,
           "isMobile": true,
           "hasTouch": true,
-          "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1"
+          "defaultBrowserType": "chromium"
         },
         "dependencies": [],
         "ignoreSnapshots": false,
-        "__projectId": "iPhone SE - Portrait"
+        "__projectId": "iPhone 12 - Portrait"
       }
     ],
     "quiet": false,
@@ -342,19 +347,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1000,
+                      "duration": 1551,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:20.314Z",
+                      "startTime": "2026-10-21T21:53:45.643Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -362,7 +367,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "03baa6ab3bdd64385f5b-3c8310ea843193078158",
+              "id": "03baa6ab3bdd64385f5b-ae02fd1948cb51a36d27",
               "file": "01-layout-viewport.spec.mjs",
               "line": 19,
               "column": 5
@@ -376,19 +381,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 430,
+                      "duration": 838,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:21.415Z",
+                      "startTime": "2026-10-21T21:53:47.296Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -396,7 +401,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "03baa6ab3bdd64385f5b-6496369e5d06717d9e01",
+              "id": "03baa6ab3bdd64385f5b-99940426465672e0ec3d",
               "file": "01-layout-viewport.spec.mjs",
               "line": 71,
               "column": 5
@@ -410,19 +415,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 759,
+                      "duration": 1170,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:20.315Z",
+                      "startTime": "2026-10-21T21:53:45.644Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -430,7 +435,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "03baa6ab3bdd64385f5b-e6f4b106e2e1e7a5959a",
+              "id": "03baa6ab3bdd64385f5b-046cc0c3f7d90117ecbd",
               "file": "01-layout-viewport.spec.mjs",
               "line": 90,
               "column": 5
@@ -461,19 +466,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 895,
+                      "duration": 1239,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:21.188Z",
+                      "startTime": "2026-10-21T21:53:46.932Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -481,7 +486,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "c8f6e6c835bedb8da188-1fcb4af2a071440a10a6",
+              "id": "c8f6e6c835bedb8da188-e35944eaa407962911a0",
               "file": "02-map-leaflet.spec.mjs",
               "line": 32,
               "column": 5
@@ -495,19 +500,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1727,
+                      "duration": 1928,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:21.876Z",
+                      "startTime": "2026-10-21T21:53:48.153Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -515,7 +520,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "c8f6e6c835bedb8da188-178fedfcc5e885c2c3b0",
+              "id": "c8f6e6c835bedb8da188-1444c4180392751e75d6",
               "file": "02-map-leaflet.spec.mjs",
               "line": 46,
               "column": 5
@@ -529,19 +534,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1473,
+                      "duration": 1647,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:22.092Z",
+                      "startTime": "2026-10-21T21:53:48.180Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -549,7 +554,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "c8f6e6c835bedb8da188-ae5a1247eab9fc73a265",
+              "id": "c8f6e6c835bedb8da188-0e8527e46ddce45e0dd5",
               "file": "02-map-leaflet.spec.mjs",
               "line": 68,
               "column": 5
@@ -563,19 +568,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1123,
+                      "duration": 1523,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:23.582Z",
+                      "startTime": "2026-10-21T21:53:49.835Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -583,7 +588,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "c8f6e6c835bedb8da188-d9f6c2c8d579b550c13a",
+              "id": "c8f6e6c835bedb8da188-98d9da05edebb37912ce",
               "file": "02-map-leaflet.spec.mjs",
               "line": 85,
               "column": 5
@@ -597,19 +602,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1295,
+                      "duration": 1499,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:23.611Z",
+                      "startTime": "2026-10-21T21:53:50.088Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -617,7 +622,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "c8f6e6c835bedb8da188-3845b10aee45ae768a1d",
+              "id": "c8f6e6c835bedb8da188-9b8536dbfc39d9985833",
               "file": "02-map-leaflet.spec.mjs",
               "line": 107,
               "column": 5
@@ -631,19 +636,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1123,
+                      "duration": 1518,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:24.717Z",
+                      "startTime": "2026-10-21T21:53:51.369Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -651,7 +656,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "c8f6e6c835bedb8da188-5b717f066704939e4ee6",
+              "id": "c8f6e6c835bedb8da188-9e7b47ac9b1b30daff25",
               "file": "02-map-leaflet.spec.mjs",
               "line": 133,
               "column": 5
@@ -682,19 +687,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1605,
+                      "duration": 1925,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:24.926Z",
+                      "startTime": "2026-10-21T21:53:51.606Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -702,7 +707,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "e2eb9b9a40944036b32d-a9b355edb2454ad7b0e3",
+              "id": "e2eb9b9a40944036b32d-8d35d7b37dbba76972f7",
               "file": "03-radar-panel.spec.mjs",
               "line": 31,
               "column": 5
@@ -716,19 +721,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1916,
+                      "duration": 2589,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:25.858Z",
+                      "startTime": "2026-10-21T21:53:52.914Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -736,7 +741,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "e2eb9b9a40944036b32d-ba5281d66c0fb32bd174",
+              "id": "e2eb9b9a40944036b32d-5959b0d5f8164990359c",
               "file": "03-radar-panel.spec.mjs",
               "line": 57,
               "column": 5
@@ -767,19 +772,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1262,
+                      "duration": 1785,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:26.554Z",
+                      "startTime": "2026-10-21T21:53:53.547Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -787,7 +792,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5626a267fd0c88ce506e-0c39166e36f9d3a3612f",
+              "id": "5626a267fd0c88ce506e-87a8fb74294ca802049b",
               "file": "04-scroll-navigation.spec.mjs",
               "line": 10,
               "column": 5
@@ -801,19 +806,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 391,
+                      "duration": 944,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:27.789Z",
+                      "startTime": "2026-10-21T21:53:55.342Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -821,7 +826,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5626a267fd0c88ce506e-845f85c94f48362a4f33",
+              "id": "5626a267fd0c88ce506e-3e6527a6bbeb3b17162f",
               "file": "04-scroll-navigation.spec.mjs",
               "line": 59,
               "column": 5
@@ -835,19 +840,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 474,
+                      "duration": 934,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:27.825Z",
+                      "startTime": "2026-10-21T21:53:55.521Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -855,9 +860,43 @@
                   "status": "expected"
                 }
               ],
-              "id": "5626a267fd0c88ce506e-072a2e283596a8d38984",
+              "id": "5626a267fd0c88ce506e-9665821f9a68a78fb69d",
               "file": "04-scroll-navigation.spec.mjs",
               "line": 75,
+              "column": 5
+            },
+            {
+              "title": "Mobile bottom dock maintains true viewport anchoring (getBoundingClientRect bottom === innerHeight) before and after scroll",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1314,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-21T21:53:56.295Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5626a267fd0c88ce506e-f45b464872204c9da090",
+              "file": "04-scroll-navigation.spec.mjs",
+              "line": 101,
               "column": 5
             }
           ]
@@ -886,19 +925,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1404,
+                      "duration": 2256,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:28.197Z",
+                      "startTime": "2026-10-21T21:53:56.481Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -906,7 +945,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "32150ec7b92884ed7a66-4fa67e0ed99bddb463c8",
+              "id": "32150ec7b92884ed7a66-9146ab33ab89d00c6034",
               "file": "05-modals.spec.mjs",
               "line": 13,
               "column": 5
@@ -920,19 +959,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1354,
+                      "duration": 2028,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:28.315Z",
+                      "startTime": "2026-10-21T21:53:57.627Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -940,7 +979,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "32150ec7b92884ed7a66-58e41c0ee878cdeb65c4",
+              "id": "32150ec7b92884ed7a66-a3be98453e1df0ae3b68",
               "file": "05-modals.spec.mjs",
               "line": 41,
               "column": 5
@@ -954,19 +993,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1348,
+                      "duration": 2307,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:29.613Z",
+                      "startTime": "2026-10-21T21:53:58.746Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -974,7 +1013,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "32150ec7b92884ed7a66-1e5dd3064747ea8b4ac4",
+              "id": "32150ec7b92884ed7a66-253f81c2db80ea5bdbab",
               "file": "05-modals.spec.mjs",
               "line": 70,
               "column": 5
@@ -988,19 +1027,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1034,
+                      "duration": 1447,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:29.677Z",
+                      "startTime": "2026-10-21T21:53:59.663Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1008,7 +1047,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "32150ec7b92884ed7a66-c59c961f681c3d165a68",
+              "id": "32150ec7b92884ed7a66-724716d9b811e4c78eea",
               "file": "05-modals.spec.mjs",
               "line": 100,
               "column": 5
@@ -1039,19 +1078,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1470,
+                      "duration": 1902,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:30.775Z",
+                      "startTime": "2026-10-21T21:54:01.131Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1059,7 +1098,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "af7a716a0c2ad3776347-03b2b029277c420f4ad7",
+              "id": "af7a716a0c2ad3776347-fa71b3d43d88ee3c731f",
               "file": "06-accessibility-axe.spec.mjs",
               "line": 13,
               "column": 5
@@ -1073,19 +1112,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 353,
+                      "duration": 875,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:31.028Z",
+                      "startTime": "2026-10-21T21:54:01.193Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1093,7 +1132,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "af7a716a0c2ad3776347-481b719b1047d1f2da71",
+              "id": "af7a716a0c2ad3776347-852622711ae8a59d89ea",
               "file": "06-accessibility-axe.spec.mjs",
               "line": 41,
               "column": 5
@@ -1107,19 +1146,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 557,
+                      "duration": 973,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:31.396Z",
+                      "startTime": "2026-10-21T21:54:02.079Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1127,7 +1166,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "af7a716a0c2ad3776347-053cb7487b5dd7e22ab7",
+              "id": "af7a716a0c2ad3776347-f0eca1115e23c1e98991",
               "file": "06-accessibility-axe.spec.mjs",
               "line": 71,
               "column": 5
@@ -1158,19 +1197,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 2996,
+                      "duration": 3471,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:31.978Z",
+                      "startTime": "2026-10-21T21:54:03.052Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1178,7 +1217,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-d6cb06db0f2f848dff34",
+              "id": "73a7e171b8ccf73f7b90-7cd92158dbab6977f09d",
               "file": "07-weather-spots.spec.mjs",
               "line": 23,
               "column": 5
@@ -1192,19 +1231,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1438,
+                      "duration": 3428,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:32.272Z",
+                      "startTime": "2026-10-21T21:54:03.067Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1212,7 +1251,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-412037f4b89ccf85f02e",
+              "id": "73a7e171b8ccf73f7b90-337208d06559cdc0466f",
               "file": "07-weather-spots.spec.mjs",
               "line": 61,
               "column": 5
@@ -1226,19 +1265,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1467,
+                      "duration": 2407,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:33.718Z",
+                      "startTime": "2026-10-21T21:54:06.508Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1246,7 +1285,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-9aa1299566f03c5365e9",
+              "id": "73a7e171b8ccf73f7b90-b046f006f069d42f9ef8",
               "file": "07-weather-spots.spec.mjs",
               "line": 83,
               "column": 5
@@ -1260,19 +1299,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 639,
+                      "duration": 1057,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:34.982Z",
+                      "startTime": "2026-10-21T21:54:06.532Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1280,7 +1319,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "73a7e171b8ccf73f7b90-77f311555297bd923564",
+              "id": "73a7e171b8ccf73f7b90-972ced93c9ff8b558ff2",
               "file": "07-weather-spots.spec.mjs",
               "line": 107,
               "column": 5
@@ -1311,19 +1350,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 469,
+                      "duration": 889,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:35.212Z",
+                      "startTime": "2026-10-21T21:54:07.608Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1331,7 +1370,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5ba6f74f6288c8eabd8e-4a0e5b386bf62a8ba4fd",
+              "id": "5ba6f74f6288c8eabd8e-0c9f9fc0e244a3e53886",
               "file": "08-mobile-profile.spec.mjs",
               "line": 12,
               "column": 5
@@ -1345,19 +1384,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1240,
+                      "duration": 2077,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:35.647Z",
+                      "startTime": "2026-10-21T21:54:08.505Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1365,7 +1404,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5ba6f74f6288c8eabd8e-3b0288b9abca7c1815d3",
+              "id": "5ba6f74f6288c8eabd8e-84999a20e9e33daf9e47",
               "file": "08-mobile-profile.spec.mjs",
               "line": 43,
               "column": 5
@@ -1379,19 +1418,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1979,
+                      "duration": 3117,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:35.691Z",
+                      "startTime": "2026-10-21T21:54:08.937Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1399,7 +1438,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5ba6f74f6288c8eabd8e-b38f4a44f3dfa25d1163",
+              "id": "5ba6f74f6288c8eabd8e-1b0fdb2739abec7d308b",
               "file": "08-mobile-profile.spec.mjs",
               "line": 76,
               "column": 5
@@ -1413,19 +1452,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 1243,
+                      "duration": 1722,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:36.899Z",
+                      "startTime": "2026-10-21T21:54:10.591Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1433,7 +1472,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5ba6f74f6288c8eabd8e-4982a257ec755405be31",
+              "id": "5ba6f74f6288c8eabd8e-a55f8a4ac3561d2b8b06",
               "file": "08-mobile-profile.spec.mjs",
               "line": 119,
               "column": 5
@@ -1447,19 +1486,19 @@
                   "timeout": 30000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "iPhone SE - Portrait",
-                  "projectName": "iPhone SE - Portrait",
+                  "projectId": "iPhone 12 - Portrait",
+                  "projectName": "iPhone 12 - Portrait",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 922,
+                      "duration": 1175,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-21T21:31:37.678Z",
+                      "startTime": "2026-10-21T21:54:12.066Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1467,7 +1506,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "5ba6f74f6288c8eabd8e-fd627e2bb7fab21a8e58",
+              "id": "5ba6f74f6288c8eabd8e-5e028255845f1887af19",
               "file": "08-mobile-profile.spec.mjs",
               "line": 154,
               "column": 5
@@ -1479,9 +1518,9 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-21T21:31:19.738Z",
-    "duration": 19072.591,
-    "expected": 30,
+    "startTime": "2026-10-21T21:53:45.028Z",
+    "duration": 28443.961,
+    "expected": 31,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

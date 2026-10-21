@@ -97,5 +97,43 @@ test.describe('Mobile Scroll Hygiene & Bottom Dock Navigation', () => {
             await expect(mobileNav).toBeHidden();
         }
     });
-});
 
+    test('Mobile bottom dock maintains true viewport anchoring (getBoundingClientRect bottom === innerHeight) before and after scroll', async ({ page, isMobile }) => {
+        if (!isMobile) return;
+
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
+        await page.waitForLoadState('domcontentloaded');
+
+        const mobileNav = page.locator('#mobileBottomNav');
+        await expect(mobileNav).toBeVisible();
+
+        // 1. Check before scroll
+        const initialCheck = await page.evaluate(() => {
+            const el = document.getElementById('mobileBottomNav');
+            const rect = el.getBoundingClientRect();
+            return {
+                rectBottom: Math.round(rect.bottom),
+                innerHeight: window.innerHeight,
+                diff: Math.abs(Math.round(rect.bottom) - window.innerHeight)
+            };
+        });
+        expect(initialCheck.diff).toBeLessThanOrEqual(1);
+
+        // 2. Scroll the page down by 500px
+        await page.evaluate(() => window.scrollTo(0, 500));
+        await page.waitForTimeout(200);
+
+        // 3. Check after scroll
+        const scrolledCheck = await page.evaluate(() => {
+            const el = document.getElementById('mobileBottomNav');
+            const rect = el.getBoundingClientRect();
+            return {
+                scrollY: window.scrollY,
+                rectBottom: Math.round(rect.bottom),
+                innerHeight: window.innerHeight,
+                diff: Math.abs(Math.round(rect.bottom) - window.innerHeight)
+            };
+        });
+        expect(scrolledCheck.diff).toBeLessThanOrEqual(1);
+    });
+});

@@ -21,7 +21,7 @@
     <link rel="manifest" href="/manifest.json">
     
     <!-- Tailwind CSS (Compilado localmente para offline y rendimiento de producción) -->
-    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v72">
+    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v73">
 
     <!-- Leaflet CSS y JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -879,14 +879,14 @@
                                 <div id="multipuntoToolbar" class="hidden absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 z-[400] ps-bento-card ps-map-dock p-1.5 gap-1.5 border border-slate-700/80 flex items-center shadow-2xl backdrop-blur-xl max-w-[95%] overflow-x-auto [&::-webkit-scrollbar]:hidden" style="scrollbar-width: none; -ms-overflow-style: none;">
                                     <!-- Grupo Ruta -->
                                     <div class="flex items-center gap-1 shrink-0">
-                                        <button type="button" id="btnIdaYVueltaMultipunto" onclick="cerrarIdaYVueltaMultipunto()" class="h-9 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-white bg-teal-600/80 hover:bg-teal-500 border border-teal-500/40 shadow-sm shrink-0 active:scale-95 transition-all cursor-pointer" title="Convertir ruta a ida y vuelta">
-                                            <span class="shrink-0">🔄</span> <span>Ida y Vuelta</span>
+                                        <button type="button" id="btnIdaYVueltaMultipunto" onclick="cerrarIdaYVueltaMultipunto()" class="ps-chip text-white bg-teal-600/80 hover:bg-teal-500 border-teal-500/40 shadow-sm" title="Convertir ruta a ida y vuelta">
+                                            <span>🔄</span> <span>Ida y Vuelta</span>
                                         </button>
-                                        <button type="button" onclick="deshacerUltimoPunto()" class="h-9 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-slate-200 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 shrink-0 active:scale-95 transition-all cursor-pointer" title="Deshacer último punto marcado">
-                                            <span class="shrink-0">↩️</span> <span>Deshacer</span>
+                                        <button type="button" onclick="deshacerUltimoPunto()" class="ps-chip text-slate-200 bg-slate-800/80 hover:bg-slate-700 border-slate-700" title="Deshacer último punto marcado">
+                                            <span>↩️</span> <span>Deshacer</span>
                                         </button>
-                                        <button type="button" onclick="reiniciarRutaMultipunto()" class="h-9 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-rose-300 bg-rose-950/50 hover:bg-rose-900/60 border border-rose-500/30 shrink-0 active:scale-95 transition-all cursor-pointer" title="Limpiar todo el trazado">
-                                            <span class="shrink-0">🗑️</span> <span>Limpiar</span>
+                                        <button type="button" onclick="reiniciarRutaMultipunto()" class="ps-chip text-rose-300 bg-rose-950/50 hover:bg-rose-900/60 border-rose-500/30" title="Limpiar todo el trazado">
+                                            <span>🗑️</span> <span>Limpiar</span>
                                         </button>
                                     </div>
 
@@ -895,20 +895,20 @@
 
                                     <!-- Grupo Táctico -->
                                     <div class="flex items-center gap-1 shrink-0">
-                                        <button type="button" id="btnExportarGpxMultipunto" onclick="exportarRutaPlanificadaGPX()" class="h-9 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-emerald-200 bg-emerald-800/60 hover:bg-emerald-700 border border-emerald-500/40 shrink-0 active:scale-95 transition-all cursor-pointer" title="Exportar ruta a archivo GPX">
-                                            <span class="shrink-0">📲</span> <span>GPX</span>
+                                        <button type="button" id="btnExportarGpxMultipunto" onclick="exportarRutaPlanificadaGPX()" class="ps-chip text-emerald-200 bg-emerald-800/60 hover:bg-emerald-700 border-emerald-500/40" title="Exportar ruta a archivo GPX">
+                                            <span>📲</span> <span>GPX</span>
                                         </button>
-                                        <button type="button" onclick="document.getElementById('inputImportarGpxPro')?.click()" class="h-9 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-sky-200 bg-sky-900/50 hover:bg-sky-800 border border-sky-500/40 shrink-0 active:scale-95 transition-all cursor-pointer" title="Importar trazado desde archivo GPX">
-                                            <span class="shrink-0">📥</span> <span>Importar</span>
+                                        <button type="button" onclick="document.getElementById('inputImportarGpxPro')?.click()" class="ps-chip text-sky-200 bg-sky-900/50 hover:bg-sky-800 border-sky-500/40" title="Importar trazado desde archivo GPX">
+                                            <span>📥</span> <span>Importar</span>
                                         </button>
-                                        <button type="button" id="btnDescargarMapaOfflineMultipunto" onclick="descargarZonaMapaOffline()" class="h-9 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-cyan-200 bg-slate-800/80 hover:bg-slate-700 border border-cyan-500/30 shrink-0 active:scale-95 transition-all cursor-pointer" title="Guardar mapa de la zona offline">
-                                            <span class="shrink-0">📥</span> <span>Offline</span>
+                                        <button type="button" id="btnDescargarMapaOfflineMultipunto" onclick="descargarZonaMapaOffline()" class="ps-chip text-cyan-200 bg-slate-800/80 hover:bg-slate-700 border-cyan-500/30" title="Guardar mapa de la zona offline">
+                                            <span>💾</span> <span>Offline</span>
                                         </button>
-                                        <button type="button" onclick="iniciarCreacionQuedadaClub()" class="h-9 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-indigo-200 bg-indigo-900/50 hover:bg-indigo-800 border border-indigo-500/40 shrink-0 active:scale-95 transition-all cursor-pointer" title="Crear quedada con este recorrido">
-                                            <span class="shrink-0">⛵</span> <span>Quedada</span>
+                                        <button type="button" onclick="iniciarCreacionQuedadaClub()" class="ps-chip text-indigo-200 bg-indigo-900/50 hover:bg-indigo-800 border-indigo-500/40" title="Crear quedada con este recorrido">
+                                            <span>⛵</span> <span>Quedada</span>
                                         </button>
-                                        <button type="button" onclick="document.getElementById('savedSpotsBar')?.scrollIntoView({behavior:'smooth'})" class="h-9 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-amber-200 bg-amber-900/40 hover:bg-amber-800 border border-amber-500/30 shrink-0 active:scale-95 transition-all cursor-pointer" title="Ir a mis spots favoritos">
-                                            <span class="shrink-0">⭐</span> <span>Spots</span>
+                                        <button type="button" onclick="document.getElementById('savedSpotsBar')?.scrollIntoView({behavior:'smooth'})" class="ps-chip text-amber-200 bg-amber-900/40 hover:bg-amber-800 border-amber-500/30" title="Ir a mis spots favoritos">
+                                            <span>⭐</span> <span>Spots</span>
                                         </button>
                                     </div>
                                 </div>
@@ -2174,80 +2174,48 @@
         })();
     </script>
 
-    <!-- DOCK ERGONÓMICO INFERIOR PARA MÓVIL (NATIVE IOS / STRAVA TAB BAR) -->
-    <nav id="mobileBottomNav" class="lg:hidden fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 grid grid-cols-6 items-center h-16 px-1 select-none pb-[env(safe-area-inset-bottom)]" aria-label="Navegación Móvil">
+    <!-- DOCK ERGONÓMICO INFERIOR PARA MÓVIL (PURE CSS TRUE VIEWPORT ANCHORING) -->
+    <nav id="mobileBottomNav" class="lg:hidden" aria-label="Navegación Móvil">
         <!-- 1. Parte Meteorológico -->
-        <button type="button" id="btnNavParte" onclick="activarItemBottomNav('parte')" class="flex flex-col items-center justify-center gap-0.5 py-1 w-full h-full bg-transparent border-0 shadow-none focus:outline-none transition-colors duration-150 text-sky-400 group cursor-pointer" title="Parte Meteorológico" aria-label="Parte Meteorológico">
-            <span class="nav-indicator w-10 h-7 flex items-center justify-center rounded-full transition-all bg-sky-500/15 text-sky-400">
-                <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 12c3-2.5 6-2.5 9 0s6 2.5 9 0 3-2.5 4-2" />
-                    <path d="M2 17c3-2.5 6-2.5 9 0s6 2.5 9 0" />
-                    <path d="M3 7h11a3 3 0 1 0-3-3" />
-                </svg>
-            </span>
-            <span class="text-[11px] font-bold leading-none tracking-tight whitespace-nowrap">Parte</span>
+        <button type="button" id="btnNavParte" onclick="activarItemBottomNav('parte')" class="is-active text-sky-400" aria-label="Parte Meteorológico" title="Parte Meteorológico">
+            <span class="nav-indicator"></span>
+            <span class="text-lg drop-shadow">🌊</span>
+            <span class="text-[10px] font-bold tracking-tight">Parte</span>
         </button>
 
         <!-- 2. Ruta Pro -->
-        <button type="button" id="btnNavPro" onclick="activarItemBottomNav('pro')" class="flex flex-col items-center justify-center gap-0.5 py-1 w-full h-full bg-transparent border-0 shadow-none focus:outline-none transition-colors duration-150 text-slate-400 hover:text-slate-200 group cursor-pointer" title="Ruta Pro" aria-label="Ruta Pro">
-            <span class="nav-indicator w-10 h-7 flex items-center justify-center rounded-full transition-all bg-transparent text-slate-400 group-hover:text-slate-200">
-                <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-                </svg>
-            </span>
-            <span class="text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap">Ruta Pro</span>
+        <button type="button" id="btnNavPro" onclick="activarItemBottomNav('pro')" class="text-slate-400" aria-label="Ruta Pro" title="Ruta Pro">
+            <span class="nav-indicator"></span>
+            <span class="text-lg drop-shadow">🧭</span>
+            <span class="text-[10px] font-bold tracking-tight">Ruta Pro</span>
         </button>
 
         <!-- 3. Muro Social -->
-        <button type="button" id="btnNavMuro" onclick="activarItemBottomNav('muro')" class="flex flex-col items-center justify-center gap-0.5 py-1 w-full h-full bg-transparent border-0 shadow-none focus:outline-none transition-colors duration-150 text-slate-400 hover:text-slate-200 group cursor-pointer" title="Muro Social" aria-label="Muro Social">
-            <span class="nav-indicator w-10 h-7 flex items-center justify-center rounded-full transition-all bg-transparent text-slate-400 group-hover:text-slate-200">
-                <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
-                    <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" />
-                    <circle cx="12" cy="2" r="2" />
-                    <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" />
-                    <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" />
-                </svg>
-            </span>
-            <span class="text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap">Muro</span>
+        <button type="button" id="btnNavMuro" onclick="activarItemBottomNav('muro')" class="text-slate-400" aria-label="Muro Social" title="Muro Social">
+            <span class="nav-indicator"></span>
+            <span class="text-lg drop-shadow">📡</span>
+            <span class="text-[10px] font-bold tracking-tight">Muro</span>
         </button>
 
         <!-- 4. Clubes -->
-        <button type="button" id="btnNavClubes" onclick="activarItemBottomNav('clubes')" class="flex flex-col items-center justify-center gap-0.5 py-1 w-full h-full bg-transparent border-0 shadow-none focus:outline-none transition-colors duration-150 text-slate-400 hover:text-slate-200 group cursor-pointer" title="Comunidad y Clubes" aria-label="Comunidad y Clubes">
-            <span class="nav-indicator w-10 h-7 flex items-center justify-center rounded-full transition-all bg-transparent text-slate-400 group-hover:text-slate-200">
-                <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-            </span>
-            <span class="text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap">Clubes</span>
+        <button type="button" id="btnNavClubes" onclick="activarItemBottomNav('clubes')" class="text-slate-400" aria-label="Mi Club" title="Comunidad y Clubes">
+            <span class="nav-indicator"></span>
+            <span class="text-lg drop-shadow">🛡️</span>
+            <span class="text-[10px] font-bold tracking-tight">Mi Club</span>
         </button>
 
         <!-- 5. Ranking -->
-        <button type="button" id="btnNavRanking" onclick="activarItemBottomNav('ranking')" class="flex flex-col items-center justify-center gap-0.5 py-1 w-full h-full bg-transparent border-0 shadow-none focus:outline-none transition-colors duration-150 text-slate-400 hover:text-slate-200 group cursor-pointer" title="Ranking de Paddlers" aria-label="Ranking de Paddlers">
-            <span class="nav-indicator w-10 h-7 flex items-center justify-center rounded-full transition-all bg-transparent text-slate-400 group-hover:text-slate-200">
-                <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-                    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-                    <path d="M4 22h16" />
-                    <path d="M10 14.66V17c0 .55-.45 1-1 1H7v4h10v-4h-2c-.55 0-1-.45-1-1v-2.34" />
-                    <path d="M6 4h12v7a6 6 0 0 1-12 0V4z" />
-                </svg>
-            </span>
-            <span class="text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap">Ranking</span>
+        <button type="button" id="btnNavRanking" onclick="activarItemBottomNav('ranking')" class="text-slate-400" aria-label="Ranking" title="Ranking de Paddlers">
+            <span class="nav-indicator"></span>
+            <span class="text-lg drop-shadow">🏆</span>
+            <span class="text-[10px] font-bold tracking-tight">Ranking</span>
         </button>
 
         <!-- 6. Perfil -->
-        <button type="button" id="btnNavPerfil" onclick="activarItemBottomNav('perfil')" class="flex flex-col items-center justify-center gap-0.5 py-1 w-full h-full bg-transparent border-0 shadow-none focus:outline-none transition-colors duration-150 text-slate-400 hover:text-slate-200 group cursor-pointer" title="Mi Perfil" aria-label="Mi Perfil">
-            <span class="nav-indicator w-10 h-7 flex items-center justify-center rounded-full transition-all bg-transparent text-slate-400 group-hover:text-slate-200">
-                <span id="navPerfilIcon" class="w-[22px] h-[22px] flex items-center justify-center">
-                    <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                        <circle cx="12" cy="7" r="4" />
-                    </svg>
-                </span>
-            </span>
-            <span id="navPerfilLabel" class="text-[11px] font-semibold leading-none tracking-tight whitespace-nowrap">Perfil</span>
+        <button type="button" id="btnNavPerfil" onclick="activarItemBottomNav('perfil')" class="text-slate-400" aria-label="Mi Perfil" title="Mi Perfil">
+            <span class="nav-indicator"></span>
+            <span id="navPerfilIcon" class="text-lg drop-shadow flex items-center justify-center">👤</span>
+            <span id="navPerfilLabel" class="text-[10px] font-bold tracking-tight truncate max-w-full">Perfil</span>
         </button>
     </nav>
 </body>
