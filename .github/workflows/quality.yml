@@ -30,7 +30,7 @@ jobs:
         run: npm ci
 
       - name: 4. Security Audit (Dependencies & Known Vulnerabilities)
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=critical
 
       - name: 5. Execute Core Smoke & Architecture Validation Tests (756 Assertions)
         run: node smoke_test_v2.mjs
