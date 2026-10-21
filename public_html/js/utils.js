@@ -40,6 +40,92 @@ export function validarImagen(file, maxMB = 5) {
     return null;
 }
 
+/**
+ * Comprime y escala proporcionalmente una imagen en el cliente usando un canvas HTML5
+ * @param {File|Blob} file - Archivo o Blob de imagen a comprimir
+ * @param {number} maxWidth - Ancho o alto máximo permitido (default 1600)
+ * @param {number} quality - Calidad de compresión JPEG (0.1 a 1.0, default 0.84)
+ * @returns {Promise<File|Blob>} - Archivo o Blob comprimido en formato image/jpeg
+ */
+export async function comprimirImagenCliente(file, maxWidth = 1600, quality = 0.84) {
+    if (!file) return file;
+    // Si no estamos en entorno navegador con canvas, fallback inmediato
+    if (typeof document === 'undefined' || typeof Image === 'undefined') {
+        return file;
+    }
+
+    return new Promise((resolve) => {
+        try {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        let { width, height } = img;
+                        if (!width || !height) return resolve(file);
+
+                        // Si ya está por debajo del límite y pesa menos de 400KB, no tocar
+                        if (width <= maxWidth && height <= maxWidth && file.size && file.size < 400 * 1024) {
+                            return resolve(file);
+                        }
+
+                        // Escalar proporcionalmente respetando ratio de aspecto
+                        if (width > maxWidth || height > maxWidth) {
+                            if (width > height) {
+                                height = Math.round((height * maxWidth) / width);
+                                width = maxWidth;
+                            } else {
+                                width = Math.round((width * maxWidth) / height);
+                                height = maxWidth;
+                            }
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        if (!ctx) return resolve(file);
+
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        if (typeof canvas.toBlob === 'function') {
+                            canvas.toBlob(
+                                (blob) => {
+                                    if (!blob) return resolve(file);
+                                    try {
+                                        const originalName = file.name ? file.name.replace(/\.[^/.]+$/, '.jpg') : 'compressed.jpg';
+                                        const compressedFile = new File([blob], originalName, {
+                                            type: 'image/jpeg',
+                                            lastModified: Date.now()
+                                        });
+                                        resolve(compressedFile);
+                                    } catch (_) {
+                                        resolve(blob);
+                                    }
+                                },
+                                'image/jpeg',
+                                quality
+                            );
+                        } else {
+                            resolve(file);
+                        }
+                    } catch (err) {
+                        console.warn('[comprimirImagenCliente] Fallo en compresión, usando archivo original:', err);
+                        resolve(file);
+                    }
+                };
+                img.onerror = () => resolve(file);
+                img.src = e.target.result;
+            };
+            reader.onerror = () => resolve(file);
+            reader.readAsDataURL(file);
+        } catch (err) {
+            console.warn('[comprimirImagenCliente] Error iniciando compresión:', err);
+            resolve(file);
+        }
+    });
+}
+
 export function formatearTiempo(minutos) {
     const m = Math.round(minutos);
     if (m < 60) return `${m} min`;
@@ -88,6 +174,7 @@ export const CLASES_RIESGO = {
     'Condiciones exigentes': 'text-orange-600 bg-orange-50 border border-orange-200 rounded-lg',
     'No recomendado': 'text-red-700 bg-red-100 border border-red-400 rounded-lg',
     'Tormenta eléctrica': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg',
+    'Riesgo meteorológico estimado': 'text-amber-500 bg-amber-950/80 border border-amber-500 rounded-lg',
     'SEGURO':     'text-emerald-500 bg-emerald-50 border border-emerald-200 rounded-lg',
     'PRECAUCIÓN': 'text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-lg',
     'RIESGO ELEVADO': 'text-orange-600 bg-orange-50 border border-orange-200 rounded-lg',
@@ -456,6 +543,216 @@ export function calcularSolYCrepusculo(lat, lon, fechaStr) {
     return result;
 }
 
+export function actualizarUIPresencia() {
+    if (typeof document === 'undefined') return;
+    const elements = document.querySelectorAll('[data-user-presence-id]');
+    const onlineMap = (typeof window !== 'undefined' && window.appState?.onlineUsers) || {};
+    
+    elements.forEach(el => {
+        const uid = el.getAttribute('data-user-presence-id');
+        if (!uid) return;
+        const presence = onlineMap[uid];
+        const status = presence ? presence.status : null;
+
+        // Reset base classes
+        el.className = "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 transition-colors duration-300 z-10";
+        el.innerHTML = '';
+
+        if (status === 'in_water') {
+            el.className = "absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-slate-900 bg-sky-500 animate-pulse transition-colors duration-300 z-10 flex items-center justify-center text-[7px]";
+            el.innerHTML = '🌊';
+            el.setAttribute('title', 'Remando en el agua');
+        } else if (status === 'online') {
+            el.className = "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 bg-emerald-500 transition-colors duration-300 z-10";
+            el.setAttribute('title', 'En línea');
+        } else if (status === 'away') {
+            el.className = "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 bg-amber-400 transition-colors duration-300 z-10";
+            el.setAttribute('title', 'Ausente');
+        } else {
+            el.className = "absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-slate-900 bg-slate-500/70 transition-colors duration-300 z-10";
+            el.setAttribute('title', 'Desconectado');
+        }
+    });
+}
+
+
+/**
+ * Generador ultra-rápido de mini trazados SVG para tarjetas de rutas tipo Strava / Garmin (Batch #21)
+ * @param {Array|string} coordenadas - Array [[lat, lon], ...] o [{lat, lng}, ...] o string JSON
+ * @param {string} colorHex - Color hexadecimal del trazado (defecto: '#38bdf8')
+ * @returns {string} Markup SVG inline listo para inyectar en DOM
+ */
+export function generarMiniSvgTrazadoRuta(coordenadas, colorHex = '#38bdf8') {
+    let pts = coordenadas;
+    if (typeof pts === 'string') {
+        try { pts = JSON.parse(pts); } catch (_) { pts = []; }
+    }
+
+    const normPts = [];
+    if (Array.isArray(pts)) {
+        for (const p of pts) {
+            if (!p) continue;
+            let lat, lon;
+            if (Array.isArray(p) && p.length >= 2) {
+                lat = Number(p[0]);
+                lon = Number(p[1]);
+            } else if (typeof p === 'object') {
+                lat = Number(p.lat ?? p.latitude);
+                lon = Number(p.lon ?? p.lng ?? p.longitude);
+            }
+            if (!isNaN(lat) && !isNaN(lon)) {
+                normPts.push({ lat, lon });
+            }
+        }
+    }
+
+    if (normPts.length < 2) {
+        return `<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full text-sky-400/50" aria-label="Trazado decorativo"><path d="M 15 45 Q 45 25, 80 45 T 145 45" stroke="${colorHex}" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.5"/><circle cx="80" cy="45" r="3" fill="${colorHex}" opacity="0.7"/></svg>`;
+    }
+
+    let minLat = Infinity, maxLat = -Infinity;
+    let minLon = Infinity, maxLon = -Infinity;
+
+    for (const p of normPts) {
+        if (p.lat < minLat) minLat = p.lat;
+        if (p.lat > maxLat) maxLat = p.lat;
+        if (p.lon < minLon) minLon = p.lon;
+        if (p.lon > maxLon) maxLon = p.lon;
+    }
+
+    let latSpan = maxLat - minLat;
+    let lonSpan = maxLon - minLon;
+    if (latSpan <= 0.000001) latSpan = 0.0001;
+    if (lonSpan <= 0.000001) lonSpan = 0.0001;
+
+    const padX = 160 * 0.12; // 19.2px
+    const padY = 90 * 0.12;  // 10.8px
+    const drawW = 160 - (padX * 2);
+    const drawH = 90 - (padY * 2);
+
+    const midLat = (minLat + maxLat) / 2;
+    const cosLat = Math.cos((midLat * Math.PI) / 180);
+    const geoW = lonSpan * Math.max(0.1, Math.abs(cosLat));
+    const geoH = latSpan;
+
+    const scaleX = drawW / geoW;
+    const scaleY = drawH / geoH;
+    const scale = Math.min(scaleX, scaleY);
+
+    const usedW = geoW * scale;
+    const usedH = geoH * scale;
+    const offX = padX + (drawW - usedW) / 2;
+    const offY = padY + (drawH - usedH) / 2;
+
+    const svgPoints = normPts.map(p => {
+        const x = offX + (p.lon - minLon) * Math.abs(cosLat) * scale;
+        const y = (90 - offY) - (p.lat - minLat) * scale;
+        return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)) };
+    });
+
+    const startPt = svgPoints[0];
+    const endPt = svgPoints[svgPoints.length - 1];
+    const pointsAttr = svgPoints.map(p => `${p.x},${p.y}`).join(' ');
+    const safeId = Math.random().toString(36).substring(2, 7);
+
+    return `<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full overflow-visible" aria-label="Trazado de ruta GPS"><defs><filter id="psGlow-${safeId}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="${colorHex}" flood-opacity="0.6"/></filter></defs><polyline points="${pointsAttr}" fill="none" stroke="${colorHex}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#psGlow-${safeId})"/><circle cx="${startPt.x}" cy="${startPt.y}" r="3.5" fill="#10b981" stroke="#ffffff" stroke-width="1.5" /><circle cx="${endPt.x}" cy="${endPt.y}" r="3.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" /></svg>`;
+}
+
+/**
+ * Asesor humano de equipamiento, neopreno térmico y tabla para SUP
+ * @param {number|null} tempAireC Temperatura ambiente en °C
+ * @param {number|null} vientoKt Velocidad de viento en nudos
+ * @param {number|null} olasM Altura de ola significativa en metros
+ * @param {number|null} score Safety score (0-100)
+ * @param {number|null} mesIndex Mes del año (0-11, opcional para estacionalidad)
+ * @returns {{ vestimenta: string, tabla: string, estrategia: string, html: string }}
+ */
+export function generarGuiaHumanaEquipamiento(tempAireC = 20, vientoKt = 5, olasM = 0.2, score = 80, mesIndex = null) {
+    const t = Number(tempAireC ?? 20);
+    const v = Number(vientoKt ?? 5);
+    const o = Number(olasM ?? 0.2);
+    const s = Number(score ?? 80);
+
+    // Sensación térmica y recomendación de vestimenta / neopreno (windchill náutico simplificado)
+    const sensacionTermica = t - (v > 10 ? (v - 10) * 0.4 : 0);
+
+    let vestimenta = '';
+    let vestimentaIcono = '👕';
+    if (sensacionTermica >= 23) {
+        vestimenta = '🩳 Bañador y Lycra UV (>23°C) + 🧴 Protección Solar Alta';
+        vestimentaIcono = '🩳';
+    } else if (sensacionTermica >= 19) {
+        vestimenta = '🩱 Neopreno Corto / Shorty 2mm (19-22°C)';
+        vestimentaIcono = '🩱';
+    } else if (sensacionTermica >= 15) {
+        vestimenta = '🧥 Neopreno 3/2mm o Cortavientos (15-18°C)';
+        vestimentaIcono = '🧥';
+    } else {
+        vestimenta = '🧤 Neopreno 4/3mm + Escarpines (<15°C)';
+        vestimentaIcono = '🧤';
+    }
+
+    // Tabla recomendada
+    let tabla = '';
+    let tablaIcono = '🏄';
+    if (s < 40 || v >= 15 || o >= 0.9) {
+        tabla = '⚠️ Solo expertos / Downwind técnico (Tabla rígida o race con experiencia)';
+        tablaIcono = '⚠️';
+    } else if (v >= 10 || o >= 0.5) {
+        tabla = '🧭 Recomendado tabla Touring 12\'6" o rígida para vencer la deriva';
+        tablaIcono = '🧭';
+    } else {
+        tabla = '✅ Apto para cualquier tabla (All-Round / Hinchable)';
+        tablaIcono = '✅';
+    }
+
+    // Estrategia de Salida náutica en lenguaje claro
+    let estrategia = '';
+    let estrategiaIcono = '🧭';
+    if (v >= 7) {
+        estrategia = '💡 Empieza remando contra el viento para asegurar un regreso cómodo a favor';
+        estrategiaIcono = '💡';
+    } else if (o >= 0.6) {
+        estrategia = '🌊 Atención en la orilla: mantén el remo firme al pasar la rompiente';
+        estrategiaIcono = '🌊';
+    } else {
+        estrategia = '🌊 Mar en calma: Navega con libertad manteniendo siempre referencia visual de la costa';
+        estrategiaIcono = '✨';
+    }
+
+    const html = `
+        <div id="humanQuickBriefingBar" class="grid grid-cols-1 sm:grid-cols-3 gap-2 p-3 bg-slate-950/80 backdrop-blur-md rounded-2xl border border-sky-500/30 text-white shadow-lg animate-fadeIn">
+            <div class="flex items-center gap-2 p-2 rounded-xl bg-slate-900/70 border border-slate-800">
+                <span class="text-xl shrink-0">${vestimentaIcono}</span>
+                <div class="min-w-0">
+                    <div class="text-[9px] font-black uppercase tracking-wider text-sky-400">Vestimenta Sugerida</div>
+                    <div class="text-[11px] font-semibold text-slate-200 truncate" title="${vestimenta}">${vestimenta}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 p-2 rounded-xl bg-slate-900/70 border border-slate-800">
+                <span class="text-xl shrink-0">${tablaIcono}</span>
+                <div class="min-w-0">
+                    <div class="text-[9px] font-black uppercase tracking-wider text-emerald-400">Tabla Recomendada</div>
+                    <div class="text-[11px] font-semibold text-slate-200 truncate" title="${tabla}">${tabla}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 p-2 rounded-xl bg-slate-900/70 border border-slate-800">
+                <span class="text-xl shrink-0">${estrategiaIcono}</span>
+                <div class="min-w-0">
+                    <div class="text-[9px] font-black uppercase tracking-wider text-amber-400">Estrategia en el Agua</div>
+                    <div class="text-[11px] font-semibold text-slate-200 truncate" title="${estrategia}">${estrategia}</div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    return { vestimenta, tabla, estrategia, html };
+}
+
 if (typeof window !== 'undefined') {
     window.calcularSolYCrepusculo = calcularSolYCrepusculo;
+    window.actualizarUIPresencia = actualizarUIPresencia;
+    window.comprimirImagenCliente = comprimirImagenCliente;
+    window.generarMiniSvgTrazadoRuta = generarMiniSvgTrazadoRuta;
+    window.generarGuiaHumanaEquipamiento = generarGuiaHumanaEquipamiento;
 }

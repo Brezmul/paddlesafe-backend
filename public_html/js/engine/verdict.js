@@ -40,11 +40,23 @@ export const ESTADOS_VEREDICTO = {
         badgeCls: 'bg-red-950 text-white border-red-600 animate-pulse',
         cardBorder: 'border-red-600 bg-red-950/40'
     },
+    RIESGO_METEOROLOGICO_ESTIMADO: {
+        titulo: 'Riesgo meteorológico estimado',
+        icono: '⚠️',
+        badgeCls: 'bg-amber-950/90 text-amber-200 border-amber-500/50',
+        cardBorder: 'border-amber-500/40 bg-amber-950/20'
+    },
     ALERTA_EMERGENCIA: {
         titulo: 'Prohibido salir por emergencia',
         icono: '⛔',
         badgeCls: 'bg-red-950 text-red-200 border-red-600 animate-pulse shadow-lg',
         cardBorder: 'border-red-600 bg-red-950/60'
+    },
+    SIN_DATOS: {
+        titulo: 'Sin datos meteorológicos',
+        icono: '❓',
+        badgeCls: 'bg-zinc-800 text-zinc-300 border-zinc-600',
+        cardBorder: 'border-zinc-700 bg-zinc-900/40'
     }
 };
 
@@ -54,7 +66,10 @@ export const CLASES_RIESGO = {
     'Condiciones exigentes': 'text-orange-600 bg-orange-50 border border-orange-200 rounded-lg',
     'No recomendado': 'text-red-700 bg-red-100 border border-red-400 rounded-lg',
     'Tormenta eléctrica': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg',
+    'Riesgo meteorológico estimado': 'text-amber-500 bg-amber-950/80 border border-amber-500 rounded-lg',
     'Prohibido salir por emergencia': 'text-red-500 font-black animate-pulse bg-red-950/80 border border-red-600 rounded-lg',
+    'Sin datos meteorológicos': 'text-zinc-400 bg-zinc-900/80 border border-zinc-700 rounded-lg',
+    'SIN DATOS': 'text-zinc-400 bg-zinc-900/80 border border-zinc-700 rounded-lg',
     // Compatibilidad legacy
     'SEGURO': 'text-emerald-500 bg-emerald-50 border border-emerald-200 rounded-lg',
     'PRECAUCIÓN': 'text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-lg',
@@ -70,6 +85,7 @@ export const ICONOS_SEGURIDAD = {
     'Condiciones exigentes': '🟠',
     'No recomendado': '🔴',
     'Tormenta eléctrica': '⛔',
+    'Riesgo meteorológico estimado': '⚠️',
     'Prohibido salir por emergencia': '⛔',
     'SEGURO': '🟢',
     'PRECAUCIÓN': '🟡',
@@ -84,28 +100,38 @@ export const ICONOS_SEGURIDAD = {
  * Análisis de Evolución Próxima (+3h) para detectar subidas térmicas o roladas bruscas
  */
 export function analizarEvolucionProxima(params = {}, vReal = 0, rReal = 0, dirVientoDeg = null, seawardDeg = null) {
-    const hourly = params.hourly || params.dx?.hourly || null;
-    const horasDiurnas = params.horasDiurnas || [];
+    const isArrayParams = Array.isArray(params);
+    const hourly = isArrayParams ? null : (params.hourly || params.dx?.hourly || null);
+    const horasDiurnas = isArrayParams
+        ? params
+        : ((Array.isArray(params.horasDiurnas) && params.horasDiurnas.length > 0)
+            ? params.horasDiurnas
+            : (Array.isArray(hourly) ? hourly : []));
 
     let hActualNum = new Date().getHours();
-    if (params.horaSalida) {
+    if (!isArrayParams && params.horaSalida) {
         const p = String(params.horaSalida).split(':');
         if (p[0]) hActualNum = parseInt(p[0], 10) || hActualNum;
     }
 
-    // 1. Array de horas diurnas procesadas
+    // 1. Array de horas diurnas procesadas o array de objetos horarios
     if (Array.isArray(horasDiurnas) && horasDiurnas.length > 0) {
-        const idxActual = horasDiurnas.findIndex(h => {
-            const hNum = parseInt(String(h.hora || '').replace(/\D/g, ''), 10);
+        let idxActual = horasDiurnas.findIndex(h => {
+            const hNum = parseInt(String(h.hora || h.time || '').replace(/\D/g, '').slice(0, 2), 10);
             return hNum === hActualNum;
         });
         const startIdx = idxActual >= 0 ? idxActual : 0;
+        if (!vReal && horasDiurnas[startIdx]) {
+            vReal = Number(horasDiurnas[startIdx].vientoKt ?? (horasDiurnas[startIdx].wind_speed_10m ?? 0));
+            rReal = Number(horasDiurnas[startIdx].rachasKt ?? (horasDiurnas[startIdx].wind_gusts_10m ?? vReal));
+        }
+
         for (let offset = 1; offset <= 3; offset++) {
             const target = horasDiurnas[startIdx + offset];
             if (!target) continue;
-            const vFuturo = Number(target.vientoKt ?? (target.viento_kmh ? target.viento_kmh / 1.852 : 0));
-            const rFuturo = Number(target.rachasKt ?? (target.rachas_kmh ? target.rachas_kmh / 1.852 : vFuturo));
-            const dirFutura = Number(target.dirDeg ?? target.dirViento ?? dirVientoDeg);
+            const vFuturo = Number(target.vientoKt ?? (target.wind_speed_10m !== undefined ? target.wind_speed_10m : (target.viento_kmh ? target.viento_kmh / 1.852 : 0)));
+            const rFuturo = Number(target.rachasKt ?? (target.wind_gusts_10m !== undefined ? target.wind_gusts_10m : (target.rachas_kmh ? target.rachas_kmh / 1.852 : vFuturo)));
+            const dirFutura = Number(target.dirDeg ?? target.dirViento ?? target.wind_direction_10m ?? dirVientoDeg);
             const compFutura = seawardDeg !== null ? calcularComponenteVientoAuto(dirFutura, seawardDeg) : null;
             const esOffshoreFutura = compFutura?.componente === 'offshore';
 
@@ -114,7 +140,7 @@ export function analizarEvolucionProxima(params = {}, vReal = 0, rReal = 0, dirV
             const rolaOffshore = esOffshoreFutura && vFuturo >= 10;
 
             if (subeViento || subeRacha || rolaOffshore) {
-                const horaLabel = target.hora || `+${offset}h`;
+                const horaLabel = target.hora || target.time || `+${offset}h`;
                 let desc = `en +${offset}h (${horaLabel}) el viento sube a ${vFuturo.toFixed(1)} kt (Racha ${rFuturo.toFixed(1)} kt)`;
                 if (rolaOffshore) desc += ' con rolada hacia mar adentro (Offshore)';
                 return {
@@ -225,7 +251,7 @@ export function generarVeredictoNextGen(params = {}) {
         const top = alertasArray[0];
         alertaOficial = {
             ...top,
-            activa: top.activa !== undefined ? top.activa : (top.esVigente !== false && top.estadoTemporal !== 'EXPIRADA' && top.estadoTemporal !== 'FUTURA_PREVENTIVA'),
+            activa: top.activa !== undefined ? top.activa : (top.esVigente === true && top.estadoTemporal === 'ACTIVA_AHORA'),
             origen: top.origen || 'AEMET',
             nivel: String(top.nivel || 'AMARILLA').toUpperCase(),
             tipo: top.tipo || top.fenomeno || 'Aviso costero',
@@ -234,7 +260,7 @@ export function generarVeredictoNextGen(params = {}) {
     } else if (alertaOficial && alertaOficial.activa === undefined) {
         alertaOficial = {
             ...alertaOficial,
-            activa: alertaOficial.esVigente !== false && alertaOficial.estadoTemporal !== 'EXPIRADA' && alertaOficial.estadoTemporal !== 'FUTURA_PREVENTIVA',
+            activa: alertaOficial.esVigente === true && alertaOficial.estadoTemporal === 'ACTIVA_AHORA',
             origen: alertaOficial.origen || 'AEMET',
             nivel: String(alertaOficial.nivel || 'AMARILLA').toUpperCase(),
             tipo: alertaOficial.tipo || 'Aviso meteorológico',
@@ -256,18 +282,25 @@ export function generarVeredictoNextGen(params = {}) {
     const gfsDirDeg = params.gfsDirDeg ?? null;
     const iconDirDeg = params.iconDirDeg ?? null;
 
-    // 1. REGLA ABSOLUTA: Tormenta eléctrica (Veto Infranqueable)
+    // 1. REGLA ABSOLUTA: Tormenta eléctrica OFICIAL (AEMET o Protección Civil activo para la fecha consultada)
     const code = Number(weatherCode ?? 0);
-    const textoAlerta = `${alertasArray.map(a => `${a?.tipo || ''} ${a?.descripcion || ''}`).join(' ')} ${alertaOficial?.tipo || ''} ${alertaOficial?.descripcion || ''}`.toLowerCase();
-    const esTormentaElectrica = Boolean(tormentaElectricaDetectada)
-        || [95, 96, 99].includes(code)
-        || /tormenta\s*electrica|actividad\s*electrica|descarga\s*electrica|rayos?|lightning|relampagos?/.test(textoAlerta);
+    const alertasArrayActivas = alertasArray.filter(a => a?.esVigente === true && a?.estadoTemporal === 'ACTIVA_AHORA');
+    const textoAlertaActiva = `${alertasArrayActivas.map(a => `${a?.tipo || ''} ${a?.descripcion || ''}`).join(' ')} ${alertaOficial?.activa && alertaOficial?.esVigente === true && alertaOficial?.estadoTemporal === 'ACTIVA_AHORA' ? `${alertaOficial?.tipo || ''} ${alertaOficial?.descripcion || ''}` : ''}`.toLowerCase();
+    
+    const aemetTormentaOficial = Boolean(
+        params.alertaTormentaOficialActiva ||
+        params.tormentaElectricaOficial ||
+        ((alertaOficial?.activa && alertaOficial?.esVigente === true && alertaOficial?.estadoTemporal === 'ACTIVA_AHORA') &&
+         /tormenta|thunderstorm|lightning|descarga\s*electrica|actividad\s*electrica|rayos?/.test(textoAlertaActiva))
+    );
 
-    if (esTormentaElectrica) {
+    if (aemetTormentaOficial) {
         const confEstado = ESTADOS_VEREDICTO.TORMENTA_ELECTRICA;
+        const explicacionHumana = params.explicacionAvisoAemet || alertaOficial?.explicacionHumana
+            || 'Aviso Oficial AEMET por tormenta eléctrica activo en la zona. La práctica del paddle surf queda terminantemente desaconsejada por peligro vital de descargas eléctricas y cambios súbitos de viento.';
         const factoresCriticos = [
-            'Riesgo crítico de tormenta eléctrica: actividad desaconsejada por peligro vital.',
-            'Peligro de descargas eléctricas en superficie plana y ráfagas súbitas de viento.'
+            `Aviso Oficial: ${explicacionHumana}`,
+            'Peligro severo de descargas eléctricas en superficie plana y ráfagas súbitas de viento.'
         ];
         const resultadoTormenta = {
             estado: confEstado.titulo,
@@ -279,24 +312,26 @@ export function generarVeredictoNextGen(params = {}) {
             seguridad: { nivel: confEstado.titulo, score: 0 },
             respuestaDirecta: '⛔ NO SALIR AL AGUA',
             recomendacion: 'NO RECOMENDADO',
-            justificacion: 'Riesgo confirmado de tormenta eléctrica en la zona. La práctica de cualquier deporte acuático queda estrictamente desaconsejada por peligro vital de descargas eléctricas y cambios súbitos de viento.',
-            mensaje: 'Riesgo confirmado de tormenta eléctrica en la zona. La práctica de cualquier deporte acuático queda estrictamente desaconsejada por peligro vital de descargas eléctricas y cambios súbitos de viento.',
-            explicacionNautica: 'Riesgo confirmado de tormenta eléctrica en la zona. Suspende o pospón la actividad y mantente bajo techo en tierra firme.',
+            justificacion: explicacionHumana,
+            mensaje: explicacionHumana,
+            explicacionNautica: explicacionHumana,
             factoresCriticos,
             analysisConfidence: 95,
             confianzaAnalisis: 95,
             tormentaElectrica: true,
-            alertaEmergenciaActiva: false,
-            aemet: alertaOficial || { activa: false, disponible: false },
+            tormentaElectricaOficial: true,
+            alertaOficialActiva: true,
+            alertaEmergenciaActiva: ['NARANJA', 'ROJA'].includes(String(alertaOficial?.nivel || '').toUpperCase()),
+            aemet: alertaOficial || { activa: true, disponible: true },
             vientoNudos: vientoKt ?? 0,
             detallesTecnicos: {
                 vientoKt,
                 rachasKt,
                 oleajeM,
-                alerta: 'Tormenta eléctrica activa'
+                alerta: 'Aviso Oficial AEMET: Tormentas'
             },
-            beginnerIndex: { nivel: 'No Recomendado', motivo: 'Peligro por tormenta eléctrica' },
-            deporte: { deporte: deporteKey, estado: 'No Recomendado', motivo: 'Tormenta eléctrica activa' },
+            beginnerIndex: { nivel: 'No Recomendado', motivo: 'Aviso Oficial AEMET por tormenta eléctrica' },
+            deporte: { deporte: deporteKey, estado: 'No Recomendado', motivo: 'Aviso Oficial AEMET por tormenta eléctrica' },
             ventanas: null,
             ventanaRecomendada: null,
             consenso: null,
@@ -310,6 +345,82 @@ export function generarVeredictoNextGen(params = {}) {
         return resultadoTormenta;
     }
 
+    // 1.1 SISTEMA A: Estimación de riesgo convectivo / inestabilidad por modelo de pronóstico (Regla 1 & Regla 6)
+    const cape = Number(params.cape ?? params.convective_available_potential_energy ?? params.convection ?? 0);
+    const lightningProb = Number(params.lightningProb ?? params.probabilidad_rayos ?? 0);
+    const esRiesgoModeloConvectivo = !aemetTormentaOficial && (
+        params.riesgoModeloConvectivo === true ||
+        params.riesgoMeteorologicoEstimado === true ||
+        cape >= 1000 ||
+        [95, 96, 99].includes(code) ||
+        lightningProb >= 40
+    );
+
+    if (esRiesgoModeloConvectivo) {
+        const confEstado = ESTADOS_VEREDICTO.RIESGO_METEOROLOGICO_ESTIMADO || {
+            titulo: 'Riesgo meteorológico estimado',
+            icono: '⚠️',
+            badgeCls: 'bg-amber-950/90 text-amber-200 border-amber-500/50',
+            cardBorder: 'border-amber-500/40 bg-amber-950/20'
+        };
+        const scoreEstimado = (cape >= 1500 || [96, 99].includes(code)) ? 25 : 45;
+        const recomendacionTexto = cape >= 1500 ? 'NO RECOMENDADO' : 'PRECAUCIÓN';
+        const mensajeModelo = cape >= 1000
+            ? '⚠️ Condiciones favorables para desarrollo tormentoso.'
+            : '⚠️ Posible inestabilidad atmosférica.';
+        const justificacionModelo = `${mensajeModelo} Los modelos numéricos señalan inestabilidad atmosférica${cape > 0 ? ` (CAPE: ${Math.round(cape)} J/kg)` : ''}. No existe aviso oficial de AEMET activo.`;
+
+        const resultadoRiesgoModelo = {
+            estado: confEstado.titulo,
+            icono: confEstado.icono,
+            claseUI: confEstado,
+            cls: CLASES_RIESGO[confEstado.titulo] || 'text-amber-500 bg-amber-950/80 border border-amber-500 rounded-lg',
+            scoreSeguridad: scoreEstimado,
+            score: scoreEstimado,
+            seguridad: { nivel: confEstado.titulo, score: scoreEstimado },
+            respuestaDirecta: cape >= 1500 ? '⚠️ CONDICIONES DESACONSEJADAS' : '⚠️ PRECAUCIÓN',
+            recomendacion: recomendacionTexto,
+            justificacion: justificacionModelo,
+            mensaje: mensajeModelo,
+            explicacionNautica: justificacionModelo,
+            factoresCriticos: [
+                justificacionModelo,
+                'Vigila la evolución de las nubes en el horizonte y regresa de inmediato si arrecian rachas o el cielo se oscurece.'
+            ],
+            analysisConfidence: 80,
+            confianzaAnalisis: 80,
+            tormentaElectrica: false,
+            tormentaElectricaOficial: false,
+            riesgoMeteorologicoEstimado: true,
+            riesgoModeloConvectivo: true,
+            etiquetaRiesgoModelo: '⚠️ Riesgo Meteorológico Estimado',
+            mensajeRiesgoModelo: mensajeModelo,
+            alertaOficialActiva: false,
+            alertaEmergenciaActiva: false,
+            aemet: alertaOficial || { activa: false, disponible: true },
+            vientoNudos: vientoKt ?? 0,
+            detallesTecnicos: {
+                vientoKt,
+                rachasKt,
+                oleajeM,
+                cape,
+                alerta: '⚠️ Riesgo Meteorológico Estimado'
+            },
+            beginnerIndex: { nivel: 'Precaución', motivo: 'Inestabilidad meteorológica estimada' },
+            deporte: { deporte: deporteKey, estado: recomendacionTexto, motivo: 'Riesgo meteorológico estimado' },
+            ventanas: null,
+            ventanaRecomendada: null,
+            consenso: null,
+            deriva: null,
+            riesgoDeriva: { nivel: 'MODERADO', score: 50, descripcion: 'Posible alteración del viento por inestabilidad.' },
+            derivaCostera: null,
+            componenteCostera: { componente: 'desconocida', anguloIncidencia: 0 },
+            entorno: 'costa'
+        };
+        resultadoRiesgoModelo.nextGen = resultadoRiesgoModelo;
+        return resultadoRiesgoModelo;
+    }
+
     // 2. REGLA ABSOLUTA: Alerta Oficial de Emergencias (112 / Protección Civil / AEMET Naranja o Roja) - PROHIBIDO SALIR A REMAR
     // Solo aplica veto vital inmediato si la alerta está temporalmente activa para la jornada consultada
     let esAlertaEmergencia = false;
@@ -320,21 +431,19 @@ export function generarVeredictoNextGen(params = {}) {
     } else {
         esAlertaEmergencia = Boolean(
             params.alertaEmergencias
-            || (alertaOficial?.activa && alertaOficial?.esVigente !== false && alertaOficial?.estadoTemporal !== 'FUTURA_PREVENTIVA' && alertaOficial?.estadoTemporal !== 'EXPIRADA' && (
+            || (alertaOficial?.activa && alertaOficial?.esVigente === true && alertaOficial?.estadoTemporal === 'ACTIVA_AHORA' && (
                 alertaOficial.esEspecial ||
                 /^1-?1-?2/i.test(alertaOficial.origen || '') ||
                 /protecci[oó]n\s*civil/i.test(alertaOficial.origen || alertaOficial.tipo || '') ||
                 ['NARANJA', 'ROJA'].includes(String(alertaOficial.nivel || '').toUpperCase()) ||
-                Boolean(alertaOficial.urlDoc) ||
                 /emergencia|inundaci|avenida|temporal\s*costero|galerna|ciclon|borrasca/i.test(`${alertaOficial.tipo || ''} ${alertaOficial.descripcion || ''}`)
             ))
             || alertasArray.some(a => 
-                a?.esVigente !== false && a?.estadoTemporal !== 'FUTURA_PREVENTIVA' && a?.estadoTemporal !== 'EXPIRADA' && (
+                a?.esVigente === true && a?.estadoTemporal === 'ACTIVA_AHORA' && (
                     a?.esEspecial || 
                     /^1-?1-?2/i.test(a?.origen || '') || 
                     /protecci[oó]n\s*civil/i.test(a?.origen || a?.tipo || '') ||
                     ['NARANJA', 'ROJA'].includes(String(a?.nivel || '').toUpperCase()) ||
-                    Boolean(a?.urlDoc) ||
                     /emergencia|inundaci|avenida|temporal\s*costero|galerna|ciclon|borrasca/i.test(`${a?.tipo || ''} ${a?.descripcion || ''}`)
                 )
             )
@@ -375,11 +484,13 @@ export function generarVeredictoNextGen(params = {}) {
             recomendacion: 'PROHIBIDO POR EMERGENCIA',
             justificacion: `Existe una ALERTA OFICIAL DE EMERGENCIAS ACTIVA emitida por ${nombreAutoridad}. Queda terminantemente prohibido salir a remar debido al riesgo vital extremo, corrientes de arrastre y condiciones marítimas adversas. Por seguridad, permanece en tierra firme.`,
             mensaje: `Existe una ALERTA OFICIAL DE EMERGENCIAS ACTIVA emitida por ${nombreAutoridad}. Queda terminantemente prohibido salir a remar debido al riesgo vital extremo, corrientes de arrastre y condiciones marítimas adversas. Por seguridad, permanece en tierra firme.`,
-            explicacionNautica: `Alerta oficial de emergencias decretada por ${nombreAutoridad}. Queda prohibida la actividad náutica. Respeta las indicaciones de las autoridades y no te acerques a espigones ni desembocaduras.`,
+            explicacionNautica: `Alerta oficial de emergencias decretada por ${nombreAutoridad}. Queda prohibida la actividad en el agua. Respeta las indicaciones de las autoridades y no te acerques a espigones ni desembocaduras.`,
             factoresCriticos,
             analysisConfidence: 99,
             confianzaAnalisis: 99,
             tormentaElectrica: false,
+            tormentaElectricaOficial: false,
+            alertaOficialActiva: true,
             alertaEmergenciaActiva: true,
             aemet: alertaOficial || { activa: true, disponible: true },
             vientoNudos: vientoKt ?? 0,
@@ -400,7 +511,7 @@ export function generarVeredictoNextGen(params = {}) {
                 deporte: deporteKey,
                 recomendable: false,
                 estado: 'Prohibido por Emergencia',
-                motivo: `Alerta oficial de emergencias activa (${nombreAutoridad}). Navegación desaconsejada y prohibida por riesgo extremo.`,
+                motivo: `Alerta oficial de emergencias activa (${nombreAutoridad}). Salida al agua desaconsejada y prohibida por riesgo extremo.`,
                 consejo: 'Cancela de inmediato la salida y permanece en tierra firme.'
             },
             ventanas: null,
@@ -414,6 +525,56 @@ export function generarVeredictoNextGen(params = {}) {
         };
         resultadoEmergencia.nextGen = resultadoEmergencia;
         return resultadoEmergencia;
+    }
+
+    // Comprobar si faltan datos meteorológicos esenciales (Viento y Oleaje)
+    const sinViento = vientoKt === null || isNaN(Number(vientoKt));
+    const sinOleaje = oleajeM === null || isNaN(Number(oleajeM));
+    if (sinViento && sinOleaje) {
+        const confEstado = ESTADOS_VEREDICTO.SIN_DATOS || {
+            titulo: 'Sin datos meteorológicos',
+            icono: '❓',
+            badgeCls: 'bg-zinc-800 text-zinc-300 border-zinc-600',
+            cardBorder: 'border-zinc-700 bg-zinc-900/40'
+        };
+        const msgSinDatos = 'No se dispone de datos meteorológicos suficientes (viento u oleaje) para evaluar la seguridad en este spot y horario.';
+        const resultadoSinDatos = {
+            estado: confEstado.titulo,
+            icono: confEstado.icono,
+            claseUI: confEstado,
+            cls: CLASES_RIESGO[confEstado.titulo] || 'text-zinc-400 bg-zinc-900/80 border border-zinc-700 rounded-lg',
+            scoreSeguridad: 0,
+            score: 0,
+            seguridad: { nivel: confEstado.titulo, score: 0 },
+            respuestaDirecta: '❓ SIN DATOS METEOROLÓGICOS',
+            recomendacion: 'SIN DATOS',
+            justificacion: msgSinDatos,
+            mensaje: msgSinDatos,
+            explicacionNautica: msgSinDatos,
+            factoresCriticos: ['Datos de viento y oleaje no disponibles o no concluyentes.'],
+            analysisConfidence: 0,
+            confianzaAnalisis: 0,
+            confianza: 'baja',
+            tormentaElectrica: false,
+            tormentaElectricaOficial: false,
+            alertaOficialActiva: false,
+            alertaEmergenciaActiva: false,
+            aemet: alertaOficial || { activa: false, disponible: false },
+            vientoNudos: null,
+            detallesTecnicos: { vientoKt: null, rachasKt: null, oleajeM: null },
+            beginnerIndex: { nivel: 'Sin Datos', score: 0, motivo: msgSinDatos },
+            deporte: { deporte: deporteKey, recomendable: false, estado: 'Sin datos', motivo: msgSinDatos },
+            ventanas: null,
+            ventanaRecomendada: null,
+            consenso: null,
+            deriva: null,
+            riesgoDeriva: { nivel: 'INDEFINIDO', score: 0, descripcion: 'Sin datos meteorológicos.' },
+            derivaCostera: null,
+            componenteCostera: { componente: 'desconocida', anguloIncidencia: 0 },
+            entorno: 'costa'
+        };
+        resultadoSinDatos.nextGen = resultadoSinDatos;
+        return resultadoSinDatos;
     }
 
     // 2. Resolver orientación costera y vector de viento
@@ -474,14 +635,14 @@ export function generarVeredictoNextGen(params = {}) {
 
     // 7. Cálculo del Safety Score Canónico (0 a 100)
     let score = 95;
-    const vReal = vientoKt ?? 0;
-    const oReal = oleajeM ?? 0;
+    const vReal = Number.isFinite(Number(vientoKt)) ? Number(vientoKt) : 0;
+    const oReal = Number.isFinite(Number(oleajeM)) ? Number(oleajeM) : 0;
     const rReal = rachasKt ?? vReal;
 
     if (vReal >= 20) score -= 60;
     else if (vReal >= 15) score -= 40;
     else if (vReal >= 11) score -= 20;
-    else if (vReal <= 6 && (oleajeM === null || oReal <= 0.3)) score = 98;
+    else if (vReal <= 6 && (oleajeM !== null && oReal <= 0.3)) score = 98;
 
     if (rReal - vReal >= 8) score -= 15;
     else if (rReal - vReal >= 5) score -= 8;
@@ -513,19 +674,24 @@ export function generarVeredictoNextGen(params = {}) {
 
     // Alertas oficiales AEMET (solo penalizan si aplican a la jornada consultada, no si son preventivas a futuro ni expiradas)
     const alertaActivaJornada = Boolean(
-        alertaOficial?.activa 
+        (alertaOficial?.activa || alertasArray.length > 0)
         && !avisoPreventivo 
-        && alertaOficial?.esVigente !== false
-        && alertaOficial?.estadoTemporal !== 'FUTURA_PREVENTIVA' 
-        && alertaOficial?.estadoTemporal !== 'EXPIRADA'
-        && alertaOficial?.esEmergencia !== false
+        && (alertaOficial?.esVigente === true || alertasArray.some(a => a?.esVigente === true))
+        && (alertaOficial?.estadoTemporal === 'ACTIVA_AHORA' || alertasArray.some(a => a?.estadoTemporal === 'ACTIVA_AHORA'))
     );
 
     if (alertaActivaJornada) {
-        const nAlert = String(alertaOficial.nivel || '').toUpperCase();
-        if (nAlert === 'AMARILLA') score = Math.min(score, 70);
-        else if (nAlert === 'NARANJA') score = Math.min(score, 45);
-        else if (nAlert === 'ROJA') score = Math.min(score, 20);
+        const topA = alertasArray.find(a => a?.esVigente === true && a?.estadoTemporal === 'ACTIVA_AHORA') || alertaOficial;
+        const nAlert = String(topA?.nivel || '').toUpperCase();
+        if (nAlert === 'AMARILLA') {
+            score -= 15;
+            score = Math.min(score, 70);
+        } else if (nAlert === 'NARANJA') {
+            score -= 30;
+            score = Math.min(score, 45);
+        } else if (nAlert === 'ROJA') {
+            score = Math.min(score, 20);
+        }
     }
 
     score = Math.max(0, Math.min(100, Math.round(score)));
@@ -572,7 +738,8 @@ export function generarVeredictoNextGen(params = {}) {
     }
 
     // Análisis de evolución térmica y roladas próximas (+3h)
-    const evolucionProxima = analizarEvolucionProxima(params, vReal, rReal, dirVientoDeg, infoCosta.seawardDeg);
+    const seawardOrient = infoCosta?.seawardDeg ?? infoCosta?.seaward_deg ?? infoCosta?.gradosMar ?? 90;
+    const evolucionProxima = analizarEvolucionProxima(params, vReal, rReal, dirVientoDeg, seawardOrient);
     if (evolucionProxima && evolucionProxima.mensaje) {
         factoresCriticos.unshift(evolucionProxima.mensaje);
     }
@@ -597,11 +764,11 @@ export function generarVeredictoNextGen(params = {}) {
     // 11. Justificación Náutica Profesional
     let justificacion = '';
     if (estadoKey === 'FAVORABLE') {
-        justificacion = `Viento suave (${vReal} kt) y mar calmo (${oReal.toFixed(1)} m). Condiciones óptimas para navegar con fluidez y mínimo esfuerzo.`;
+        justificacion = `Viento suave (${vReal} kt) y mar calmo (${oReal.toFixed(1)} m). Condiciones óptimas para remar con fluidez y mínimo esfuerzo.`;
     } else if (estadoKey === 'PRECAUCION') {
         justificacion = compViento.componente === 'offshore'
             ? `Viento de ${vReal} kt con componente hacia mar abierto (offshore). Conviene remar en paralelo a la orilla y vigilar referencias fijas en tierra.`
-            : `Viento de ${vReal} kt y ligera ondulación (${oReal.toFixed(1)} m). Navegación viable gestionando el ritmo.`;
+            : `Viento de ${vReal} kt y ligera ondulación (${oReal.toFixed(1)} m). Sesión viable gestionando el ritmo.`;
     } else if (estadoKey === 'EXIGENTE') {
         justificacion = `Viento activo de ${vReal} kt y oleaje de ${oReal.toFixed(1)} m. Requiere experiencia previa, equilibrio reactivo y buena condición física.`;
     } else {
@@ -639,6 +806,8 @@ export function generarVeredictoNextGen(params = {}) {
         entorno: infoCosta.tipoEntorno,
         vientoNudos: vReal,
         tormentaElectrica: false,
+        tormentaElectricaOficial: false,
+        alertaOficialActiva: alertaActivaJornada,
         alertaEmergenciaActiva: false,
         avisoPreventivo: avisoPreventivo ? datosPreventivo : null,
         avisoPreventivoActivo: Boolean(avisoPreventivo),

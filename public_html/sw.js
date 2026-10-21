@@ -12,7 +12,7 @@
 // OTA: sube VERSION en cada despliegue (junto con version.json). Al activarse,
 // el SW borra TODAS las cachés de versiones anteriores.
 // ==============================================================================
-const VERSION = 'paddlesafe-v48';
+const VERSION = 'paddlesafe-v69';
 const SHELL   = `${VERSION}-shell`;   // HTML + JS propio
 const STATIC  = `${VERSION}-static`;  // iconos, css, fuentes, manifest
 const IMGS    = `${VERSION}-img`;     // avatares, logos, marcadores (inmutables)
@@ -20,8 +20,21 @@ const TILES   = `${VERSION}-tiles`;   // mapa
 const LIBS    = `${VERSION}-libs`;    // leaflet, supabase-js, tailwind… (CDN)
 const KEEP    = [SHELL, STATIC, IMGS, TILES, LIBS];
 
-const MAX = { shell: 24, static: 80, imgs: 200, tiles: 1000, libs: 24 };
+const MAX = { shell: 48, static: 80, imgs: 200, tiles: 1000, libs: 24 };
 const NET_TIMEOUT = 4000;             // ms antes de caer a la caché (red lenta en el mar)
+
+// Pre-caché offline de los 9 submódulos del mapa modular (Strangler Fig)
+const MAP_MODULES_PRECACHE = [
+  '/js/map/map.state.js',
+  '/js/map/map.core.js',
+  '/js/map/map.weather.js',
+  '/js/map/map.bento.js',
+  '/js/map/map.tracker.js',
+  '/js/map/map.poster.js',
+  '/js/map/map.routes.js',
+  '/js/map/map.coach.js',
+  '/js/map/map.spots.js'
+];
 
 // ---------- Clasificación de hosts ----------
 const hostIs = (h, d) => h === d || h.endsWith('.' + d);   // evita "evilsupabase.co"
@@ -43,14 +56,19 @@ function isLive(url, req) {
     LIVE_HOSTS.some(d => hostIs(h, d)) && !isPublicStorage(url) ||
     url.pathname.endsWith('/version.json') ||     // el OTA lo pide con cache:'no-store'
     url.pathname.endsWith('/sw.js') ||
+    url.pathname.includes('/rest/v1/') ||
+    url.pathname.includes('/rpc/') ||
+    url.pathname.includes('/auth/v1/') ||
+    url.pathname.includes('/realtime/v1/') ||
+    url.searchParams.has('t') ||
     req.cache === 'no-store' ||
     req.headers.has('authorization') ||
     req.headers.has('range')
   );
 }
-// Objetos PÚBLICOS de Storage: su nombre lleva Date.now() → inmutables → cacheables.
+// Objetos PÚBLICOS de Storage: cacheables SOLO SI NO tienen cache-buster ?t=
 const isPublicStorage = url =>
-  hostIs(url.hostname, 'supabase.co') && url.pathname.startsWith('/storage/v1/object/public/');
+  hostIs(url.hostname, 'supabase.co') && url.pathname.startsWith('/storage/v1/object/public/') && !url.searchParams.has('t');
 
 const isTile = url => TILE_HOSTS.some(d => hostIs(url.hostname, d));
 const isLib  = url => LIB_HOSTS.some(d => hostIs(url.hostname, d));
@@ -183,9 +201,16 @@ self.addEventListener('install', event => {
       caches.open(SHELL).then(async c => {
         const res = await fetch(new Request('/', { cache: 'reload' }));   // salta la caché HTTP
         if (cacheable(res)) await c.put('/', res);
+        await Promise.allSettled(['/js/map.js', ...MAP_MODULES_PRECACHE].map(async url => {
+          try {
+            const r = await fetch(new Request(url, { cache: 'reload' }));
+            if (cacheable(r)) await c.put(url, r);
+          } catch (_) {}
+        }));
       }),
       caches.open(STATIC).then(c => c.add(new Request('/manifest.json', { cache: 'reload' })))
     ]);
+
   })());
 });
 

@@ -3,9 +3,16 @@
 // ====================================================
 
 import { supabaseClient, appState, BACKEND_API_URL } from './config.js';
-import { esc, safeUrl, validarImagen, calcularRangoMaritimo, IMG_FALLBACK, fetchConTimeout } from './utils.js';
+import { esc, safeUrl, validarImagen, comprimirImagenCliente, calcularRangoMaritimo, IMG_FALLBACK, fetchConTimeout } from './utils.js';
 import { parseGPX } from './gpxParser.js';
-import { calcularNivelYProgreso, obtenerPosicionRanking, guardarRutaDeportivaConGamificacion } from './gamification.js';
+import {
+    calcularNivelYProgreso,
+    obtenerPosicionRanking,
+    guardarRutaDeportivaConGamificacion,
+    CATALOGO_LOGROS_MERITO,
+    calcularRecordsYEstadisticasPerfil,
+    evaluarLogrosUsuario
+} from './gamification.js';
 
 export function initAuthListeners() {
     if (supabaseClient && supabaseClient.auth) {
@@ -22,12 +29,21 @@ export function initAuthListeners() {
             setTimeout(async () => {
                 if (session) {
                     await cargarPerfilUsuarioActivo();
+                    inicializarPresenciaRealtime(session.user);
                     if (event === 'SIGNED_IN') {
                         window.sincronizarRutasPendientes?.();
                         window.cargarSpotsGuardadosUsuario?.();
                     }
                 }
                 else { 
+                    if (presenceChannel) {
+                        try {
+                            presenceChannel.untrack();
+                            presenceChannel.unsubscribe();
+                        } catch (_) {}
+                        presenceChannel = null;
+                        currentPresenceUser = null;
+                    }
                     appState.perfilUsuario = null; 
                     actualizarBotonCabecera(); 
                     window.cargarSpotsGuardadosUsuario?.();
@@ -38,6 +54,118 @@ export function initAuthListeners() {
             }, 0);
         });
     }
+}
+
+// ====================================================
+// REALTIME PRESENCE ENGINE (Global Channel)
+// ====================================================
+let presenceChannel = null;
+let currentPresenceUser = null;
+let currentPresenceStatus = 'online';
+
+export function inicializarPresenciaRealtime(user) {
+    if (!user || !user.id || !supabaseClient || typeof supabaseClient.channel !== 'function') return;
+    
+    // Si ya está suscrito con el mismo usuario, solo actualizar estado
+    if (presenceChannel && currentPresenceUser?.id === user.id) {
+        actualizarMiEstadoPresencia('online');
+        return;
+    }
+
+    // Limpieza de canal previo si existiera
+    if (presenceChannel) {
+        try {
+            presenceChannel.untrack();
+            presenceChannel.unsubscribe();
+        } catch (_) {}
+        presenceChannel = null;
+    }
+
+    currentPresenceUser = user;
+    currentPresenceStatus = 'online';
+
+    try {
+        presenceChannel = supabaseClient.channel('presence:paddlesafe_global', {
+            config: {
+                presence: {
+                    key: user.id
+                }
+            }
+        });
+
+        presenceChannel.on('presence', { event: 'sync' }, () => {
+            try {
+                const state = presenceChannel.presenceState();
+                const flattened = {};
+                Object.values(state).forEach(presences => {
+                    if (Array.isArray(presences)) {
+                        presences.forEach(p => {
+                            if (p && p.user_id) {
+                                flattened[p.user_id] = {
+                                    status: p.status || 'online',
+                                    updatedAt: p.updated_at || new Date().toISOString()
+                                };
+                            }
+                        });
+                    }
+                });
+                appState.onlineUsers = flattened;
+                if (typeof window !== 'undefined' && typeof window.actualizarUIPresencia === 'function') {
+                    window.actualizarUIPresencia();
+                }
+            } catch (syncErr) {
+                console.warn('[presence] sync error:', syncErr);
+            }
+        });
+
+        presenceChannel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                try {
+                    await presenceChannel.track({
+                        user_id: user.id,
+                        status: currentPresenceStatus || 'online',
+                        updated_at: new Date().toISOString()
+                    });
+                } catch (trErr) {
+                    // Degradar silenciosamente si se excede la cuota de sockets
+                    console.warn('[presence] track error:', trErr);
+                }
+            }
+        });
+    } catch (chanErr) {
+        console.warn('[presence] channel initialization error:', chanErr);
+    }
+}
+
+export async function actualizarMiEstadoPresencia(status = 'online') {
+    if (!presenceChannel || !currentPresenceUser) return;
+    currentPresenceStatus = status;
+    try {
+        await presenceChannel.track({
+            user_id: currentPresenceUser.id,
+            status: status,
+            updated_at: new Date().toISOString()
+        });
+    } catch (e) {
+        console.warn('[presence] actualizarMiEstadoPresencia error:', e);
+    }
+}
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+        if (!presenceChannel || !currentPresenceUser) return;
+        if (document.visibilityState === 'hidden') {
+            if (window.isTracking !== true) {
+                actualizarMiEstadoPresencia('away');
+            }
+        } else if (document.visibilityState === 'visible') {
+            if (window.isTracking === true) {
+                actualizarMiEstadoPresencia('in_water');
+            } else {
+                actualizarMiEstadoPresencia('online');
+            }
+        }
+    });
 }
 
 export async function cargarPerfilUsuarioActivo() {
@@ -236,10 +364,17 @@ export function restaurarFormularioAuth() {
                     <input type="file" id="gpxUploadInput" accept=".gpx,application/gpx+xml" class="hidden" onchange="subirArchivoGPX(event)" ${appState.esInvitado ? 'disabled' : ''}>
                 </div>
 
-                <div class="mb-8 text-left">
-                    <h3 class="text-[11px] sm:text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b-2 border-slate-100 dark:border-slate-800 pb-3 mb-4 flex items-center gap-2"><svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg> Vitrina Premium</h3>
-                    ${insigniasHTML}
-                </div>
+                <!-- 🏅 RÉCORDS PERSONALES (PRs) -->
+                <div id="perfilPRsContainer" class="w-full"></div>
+
+                <!-- 🎯 META MENSUAL SUP -->
+                <div id="perfilMetaMensualContainer" class="w-full"></div>
+
+                <!-- 📊 VOLUMEN 8 SEMANAS CHART -->
+                <div id="profileWeeklyChartContainer" class="w-full"></div>
+
+                <!-- 🏆 VITRINA DE LOGROS MERITOCRÁTICOS ISA -->
+                <div id="perfilVitrinaLogrosContainer" class="w-full mb-6"></div>
                 <div class="flex items-center justify-between bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 rounded-3xl mb-8 shadow-md hover:shadow-lg transition-shadow">
                     <div class="flex items-center gap-3">
                         <div class="relative flex items-start">
@@ -406,7 +541,15 @@ export async function subirAvatar(event) {
     const filePath = `avatars/${appState.sesionActual.user.id}.jpg`;
     
     try {
-        const { error: uploadError } = await supabaseClient.storage.from('paddlesafe').upload(filePath, file, { upsert: true, contentType: mime });
+        let fileToUpload = file;
+        try {
+            fileToUpload = await comprimirImagenCliente(file, 600, 0.84);
+        } catch (eCompress) {
+            console.warn('[subirAvatar] Error en compresión, usando original:', eCompress);
+        }
+        const mime = fileToUpload.type || 'image/jpeg';
+
+        const { error: uploadError } = await supabaseClient.storage.from('paddlesafe').upload(filePath, fileToUpload, { upsert: true, contentType: mime });
         if (uploadError) throw uploadError;
         
         const { data } = supabaseClient.storage.from('paddlesafe').getPublicUrl(filePath);
@@ -414,11 +557,17 @@ export async function subirAvatar(event) {
         // Cache-Buster para forzar al navegador a renderizar la nueva imagen
         const urlConCacheBuster = `${data.publicUrl}?t=${Date.now()}`;
         
-        await supabaseClient.from('perfiles').upsert({ id: appState.sesionActual.user.id, avatar_url: urlConCacheBuster });
+        const { error: dbError } = await supabaseClient
+            .from('perfiles')
+            .upsert({ id: appState.sesionActual.user.id, avatar_url: urlConCacheBuster })
+            .select();
+        if (dbError) throw dbError;
         
         if (!appState.perfilUsuario) appState.perfilUsuario = {};
         appState.perfilUsuario.avatar_url = urlConCacheBuster;
         if (preview) preview.src = urlConCacheBuster;
+        const modalAvatar = document.querySelector('#avatarPreview');
+        if (modalAvatar) modalAvatar.src = urlConCacheBuster;
         actualizarBotonCabecera();
     } catch (error) {
         console.warn('Aviso al subir imagen:', error);
@@ -439,15 +588,29 @@ export async function guardarPerfil() {
     
     btn.disabled = true; btn.textContent = "Guardando...";
     
-    const { error } = await supabaseClient.from('perfiles').update({ nombre: nuevoNombre, is_private: esPrivado }).eq('id', appState.sesionActual.user.id);
+    const { data: updatedProfile, error } = await supabaseClient
+        .from('perfiles')
+        .update({ 
+            nombre: nuevoNombre, 
+            is_private: esPrivado,
+            es_privado: esPrivado 
+        })
+        .eq('id', appState.sesionActual.user.id)
+        .select();
+        
     if (error) {
         alert("❌ Error al guardar: " + error.message);
+        btn.textContent = "Guardar";
+        btn.disabled = false;
+    } else if (!updatedProfile || updatedProfile.length === 0) {
+        alert("❌ No se pudo guardar el perfil. Intenta de nuevo.");
         btn.textContent = "Guardar";
         btn.disabled = false;
     } else {
         if (!appState.perfilUsuario) appState.perfilUsuario = {};
         appState.perfilUsuario.nombre = nuevoNombre;
         appState.perfilUsuario.is_private = esPrivado;
+        appState.perfilUsuario.es_privado = esPrivado;
         actualizarBotonCabecera();
         btn.textContent = "✅ Guardado!";
         setTimeout(() => { btn.textContent = "Guardar"; btn.disabled = false; }, 2000);
@@ -511,6 +674,15 @@ export async function procesarAuth() {
 }
 
 export async function cerrarSesion() {
+    if (presenceChannel) {
+        try {
+            await presenceChannel.untrack();
+            await presenceChannel.unsubscribe();
+        } catch (_) {}
+        presenceChannel = null;
+        currentPresenceUser = null;
+    }
+
     if (appState.esInvitado) { 
         appState.esInvitado = false; 
         appState.perfilUsuario = null; 
@@ -641,26 +813,20 @@ export async function subirArchivoGPX(event) {
     reader.readAsText(file);
 }
 
-export async function cargarHistorialRutas() {
-    const contenedor = document.getElementById('contenedorHistorial');
-    if (!contenedor) return;
-    
-    if (appState.esInvitado) {
-        contenedor.innerHTML = `<div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner"><p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Los invitados no guardan historial.</p></div>`;
-        return;
-    }
-    if (!appState.sesionActual?.user) return;
-
-    contenedor.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs font-bold animate-pulse">Cargando tus rutas deportivas...</div>`;
-
+/**
+ * Consulta unificada de rutas del usuario desde 'user_routes' y 'rutas' legacy.
+ * Normaliza campos y sincroniza cachés globales en memoria.
+ */
+export async function obtenerRutasUnificadasUsuario(userId) {
+    if (!userId || !supabaseClient) return [];
     const rutas = [];
 
-    // 1. Consultar tabla user_routes
+    // 1. Consultar user_routes
     try {
         const { data: urData, error: urErr } = await supabaseClient
             .from('user_routes')
             .select('id, title, distance_km, duration_seconds, avg_speed, max_speed, xp_earned, created_at, route_coordinates, splits_data, ai_feedback')
-            .eq('user_id', appState.sesionActual.user.id)
+            .eq('user_id', userId)
             .order('created_at', { ascending: false });
 
         if (!urErr && Array.isArray(urData)) {
@@ -668,26 +834,32 @@ export async function cargarHistorialRutas() {
                 id: r.id,
                 title: r.title || 'Ruta Deportiva',
                 distance_km: Number(r.distance_km || 0),
+                distancia_km: Number(r.distance_km || 0),
                 duration_seconds: Number(r.duration_seconds || 0),
+                tiempo_minutos: Math.max(1, Math.round(Number(r.duration_seconds || 0) / 60)),
                 avg_speed: Number(r.avg_speed || 0),
+                avg_speed_kmh: Number(r.avg_speed || 0),
                 max_speed: Number(r.max_speed || 0),
                 xp_earned: Number(r.xp_earned || 0),
+                points_earned: Number(r.xp_earned || 0),
                 created_at: r.created_at,
+                fecha: r.created_at,
                 route_coordinates: r.route_coordinates,
+                ruta_json: r.route_coordinates,
                 splits_data: r.splits_data,
                 ai_feedback: r.ai_feedback
             }));
         }
     } catch (e) {
-        console.warn("[cargarHistorialRutas] Error leyendo user_routes:", e);
+        console.warn("[obtenerRutasUnificadasUsuario] Error leyendo user_routes:", e);
     }
 
-    // 2. Consultar tabla legacy rutas para compatibilidad
+    // 2. Consultar tabla legacy rutas
     try {
         const { data: legData, error: legErr } = await supabaseClient
             .from('rutas')
             .select('id, distancia_km, tiempo_minutos, fecha, ruta_json, avg_speed_kmh, points_earned')
-            .eq('user_id', appState.sesionActual.user.id)
+            .eq('user_id', userId)
             .order('fecha', { ascending: false });
 
         if (!legErr && Array.isArray(legData)) {
@@ -700,26 +872,343 @@ export async function cargarHistorialRutas() {
                         id: r.id,
                         title: 'Travesía GPS',
                         distance_km: dist,
+                        distancia_km: dist,
                         duration_seconds: mins * 60,
+                        tiempo_minutos: mins,
                         avg_speed: avg,
+                        avg_speed_kmh: avg,
                         max_speed: avg * 1.35,
                         xp_earned: Number(r.points_earned || (Math.round(dist * 10) + mins)),
+                        points_earned: Number(r.points_earned || (Math.round(dist * 10) + mins)),
                         created_at: r.fecha,
-                        route_coordinates: r.ruta_json
+                        fecha: r.fecha,
+                        route_coordinates: r.ruta_json,
+                        ruta_json: r.ruta_json
                     });
                 }
             });
         }
     } catch (e) {
-        console.warn("[cargarHistorialRutas] Error leyendo rutas:", e);
+        console.warn("[obtenerRutasUnificadasUsuario] Error leyendo rutas:", e);
     }
 
     // Ordenar cronológicamente
-    rutas.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    rutas.sort((a, b) => new Date(b.created_at || b.fecha).getTime() - new Date(a.created_at || a.fecha).getTime());
 
-    // Almacenar en caché en memoria para dibujado instantáneo en el mapa
-    window.__rutasUsuarioCache = new Map();
-    rutas.forEach(r => window.__rutasUsuarioCache.set(String(r.id), r));
+    // Sincronizar cachés globales
+    if (!window.__rutasUsuarioCache) window.__rutasUsuarioCache = new Map();
+    if (!window.socialRoutesCache) window.socialRoutesCache = {};
+    rutas.forEach(r => {
+        window.__rutasUsuarioCache.set(String(r.id), r);
+        window.socialRoutesCache[String(r.id)] = r;
+    });
+
+    return rutas;
+}
+
+/**
+ * Renderiza el Grid de 4 tarjetas de Récords Personales (PRs).
+ */
+export function renderizarPRsGrid(stats) {
+    if (!stats) return '';
+    const { recordDistancia, recordVelocidad, recordDuracion, recordKcal } = stats;
+    const formatFecha = (f) => f ? new Date(f).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '--';
+
+    const renderCard = (icon, titulo, valor, unidad, bestObj) => {
+        const tieneRuta = Boolean(bestObj && bestObj.rutaId);
+        return `
+            <div class="bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-850 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all group relative overflow-hidden text-left">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-base">${icon}</span>
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">${formatFecha(bestObj?.fecha)}</span>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none mb-1">${titulo}</p>
+                    <p class="text-base sm:text-lg font-black text-marine dark:text-white leading-tight">
+                        ${valor}<span class="text-[10px] font-bold text-slate-400 ml-0.5">${unidad}</span>
+                    </p>
+                </div>
+                <div class="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
+                    ${tieneRuta ? `
+                        <button type="button" onclick="if(window.abrirRutaSocialEnMapa) window.abrirRutaSocialEnMapa('${bestObj.rutaId}'); else if(window.verRutaEnMapa) window.verRutaEnMapa('${bestObj.rutaId}');" class="text-[9px] font-bold text-water dark:text-sky-400 hover:text-blue-600 flex items-center gap-1 active:scale-95 transition-transform cursor-pointer">
+                            <span>🗺️</span><span>Ver mapa</span>
+                        </button>
+                    ` : `<span class="text-[9px] text-slate-300 dark:text-slate-600 font-medium">Sin registro</span>`}
+                    <span class="text-[8px] font-black text-amber-500 bg-amber-50 dark:bg-amber-900/40 px-1 py-0.5 rounded border border-amber-200 dark:border-amber-700/50">PR</span>
+                </div>
+            </div>
+        `;
+    };
+
+    const durH = Math.floor((recordDuracion?.durMin || 0) / 60);
+    const durM = (recordDuracion?.durMin || 0) % 60;
+    const durStr = durH > 0 ? `${durH}h ${durM}` : `${durM}`;
+    const durUnit = durH > 0 ? 'm' : 'min';
+
+    return `
+        <div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/80 rounded-3xl p-5 shadow-sm text-left mb-6">
+            <div class="flex items-center justify-between mb-3 border-b border-slate-100 dark:border-slate-700 pb-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">🏅</span>
+                    <h3 class="text-xs font-black text-marine dark:text-white uppercase tracking-widest">Récords Personales (PRs)</h3>
+                </div>
+                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Histórico</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                ${renderCard('📏', 'Distancia Máx', recordDistancia?.distKm ? recordDistancia.distKm.toFixed(2) : '0', 'km', recordDistancia)}
+                ${renderCard('🚀', 'Vel. Media Máx', recordVelocidad?.velMedia ? recordVelocidad.velMedia.toFixed(1) : '0', 'km/h', recordVelocidad)}
+                ${renderCard('⏱️', 'Mayor Duración', durStr, durUnit, recordDuracion)}
+                ${renderCard('🔥', 'Gasto Calórico', recordKcal?.kcal ? recordKcal.kcal : '0', 'kcal', recordKcal)}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Renderiza el widget de Meta Mensual SUP con selector rápido y racha activa.
+ */
+export function renderizarWidgetMetaMensual(stats) {
+    const metaKm = Number(typeof localStorage !== 'undefined' ? (localStorage.getItem('ps_monthly_goal_km') || 50) : 50);
+    const kmMesActual = Number(stats?.totales?.kmMesActual || 0);
+    const pct = Math.min(100, Math.max(0, Math.round((kmMesActual / metaKm) * 100)));
+    const racha = stats?.totales?.semanasRacha || 0;
+
+    return `
+        <div class="bg-gradient-to-br from-slate-900 to-indigo-950 border border-indigo-500/30 text-white rounded-3xl p-5 shadow-xl text-left mb-6 relative overflow-hidden">
+            <div class="flex items-center justify-between mb-3 relative z-10">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">🎯</span>
+                    <div>
+                        <h3 class="text-xs font-black uppercase tracking-widest text-indigo-200">Meta Mensual SUP</h3>
+                        <p class="text-[10px] text-slate-400">Objetivo de kilómetros para este mes</p>
+                    </div>
+                </div>
+                <div class="bg-amber-500/20 border border-amber-400/40 text-amber-300 px-2.5 py-1 rounded-xl text-[10px] font-black flex items-center gap-1">
+                    <span>🔥</span>
+                    <span>Racha: ${racha} ${racha === 1 ? 'semana' : 'semanas'}</span>
+                </div>
+            </div>
+
+            <!-- Barra de Progreso -->
+            <div class="mb-3 relative z-10">
+                <div class="flex justify-between items-baseline mb-1.5">
+                    <span class="text-lg font-black text-white">${kmMesActual.toFixed(1)} <span class="text-xs font-bold text-slate-400">/ ${metaKm} km</span></span>
+                    <span class="text-xs font-black text-emerald-400">${pct}% completado</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden shadow-inner border border-slate-700">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-700 relative" style="width: ${pct}%">
+                        <div class="absolute top-0 right-0 w-3 h-full bg-white/40 skew-x-12"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Selector rápido de objetivo -->
+            <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 relative z-10">
+                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Ajustar Meta:</span>
+                <div class="flex gap-1.5">
+                    ${[30, 50, 100, 150].map(k => `
+                        <button type="button" onclick="cambiarMetaMensual(${k})" class="px-2 py-0.5 rounded-lg text-[10px] font-black cursor-pointer transition-all ${metaKm === k ? 'bg-indigo-500 text-white shadow' : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'}">
+                            ${k}k
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Renderiza el gráfico de barras SVG responsive con el volumen de las últimas 8 semanas.
+ */
+export function renderizarGraficoVolumen8Semanas(volumen8Semanas = []) {
+    const semanas = Array.isArray(volumen8Semanas) && volumen8Semanas.length > 0
+        ? volumen8Semanas
+        : Array.from({ length: 8 }, (_, i) => ({ label: `S-${7 - i}`, km: 0, salidas: 0 }));
+
+    const maxKm = Math.max(10, ...semanas.map(s => s.km || 0));
+    const total8SemKm = semanas.reduce((acc, s) => acc + (s.km || 0), 0).toFixed(1);
+
+    const svgWidth = 320;
+    const svgHeight = 110;
+    const chartBottom = 88;
+    const chartHeight = 65;
+    const barWidth = 24;
+    const totalBars = semanas.length;
+    const step = (svgWidth - 20) / totalBars;
+
+    const barsSvg = semanas.map((sem, idx) => {
+        const kmVal = Number(sem.km || 0);
+        const barH = kmVal > 0 ? Math.max(6, Math.round((kmVal / maxKm) * chartHeight)) : 2;
+        const barX = Math.round(10 + idx * step + (step - barWidth) / 2);
+        const barY = chartBottom - barH;
+        const isCurrent = (idx === totalBars - 1);
+        const fill = isCurrent ? '#06b6d4' : (kmVal > 0 ? '#0284c7' : '#94a3b8');
+        const opacity = kmVal > 0 ? '1' : '0.2';
+
+        return `
+            <g class="transition-all hover:opacity-80 cursor-pointer" data-tooltip="${kmVal} km en ${sem.salidas || 0} salidas">
+                <title>${sem.label}: ${kmVal} km (${sem.salidas || 0} salidas)</title>
+                <rect x="${barX}" y="${barY}" width="${barWidth}" height="${barH}" rx="4" fill="${fill}" opacity="${opacity}">
+                    <animate attributeName="height" from="0" to="${barH}" dur="0.4s" fill="freeze" />
+                </rect>
+                ${kmVal > 0 ? `
+                    <text x="${barX + barWidth / 2}" y="${barY - 3}" text-anchor="middle" font-size="8" font-weight="900" fill="#0284c7" class="dark:fill-sky-300">${kmVal}</text>
+                ` : ''}
+                <text x="${barX + barWidth / 2}" y="${chartBottom + 14}" text-anchor="middle" font-size="8" font-weight="700" fill="#94a3b8">${sem.label}</text>
+            </g>
+        `;
+    }).join('');
+
+    return `
+        <div id="profileWeeklyChart" class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/80 rounded-3xl p-5 shadow-sm text-left mb-6">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">📊</span>
+                    <div>
+                        <h3 class="text-xs font-black text-marine dark:text-white uppercase tracking-widest">Volumen 8 Semanas</h3>
+                        <p class="text-[10px] text-slate-400">Consistencia y distancia semanal</p>
+                    </div>
+                </div>
+                <span class="text-xs font-black text-marine dark:text-white bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-xl">
+                    ${total8SemKm} <span class="text-[9px] font-bold text-slate-400">km total</span>
+                </span>
+            </div>
+            <div class="w-full overflow-x-auto custom-scrollbar pt-2">
+                <svg viewBox="0 0 ${svgWidth} ${svgHeight}" class="w-full h-28" preserveAspectRatio="none">
+                    <line x1="8" y1="${chartBottom}" x2="${svgWidth - 8}" y2="${chartBottom}" stroke="#e2e8f0" stroke-width="1" class="dark:stroke-slate-700" />
+                    ${barsSvg}
+                </svg>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Renderiza el escaparate de insignias y méritos ISA con cards iluminadas y barras de progreso.
+ */
+export function renderizarVitrinaLogrosMerito(logros = []) {
+    if (!Array.isArray(logros) || logros.length === 0) {
+        return `<p class="text-[10px] text-slate-400 font-medium">No hay insignias evaluadas aún.</p>`;
+    }
+
+    const cardsHtml = logros.map(l => {
+        if (l.unlocked) {
+            return `
+                <div class="bg-gradient-to-b from-amber-50 to-white dark:from-amber-950/30 dark:to-slate-800/80 border-2 border-amber-300 dark:border-amber-500/50 rounded-2xl p-3 shadow-md flex flex-col justify-between text-center relative overflow-hidden group">
+                    <div class="absolute top-1 right-1 bg-amber-400 text-slate-950 font-black text-[8px] px-1 rounded-full uppercase">✓</div>
+                    <span class="text-3xl drop-shadow mb-1 transform group-hover:scale-110 transition-transform">${l.icono}</span>
+                    <div>
+                        <h4 class="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-wide leading-tight">${esc(l.nombre)}</h4>
+                        <p class="text-[9px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5 leading-tight">${esc(l.descripcion)}</p>
+                    </div>
+                    <div class="mt-2 pt-1 border-t border-amber-100 dark:border-amber-900/30">
+                        <span class="text-[8px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">DESBLOQUEADO</span>
+                    </div>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-3 shadow-sm flex flex-col justify-between text-center opacity-70 hover:opacity-90 transition-opacity">
+                    <span class="text-3xl grayscale mb-1 opacity-60">${l.icono}</span>
+                    <div>
+                        <h4 class="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide leading-tight">${esc(l.nombre)}</h4>
+                        <p class="text-[9px] text-slate-400 line-clamp-2 mt-0.5 leading-tight">${esc(l.descripcion)}</p>
+                    </div>
+                    <div class="mt-2 pt-1 border-t border-slate-100 dark:border-slate-700/40">
+                        <div class="flex justify-between items-center text-[8px] text-slate-400 font-bold mb-1">
+                            <span>Progreso</span>
+                            <span>${l.progressText}</span>
+                        </div>
+                        <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                            <div class="bg-marine dark:bg-sky-500 h-full rounded-full" style="width: ${l.progressPct}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }).join('');
+
+    return `
+        <div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/80 rounded-3xl p-5 shadow-sm text-left mb-6">
+            <div class="flex items-center justify-between mb-3 border-b border-slate-100 dark:border-slate-700 pb-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">🏆</span>
+                    <div>
+                        <h3 class="text-xs font-black text-marine dark:text-white uppercase tracking-widest">Insignias y Méritos ISA</h3>
+                        <p class="text-[10px] text-slate-400">Logros oficiales alcanzados en tus travesías</p>
+                    </div>
+                </div>
+                <span class="text-[9px] font-bold text-amber-500 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-700/50">
+                    ${logros.filter(x => x.unlocked).length} / ${logros.length}
+                </span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                ${cardsHtml}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Permite cambiar la meta mensual y actualiza la UI de forma reactiva instantánea.
+ */
+export function cambiarMetaMensual(metaKm) {
+    if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('ps_monthly_goal_km', metaKm);
+    }
+    const metaEl = document.getElementById('perfilMetaMensualContainer');
+    if (metaEl && window.__statsUsuarioActual) {
+        metaEl.innerHTML = renderizarWidgetMetaMensual(window.__statsUsuarioActual);
+    }
+}
+
+export async function cargarHistorialRutas() {
+    const contenedor = document.getElementById('contenedorHistorial');
+    if (!contenedor) return;
+    
+    if (appState.esInvitado) {
+        const statsVacio = calcularRecordsYEstadisticasPerfil([]);
+        const logrosVacio = evaluarLogrosUsuario(appState.perfilUsuario, statsVacio, []);
+        
+        const prsEl = document.getElementById('perfilPRsContainer');
+        if (prsEl) prsEl.innerHTML = renderizarPRsGrid(statsVacio);
+
+        const metaEl = document.getElementById('perfilMetaMensualContainer');
+        if (metaEl) metaEl.innerHTML = renderizarWidgetMetaMensual(statsVacio);
+
+        const chartEl = document.getElementById('profileWeeklyChartContainer');
+        if (chartEl) chartEl.innerHTML = renderizarGraficoVolumen8Semanas(statsVacio.totales.volumen8Semanas);
+
+        const vitrinaEl = document.getElementById('perfilVitrinaLogrosContainer');
+        if (vitrinaEl) vitrinaEl.innerHTML = renderizarVitrinaLogrosMerito(logrosVacio);
+
+        contenedor.innerHTML = `<div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-inner"><p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Los invitados no guardan historial.</p></div>`;
+        return;
+    }
+    if (!appState.sesionActual?.user) return;
+
+    contenedor.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs font-bold animate-pulse">Cargando tus rutas deportivas...</div>`;
+
+    // 1. Obtener lista unificada de rutas (user_routes + rutas legacy)
+    const rutas = await obtenerRutasUnificadasUsuario(appState.sesionActual.user.id);
+
+    // 2. Calcular récords, totales y evaluar méritos
+    const stats = calcularRecordsYEstadisticasPerfil(rutas);
+    const logros = evaluarLogrosUsuario(appState.perfilUsuario, stats, rutas);
+    window.__statsUsuarioActual = stats;
+
+    // 3. Renderizar widgets de analítica y gamificación en el perfil
+    const prsEl = document.getElementById('perfilPRsContainer');
+    if (prsEl) prsEl.innerHTML = renderizarPRsGrid(stats);
+
+    const metaEl = document.getElementById('perfilMetaMensualContainer');
+    if (metaEl) metaEl.innerHTML = renderizarWidgetMetaMensual(stats);
+
+    const chartEl = document.getElementById('profileWeeklyChartContainer');
+    if (chartEl) chartEl.innerHTML = renderizarGraficoVolumen8Semanas(stats.totales.volumen8Semanas);
+
+    const vitrinaEl = document.getElementById('perfilVitrinaLogrosContainer');
+    if (vitrinaEl) vitrinaEl.innerHTML = renderizarVitrinaLogrosMerito(logros);
 
     if (rutas.length === 0) {
         contenedor.innerHTML = `
@@ -731,14 +1220,29 @@ export async function cargarHistorialRutas() {
         return;
     }
 
+    // 4. Renderizar tarjetas de rutas enriquecidas con telemetría y botones de acción
     contenedor.innerHTML = rutas.map(ruta => {
-        const dist = Number(ruta.distance_km || 0).toFixed(2);
-        const totalSecs = Number(ruta.duration_seconds || 0);
+        const dist = Number(ruta.distance_km || ruta.distancia_km || 0).toFixed(2);
+        const totalSecs = Number(ruta.duration_seconds || (ruta.tiempo_minutos ? ruta.tiempo_minutos * 60 : 0));
         const mins = Math.max(1, Math.round(totalSecs / 60));
-        const avgSpd = Number(ruta.avg_speed || 0).toFixed(1);
+        const avgSpd = Number(ruta.avg_speed || ruta.avg_speed_kmh || 0).toFixed(1);
         const maxSpd = Number(ruta.max_speed || (avgSpd * 1.3)).toFixed(1);
-        const xp = Number(ruta.xp_earned || 0);
-        const fechaStr = ruta.created_at ? new Date(ruta.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'Reciente';
+        const xp = Number(ruta.xp_earned || ruta.points_earned || 0);
+        const fechaStr = (ruta.created_at || ruta.fecha) ? new Date(ruta.created_at || ruta.fecha).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'Reciente';
+
+        let kcal = ruta.kcal;
+        if (!kcal) {
+            if (typeof window !== 'undefined' && typeof window.calcularBiometriaSup === 'function') {
+                try {
+                    kcal = window.calcularBiometriaSup({ duracionMin: mins, distKm: Number(dist), velKmh: Number(avgSpd) })?.kcal;
+                } catch {
+                    kcal = null;
+                }
+            }
+            if (!kcal) {
+                kcal = Math.round((6.0 + (Number(avgSpd) > 5 ? 1.5 : 0)) * 75 * (mins / 60));
+            }
+        }
 
         return `
             <div onclick="verRutaEnMapa('${esc(ruta.id)}')" 
@@ -787,9 +1291,24 @@ export async function cargarHistorialRutas() {
                     </div>
                 </div>
 
-                <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 group-hover:text-water dark:group-hover:text-sky-400 transition-colors">
-                    <span class="flex items-center gap-1 font-bold">📍 Ver en mapa interactivo</span>
-                    <span class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">🧠 Ver Análisis IA →</span>
+                <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between flex-wrap gap-2 text-[10px]">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <button type="button" onclick="event.stopPropagation(); if(window.abrirRutaSocialEnMapa) window.abrirRutaSocialEnMapa('${esc(ruta.id)}'); else if(window.verRutaEnMapa) window.verRutaEnMapa('${esc(ruta.id)}');" class="px-2.5 py-1 bg-marine hover:bg-sky-700 text-white font-bold rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+                            <span>🗺️</span><span>Mapa</span>
+                        </button>
+                        <button type="button" onclick="event.stopPropagation(); if(window.descargarGpxRutaSocial) window.descargarGpxRutaSocial('${esc(ruta.id)}');" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+                            <span>📲</span><span>GPX</span>
+                        </button>
+                        <button type="button" onclick="event.stopPropagation(); if(window.mostrarModalSplitsKm) window.mostrarModalSplitsKm('${esc(ruta.id)}');" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+                            <span>📊</span><span>Splits</span>
+                        </button>
+                        <button type="button" onclick="event.stopPropagation(); abrirModalDetallesRuta('${esc(ruta.id)}');" class="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-lg shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+                            <span>🧠</span><span>Coach</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-black rounded-lg border border-amber-200 dark:border-amber-700/50">🔥 ~${kcal} kcal</span>
+                    </div>
                 </div>
             </div>`;
     }).join('');
@@ -1190,3 +1709,11 @@ window.solicitarFeedbackIARuta = solicitarFeedbackIARuta;
 window.abrirModalDetallesRuta = abrirModalDetallesRuta;
 window.cerrarModalDetallesRuta = cerrarModalDetallesRuta;
 window.restaurarFormularioAuth = restaurarFormularioAuth;
+window.obtenerRutasUnificadasUsuario = obtenerRutasUnificadasUsuario;
+window.renderizarPRsGrid = renderizarPRsGrid;
+window.renderizarWidgetMetaMensual = renderizarWidgetMetaMensual;
+window.renderizarGraficoVolumen8Semanas = renderizarGraficoVolumen8Semanas;
+window.renderizarVitrinaLogrosMerito = renderizarVitrinaLogrosMerito;
+window.cambiarMetaMensual = cambiarMetaMensual;
+window.inicializarPresenciaRealtime = inicializarPresenciaRealtime;
+window.actualizarMiEstadoPresencia = actualizarMiEstadoPresencia;

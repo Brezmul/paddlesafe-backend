@@ -161,6 +161,14 @@ export function estimarRumboCosteroGeodesico(lat, lon) {
     return 90;
 }
 
+function empaquetarOrientacionCostera(res) {
+    if (!res || typeof res !== 'object') return res;
+    return Object.assign(res, {
+        valueOf() { return this.seawardDeg ?? 0; },
+        [Symbol.toPrimitive](hint) { return this.seawardDeg ?? 0; }
+    });
+}
+
 /**
  * Resuelve la orientación costera de un spot (soporta (nombreSpot, lat, lon) o (lat, lon, nombreSpot))
  */
@@ -183,27 +191,27 @@ export function resolverOrientacionCostera(arg1 = '', arg2 = null, arg3 = null) 
 
     // 1. Si contiene palabras clave de embalse o lago, clasificar de inmediato como interior
     if (/embalse|pantano|lago|laguna|rio|río|presa|reservoir|lake/i.test(spotNormalizado)) {
-        return {
+        return empaquetarOrientacionCostera({
             seawardDeg: null,
             esCosta: false,
             esEmbalse: true,
             tipoEntorno: 'embalse_interior',
             fuente: 'deteccion_interior'
-        };
+        });
     }
 
     // 2. Buscar en catálogo curado de costa por coincidencia de texto
     const match = SPOTS_CONOCIDOS.find(s => s.match && s.match.test(spotNormalizado));
     if (match) {
         const esEmb = match.type === 'embalse_interior';
-        return {
+        return empaquetarOrientacionCostera({
             seawardDeg: match.seaward,
             esCosta: !esEmb,
             esEmbalse: esEmb,
             tipoEntorno: match.type || 'mar_abierto',
             fuente: 'catalogo_spots',
             spotNombre: match.nombre || null
-        };
+        });
     }
 
     // 3. Soporte geodésico por coordenadas si no hubo coincidencia por texto
@@ -211,13 +219,13 @@ export function resolverOrientacionCostera(arg1 = '', arg2 = null, arg3 = null) 
         // Comprobar si las coordenadas pertenecen a zonas interiores reconocidas
         const seawardGeo = estimarRumboCosteroGeodesico(lat, lon);
         if (seawardGeo === null) {
-            return {
+            return empaquetarOrientacionCostera({
                 seawardDeg: null,
                 esCosta: false,
                 esEmbalse: true,
                 tipoEntorno: 'embalse_interior',
                 fuente: 'geodesia_interior'
-            };
+            });
         }
 
         // Buscar el punto costero más cercano por distancia euclídea simple
@@ -235,34 +243,34 @@ export function resolverOrientacionCostera(arg1 = '', arg2 = null, arg3 = null) 
 
         // Si se encuentra un punto clave costero en un radio aproximado de 0.45° (~45 km)
         if (mejorSpot && menorDistSq <= 0.2025) {
-            return {
+            return empaquetarOrientacionCostera({
                 seawardDeg: mejorSpot.seaward,
                 esCosta: true,
                 esEmbalse: false,
                 tipoEntorno: mejorSpot.type || 'mar_abierto',
                 fuente: 'geodesia_proximidad_costa',
                 spotCercano: mejorSpot.nombre || null
-            };
+            });
         }
 
         // Fallback a rumbo geodésico peninsular regional
-        return {
+        return empaquetarOrientacionCostera({
             seawardDeg: seawardGeo,
             esCosta: true,
             esEmbalse: false,
             tipoEntorno: 'mar_abierto',
             fuente: 'geodesia_coordenadas'
-        };
+        });
     }
 
     // 4. Fallback final si no hay coordenadas ni coincidencia de nombre
-    return {
+    return empaquetarOrientacionCostera({
         seawardDeg: 90,
         esCosta: true,
         esEmbalse: false,
         tipoEntorno: 'mar_abierto',
         fuente: 'fallback_defecto'
-    };
+    });
 }
 
 export function calcularComponenteVientoAuto(...args) {
@@ -331,6 +339,14 @@ export function calcularComponenteVientoAuto(...args) {
     };
 }
 
+function empaquetarDeriva(res) {
+    if (!res || typeof res !== 'object') return res;
+    return Object.assign(res, {
+        valueOf() { return this.score ?? 0; },
+        [Symbol.toPrimitive](hint) { return this.score ?? 0; }
+    });
+}
+
 /**
  * Calcula el Índice de Deriva PaddleSafe
  */
@@ -349,11 +365,11 @@ export function calcularIndiceDerivaPaddleSafe({
             scoreInterior = Math.min(80, Math.round(scoreInterior * driftMod));
         }
         let nivelInterior = scoreInterior > 40 ? 'Moderado' : 'Bajo';
-        return {
+        return empaquetarDeriva({
             score: scoreInterior,
             nivel: nivelInterior,
             descripcion: `Aguas interiores: deriva controlada por orillas (${nivelInterior.toLowerCase()}). Viento de ${vientoKt} kt.`
-        };
+        });
     }
 
     let score = 10;
@@ -398,5 +414,122 @@ export function calcularIndiceDerivaPaddleSafe({
         descripcion += ' Acentuado por mayor francobordo de tabla hinchable.';
     }
 
-    return { score, nivel, descripcion, componente, driftMod };
+    return empaquetarDeriva({ score, nivel, descripcion, componente, driftMod });
 }
+
+export const CARDINALES_8 = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+
+export function anguloACardinal(deg) {
+    if (deg === null || deg === undefined || !Number.isFinite(Number(deg))) return 'N/D';
+    const idx = Math.round((((Number(deg) % 360) + 360) % 360) / 45) % 8;
+    return CARDINALES_8[idx];
+}
+
+/**
+ * Genera el perfil táctico de viento para un spot (vientos de abrigo, laterales y críticos)
+ */
+export function generarPerfilTacticoSpot(spotNombre = '', lat = null, lon = null, seawardInput = null) {
+    let seawardDeg = seawardInput;
+    let esCosta = true;
+    let esEmbalse = false;
+    let tipoEntorno = 'mar_abierto';
+
+    if (seawardDeg === null || seawardDeg === undefined) {
+        const orient = resolverOrientacionCostera(spotNombre, lat, lon);
+        seawardDeg = orient?.seawardDeg ?? null;
+        esCosta = orient?.esCosta ?? true;
+        esEmbalse = orient?.esEmbalse ?? false;
+        tipoEntorno = orient?.tipoEntorno ?? 'mar_abierto';
+    }
+
+    if (esEmbalse || seawardDeg === null) {
+        return {
+            spotNombre: spotNombre || 'Spot Interior / Embalse',
+            lat,
+            lon,
+            seawardDeg: null,
+            esCosta: false,
+            esEmbalse: true,
+            tipoEntorno: 'embalse_interior',
+            cardinalMar: 'Interior',
+            cardinalTierra: 'Perímetro',
+            rumboAbrigo: {
+                anguloCentro: null,
+                rango: [0, 360],
+                cardinal: 'Orillas protegidas',
+                texto: 'Sotavento de orillas y colinas',
+                descripcion: 'Agua calma cerca de márgenes arboladas y calas del embalse.'
+            },
+            rumboCross: {
+                angulos: [],
+                cardinales: ['Eje transversal'],
+                texto: 'Cruces entre orillas',
+                descripcion: 'Evitar el centro en horas de máxima insolación térmica.'
+            },
+            rumboCritico: {
+                onshore: {
+                    angulo: null,
+                    cardinal: 'Eje del Cañón',
+                    texto: 'Efecto túnel / Embudo',
+                    descripcion: 'Vientos encajonados en el vaso del pantano pueden acelerar súbitamente.'
+                },
+                offshoreDrift: {
+                    angulo: null,
+                    cardinal: 'Centro del embalse',
+                    texto: 'Deriva hacia la presa',
+                    descripcion: 'Mantener distancia de seguridad de aliviaderos y boyas de esclusa.'
+                }
+            }
+        };
+    }
+
+    const seaward = Number(seawardDeg);
+    const landward = (seaward + 180) % 360;
+    const side1 = (seaward - 90 + 360) % 360;
+    const side2 = (seaward + 90) % 360;
+
+    return {
+        spotNombre: spotNombre || 'Spot Costero',
+        lat,
+        lon,
+        seawardDeg: Math.round(seaward),
+        esCosta: true,
+        esEmbalse: false,
+        tipoEntorno,
+        cardinalMar: anguloACardinal(seaward),
+        cardinalTierra: anguloACardinal(landward),
+        rumboAbrigo: {
+            anguloCentro: Math.round(landward),
+            rango: [Math.round((landward - 45 + 360) % 360), Math.round((landward + 45) % 360)],
+            cardinal: anguloACardinal(landward),
+            texto: `Viento de tierra (${anguloACardinal(landward)} · ${Math.round(landward)}°)`,
+            descripcion: 'Agua plana protegida cerca de orilla con brisa suave (<9 kt). Alerta si sube >12 kt.'
+        },
+        rumboCross: {
+            angulos: [Math.round(side1), Math.round(side2)],
+            cardinales: [anguloACardinal(side1), anguloACardinal(side2)],
+            texto: `Laterales (${anguloACardinal(side1)} / ${anguloACardinal(side2)})`,
+            descripcion: 'Vientos paralelos a la playa. Óptimo para travesías costeras de ida y vuelta.'
+        },
+        rumboCritico: {
+            onshore: {
+                angulo: Math.round(seaward),
+                cardinal: anguloACardinal(seaward),
+                texto: `Mar directo (${anguloACardinal(seaward)} · ${Math.round(seaward)}°)`,
+                descripcion: 'Chop incómodo y rompiente en orilla. Entrada y salida exigentes.'
+            },
+            offshoreDrift: {
+                angulo: Math.round(landward),
+                cardinal: anguloACardinal(landward),
+                texto: `Deriva Mar Adentro (${anguloACardinal(landward)})`,
+                descripcion: 'Peligro de arrastre hacia mar abierto si el viento supera 12 kt.'
+            }
+        }
+    };
+}
+
+if (typeof window !== 'undefined') {
+    window.generarPerfilTacticoSpot = generarPerfilTacticoSpot;
+    window.anguloACardinal = anguloACardinal;
+}
+

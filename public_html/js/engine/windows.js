@@ -1,7 +1,7 @@
 // ==============================================================================
 // PADDLESAFE NEXT-GEN - DETECTOR DE VENTANAS ÓPTIMAS DE SALIDA (windows.js)
 // Escanea la jornada horaria para identificar automáticamente la mejor franja
-// de navegación según viento, oleaje, térmica y seguridad.
+// para remar según viento, oleaje, térmica y seguridad.
 // ==============================================================================
 
 /**
@@ -15,7 +15,7 @@ export function detectarVentanasOptimas(horasPronostico = [], userLevel = 'Inter
             hayVentana: false,
             textoResumen: 'Alerta oficial de emergencias activa. Prohibido salir a remar durante toda la jornada.',
             mejorVentana: null,
-            evolucionAviso: 'Protección Civil / 112 ha activado alerta de emergencia en la costa. Queda suspendida cualquier ventana de navegación.'
+            evolucionAviso: 'Protección Civil / 112 ha activado alerta de emergencia en la costa. Queda suspendida cualquier salida al agua.'
         };
     }
 
@@ -51,6 +51,10 @@ export function detectarVentanasOptimas(horasPronostico = [], userLevel = 'Inter
     }[userLevel] || { vMax: 13, oMax: 0.65 };
 
     const horasCalificadas = diurnas.map(h => {
+        const sinDatos = (h.vientoKt == null || isNaN(Number(h.vientoKt))) && (h.oleajeM == null || isNaN(Number(h.oleajeM)));
+        if (sinDatos) {
+            return { ...h, score: 0, esApta: false, horaNum: parseInt(String(h.hora || '').slice(0, 2), 10) };
+        }
         const v = Number(h.vientoKt || 0);
         const r = Number(h.rachasKt || v);
         const o = Number(h.oleajeM || 0);
