@@ -240,7 +240,7 @@ export const ClubEvents = {
                 attributionControl: false
             });
 
-            window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(miniMap);
+            window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=cb1_4qv5_1_683638fb471571b180e5b9e6', { maxZoom: 18, subdomains: 'abcd', crossOrigin: true, attribution: '&copy; CARTO' }).addTo(miniMap);
 
             const poly = window.L.polyline(coords, {
                 color: '#0284c7',
