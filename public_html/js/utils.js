@@ -658,9 +658,101 @@ export function generarMiniSvgTrazadoRuta(coordenadas, colorHex = '#38bdf8') {
     return `<svg viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full overflow-visible" aria-label="Trazado de ruta GPS"><defs><filter id="psGlow-${safeId}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="${colorHex}" flood-opacity="0.6"/></filter></defs><polyline points="${pointsAttr}" fill="none" stroke="${colorHex}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#psGlow-${safeId})"/><circle cx="${startPt.x}" cy="${startPt.y}" r="3.5" fill="#10b981" stroke="#ffffff" stroke-width="1.5" /><circle cx="${endPt.x}" cy="${endPt.y}" r="3.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" /></svg>`;
 }
 
+/**
+ * Asesor humano de equipamiento, neopreno térmico y tabla para SUP
+ * @param {number|null} tempAireC Temperatura ambiente en °C
+ * @param {number|null} vientoKt Velocidad de viento en nudos
+ * @param {number|null} olasM Altura de ola significativa en metros
+ * @param {number|null} score Safety score (0-100)
+ * @param {number|null} mesIndex Mes del año (0-11, opcional para estacionalidad)
+ * @returns {{ vestimenta: string, tabla: string, estrategia: string, html: string }}
+ */
+export function generarGuiaHumanaEquipamiento(tempAireC = 20, vientoKt = 5, olasM = 0.2, score = 80, mesIndex = null) {
+    const t = Number(tempAireC ?? 20);
+    const v = Number(vientoKt ?? 5);
+    const o = Number(olasM ?? 0.2);
+    const s = Number(score ?? 80);
+
+    // Sensación térmica y recomendación de vestimenta / neopreno (windchill náutico simplificado)
+    const sensacionTermica = t - (v > 10 ? (v - 10) * 0.4 : 0);
+
+    let vestimenta = '';
+    let vestimentaIcono = '👕';
+    if (sensacionTermica >= 23) {
+        vestimenta = '🩳 Bañador y Lycra UV (>23°C) + 🧴 Protección Solar Alta';
+        vestimentaIcono = '🩳';
+    } else if (sensacionTermica >= 19) {
+        vestimenta = '🩱 Neopreno Corto / Shorty 2mm (19-22°C)';
+        vestimentaIcono = '🩱';
+    } else if (sensacionTermica >= 15) {
+        vestimenta = '🧥 Neopreno 3/2mm o Cortavientos (15-18°C)';
+        vestimentaIcono = '🧥';
+    } else {
+        vestimenta = '🧤 Neopreno 4/3mm + Escarpines (<15°C)';
+        vestimentaIcono = '🧤';
+    }
+
+    // Tabla recomendada
+    let tabla = '';
+    let tablaIcono = '🏄';
+    if (s < 40 || v >= 15 || o >= 0.9) {
+        tabla = '⚠️ Solo expertos / Downwind técnico (Tabla rígida o race con experiencia)';
+        tablaIcono = '⚠️';
+    } else if (v >= 10 || o >= 0.5) {
+        tabla = '🧭 Recomendado tabla Touring 12\'6" o rígida para vencer la deriva';
+        tablaIcono = '🧭';
+    } else {
+        tabla = '✅ Apto para cualquier tabla (All-Round / Hinchable)';
+        tablaIcono = '✅';
+    }
+
+    // Estrategia de Salida náutica en lenguaje claro
+    let estrategia = '';
+    let estrategiaIcono = '🧭';
+    if (v >= 7) {
+        estrategia = '💡 Empieza remando contra el viento para asegurar un regreso cómodo a favor';
+        estrategiaIcono = '💡';
+    } else if (o >= 0.6) {
+        estrategia = '🌊 Atención en la orilla: mantén el remo firme al pasar la rompiente';
+        estrategiaIcono = '🌊';
+    } else {
+        estrategia = '🌊 Mar en calma: Navega con libertad manteniendo siempre referencia visual de la costa';
+        estrategiaIcono = '✨';
+    }
+
+    const html = `
+        <div id="humanQuickBriefingBar" class="grid grid-cols-1 sm:grid-cols-3 gap-2 p-3 bg-slate-950/80 backdrop-blur-md rounded-2xl border border-sky-500/30 text-white shadow-lg animate-fadeIn">
+            <div class="flex items-center gap-2 p-2 rounded-xl bg-slate-900/70 border border-slate-800">
+                <span class="text-xl shrink-0">${vestimentaIcono}</span>
+                <div class="min-w-0">
+                    <div class="text-[9px] font-black uppercase tracking-wider text-sky-400">Vestimenta Sugerida</div>
+                    <div class="text-[11px] font-semibold text-slate-200 truncate" title="${vestimenta}">${vestimenta}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 p-2 rounded-xl bg-slate-900/70 border border-slate-800">
+                <span class="text-xl shrink-0">${tablaIcono}</span>
+                <div class="min-w-0">
+                    <div class="text-[9px] font-black uppercase tracking-wider text-emerald-400">Tabla Recomendada</div>
+                    <div class="text-[11px] font-semibold text-slate-200 truncate" title="${tabla}">${tabla}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 p-2 rounded-xl bg-slate-900/70 border border-slate-800">
+                <span class="text-xl shrink-0">${estrategiaIcono}</span>
+                <div class="min-w-0">
+                    <div class="text-[9px] font-black uppercase tracking-wider text-amber-400">Estrategia en el Agua</div>
+                    <div class="text-[11px] font-semibold text-slate-200 truncate" title="${estrategia}">${estrategia}</div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    return { vestimenta, tabla, estrategia, html };
+}
+
 if (typeof window !== 'undefined') {
     window.calcularSolYCrepusculo = calcularSolYCrepusculo;
     window.actualizarUIPresencia = actualizarUIPresencia;
     window.comprimirImagenCliente = comprimirImagenCliente;
     window.generarMiniSvgTrazadoRuta = generarMiniSvgTrazadoRuta;
+    window.generarGuiaHumanaEquipamiento = generarGuiaHumanaEquipamiento;
 }

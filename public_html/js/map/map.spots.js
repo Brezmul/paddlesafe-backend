@@ -2091,6 +2091,7 @@ if (typeof window !== 'undefined') {
     window.PACKS_SPOTS_COSTEROS = PACKS_SPOTS_COSTEROS;
     window.cargarPackSpotsCostero = cargarPackSpotsCostero;
     window.abrirAsistenteConfiguracion = abrirAsistenteConfiguracion;
+    window.mostrarModalPacksCosteros = abrirAsistenteConfiguracion;
     window.cerrarAsistenteConfiguracion = cerrarAsistenteConfiguracion;
     window.seleccionarTablaAsistente = seleccionarTablaAsistente;
     window.cargarPackYFinalizarAsistente = cargarPackYFinalizarAsistente;

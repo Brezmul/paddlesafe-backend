@@ -124,7 +124,7 @@ const swContent = fs.readFileSync(swPath, 'utf8');
 const versionMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
 const expectedSwVersion = versionMatch ? versionMatch[1] : null;
 
-assert(expectedSwVersion === 'paddlesafe-v68', `sw.js version must be paddlesafe-v68, got: ${expectedSwVersion}`);
+assert(expectedSwVersion === 'paddlesafe-v69', `sw.js version must be paddlesafe-v69, got: ${expectedSwVersion}`);
 
 if (fs.existsSync(versionJsonPath)) {
     let vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
@@ -1590,7 +1590,7 @@ const coachJsUpdated = fs.readFileSync(coachJsPath, 'utf8');
 assert(coachJsUpdated.includes('cond.sinDatos'), 'coach.js must handle missing weather data');
 
 assert(!indexHtml.includes('https://cdn.tailwindcss.com'), 'index.html must not load duplicate CDN tailwind script');
-assert(indexHtml.includes('tailwind.min.css?v=paddlesafe-v68'), 'index.html must link tailwind.min.css?v=paddlesafe-v68');
+assert(indexHtml.includes('tailwind.min.css?v=paddlesafe-v69'), 'index.html must link tailwind.min.css?v=paddlesafe-v69');
 assert(indexHtml.includes('reg.update()'), 'index.html must call reg.update() on SW registration');
 
 // Runtime validation of circular mean
@@ -1620,6 +1620,44 @@ const verdictYellow = generarVeredictoNextGen({
 assert(verdictYellow.score > 0 && verdictYellow.score <= 70, `Yellow alert must apply penalty capped at 70, got score ${verdictYellow.score}`);
 assert(!verdictYellow.alertaEmergenciaActiva, 'Yellow alert must not trigger emergency alert');
 assert(verdictYellow.recomendacion !== 'PROHIBIDO POR EMERGENCIA', 'Yellow alert must not prohibit paddling');
+
+// Batch #23 - UX 6.0 Human-Centered Interface Assertions
+assert(indexHtml.includes('id="quickTimePillsBar"'), 'index.html must contain #quickTimePillsBar');
+assert(indexHtml.includes('id="quickPillAhora"'), 'index.html must contain #quickPillAhora');
+assert(indexHtml.includes('id="quickDayPill2"'), 'index.html must contain #quickDayPill2');
+assert(indexHtml.includes('id="quickDayPill3"'), 'index.html must contain #quickDayPill3');
+assert(indexHtml.includes('id="quickSlotManana"'), 'index.html must contain #quickSlotManana');
+assert(indexHtml.includes('id="quickSlotMediodia"'), 'index.html must contain #quickSlotMediodia');
+assert(indexHtml.includes('id="quickSlotTarde"'), 'index.html must contain #quickSlotTarde');
+assert(indexHtml.includes('id="quickLaunchCard"'), 'index.html must contain #quickLaunchCard');
+assert(indexHtml.includes('id="humanQuickBriefingBar"'), 'index.html must contain #humanQuickBriefingBar');
+assert(indexHtml.includes('controllerchange'), 'index.html must handle SW controllerchange auto-reload');
+
+// Runtime validation of generarGuiaHumanaEquipamiento
+const { generarGuiaHumanaEquipamiento } = await import('./public_html/js/utils.js');
+assert(typeof generarGuiaHumanaEquipamiento === 'function', 'generarGuiaHumanaEquipamiento must be a function');
+
+const guiaCalida = generarGuiaHumanaEquipamiento(26, 4, 0.2, 85);
+assert(guiaCalida.vestimenta.includes('Bañador') || guiaCalida.vestimenta.includes('Lycra'), 'Warm weather should suggest Bañador/Lycra');
+assert(guiaCalida.tabla.includes('All-Round') || guiaCalida.tabla.includes('Apto'), 'Calm water should allow All-Round board');
+assert(guiaCalida.html.includes('humanQuickBriefingBar'), 'HTML should contain humanQuickBriefingBar wrapper');
+
+const guiaFria = generarGuiaHumanaEquipamiento(12, 16, 0.8, 30);
+assert(guiaFria.vestimenta.includes('4/3mm') || guiaFria.vestimenta.includes('Escarpines'), 'Cold weather should suggest 4/3mm wetsuit');
+assert(guiaFria.tabla.includes('expertos') || guiaFria.tabla.includes('Downwind'), 'Rough conditions should warn for experts only');
+
+// Runtime validation of map.bento.js and map.js UX 6.0 exports
+const mapBento = await import('./public_html/js/map/map.bento.js');
+assert(typeof mapBento.aplicarFiltroRapidoTiempo === 'function', 'map.bento.js must export aplicarFiltroRapidoTiempo');
+assert(typeof mapBento.actualizarPildorasTiempoUI === 'function', 'map.bento.js must export actualizarPildorasTiempoUI');
+assert(typeof mapBento.inicializarPildorasCalendario === 'function', 'map.bento.js must export inicializarPildorasCalendario');
+assert(typeof mapBento.cargarSpotRapido === 'function', 'map.bento.js must export cargarSpotRapido');
+
+const mapFacade = await import('./public_html/js/map.js');
+assert(typeof mapFacade.aplicarFiltroRapidoTiempo === 'function', 'map.js must re-export aplicarFiltroRapidoTiempo');
+assert(typeof mapFacade.cargarSpotRapido === 'function', 'map.js must re-export cargarSpotRapido');
+assert(typeof mapFacade.inicializarPildorasCalendario === 'function', 'map.js must re-export inicializarPildorasCalendario');
+assert(typeof mapFacade.generarGuiaHumanaEquipamiento === 'function', 'map.js must re-export generarGuiaHumanaEquipamiento');
 
 // ------------------------------------------------------------------------------
 // FINAL RESULT SUMMARY
