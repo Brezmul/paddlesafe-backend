@@ -5,7 +5,31 @@
 import { generarVeredictoNextGen, ESTADOS_VEREDICTO, CLASES_RIESGO as CLASES_RIESGO_CANONICAS, ICONOS_SEGURIDAD as ICONOS_SEGURIDAD_CANONICOS } from './engine/verdict.js';
 
 export const IMG_FALLBACK = "data:image/svg+xml;utf8," + encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="#e2e8f0"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>'
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="psSupBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0f766e" />
+    </linearGradient>
+    <linearGradient id="psBoardGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#2dd4bf" />
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#psSupBg)" stroke="#38bdf8" stroke-width="2" />
+  <path d="M 10 75 Q 30 71 50 75 T 90 75" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 6 83 Q 28 79 50 83 T 94 83" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2.5" stroke-linecap="round"/>
+  <ellipse cx="50" cy="73" rx="34" ry="4.5" fill="url(#psBoardGrad)" />
+  <ellipse cx="50" cy="73" rx="31" ry="2.5" fill="#ffffff" opacity="0.9" />
+  <circle cx="48" cy="27" r="5.5" fill="#ffffff" />
+  <path d="M 46 33 L 52 34 L 53 52 L 44 52 Z" fill="#ffffff" />
+  <path d="M 67 66 C 68 70 66 77 64 79 C 62 77 61 70 62 66 Z" fill="#ffffff" />
+  <line x1="43" y1="24" x2="65" y2="72" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" />
+  <path d="M 47 33 L 43 25" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" fill="none" />
+  <path d="M 50 37 L 56 46" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" fill="none" />
+  <path d="M 46 52 L 45 69 L 41 69" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <path d="M 51 52 L 53 69 L 57 69" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>`
 );
 
 // Sanitización estricta contra XSS
@@ -17,13 +41,39 @@ export function esc(v) {
 
 export function safeUrl(u, fallback = IMG_FALLBACK) {
     if (!u || typeof u !== 'string') return fallback;
-    if (u.startsWith('data:image/')) return u;
+    const trimmed = u.trim();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined' || trimmed === 'img/default-avatar.svg') return fallback;
+    if (trimmed.startsWith('data:image/')) return trimmed;
+
+    // Auto-completar rutas relativas al bucket paddlesafe de Supabase Storage
+    if (trimmed.startsWith('avatars/') || trimmed.startsWith('/avatars/')) {
+        const cleanPath = trimmed.replace(/^\/?/, '');
+        return `https://amgmvnnwlraulbutgemx.supabase.co/storage/v1/object/public/paddlesafe/${cleanPath}`;
+    }
+
     try {
-        const x = new URL(u, window.location.origin);
+        const base = typeof window !== 'undefined' && window.location ? window.location.origin : 'http://localhost';
+        const x = new URL(trimmed, base);
         return ['http:', 'https:'].includes(x.protocol) ? x.href : fallback;
     } catch (e) {
         return fallback;
     }
+}
+
+/**
+ * Manejador unificado y seguro de fallo de carga de avatar en elementos <img>
+ * Previene bucles infinitos de onerror y asigna de inmediato el avatar SUP de fallback.
+ */
+export function handleAvatarError(imgEl) {
+    if (!imgEl) return;
+    imgEl.onerror = null;
+    imgEl.src = IMG_FALLBACK;
+    imgEl.classList.add('ps-fallback-avatar');
+}
+
+if (typeof window !== 'undefined') {
+    window.IMG_FALLBACK = IMG_FALLBACK;
+    window.handleAvatarError = handleAvatarError;
 }
 
 export function fetchConTimeout(url, opts = {}, ms = 15000) {

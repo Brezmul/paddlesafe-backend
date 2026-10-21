@@ -1555,7 +1555,7 @@ export const socialFeed = {
                         clubId: i.club_id,
                         userId: i.user_id,
                         is_public: true,
-                        html: `<div class="flex items-center gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full border-2 border-emerald-500/50 object-cover shadow-sm shrink-0"><p class="text-sm text-slate-300 leading-snug"><strong class="text-white font-bold">${esc(i.perfiles?.nombre || 'Paddler')}</strong> se unió a <strong class="text-emerald-400 font-semibold">${esc(i.clubs?.nombre || 'un club')}</strong>.</p></div>`
+                        html: `<div class="flex items-center gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full border-2 border-emerald-500/50 object-cover shadow-sm shrink-0"><p class="text-sm !text-slate-300 leading-snug"><strong class="!text-white font-bold">${esc(i.perfiles?.nombre || 'Paddler')}</strong> <span class="!text-slate-300">se unió a</span> <strong class="!text-emerald-400 font-bold">${esc(i.clubs?.nombre || 'un club')}</strong>.</p></div>`
                     });
                     this.itemsIds.add(uniqueKey);
                 } catch (errCard) {
@@ -1620,7 +1620,7 @@ export const socialFeed = {
                         userId: i.user_id,
                         visibility: i.visibility || 'club_only',
                         is_public: i.is_public === true,
-                        html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-700 shadow-sm mt-1 shrink-0"><div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap mb-1"><strong class="text-white font-bold">${esc(i.perfiles?.nombre || 'Paddler')}</strong><span class="text-[9px] bg-sky-950/70 text-sky-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-sky-800/70"><span>🔒</span> Chat del Club</span></div><p class="text-xs text-slate-400">En <strong class="text-emerald-400 font-semibold">${esc(i.clubs?.nombre || 'Club')}</strong></p><div class="mt-2 bg-slate-900/80 border border-slate-700/70 p-3 rounded-2xl rounded-tl-sm text-sm text-slate-100 italic shadow-sm">"${esc(i.mensaje)}"</div></div></div>`
+                        html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-700 shadow-sm mt-1 shrink-0"><div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap mb-1"><strong class="!text-white font-bold">${esc(i.perfiles?.nombre || 'Paddler')}</strong><span class="text-[9px] bg-sky-950/70 text-sky-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-sky-800/70"><span>🔒</span> Chat del Club</span></div><p class="text-xs !text-slate-300">En <strong class="!text-emerald-400 font-bold">${esc(i.clubs?.nombre || 'Club')}</strong></p><div class="mt-2 bg-slate-900/90 border border-slate-700 p-3 rounded-2xl rounded-tl-sm text-sm !text-slate-100 italic shadow-sm">"${esc(i.mensaje)}"</div></div></div>`
                     });
                     this.itemsIds.add(uniqueKey);
                 } catch (errCard) {

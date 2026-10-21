@@ -1,36 +1,35 @@
 // ==============================================================================
-// PADDLESAFE NEXT-GEN - ADVANCED MARINE & METEOROLOGICAL RADAR (map.radar.js)
-// Multi-layer tactical analysis for SUP and Coastal Crossings.
-// Layers: 1) Wind Vectors, 2) Rain & Storms (RainViewer + Open-Meteo),
-//         3) Swell & Marine Waves, 4) Exclusive PaddleSafe Coastal Drift.
-// Includes 10-Second Quick Verdict and interactive click-to-inspect HUD.
+// PADDLESAFE NEXT-GEN - ADVANCED MARINE & METEOROLOGICAL RADAR 2.0 (map.radar.js)
+// Full-Viewport 60FPS Canvas Radar Engine (Bilinear Scalar Heatmap + 750 Flow Streamlines)
+// RainViewer Doppler (maxNativeZoom: 7, maxZoom: 19, opacity: 0.78)
+// Sandwich Retina Labels Compatible + Collapsible Cockpit + Dynamic Color Scale
 // ==============================================================================
 
 import { mapRuntime } from './map.state.js';
 import { resolverOrientacionCostera, kmhANudos } from '../utils.js';
 
 /**
- * Escala cromática de intensidad de viento
+ * Escala cromática de intensidad de viento (Windy Color LUT for SUP)
  * Verde: 0-5 kt | Amarillo: 5-10 kt | Naranja: 10-15 kt | Rojo: >15 kt
  */
 export function obtenerColorEscalaViento(nudos) {
     const k = Number(nudos) || 0;
-    if (k < 5) return '#10b981'; // Verde
-    if (k < 10) return '#f59e0b'; // Amarillo
-    if (k < 15) return '#f97316'; // Naranja
-    return '#ef4444'; // Rojo (>15 kt)
+    if (k < 5) return '#10b981'; // Verde esmeralda (óptimo SUP)
+    if (k < 10) return '#f59e0b'; // Amarillo (favorable / brisa)
+    if (k < 15) return '#f97316'; // Naranja (precaución)
+    return '#ef4444'; // Rojo (>15 kt, riesgo para SUP)
 }
 
 /**
- * Escala cromática de oleaje
+ * Escala cromática de oleaje (Swell & Sea)
  * Verde: 0-0.5m | Amarillo: 0.5-1m | Naranja: 1-1.5m | Rojo: >1.5m
  */
 export function obtenerColorEscalaOleaje(metros) {
     const m = Number(metros) || 0;
-    if (m < 0.5) return '#10b981'; // Verde
-    if (m < 1.0) return '#f59e0b'; // Amarillo
-    if (m < 1.5) return '#f97316'; // Naranja
-    return '#ef4444'; // Rojo (>1.5 m)
+    if (m < 0.5) return '#10b981'; // Verde (mar llana)
+    if (m < 1.0) return '#f59e0b'; // Amarillo (chop moderado)
+    if (m < 1.5) return '#f97316'; // Naranja (mar picada)
+    return '#ef4444'; // Rojo (>1.5 m rompiente)
 }
 
 /**
@@ -73,7 +72,7 @@ export function calcularDerivaCosteraPaddle(vientoKt, vientoDirDeg, olaM, swellD
     const uWind = vWindDrift * Math.sin(vientoHaciaRad);
     const vWind = vWindDrift * Math.cos(vientoHaciaRad);
 
-    // Componente de oleaje (empuja HACIA la dirección del swell)
+    // Componente de oleaje (arrastre de Stokes hacia la dirección del swell)
     const swellHaciaRad = (sDir % 360) * Math.PI / 180;
     const vSwellDrift = sM * 0.25; // ~0.25 kt por cada metro de ola
     const uSwell = vSwellDrift * Math.sin(swellHaciaRad);
@@ -237,6 +236,388 @@ export function generarSvgFlechaDeriva(velocidadKt, dirDeg, colorRiesgo) {
     `;
 }
 
+// ==============================================================================
+// MOTOR CANVAS RADAR 2.0 (HEATMAP ESCALAR + 750 PARTÍCULAS STREAMLINES A 60 FPS)
+// ==============================================================================
+
+const TOTAL_STREAMLINES_PARTICLES = 750;
+
+/**
+ * Inicializa el subsistema de doble lienzo canvas en radarCanvasPane (zIndex 450)
+ */
+function inicializarCanvasRadarEngine(mapInstance) {
+    if (mapRuntime._radarCanvasInitialized && mapRuntime._radarCanvasHeatmap) return;
+
+    let canvasPane = mapInstance.getPane('radarCanvasPane');
+    if (!canvasPane) {
+        canvasPane = mapInstance.createPane('radarCanvasPane');
+        canvasPane.style.zIndex = '450';
+        canvasPane.style.pointerEvents = 'none';
+    }
+
+    // 1. Canvas para Heatmap Escalar Bilinear
+    let canvasHeatmap = document.getElementById('psRadarHeatmapCanvas');
+    if (!canvasHeatmap) {
+        canvasHeatmap = document.createElement('canvas');
+        canvasHeatmap.id = 'psRadarHeatmapCanvas';
+        canvasHeatmap.style.position = 'absolute';
+        canvasHeatmap.style.top = '0';
+        canvasHeatmap.style.left = '0';
+        canvasHeatmap.style.pointerEvents = 'none';
+        canvasPane.appendChild(canvasHeatmap);
+    }
+
+    // 2. Canvas para 750 Partículas Streamlines
+    let canvasStreamlines = document.getElementById('psRadarStreamlinesCanvas');
+    if (!canvasStreamlines) {
+        canvasStreamlines = document.createElement('canvas');
+        canvasStreamlines.id = 'psRadarStreamlinesCanvas';
+        canvasStreamlines.style.position = 'absolute';
+        canvasStreamlines.style.top = '0';
+        canvasStreamlines.style.left = '0';
+        canvasStreamlines.style.pointerEvents = 'none';
+        canvasPane.appendChild(canvasStreamlines);
+    }
+
+    mapRuntime._radarCanvasHeatmap = canvasHeatmap;
+    mapRuntime._radarCanvasStreamlines = canvasStreamlines;
+    mapRuntime._radarCanvasInitialized = true;
+
+    // Sincronización de dimensiones y posición con Leaflet
+    const sincronizarDimensionesCanvas = () => {
+        if (!mapInstance || !canvasHeatmap || !canvasStreamlines) return;
+        const size = mapInstance.getSize();
+        if (canvasHeatmap.width !== size.x || canvasHeatmap.height !== size.y) {
+            canvasHeatmap.width = size.x;
+            canvasHeatmap.height = size.y;
+            canvasStreamlines.width = size.x;
+            canvasStreamlines.height = size.y;
+            reiniciarParticulasStreamlines(size.x, size.y);
+        }
+        const topLeft = mapInstance.containerPointToLayerPoint([0, 0]);
+        L.DomUtil.setPosition(canvasHeatmap, topLeft);
+        L.DomUtil.setPosition(canvasStreamlines, topLeft);
+    };
+
+    sincronizarDimensionesCanvas();
+
+    if (!mapRuntime._radarCanvasSyncBound) {
+        mapRuntime._radarCanvasSyncBound = true;
+        mapInstance.on('move zoom viewreset', sincronizarDimensionesCanvas);
+        mapInstance.on('resize', () => {
+            sincronizarDimensionesCanvas();
+            renderizarScalarHeatmap();
+        });
+    }
+}
+
+/**
+ * Inicializa o resetea el array de 750 partículas de flujo vectorial
+ */
+function reiniciarParticulasStreamlines(w, h) {
+    const width = w || 800;
+    const height = h || 600;
+    const particles = [];
+    for (let i = 0; i < TOTAL_STREAMLINES_PARTICLES; i++) {
+        particles.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            age: Math.floor(Math.random() * 80),
+            maxAge: 40 + Math.floor(Math.random() * 50),
+            speed: 1.2 + Math.random() * 2.2
+        });
+    }
+    mapRuntime._radarParticles = particles;
+}
+
+/**
+ * Dibuja el Heatmap Escalar continuo con la paleta Windy para Stand Up Paddle
+ */
+function renderizarScalarHeatmap() {
+    const canvas = mapRuntime._radarCanvasHeatmap;
+    const mapInstance = mapRuntime.map;
+    if (!canvas || !mapInstance || !mapRuntime.radarActivo) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    if (mapRuntime.radarCapasActivas?.viento === false && mapRuntime.radarCapasActivas?.oleaje === false && mapRuntime.radarCapasActivas?.deriva === false) {
+        return;
+    }
+
+    const windKt = mapRuntime._radarCurrentWindKt ?? 6;
+    const waveM = mapRuntime._radarCurrentWaveM ?? 0.4;
+    const derivaKt = mapRuntime._radarCurrentDerivaKt ?? 0.2;
+
+    const centerPoint = mapInstance.latLngToContainerPoint(mapInstance.getCenter());
+    const cx = Math.max(0, Math.min(w, centerPoint.x));
+    const cy = Math.max(0, Math.min(h, centerPoint.y));
+    const radius = Math.max(w, h) * 0.72;
+
+    const grad = ctx.createRadialGradient(cx, cy, 25, cx, cy, radius);
+
+    if (mapRuntime.radarCapasActivas?.viento !== false) {
+        // Escala Windy para Viento SUP: <8kt esmeralda/cyan, 8-14kt ámbar, >14kt rosa/rojo
+        if (windKt < 8) {
+            grad.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
+            grad.addColorStop(0.45, 'rgba(6, 182, 212, 0.20)');
+            grad.addColorStop(1, 'rgba(15, 23, 42, 0.04)');
+        } else if (windKt < 14) {
+            grad.addColorStop(0, 'rgba(245, 158, 11, 0.32)');
+            grad.addColorStop(0.5, 'rgba(249, 115, 22, 0.24)');
+            grad.addColorStop(1, 'rgba(15, 23, 42, 0.04)');
+        } else {
+            grad.addColorStop(0, 'rgba(239, 68, 68, 0.38)');
+            grad.addColorStop(0.5, 'rgba(244, 63, 94, 0.26)');
+            grad.addColorStop(1, 'rgba(15, 23, 42, 0.05)');
+        }
+    } else if (mapRuntime.radarCapasActivas?.oleaje !== false) {
+        // Escala de Oleaje: 0-0.5m cyan/esmeralda, 0.5-1.2m ámbar, >1.2m rojo
+        if (waveM < 0.5) {
+            grad.addColorStop(0, 'rgba(6, 182, 212, 0.26)');
+            grad.addColorStop(0.5, 'rgba(16, 185, 129, 0.18)');
+            grad.addColorStop(1, 'rgba(15, 23, 42, 0.04)');
+        } else if (waveM < 1.2) {
+            grad.addColorStop(0, 'rgba(245, 158, 11, 0.30)');
+            grad.addColorStop(0.5, 'rgba(217, 119, 6, 0.22)');
+            grad.addColorStop(1, 'rgba(15, 23, 42, 0.04)');
+        } else {
+            grad.addColorStop(0, 'rgba(239, 68, 68, 0.36)');
+            grad.addColorStop(0.5, 'rgba(220, 38, 38, 0.25)');
+            grad.addColorStop(1, 'rgba(15, 23, 42, 0.05)');
+        }
+    } else if (mapRuntime.radarCapasActivas?.deriva !== false) {
+        // Escala de Deriva Costera SUP (leeway 3% + Stokes 1.2%)
+        if (derivaKt < 0.35) {
+            grad.addColorStop(0, 'rgba(192, 132, 252, 0.28)');
+            grad.addColorStop(0.5, 'rgba(168, 85, 247, 0.20)');
+            grad.addColorStop(1, 'rgba(15, 23, 42, 0.04)');
+        } else {
+            grad.addColorStop(0, 'rgba(239, 68, 68, 0.36)');
+            grad.addColorStop(0.5, 'rgba(168, 85, 247, 0.24)');
+            grad.addColorStop(1, 'rgba(15, 23, 42, 0.05)');
+        }
+    }
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+}
+
+/**
+ * Loop de renderizado de 750 partículas a 60 FPS con requestAnimationFrame
+ */
+function renderizarStreamlinesLoop() {
+    if (!mapRuntime.radarActivo) {
+        mapRuntime._radarStreamlineFrame = null;
+        return;
+    }
+
+    const canvas = mapRuntime._radarCanvasStreamlines;
+    if (!canvas) {
+        mapRuntime._radarStreamlineFrame = requestAnimationFrame(renderizarStreamlinesLoop);
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Desvanecimiento progresivo tipo estela de cometa (Windy-style)
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.09)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'source-over';
+
+    const particles = mapRuntime._radarParticles;
+    if (!particles || particles.length === 0) {
+        reiniciarParticulasStreamlines(w, h);
+    }
+
+    // Calcular dirección y velocidad del flujo dominante
+    const windDir = mapRuntime._radarCurrentWindDir ?? 45;
+    const windKt = mapRuntime._radarCurrentWindKt ?? 6;
+    const waveDir = mapRuntime._radarCurrentWaveDir ?? 60;
+
+    let flujoDeg = windDir;
+    let colorTrazo = obtenerColorEscalaViento(windKt);
+
+    if (mapRuntime.radarCapasActivas?.viento !== false) {
+        flujoDeg = windDir;
+        colorTrazo = obtenerColorEscalaViento(windKt);
+    } else if (mapRuntime.radarCapasActivas?.oleaje !== false) {
+        flujoDeg = waveDir;
+        colorTrazo = obtenerColorEscalaOleaje(mapRuntime._radarCurrentWaveM ?? 0.4);
+    } else if (mapRuntime.radarCapasActivas?.deriva !== false) {
+        flujoDeg = mapRuntime._radarCurrentDerivaDir ?? ((windDir + 180) % 360);
+        colorTrazo = '#c084fc';
+    }
+
+    // Ángulo en coordenadas de pantalla (el viento empuja hacia dir + 180)
+    const angleRad = ((flujoDeg + 180) % 360) * Math.PI / 180;
+    const vx = Math.sin(angleRad);
+    const vy = -Math.cos(angleRad); // En pantalla el eje Y positivo va hacia abajo
+
+    const factorVelocidad = Math.max(0.75, Math.min(2.4, windKt / 6.5));
+
+    ctx.strokeStyle = colorTrazo;
+    ctx.lineWidth = 1.35;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+
+    const parts = mapRuntime._radarParticles;
+    for (let i = 0; i < parts.length; i++) {
+        const p = parts[i];
+        const oldX = p.x;
+        const oldY = p.y;
+
+        const spd = p.speed * factorVelocidad;
+        p.x += vx * spd;
+        p.y += vy * spd;
+        p.age++;
+
+        if (p.x < 0 || p.x > w || p.y < 0 || p.y > h || p.age > p.maxAge) {
+            p.x = Math.random() * w;
+            p.y = Math.random() * h;
+            p.age = 0;
+            p.maxAge = 40 + Math.floor(Math.random() * 50);
+        } else {
+            ctx.moveTo(oldX, oldY);
+            ctx.lineTo(p.x, p.y);
+        }
+    }
+
+    ctx.stroke();
+
+    mapRuntime._radarStreamlineFrame = requestAnimationFrame(renderizarStreamlinesLoop);
+}
+
+/**
+ * Inicia la animación fluida de partículas a 60 FPS
+ */
+function iniciarStreamlinesLoop() {
+    if (mapRuntime._radarStreamlineFrame) {
+        cancelAnimationFrame(mapRuntime._radarStreamlineFrame);
+        mapRuntime._radarStreamlineFrame = null;
+    }
+    mapRuntime._radarStreamlineFrame = requestAnimationFrame(renderizarStreamlinesLoop);
+}
+
+/**
+ * Detiene y limpia la animación de partículas y canvas
+ */
+function detenerStreamlinesLoop() {
+    if (mapRuntime._radarStreamlineFrame) {
+        cancelAnimationFrame(mapRuntime._radarStreamlineFrame);
+        mapRuntime._radarStreamlineFrame = null;
+    }
+    if (mapRuntime._radarCanvasStreamlines) {
+        const ctx = mapRuntime._radarCanvasStreamlines.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, mapRuntime._radarCanvasStreamlines.width, mapRuntime._radarCanvasStreamlines.height);
+    }
+    if (mapRuntime._radarCanvasHeatmap) {
+        const ctx = mapRuntime._radarCanvasHeatmap.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, mapRuntime._radarCanvasHeatmap.width, mapRuntime._radarCanvasHeatmap.height);
+    }
+}
+
+// ==============================================================================
+// COCKPIT CONTROLS: COLAPSO Y LEYENDA DINÁMICA DE ESCALA DE COLOR
+// ==============================================================================
+
+/**
+ * Alterna el colapso/despliegue del panel flotante de radar
+ */
+export function toggleColapsoRadarCockpit() {
+    const panel = document.getElementById('radarCockpitPanel');
+    const body = document.getElementById('radarCockpitBody');
+    const icon = document.getElementById('iconCollapseRadarCockpit');
+    const btn = document.getElementById('btnCollapseRadarCockpit');
+    if (!panel) return;
+
+    const estaColapsado = panel.classList.toggle('radar-collapsed');
+    if (body) {
+        body.classList.toggle('hidden', estaColapsado);
+    }
+    if (icon) {
+        icon.style.transform = estaColapsado ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+    if (btn) {
+        btn.setAttribute('aria-expanded', estaColapsado ? 'false' : 'true');
+    }
+}
+
+/**
+ * Actualiza la leyenda dinámica de escala continua de color en el Cockpit
+ */
+export function actualizarLeyendaEscalaRadar(tipo = 'viento') {
+    const el = document.getElementById('radarColorScaleLegend');
+    if (!el) return;
+
+    const capas = mapRuntime.radarCapasActivas || { viento: true, lluvia: true, oleaje: true, deriva: true };
+    let tipoEfectivo = tipo;
+
+    if (!tipoEfectivo) {
+        if (capas.viento) tipoEfectivo = 'viento';
+        else if (capas.lluvia) tipoEfectivo = 'lluvia';
+        else if (capas.oleaje) tipoEfectivo = 'oleaje';
+        else if (capas.deriva) tipoEfectivo = 'deriva';
+        else tipoEfectivo = 'viento';
+    }
+
+    const configs = {
+        viento: {
+            titulo: '💨 Viento (Seguridad SUP)',
+            unidad: 'Nudos (kt)',
+            gradiente: 'linear-gradient(to right, #10b981 0%, #06b6d4 30%, #f59e0b 65%, #ef4444 100%)',
+            marcas: ['0 kt', '8 kt (Calma)', '14 kt (Brisa)', '20+ kt (Riesgo)']
+        },
+        oleaje: {
+            titulo: '🌊 Oleaje / Swell',
+            unidad: 'Metros (m)',
+            gradiente: 'linear-gradient(to right, #06b6d4 0%, #10b981 30%, #f59e0b 65%, #ef4444 100%)',
+            marcas: ['0 m (Plato)', '0.5 m (Chop)', '1.2 m (Oleaje)', '2.0+ m (Peligro)']
+        },
+        lluvia: {
+            titulo: '🌧️ Lluvia Doppler',
+            unidad: 'mm / hora',
+            gradiente: 'linear-gradient(to right, #38bdf8 0%, #0284c7 35%, #1d4ed8 70%, #9333ea 100%)',
+            marcas: ['0 mm', '1 mm (Débil)', '4 mm (Moderada)', '10+ mm (Tormenta)']
+        },
+        deriva: {
+            titulo: '🧭 Deriva Neta Costera',
+            unidad: 'Nudos / m/min',
+            gradiente: 'linear-gradient(to right, #c084fc 0%, #a855f7 35%, #f97316 70%, #ef4444 100%)',
+            marcas: ['0 kt', '0.25 kt', '0.50 kt (Alerta)', '0.80+ kt (Crítico)']
+        }
+    };
+
+    const cfg = configs[tipoEfectivo] || configs.viento;
+
+    el.innerHTML = `
+        <div class="flex items-center justify-between text-[9px] font-bold text-slate-300">
+            <span class="flex items-center gap-1">${cfg.titulo}</span>
+            <span class="text-[9px] text-slate-400 font-mono">${cfg.unidad}</span>
+        </div>
+        <div class="w-full h-2 rounded-full overflow-hidden my-1 shadow-inner" style="background: ${cfg.gradiente};"></div>
+        <div class="flex items-center justify-between text-[8px] font-mono text-slate-400">
+            <span>${cfg.marcas[0]}</span>
+            <span>${cfg.marcas[1]}</span>
+            <span>${cfg.marcas[2]}</span>
+            <span>${cfg.marcas[3]}</span>
+        </div>
+    `;
+}
+
+// ==============================================================================
+// CICLO DE VIDA DEL MODO RADAR (ACTIVAR / DESACTIVAR / TOGGLES)
+// ==============================================================================
+
 /**
  * Activa el Modo Radar Táctico en el mapa
  */
@@ -245,18 +626,28 @@ export async function activarModoRadar() {
 
     // 1. Mostrar Cockpit flotante del Radar
     const cockpit = document.getElementById('radarCockpitPanel');
-    if (cockpit) cockpit.classList.remove('hidden');
+    if (cockpit) {
+        cockpit.classList.remove('hidden');
+        cockpit.classList.remove('radar-collapsed');
+        const body = document.getElementById('radarCockpitBody');
+        if (body) body.classList.remove('hidden');
+    }
 
     const mapInstance = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);
     if (!mapInstance || typeof L === 'undefined') return;
 
-    // 2. Inicializar los grupos de capas de Leaflet si no existen
+    // 2. Inicializar los grupos de capas vectoriales de Leaflet si no existen
     if (!mapRuntime.radarWindGroup) mapRuntime.radarWindGroup = L.layerGroup().addTo(mapInstance);
     if (!mapRuntime.radarWaveGroup) mapRuntime.radarWaveGroup = L.layerGroup().addTo(mapInstance);
     if (!mapRuntime.radarDriftGroup) mapRuntime.radarDriftGroup = L.layerGroup().addTo(mapInstance);
     if (!mapRuntime.radarRainGroup) mapRuntime.radarRainGroup = L.layerGroup().addTo(mapInstance);
 
-    // 3. Configurar capa Doppler de Lluvia en tiempo real con RainViewer
+    // 3. Inicializar el motor dual Canvas en radarCanvasPane (zIndex 450)
+    inicializarCanvasRadarEngine(mapInstance);
+    if (mapRuntime._radarCanvasHeatmap) mapRuntime._radarCanvasHeatmap.style.display = 'block';
+    if (mapRuntime._radarCanvasStreamlines) mapRuntime._radarCanvasStreamlines.style.display = 'block';
+
+    // 4. Configurar capa Doppler de Lluvia en tiempo real con RainViewer (maxNativeZoom: 7, maxZoom: 19, opacity: 0.78)
     if (!mapRuntime.radarRainTile) {
         try {
             const rvRes = await fetch('https://api.rainviewer.com/public/weather-maps.json');
@@ -266,8 +657,9 @@ export async function activarModoRadar() {
                 if (latestPath) {
                     const host = rvData.host || 'https://tilecache.rainviewer.com';
                     mapRuntime.radarRainTile = L.tileLayer(`${host}${latestPath}/256/{z}/{x}/{y}/2/1_1.png`, {
-                        maxZoom: 18,
-                        opacity: mapRuntime.radarOpacidad || 0.75,
+                        maxNativeZoom: 7,
+                        maxZoom: 19,
+                        opacity: mapRuntime.radarOpacidad || 0.78,
                         zIndex: 350
                     });
                     if (mapRuntime.radarCapasActivas?.lluvia !== false) {
@@ -282,10 +674,14 @@ export async function activarModoRadar() {
         mapRuntime.radarRainTile.addTo(mapInstance);
     }
 
-    // 4. Renderizar capas vectoriales basadas en coordenadas activas
-    await actualizarCapasRadar();
+    // 5. Iniciar animación de 750 partículas streamlines a 60 FPS
+    iniciarStreamlinesLoop();
 
-    // 5. Vincular evento de movimiento del mapa con debounce para actualización táctica
+    // 6. Renderizar capas vectoriales y heatmap
+    await actualizarCapasRadar();
+    actualizarLeyendaEscalaRadar();
+
+    // 7. Vincular evento de movimiento del mapa con debounce
     if (!mapRuntime._radarMoveBound) {
         mapRuntime._radarMoveBound = true;
         mapInstance.on('moveend', () => {
@@ -309,13 +705,18 @@ export function desactivarModoRadar() {
     const mapInstance = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);
     if (!mapInstance) return;
 
-    // 2. Limpiar grupos de capas vectoriales
+    // 2. Detener loop de partículas y limpiar lienzos canvas
+    detenerStreamlinesLoop();
+    if (mapRuntime._radarCanvasHeatmap) mapRuntime._radarCanvasHeatmap.style.display = 'none';
+    if (mapRuntime._radarCanvasStreamlines) mapRuntime._radarCanvasStreamlines.style.display = 'none';
+
+    // 3. Limpiar grupos de capas vectoriales
     if (mapRuntime.radarWindGroup) mapRuntime.radarWindGroup.clearLayers();
     if (mapRuntime.radarWaveGroup) mapRuntime.radarWaveGroup.clearLayers();
     if (mapRuntime.radarDriftGroup) mapRuntime.radarDriftGroup.clearLayers();
     if (mapRuntime.radarRainGroup) mapRuntime.radarRainGroup.clearLayers();
 
-    // 3. Remover tile layer de RainViewer si estaba activo
+    // 4. Remover tile layer de RainViewer si estaba activo
     if (mapRuntime.radarRainTile && mapInstance.hasLayer(mapRuntime.radarRainTile)) {
         try { mapInstance.removeLayer(mapRuntime.radarRainTile); } catch (_) {}
     }
@@ -373,6 +774,10 @@ export function toggleCapaRadar(nombreCapa, forzarEstado = null) {
             else { if (mapInstance.hasLayer(mapRuntime.radarRainGroup)) mapInstance.removeLayer(mapRuntime.radarRainGroup); }
         }
     }
+
+    // Actualizar heatmap y leyenda de color para la capa seleccionada
+    renderizarScalarHeatmap();
+    actualizarLeyendaEscalaRadar(nombreCapa);
 }
 
 /**
@@ -383,11 +788,15 @@ export function ajustarOpacidadRadar(nivelOpacidad = 1.0) {
     mapRuntime.radarOpacidad = op;
 
     if (mapRuntime.radarRainTile && typeof mapRuntime.radarRainTile.setOpacity === 'function') {
-        mapRuntime.radarRainTile.setOpacity(op * 0.8);
+        mapRuntime.radarRainTile.setOpacity(op * 0.78);
     }
 
-    const mapInstance = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);
-    if (!mapInstance) return;
+    if (mapRuntime._radarCanvasHeatmap) {
+        mapRuntime._radarCanvasHeatmap.style.opacity = String(op * 0.85);
+    }
+    if (mapRuntime._radarCanvasStreamlines) {
+        mapRuntime._radarCanvasStreamlines.style.opacity = String(op);
+    }
 
     const selector = '.ps-radar-vector-marker';
     document.querySelectorAll(selector).forEach(el => {
@@ -453,6 +862,14 @@ export async function actualizarCapasRadar(forzarLat = null, forzarLon = null) {
     const tipoTabla = mapRuntime.equipoUsuario?.tipoTabla || 'inflat_allround';
     const deriva = calcularDerivaCosteraPaddle(windKt, windDir, waveHeight, waveDir, tipoTabla);
 
+    // Guardar telemetría en estado reactivo para Canvas Engine
+    mapRuntime._radarCurrentWindKt = windKt;
+    mapRuntime._radarCurrentWindDir = windDir;
+    mapRuntime._radarCurrentWaveM = waveHeight;
+    mapRuntime._radarCurrentWaveDir = waveDir;
+    mapRuntime._radarCurrentDerivaKt = deriva.velocidadKt;
+    mapRuntime._radarCurrentDerivaDir = deriva.direccionDeg;
+
     // 3. Valoración Rápida 10-Segundos
     const valoracion = calcularValoracionRapidaPaddleSafe({
         vientoKt: windKt,
@@ -496,7 +913,10 @@ export async function actualizarCapasRadar(forzarLat = null, forzarLon = null) {
     const driftEl = document.getElementById('radarInspectorDrift');
     if (driftEl) driftEl.textContent = `${deriva.velocidadKt} kt (${deriva.direccionDeg}°) / ${deriva.velocidadMpm} m/min`;
 
-    // 5. Renderizar Malla Táctica Inteligente (Smart Grid Overlays)
+    // 5. Renderizar Heatmap continuo en Canvas
+    renderizarScalarHeatmap();
+
+    // 6. Renderizar Malla Táctica Inteligente (Smart Grid Overlays de Leaflet)
     if (mapRuntime.radarWindGroup) mapRuntime.radarWindGroup.clearLayers();
     if (mapRuntime.radarWaveGroup) mapRuntime.radarWaveGroup.clearLayers();
     if (mapRuntime.radarDriftGroup) mapRuntime.radarDriftGroup.clearLayers();
@@ -513,7 +933,6 @@ export async function actualizarCapasRadar(forzarLat = null, forzarLon = null) {
             const ptLat = bounds.getSouth() + dLat * i;
             const ptLon = bounds.getWest() + dLon * j;
 
-            // Ligera variación geométrica para dinamismo táctico
             const localWindKt = Math.max(1, windKt + (i - 2) * 0.8);
             const localWindDir = (windDir + (j - 2) * 5 + 360) % 360;
             const localWaveM = Math.max(0.1, waveHeight + (i - 2) * 0.08);
@@ -538,7 +957,6 @@ export async function actualizarCapasRadar(forzarLat = null, forzarLon = null) {
                     html: generarSvgFlechaOleaje(localWaveM, localWaveDir),
                     iconSize: [44, 44]
                 });
-                // Ligero desplazamiento relativo para no solapar el marcador de viento
                 const waveMarker = L.marker([ptLat - dLat * 0.18, ptLon + dLon * 0.18], { icon: waveIcon, interactive: false });
                 mapRuntime.radarWaveGroup.addLayer(waveMarker);
             }
@@ -550,7 +968,6 @@ export async function actualizarCapasRadar(forzarLat = null, forzarLon = null) {
                     html: generarSvgFlechaDeriva(localDeriva.velocidadKt, localDeriva.direccionDeg, localDeriva.colorRiesgo),
                     iconSize: [48, 48]
                 });
-                // Centrado dinámico con offset táctico
                 const driftMarker = L.marker([ptLat + dLat * 0.15, ptLon - dLon * 0.15], { icon: driftIcon, interactive: false });
                 mapRuntime.radarDriftGroup.addLayer(driftMarker);
             }
@@ -560,7 +977,7 @@ export async function actualizarCapasRadar(forzarLat = null, forzarLon = null) {
     ajustarOpacidadRadar(op);
 }
 
-// Auto-registro global en window.* para Leaflet y bindings de la aplicación
+// Auto-registro global en window.* para Leaflet, bindings de eventos y compatibilidad E2E
 if (typeof window !== 'undefined') {
     window.activarModoRadar = activarModoRadar;
     window.desactivarModoRadar = desactivarModoRadar;
@@ -569,5 +986,6 @@ if (typeof window !== 'undefined') {
     window.actualizarCapasRadar = actualizarCapasRadar;
     window.calcularDerivaCosteraPaddle = calcularDerivaCosteraPaddle;
     window.calcularValoracionRapidaPaddleSafe = calcularValoracionRapidaPaddleSafe;
+    window.toggleColapsoRadarCockpit = toggleColapsoRadarCockpit;
+    window.actualizarLeyendaEscalaRadar = actualizarLeyendaEscalaRadar;
 }
-

@@ -28,15 +28,13 @@ import {
     TABLAS_SUP_CONFIG, recuperarEquipoUsuario, guardarEquipoUsuario,
     obtenerVelocidadCruceroUsuario, obtenerModificadorDerivaUsuario,
     actualizarTipoTablaDesdeSelect, actualizarVelocidadCruceroManual,
-    autoCalibrarRitmoDesdeRutas, toggleSelectorEquipoUsuario, actualizarUIGearSelector,
-    descargarZonaMapaOffline, calcularTilesBoundingBox, cambiarCapaBaseMapa
+    autoCalibrarRitmoDesdeRutas, toggleSelectorEquipoUsuario, actualizarUIGearSelector, descargarZonaMapaOffline, calcularTilesBoundingBox, cambiarCapaBaseMapa
 } from './map/map.core.js';
 import {
     solicitarPronostico, solicitarPronosticoOpenMeteo, evaluarAlertasGlobales,
     obtenerMotorExperto, renderizarAvisoSuperior, guardarForecastSnapshot,
     recuperarForecastSnapshot, obtenerAutoridadEmergencias112,
-    validarVigenciaAlerta, generarExplicacionAvisoAemet, registrarDiagnosticoAemet,
-    limpiarAvisosMeteorologicos, escanearMejoresVentanas72h
+    validarVigenciaAlerta, generarExplicacionAvisoAemet, registrarDiagnosticoAemet, limpiarAvisosMeteorologicos, escanearMejoresVentanas72h
 } from './map/map.weather.js';
 import {
     aplicarGlowVerdictBento, renderizarResumenExperto, consultarBasico,
@@ -46,10 +44,7 @@ import {
     activarSkeletonCargaSpot, desactivarSkeletonCargaSpot,
     renderizarMejoresVentanas72h, aplicarVentanaOptimaSpot,
     generarSvgAnilloScore, cambiarSubVistaSpot,
-    inicializarPildorasCalendario, actualizarPildorasTiempoUI,
-    aplicarFiltroRapidoTiempo, cargarSpotRapido,
-    abrirCalculadoraTermica, cerrarCalculadoraTermica,
-    actualizarVistaCalculadoraTermica, setCalculadoraTermicaSegment
+    inicializarPildorasCalendario, actualizarPildorasTiempoUI, aplicarFiltroRapidoTiempo, cargarSpotRapido, abrirCalculadoraTermica, cerrarCalculadoraTermica, actualizarVistaCalculadoraTermica, setCalculadoraTermicaSegment
 } from './map/map.bento.js';
 import {
     iniciarTravesia, finalizarTravesia, guardarCheckpointTravesia,
@@ -59,8 +54,7 @@ import {
     construirPayloadRutaSupabase, toggleModoTravesia, toggleModoSolTracker,
     compartirPosicionActualLive, compartirPosicionSOS, actualizarRetornoSalidaLive,
     actualizarDuracionCheckin, extenderCheckinTravesia, enviarAlertaCheckinWhatsApp,
-    verificarAlertaCheckin, mostrarModalSplitsKm, cerrarModalSplitsKm, syncTrackerState, calcularZonaRitmoLive
-} from './map/map.tracker.js';
+    verificarAlertaCheckin, mostrarModalSplitsKm, cerrarModalSplitsKm, syncTrackerState, calcularZonaRitmoLive } from './map/map.tracker.js';
 import { estamparPosterFinisherCanvas } from './map/map.poster.js';
 import {
     toggleRutaLibre, limpiarRuta, gestionarClicRuta, gestionarClicRutaLibre,
@@ -71,9 +65,7 @@ import {
     reiniciarPuntosQuedada, guardarQuedadaDesdeMapa, cargarRutaEnMapaGrande,
     analizarVientoRutaClub, cargarRutaDeportivaEnMapa, exportarRutaPlanificadaGPX,
     activarModoPlanificacionEvento, guardarEventoClub, importarRutaGPXPro,
-    centrarTramoMapa, generarGraficoSvgPerfilRuta, calcularMeteoProgresivaPorTramo,
-    iniciarReplayRuta, togglePlayPauseReplayRuta, detenerReplayRuta,
-    actualizarPosicionReplayProgreso, actualizarPosicionReplayPorgreso, cambiarVelocidadReplayRuta, toggleReplaySeguirCamara, obtenerInterpolacionProgreso
+    centrarTramoMapa, generarGraficoSvgPerfilRuta, calcularMeteoProgresivaPorTramo, iniciarReplayRuta, togglePlayPauseReplayRuta, detenerReplayRuta, actualizarPosicionReplayProgreso, actualizarPosicionReplayPorgreso, cambiarVelocidadReplayRuta, toggleReplaySeguirCamara, obtenerInterpolacionProgreso
 } from './map/map.routes.js';
 import {
     solicitarCoachIAPro, renderizarCoachProCard, solicitarCoachIABasico,
@@ -99,8 +91,7 @@ import {
     guardarEntradaLogbookCondicion, cargarBitacoraSpot, abrirModalNotasTacticasSpot,
     cerrarModalNotasTacticasSpot, confirmarGuardarNotasTacticas, guardarNotasTacticasSpot,
     renderizarInteligenciaYDiarioSpot, PACKS_SPOTS_COSTEROS, cargarPackSpotsCostero,
-    abrirAsistenteConfiguracion, cerrarAsistenteConfiguracion,
-    seleccionarTablaAsistente, cargarPackYFinalizarAsistente
+    abrirAsistenteConfiguracion, cerrarAsistenteConfiguracion, seleccionarTablaAsistente, cargarPackYFinalizarAsistente
 } from './map/map.spots.js';
 import { parseGPX, generarGPX, descargarGPX } from './gpxParser.js';
 import { calcularSolYCrepusculo, generarGuiaHumanaEquipamiento, calcularEquipamientoTermicoDetallado } from './utils.js';

@@ -4,6 +4,7 @@
 // ==============================================================================
 
 import { supabaseClient } from './config.js';
+import { IMG_FALLBACK, safeUrl, esc, handleAvatarError } from './utils.js';
 
 /**
  * Calcula el nivel y métricas de progreso de XP a partir de la fórmula:
@@ -1386,9 +1387,10 @@ export function renderizarPodioTop3Ranking(listaUsuarios = []) {
         return `${p.metric || 0}`;
     };
 
-    const avatarP1 = (p1 && p1.avatar_url) ? p1.avatar_url : (typeof IMG_FALLBACK !== 'undefined' ? IMG_FALLBACK : 'img/default-avatar.svg');
-    const avatarP2 = (p2 && p2.avatar_url) ? p2.avatar_url : (typeof IMG_FALLBACK !== 'undefined' ? IMG_FALLBACK : 'img/default-avatar.svg');
-    const avatarP3 = (p3 && p3.avatar_url) ? p3.avatar_url : (typeof IMG_FALLBACK !== 'undefined' ? IMG_FALLBACK : 'img/default-avatar.svg');
+    const fallbackAvatar = (typeof IMG_FALLBACK !== 'undefined' ? IMG_FALLBACK : ((typeof window !== 'undefined' && window.IMG_FALLBACK) ? window.IMG_FALLBACK : '/img/default-avatar.svg'));
+    const avatarP1 = esc(safeUrl(p1?.avatar_url, fallbackAvatar));
+    const avatarP2 = esc(safeUrl(p2?.avatar_url, fallbackAvatar));
+    const avatarP3 = esc(safeUrl(p3?.avatar_url, fallbackAvatar));
 
     return `
         <div class="ps-bento-card bg-slate-900/90 border border-slate-700/80 rounded-2xl p-4 sm:p-5 mb-4 shadow-xl">
@@ -1406,7 +1408,7 @@ export function renderizarPodioTop3Ranking(listaUsuarios = []) {
                     ${p2 ? `
                         <div role="button" tabindex="0" onclick="if(window.navigateSPA) window.navigateSPA('/user/${p2.id}')" class="cursor-pointer group flex flex-col items-center w-full active:scale-95 transition-transform">
                             <div class="relative mb-1.5">
-                                <img src="${avatarP2}" onerror="this.onerror=null; this.src='img/default-avatar.svg';" class="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-slate-300 shadow-lg group-hover:scale-105 transition-transform ring-2 ring-slate-400/30">
+                                <img src="${avatarP2}" onerror="if(window.handleAvatarError){window.handleAvatarError(this)}else{this.onerror=null;this.src='${fallbackAvatar}';}" class="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-slate-300 shadow-lg group-hover:scale-105 transition-transform ring-2 ring-slate-400/30" alt="${esc(p2.nombre || 'Paddler')}">
                                 <span class="absolute -bottom-1 -right-1 text-sm bg-slate-900/90 rounded-full px-1 shadow">🥈</span>
                             </div>
                             <p class="text-[11px] font-black text-white truncate max-w-[90px] text-center">${p2.nombre || 'Paddler'}</p>
@@ -1428,7 +1430,7 @@ export function renderizarPodioTop3Ranking(listaUsuarios = []) {
                         <div role="button" tabindex="0" onclick="if(window.navigateSPA) window.navigateSPA('/user/${p1.id}')" class="cursor-pointer group flex flex-col items-center w-full active:scale-95 transition-transform">
                             <div class="relative mb-1.5">
                                 <span class="text-base absolute -top-4 left-1/2 -translate-x-1/2 animate-bounce">👑</span>
-                                <img src="${avatarP1}" onerror="this.onerror=null; this.src='img/default-avatar.svg';" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-3 border-amber-400 shadow-xl group-hover:scale-105 transition-transform ring-4 ring-amber-400/30">
+                                <img src="${avatarP1}" onerror="if(window.handleAvatarError){window.handleAvatarError(this)}else{this.onerror=null;this.src='${fallbackAvatar}';}" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-3 border-amber-400 shadow-xl group-hover:scale-105 transition-transform ring-4 ring-amber-400/30" alt="${esc(p1.nombre || 'Líder')}">
                                 <span class="absolute -bottom-1 -right-1 text-base bg-slate-900/90 rounded-full px-1 shadow">🥇</span>
                             </div>
                             <p class="text-xs sm:text-sm font-black text-amber-300 truncate max-w-[105px] text-center">${p1.nombre || 'Líder'}</p>
@@ -1447,7 +1449,7 @@ export function renderizarPodioTop3Ranking(listaUsuarios = []) {
                     ${p3 ? `
                         <div role="button" tabindex="0" onclick="if(window.navigateSPA) window.navigateSPA('/user/${p3.id}')" class="cursor-pointer group flex flex-col items-center w-full active:scale-95 transition-transform">
                             <div class="relative mb-1.5">
-                                <img src="${avatarP3}" onerror="this.onerror=null; this.src='img/default-avatar.svg';" class="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-amber-600/70 shadow-lg group-hover:scale-105 transition-transform ring-2 ring-amber-600/30">
+                                <img src="${avatarP3}" onerror="if(window.handleAvatarError){window.handleAvatarError(this)}else{this.onerror=null;this.src='${fallbackAvatar}';}" class="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-amber-600/70 shadow-lg group-hover:scale-105 transition-transform ring-2 ring-amber-600/30" alt="${esc(p3.nombre || 'Paddler')}">
                                 <span class="absolute -bottom-1 -right-1 text-sm bg-slate-900/90 rounded-full px-1 shadow">🥉</span>
                             </div>
                             <p class="text-[11px] font-black text-white truncate max-w-[90px] text-center">${p3.nombre || 'Paddler'}</p>

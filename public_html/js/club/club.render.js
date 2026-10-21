@@ -98,17 +98,17 @@ export const ClubRender = {
 
         // Campos Auto-guardables
         const titleField = isAdmin ? 
-            `<input type="text" id="info_nombre" value="${esc(cl.nombre)}" oninput="window.Club.onInput('${cl.club_id}', 'info_nombre', 'nombre')" class="w-full bg-transparent text-xl font-black outline-none border-b-2 border-transparent focus:border-water !text-slate-900 dark:!text-white">` : 
-            `<h3 class="text-xl font-black !text-slate-900 dark:!text-white">${esc(cl.nombre)}</h3>`;
+            `<input type="text" id="info_nombre" value="${esc(cl.nombre)}" oninput="window.Club.onInput('${cl.club_id}', 'info_nombre', 'nombre')" class="w-full bg-slate-50 text-xl font-black outline-none border border-slate-200 rounded-xl px-3 py-1 focus:border-sky-500 !text-slate-900 placeholder:text-slate-400">` : 
+            `<h3 class="text-xl font-black !text-slate-900">${esc(cl.nombre)}</h3>`;
 
         const extraFields = isAdmin ? `
             <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 relative">
                 <div class="absolute -top-3 right-0">
                     <span id="autoSaveIndicator" class="hidden"></span>
                 </div>
-                <input type="text" id="info_ubi" value="${esc(cl.ubicacion || '')}" oninput="window.Club.onInput('${cl.club_id}', 'info_ubi', 'ubicacion')" placeholder="Ubicación (Ej: Cala Blanca)" class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl outline-none border border-slate-200 dark:border-slate-600 focus:bg-white dark:focus:bg-slate-700 focus:border-sky-500 !text-slate-900 dark:!text-white placeholder:text-slate-400 font-medium mb-3 text-sm">
-                <textarea id="info_desc" oninput="window.Club.onInput('${cl.club_id}', 'info_desc', 'descripcion')" placeholder="Descripción..." class="w-full h-20 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl outline-none border border-slate-200 dark:border-slate-600 focus:bg-white dark:focus:bg-slate-700 focus:border-sky-500 !text-slate-900 dark:!text-white placeholder:text-slate-400 font-medium mb-3 text-sm">${esc(cl.descripcion || '')}</textarea>
-                <textarea id="info_normas" oninput="window.Club.onInput('${cl.club_id}', 'info_normas', 'normas')" placeholder="Normas..." class="w-full h-16 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl outline-none border border-slate-200 dark:border-slate-600 focus:bg-white dark:focus:bg-slate-700 focus:border-sky-500 !text-slate-900 dark:!text-white placeholder:text-slate-400 font-medium text-sm">${esc(cl.normas || '')}</textarea>
+                <input type="text" id="info_ubi" value="${esc(cl.ubicacion || '')}" oninput="window.Club.onInput('${cl.club_id}', 'info_ubi', 'ubicacion')" placeholder="Ubicación (Ej: Cala Blanca)" class="w-full h-10 px-3 bg-slate-50 rounded-xl outline-none border border-slate-200 focus:bg-white focus:border-sky-500 !text-slate-900 placeholder:text-slate-400 font-medium mb-3 text-sm">
+                <textarea id="info_desc" oninput="window.Club.onInput('${cl.club_id}', 'info_desc', 'descripcion')" placeholder="Descripción..." class="w-full h-20 p-3 bg-slate-50 rounded-xl outline-none border border-slate-200 focus:bg-white focus:border-sky-500 !text-slate-900 placeholder:text-slate-400 font-medium mb-3 text-sm">${esc(cl.descripcion || '')}</textarea>
+                <textarea id="info_normas" oninput="window.Club.onInput('${cl.club_id}', 'info_normas', 'normas')" placeholder="Normas..." class="w-full h-16 p-3 bg-slate-50 rounded-xl outline-none border border-slate-200 focus:bg-white focus:border-sky-500 !text-slate-900 placeholder:text-slate-400 font-medium text-sm">${esc(cl.normas || '')}</textarea>
             </div>` : '';
 
         const canDeleteClub = isCreator || isAdmin;
