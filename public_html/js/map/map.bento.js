@@ -22,7 +22,8 @@ import {
     evaluarCondicionesDeporte,
     generarConsejoCoach,
     calcularSolYCrepusculo,
-    generarGuiaHumanaEquipamiento
+    generarGuiaHumanaEquipamiento,
+    calcularEquipamientoTermicoDetallado
 } from '../utils.js';
 import { mapRuntime } from './map.state.js';
 import {
@@ -1603,6 +1604,169 @@ if (typeof document !== 'undefined') {
     }
 }
 
+// ==============================================================================
+// INTERACTIVE THERMAL WETSUIT & GEAR CALCULATOR CONTROLLER (UI 6.0)
+// Real-time (< 1ms) sensory & metabolic slider reactivity
+// ==============================================================================
+
+/**
+ * Abre el modal de Calculadora Térmica Interactiva precargando datos del spot si están disponibles
+ * @param {Object} [spotData] Datos opcionales del spot (tempAire, viento, tempAgua)
+ */
+export function abrirCalculadoraTermica(spotData = null) {
+    if (typeof document === 'undefined') return;
+    const modal = document.getElementById('thermalCalculatorModal');
+    if (!modal) return;
+
+    let tAire = 21;
+    let vKt = 8;
+    let tAgua = 19;
+
+    if (spotData) {
+        if (spotData.tempAire !== undefined) tAire = spotData.tempAire;
+        if (spotData.viento !== undefined) vKt = spotData.viento;
+        if (spotData.tempAgua !== undefined) tAgua = spotData.tempAgua;
+    } else {
+        const currentSpeedText = document.getElementById('basicWindSpeed')?.textContent;
+        if (currentSpeedText && !isNaN(parseFloat(currentSpeedText))) {
+            vKt = parseFloat(currentSpeedText);
+        }
+        const mesActual = new Date().getMonth();
+        const tempsAguaMed = [14, 13.5, 14.5, 16, 18.5, 22, 25, 26.5, 24.5, 22, 18, 15.5];
+        tAgua = tempsAguaMed[mesActual] || 19;
+    }
+
+    const sliderAgua = document.getElementById('sliderTempAgua');
+    const sliderAire = document.getElementById('sliderTempAire');
+    const sliderViento = document.getElementById('sliderViento');
+
+    if (sliderAgua) sliderAgua.value = tAgua;
+    if (sliderAire) sliderAire.value = tAire;
+    if (sliderViento) sliderViento.value = vKt;
+
+    modal.classList.remove('hidden');
+    actualizarVistaCalculadoraTermica();
+}
+
+/**
+ * Cierra el modal de Calculadora Térmica
+ */
+export function cerrarCalculadoraTermica() {
+    if (typeof document === 'undefined') return;
+    const modal = document.getElementById('thermalCalculatorModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+/**
+ * Recalcula en tiempo real (< 1ms) las recomendaciones de equipamiento y actualiza la UI
+ */
+export function actualizarVistaCalculadoraTermica() {
+    if (typeof document === 'undefined') return;
+
+    const sliderAgua = document.getElementById('sliderTempAgua');
+    const sliderAire = document.getElementById('sliderTempAire');
+    const sliderViento = document.getElementById('sliderViento');
+    const checkNublado = document.getElementById('checkNublado');
+
+    const tempAguaC = sliderAgua ? parseFloat(sliderAgua.value) : 18;
+    const tempAireC = sliderAire ? parseFloat(sliderAire.value) : 21;
+    const vientoKt = sliderViento ? parseFloat(sliderViento.value) : 8;
+    const nublado = checkNublado ? checkNublado.checked : false;
+
+    // Actualizar etiquetas numéricas de los sliders
+    const valAgua = document.getElementById('valTempAgua');
+    const valAire = document.getElementById('valTempAire');
+    const valViento = document.getElementById('valViento');
+    if (valAgua) valAgua.textContent = `${tempAguaC.toFixed(1)}°C`;
+    if (valAire) valAire.textContent = `${tempAireC.toFixed(1)}°C`;
+    if (valViento) valViento.textContent = `${Math.round(vientoKt)} kt`;
+
+    // Obtener intensidad y tolerancia activas
+    const intensidadBtn = document.querySelector('[data-calc-intensidad].ps-chip-active') || document.querySelector('[data-calc-intensidad]');
+    const intensidad = intensidadBtn ? intensidadBtn.getAttribute('data-calc-intensidad') : 'paseo';
+
+    const toleranciaBtn = document.querySelector('[data-calc-tolerancia].ps-chip-active') || document.querySelector('[data-calc-tolerancia]');
+    const toleranciaFrio = toleranciaBtn ? toleranciaBtn.getAttribute('data-calc-tolerancia') : 'normal';
+
+    const fnCalc = typeof calcularEquipamientoTermicoDetallado === 'function'
+        ? calcularEquipamientoTermicoDetallado
+        : (typeof window !== 'undefined' ? window.calcularEquipamientoTermicoDetallado : null);
+
+    if (!fnCalc) return;
+
+    const res = fnCalc({
+        tempAguaC,
+        tempAireC,
+        vientoKt,
+        intensidad,
+        toleranciaFrio,
+        nublado
+    });
+
+    // Actualizar Card 1: Traje Principal
+    const trajeIcon = document.getElementById('calcTrajeIcono');
+    const trajeTitulo = document.getElementById('calcTrajeTitulo');
+    const trajeGrosor = document.getElementById('calcTrajeGrosor');
+    const trajeDesc = document.getElementById('calcTrajeDesc');
+    if (trajeIcon) trajeIcon.textContent = res.trajePrincipal.icono;
+    if (trajeTitulo) trajeTitulo.textContent = res.trajePrincipal.titulo;
+    if (trajeGrosor) trajeGrosor.textContent = res.trajePrincipal.grosorMm;
+    if (trajeDesc) trajeDesc.textContent = res.trajePrincipal.explicacion;
+
+    // Actualizar Card 2: Calzado
+    const calzadoIcon = document.getElementById('calcCalzadoIcono');
+    const calzadoTitulo = document.getElementById('calcCalzadoTitulo');
+    const calzadoDesc = document.getElementById('calcCalzadoDesc');
+    if (calzadoIcon) calzadoIcon.textContent = res.calzado.icono;
+    if (calzadoTitulo) calzadoTitulo.textContent = res.calzado.tipo;
+    if (calzadoDesc) calzadoDesc.textContent = res.calzado.explicacion;
+
+    // Actualizar Card 3: Accesorios
+    const accesoriosList = document.getElementById('calcAccesoriosLista');
+    if (accesoriosList) {
+        accesoriosList.innerHTML = res.accesorios.map(a => `<li class="flex items-start gap-1.5 leading-snug"><span>•</span><span>${a}</span></li>`).join('');
+    }
+
+    // Actualizar Card 4: Seguridad & Regla 30
+    const indiceEl = document.getElementById('calcIndiceTermico');
+    const confortBadge = document.getElementById('calcConfortBadge');
+    const regla30Box = document.getElementById('calcRegla30Alerta');
+    if (indiceEl) indiceEl.textContent = `${res.indiceTermico} / 30`;
+    if (confortBadge) {
+        confortBadge.textContent = res.nivelConfort;
+        confortBadge.className = `text-[10px] font-black px-2 py-0.5 rounded-full border bg-${res.nivelBadgeColor}-500/20 text-${res.nivelBadgeColor}-300 border-${res.nivelBadgeColor}-500/40`;
+    }
+    if (regla30Box) {
+        if (res.regla30Activa && res.alertaRegla30) {
+            regla30Box.classList.remove('hidden');
+            regla30Box.textContent = res.alertaRegla30;
+        } else {
+            regla30Box.classList.add('hidden');
+        }
+    }
+}
+
+/**
+ * Cambia la selección de intensidad o tolerancia en la calculadora térmica
+ * @param {'intensidad'|'tolerancia'} tipo 
+ * @param {string} valor 
+ */
+export function setCalculadoraTermicaSegment(tipo, valor) {
+    if (typeof document === 'undefined') return;
+    const attr = tipo === 'intensidad' ? 'data-calc-intensidad' : 'data-calc-tolerancia';
+    const buttons = document.querySelectorAll(`[${attr}]`);
+    buttons.forEach(btn => {
+        if (btn.getAttribute(attr) === valor) {
+            btn.classList.add('ps-chip-active', 'bg-sky-500/30', 'text-sky-200', 'border-sky-400', 'font-bold');
+            btn.classList.remove('bg-slate-800', 'text-slate-300', 'border-slate-700');
+        } else {
+            btn.classList.remove('ps-chip-active', 'bg-sky-500/30', 'text-sky-200', 'border-sky-400', 'font-bold');
+            btn.classList.add('bg-slate-800', 'text-slate-300', 'border-slate-700');
+        }
+    });
+    actualizarVistaCalculadoraTermica();
+}
+
 if (typeof window !== 'undefined') {
     window.aplicarGlowVerdictBento = aplicarGlowVerdictBento;
     window.renderizarResumenExperto = renderizarResumenExperto;
@@ -1624,4 +1788,8 @@ if (typeof window !== 'undefined') {
     window.actualizarPildorasTiempoUI = actualizarPildorasTiempoUI;
     window.aplicarFiltroRapidoTiempo = aplicarFiltroRapidoTiempo;
     window.cargarSpotRapido = cargarSpotRapido;
+    window.abrirCalculadoraTermica = abrirCalculadoraTermica;
+    window.cerrarCalculadoraTermica = cerrarCalculadoraTermica;
+    window.actualizarVistaCalculadoraTermica = actualizarVistaCalculadoraTermica;
+    window.setCalculadoraTermicaSegment = setCalculadoraTermicaSegment;
 }

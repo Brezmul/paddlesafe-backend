@@ -120,7 +120,17 @@ export const mapRuntime = {
     pronosticoActualCache: null,
     biasSeleccionadoLogbook: 'exacto',
     ratingSeleccionadoLogbook: 5,
-    tramosRutaActuales: []
+    tramosRutaActuales: [],
+
+    // Route Replay 60FPS Engine State
+    replayMarker: null,
+    replayTrailPolyline: null,
+    replayAnimFrameId: null,
+    replayIsPlaying: false,
+    replayProgress: 0,
+    replaySpeed: 1,
+    replayFollowCamera: true,
+    replayData: null
 };
 
 /**

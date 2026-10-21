@@ -18,7 +18,7 @@ export * from './map/map.poster.js';
 export * from './map/map.routes.js';
 export * from './map/map.coach.js';
 export * from './map/map.spots.js';
-export { generarGuiaHumanaEquipamiento } from './utils.js';
+export { generarGuiaHumanaEquipamiento, calcularEquipamientoTermicoDetallado } from './utils.js';
 
 // 2. Importaciones nombradas para cableado global reactivo en window.*
 import { mapRuntime } from './map/map.state.js';
@@ -30,7 +30,6 @@ import {
     autoCalibrarRitmoDesdeRutas, toggleSelectorEquipoUsuario, actualizarUIGearSelector,
     descargarZonaMapaOffline, calcularTilesBoundingBox, cambiarCapaBaseMapa
 } from './map/map.core.js';
-
 import {
     solicitarPronostico, solicitarPronosticoOpenMeteo, evaluarAlertasGlobales,
     obtenerMotorExperto, renderizarAvisoSuperior, guardarForecastSnapshot,
@@ -38,7 +37,6 @@ import {
     validarVigenciaAlerta, generarExplicacionAvisoAemet, registrarDiagnosticoAemet,
     limpiarAvisosMeteorologicos, escanearMejoresVentanas72h
 } from './map/map.weather.js';
-
 import {
     aplicarGlowVerdictBento, renderizarResumenExperto, consultarBasico,
     consultarPuntoProInstantaneo, consultarRutaPro, renderizarDashboardPro,
@@ -48,9 +46,10 @@ import {
     renderizarMejoresVentanas72h, aplicarVentanaOptimaSpot,
     generarSvgAnilloScore, cambiarSubVistaSpot,
     inicializarPildorasCalendario, actualizarPildorasTiempoUI,
-    aplicarFiltroRapidoTiempo, cargarSpotRapido
+    aplicarFiltroRapidoTiempo, cargarSpotRapido,
+    abrirCalculadoraTermica, cerrarCalculadoraTermica,
+    actualizarVistaCalculadoraTermica, setCalculadoraTermicaSegment
 } from './map/map.bento.js';
-
 import {
     iniciarTravesia, finalizarTravesia, guardarCheckpointTravesia,
     guardarRutaOffline, sincronizarRutasPendientes, restaurarTracker,
@@ -61,9 +60,7 @@ import {
     actualizarDuracionCheckin, extenderCheckinTravesia, enviarAlertaCheckinWhatsApp,
     verificarAlertaCheckin, mostrarModalSplitsKm, cerrarModalSplitsKm, syncTrackerState, calcularZonaRitmoLive
 } from './map/map.tracker.js';
-
 import { estamparPosterFinisherCanvas } from './map/map.poster.js';
-
 import {
     toggleRutaLibre, limpiarRuta, gestionarClicRuta, gestionarClicRutaLibre,
     deshacerUltimoPunto, reiniciarRutaMultipunto, cerrarIdaYVueltaMultipunto,
@@ -73,15 +70,15 @@ import {
     reiniciarPuntosQuedada, guardarQuedadaDesdeMapa, cargarRutaEnMapaGrande,
     analizarVientoRutaClub, cargarRutaDeportivaEnMapa, exportarRutaPlanificadaGPX,
     activarModoPlanificacionEvento, guardarEventoClub, importarRutaGPXPro,
-    centrarTramoMapa, generarGraficoSvgPerfilRuta, calcularMeteoProgresivaPorTramo
+    centrarTramoMapa, generarGraficoSvgPerfilRuta, calcularMeteoProgresivaPorTramo,
+    iniciarReplayRuta, togglePlayPauseReplayRuta, detenerReplayRuta,
+    actualizarPosicionReplayProgreso, cambiarVelocidadReplayRuta, toggleReplaySeguirCamara, obtenerInterpolacionProgreso
 } from './map/map.routes.js';
-
 import {
     solicitarCoachIAPro, renderizarCoachProCard, solicitarCoachIABasico,
     solicitarAnalisisIARutaDeportiva, normalizarUnidadesCoach,
     renderizarCoachProFallbackLocal, generarAnalisisIARutaFallback
 } from './map/map.coach.js';
-
 import {
     abrirModalReporteSpot, cerrarModalReporteSpot, seleccionarTagReporte,
     seleccionarTagReporteSpot, confirmarEnvioReporteSpot, enviarReporteSpot,
@@ -104,16 +101,14 @@ import {
     abrirAsistenteConfiguracion, cerrarAsistenteConfiguracion,
     seleccionarTablaAsistente, cargarPackYFinalizarAsistente
 } from './map/map.spots.js';
-
 import { parseGPX, generarGPX, descargarGPX } from './gpxParser.js';
-import { calcularSolYCrepusculo, generarGuiaHumanaEquipamiento } from './utils.js';
+import { calcularSolYCrepusculo, generarGuiaHumanaEquipamiento, calcularEquipamientoTermicoDetallado } from './utils.js';
 import { generarPerfilTacticoSpot } from './engine/coastal.js';
 
 // 3. Inyección y sincronización global en window.* para el 100% de retrocompatibilidad
 if (typeof window !== 'undefined') {
     Object.assign(window, {
-        mapRuntime,
-        inicializarMapa, actualizarMapa, buscarYCentrarMapa, obtenerUbicacion,
+        mapRuntime, inicializarMapa, actualizarMapa, buscarYCentrarMapa, obtenerUbicacion,
         TABLAS_SUP_CONFIG, recuperarEquipoUsuario, guardarEquipoUsuario,
         obtenerVelocidadCruceroUsuario, obtenerModificadorDerivaUsuario,
         actualizarTipoTablaDesdeSelect, actualizarVelocidadCruceroManual,
@@ -176,6 +171,9 @@ if (typeof window !== 'undefined') {
         calcularSolYCrepusculo, generarPerfilTacticoSpot,
         inicializarPildorasCalendario, actualizarPildorasTiempoUI,
         aplicarFiltroRapidoTiempo, cargarSpotRapido, generarGuiaHumanaEquipamiento,
+        iniciarReplayRuta, togglePlayPauseReplayRuta, detenerReplayRuta,
+        actualizarPosicionReplayProgreso, cambiarVelocidadReplayRuta, toggleReplaySeguirCamara, obtenerInterpolacionProgreso,
+        abrirCalculadoraTermica, cerrarCalculadoraTermica, actualizarVistaCalculadoraTermica, setCalculadoraTermicaSegment, calcularEquipamientoTermicoDetallado,
         descargarRutaActivaGPX: exportarRutaPlanificadaGPX,
         descartarCheckpointTravesia: descartarCheckpoint
     });
