@@ -63,6 +63,7 @@ export function toggleRutaLibre() {
  * Limpia todas las capas activas de rutas, marcadores, polilíneas y etiquetas del mapa.
  */
 export function limpiarRuta() {
+    detenerReplayRuta();
     const currentMap = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);
     if (mapRuntime.marcadoresRuta && currentMap) {
         mapRuntime.marcadoresRuta.forEach(m => {
@@ -1049,6 +1050,14 @@ export function cargarRutaDeportivaEnMapa(ruta) {
     // Guardar referencia activa para exportación GPX
     window._rutaDeportivaCargadaActual = { coords, nombre: titulo };
 
+    // Preparar el motor de Replay a 60 FPS listo para reproducción inmediata
+    iniciarReplayRuta(coords, {
+        title: titulo,
+        totalDistKm: Number(dist),
+        durationSec: secs,
+        avgSpeedKm: Number(avgSpd)
+    });
+
     let telemetria = null;
     try {
         if (ruta && ruta.id) {
@@ -1483,6 +1492,387 @@ export function calcularMeteoProgresivaPorTramo(tramos, horaSalidaIdx = 10, hour
 }
 
 
+// ==============================================================================
+// 60FPS INTERACTIVE ROUTE REPLAY ENGINE (UI 6.0)
+// High-performance Leaflet marker & polyline interpolation via requestAnimationFrame
+// Pre-computed O(N) Haversine distance cumulative array with O(1) lerp lookups
+// ==============================================================================
+
+/**
+ * Calcula la distancia Haversine en km entre dos puntos
+ */
+function haversineDistKm(p1, p2) {
+    const R = 6371;
+    const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+    const dLon = (p2.lon - p1.lon) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Calcula el rumbo geodésico en grados (0-360) entre dos puntos
+ */
+function calcularRumboGrados(p1, p2) {
+    const y = Math.sin((p2.lon - p1.lon) * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180);
+    const x = Math.cos(p1.lat * Math.PI / 180) * Math.sin(p2.lat * Math.PI / 180) -
+              Math.sin(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) * Math.cos((p2.lon - p1.lon) * Math.PI / 180);
+    const brng = Math.atan2(y, x) * 180 / Math.PI;
+    return (brng + 360) % 360;
+}
+
+/**
+ * Formatea segundos a MM:SS
+ */
+function formatearSegundosMMSS(totalSegundos) {
+    const s = Math.max(0, Math.round(totalSegundos));
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+/**
+ * Pre-procesa una ruta e interpola su posición exacta dado un progreso de 0.0 a 1.0
+ */
+export function obtenerInterpolacionProgreso(progreso0a1) {
+    const rData = mapRuntime.replayData;
+    if (!rData || !rData.normCoords || rData.normCoords.length === 0) return null;
+
+    const coords = rData.normCoords;
+    const cum = rData.cumDistances;
+    const totalDist = rData.totalDistKm;
+
+    const p = Math.max(0, Math.min(1, Number(progreso0a1) || 0));
+
+    if (coords.length === 1 || totalDist === 0) {
+        return {
+            lat: coords[0].lat,
+            lon: coords[0].lon,
+            bearing: 0,
+            distKm: 0,
+            index: 0,
+            trailCoords: [[coords[0].lat, coords[0].lon]]
+        };
+    }
+
+    const targetDist = p * totalDist;
+
+    // Búsqueda binaria O(log N) del segmento correspondiente
+    let low = 0;
+    let high = cum.length - 1;
+    let idx = 0;
+
+    while (low <= high) {
+        const mid = (low + high) >> 1;
+        if (cum[mid] <= targetDist) {
+            idx = mid;
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+
+    if (idx >= coords.length - 1) {
+        idx = coords.length - 2;
+    }
+
+    const p0 = coords[idx];
+    const p1 = coords[idx + 1];
+    const segDist = cum[idx + 1] - cum[idx];
+    const t = segDist > 0 ? (targetDist - cum[idx]) / segDist : 0;
+
+    // Linear coordinate interpolation (lerp)
+    const lat = p0.lat + t * (p1.lat - p0.lat);
+    const lon = p0.lon + t * (p1.lon - p0.lon);
+    const bearing = calcularRumboGrados(p0, p1);
+
+    // Construcción eficiente del trail previo + punto interpolado actual
+    const trailCoords = [];
+    for (let i = 0; i <= idx; i++) {
+        trailCoords.push([coords[i].lat, coords[i].lon]);
+    }
+    trailCoords.push([lat, lon]);
+
+    return {
+        lat,
+        lon,
+        bearing,
+        distKm: targetDist,
+        index: idx,
+        trailCoords,
+        t
+    };
+}
+
+/**
+ * Inicializa y prepara el motor de Replay con las coordenadas dadas
+ * @param {Array} coordenadas Array de [lat, lon] o {lat, lon/lng}
+ * @param {Object} [metadata] Título, distancia, duración, etc.
+ */
+export function iniciarReplayRuta(coordenadas, metadata = {}) {
+    detenerReplayRuta();
+
+    if (!Array.isArray(coordenadas) || coordenadas.length === 0) return;
+
+    // Normalizar coordenadas a { lat, lon }
+    const normCoords = coordenadas.map(pt => {
+        if (Array.isArray(pt)) return { lat: Number(pt[0]), lon: Number(pt[1]) };
+        return { lat: Number(pt.lat ?? pt.latitude), lon: Number(pt.lon ?? pt.lng ?? pt.longitude) };
+    }).filter(pt => Number.isFinite(pt.lat) && Number.isFinite(pt.lon));
+
+    if (normCoords.length < 2) return;
+
+    // Pre-cálculo O(N) acumulativo de distancias Haversine
+    const cumDistances = [0];
+    let totalDistKm = 0;
+    for (let i = 1; i < normCoords.length; i++) {
+        const d = haversineDistKm(normCoords[i - 1], normCoords[i]);
+        totalDistKm += d;
+        cumDistances.push(totalDistKm);
+    }
+
+    const totalSeconds = Number(metadata.durationSec || metadata.duration_seconds || (totalDistKm / 4.5 * 3600)) || 1800;
+    const avgSpeed = Number(metadata.avgSpeedKm || metadata.avg_speed || (totalDistKm / (totalSeconds / 3600))) || 4.5;
+    const title = metadata.title || metadata.nombre || 'Replay de Travesía';
+
+    mapRuntime.replayData = {
+        normCoords,
+        cumDistances,
+        totalDistKm,
+        totalSeconds,
+        avgSpeed,
+        title,
+        baseDurationSec: Math.max(15, Math.min(90, totalDistKm * 8)) // Duración visual de animación (15s a 90s a 1x)
+    };
+
+    mapRuntime.replayProgress = 0;
+    mapRuntime.replayIsPlaying = false;
+    mapRuntime.replaySpeed = 1;
+    mapRuntime.replayFollowCamera = true;
+
+    const currentMap = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);
+    if (!currentMap) return;
+
+    // Creación ÚNICA del marcador Leaflet surfero y la polilínea trail
+    if (typeof L !== 'undefined') {
+        const surferIcon = L.divIcon({
+            className: 'ps-replay-marker-wrapper',
+            html: `
+                <div class="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2">
+                    <div class="absolute w-8 h-8 rounded-full bg-sky-400/40 animate-ping"></div>
+                    <div class="w-8 h-8 rounded-full bg-slate-950/90 border-2 border-sky-400 flex items-center justify-center shadow-lg text-sm select-none">
+                        <span id="replaySurferEmoji" style="display:inline-block; transform: rotate(0deg); transition: transform 0.1s linear;">🏄</span>
+                    </div>
+                </div>
+            `,
+            iconSize: [0, 0]
+        });
+
+        mapRuntime.replayMarker = L.marker([normCoords[0].lat, normCoords[0].lon], {
+            icon: surferIcon,
+            zIndexOffset: 3000
+        }).addTo(currentMap);
+
+        mapRuntime.replayTrailPolyline = L.polyline([], {
+            color: '#38bdf8',
+            weight: 5,
+            opacity: 0.95,
+            lineCap: 'round',
+            lineJoin: 'round'
+        }).addTo(currentMap);
+    }
+
+    // Configurar y mostrar el HUD
+    const hud = document.getElementById('routeReplayHud');
+    if (hud) hud.classList.remove('hidden');
+
+    const titleEl = document.getElementById('replayRouteTitle');
+    if (titleEl) titleEl.textContent = title;
+
+    const totalTimeEl = document.getElementById('replayTotalTime');
+    if (totalTimeEl) totalTimeEl.textContent = formatearSegundosMMSS(totalSeconds);
+
+    const speedBtn = document.getElementById('btnReplaySpeed');
+    if (speedBtn) speedBtn.textContent = '1x';
+
+    actualizarPosicionReplayProgreso(0, false);
+}
+
+/**
+ * Alterna Reproducir / Pausar el Replay de la ruta
+ * @param {boolean|null} [forzarEstado=null]
+ */
+export function togglePlayPauseReplayRuta(forzarEstado = null) {
+    if (!mapRuntime.replayData) return;
+
+    const reproducir = forzarEstado !== null ? Boolean(forzarEstado) : !mapRuntime.replayIsPlaying;
+
+    if (reproducir) {
+        if (mapRuntime.replayProgress >= 1.0) {
+            mapRuntime.replayProgress = 0;
+        }
+        mapRuntime.replayIsPlaying = true;
+        const iconEl = document.getElementById('replayToggleIcon');
+        if (iconEl) iconEl.textContent = '⏸️';
+
+        let lastTimestamp = performance.now();
+
+        function replayLoop(now) {
+            if (!mapRuntime.replayIsPlaying || !mapRuntime.replayData) return;
+
+            const dt = (now - lastTimestamp) / 1000;
+            lastTimestamp = now;
+
+            const baseSec = mapRuntime.replayData.baseDurationSec || 30;
+            const stepProgress = (dt * mapRuntime.replaySpeed) / baseSec;
+            mapRuntime.replayProgress = Math.min(1.0, mapRuntime.replayProgress + stepProgress);
+
+            actualizarPosicionReplayProgreso(mapRuntime.replayProgress, false);
+
+            if (mapRuntime.replayProgress >= 1.0) {
+                mapRuntime.replayIsPlaying = false;
+                const ic = document.getElementById('replayToggleIcon');
+                if (ic) ic.textContent = '▶️';
+            } else {
+                mapRuntime.replayAnimFrameId = requestAnimationFrame(replayLoop);
+            }
+        }
+
+        mapRuntime.replayAnimFrameId = requestAnimationFrame(replayLoop);
+    } else {
+        mapRuntime.replayIsPlaying = false;
+        if (mapRuntime.replayAnimFrameId) {
+            cancelAnimationFrame(mapRuntime.replayAnimFrameId);
+            mapRuntime.replayAnimFrameId = null;
+        }
+        const iconEl = document.getElementById('replayToggleIcon');
+        if (iconEl) iconEl.textContent = '▶️';
+    }
+}
+
+/**
+ * Detiene y limpia completamente el motor de Replay
+ */
+export function detenerReplayRuta() {
+    mapRuntime.replayIsPlaying = false;
+    if (mapRuntime.replayAnimFrameId) {
+        cancelAnimationFrame(mapRuntime.replayAnimFrameId);
+        mapRuntime.replayAnimFrameId = null;
+    }
+
+    const currentMap = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);
+    if (currentMap) {
+        if (mapRuntime.replayMarker) {
+            try { currentMap.removeLayer(mapRuntime.replayMarker); } catch (_) {}
+            mapRuntime.replayMarker = null;
+        }
+        if (mapRuntime.replayTrailPolyline) {
+            try { currentMap.removeLayer(mapRuntime.replayTrailPolyline); } catch (_) {}
+            mapRuntime.replayTrailPolyline = null;
+        }
+    }
+
+    mapRuntime.replayData = null;
+    mapRuntime.replayProgress = 0;
+
+    const hud = document.getElementById('routeReplayHud');
+    if (hud) hud.classList.add('hidden');
+
+    const scrubber = document.getElementById('replayScrubberInput');
+    if (scrubber) scrubber.value = 0;
+
+    const iconEl = document.getElementById('replayToggleIcon');
+    if (iconEl) iconEl.textContent = '▶️';
+}
+
+/**
+ * Actualiza la posición del remero en el Replay con suavidad a 60 FPS
+ * @param {number} progreso0a1 Valor entre 0.0 y 1.0
+ * @param {boolean} [desdeScrubber=false] Si proviene del slider de usuario
+ */
+export function actualizarPosicionReplayProgreso(progreso0a1, desdeScrubber = false) {
+    const p = Math.max(0, Math.min(1, Number(progreso0a1) || 0));
+    mapRuntime.replayProgress = p;
+
+    const interp = obtenerInterpolacionProgreso(p);
+    if (!interp) return;
+
+    // 1. Mover el marcador Leaflet sin recrear elementos
+    if (mapRuntime.replayMarker) {
+        mapRuntime.replayMarker.setLatLng([interp.lat, interp.lon]);
+        const emojiEl = document.getElementById('replaySurferEmoji');
+        if (emojiEl) {
+            emojiEl.style.transform = `rotate(${Math.round(interp.bearing)}deg)`;
+        }
+    }
+
+    // 2. Actualizar polilínea de estela
+    if (mapRuntime.replayTrailPolyline && interp.trailCoords) {
+        mapRuntime.replayTrailPolyline.setLatLngs(interp.trailCoords);
+    }
+
+    // 3. Seguimiento de cámara opcional
+    if (mapRuntime.replayFollowCamera) {
+        const currentMap = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);
+        if (currentMap) {
+            currentMap.panTo([interp.lat, interp.lon], { animate: false });
+        }
+    }
+
+    // 4. Actualizar métricas del HUD
+    const rData = mapRuntime.replayData;
+    const elapsedSecs = (rData?.totalSeconds || 0) * p;
+    const speed = rData?.avgSpeed || 4.5;
+
+    const distEl = document.getElementById('replayDistKm');
+    const timeEl = document.getElementById('replayElapsedTime');
+    const speedEl = document.getElementById('replayCurrentSpeed');
+    const bearingEl = document.getElementById('replayBearingDeg');
+    const pctEl = document.getElementById('replayProgressPct');
+    const scrubberEl = document.getElementById('replayScrubberInput');
+
+    if (distEl) distEl.textContent = `${interp.distKm.toFixed(2)} km`;
+    if (timeEl) timeEl.textContent = formatearSegundosMMSS(elapsedSecs);
+    if (speedEl) speedEl.textContent = `${speed.toFixed(1)} km/h`;
+    if (bearingEl) bearingEl.textContent = `${Math.round(interp.bearing).toString().padStart(3, '0')}°`;
+    if (pctEl) pctEl.textContent = `${Math.round(p * 100)}%`;
+
+    if (!desdeScrubber && scrubberEl) {
+        scrubberEl.value = Math.round(p * 1000);
+    }
+}
+
+/**
+ * Cambia la velocidad del Replay cíclicamente: 1x -> 2x -> 5x -> 10x
+ */
+export function cambiarVelocidadReplayRuta() {
+    const velocidades = [1, 2, 5, 10];
+    const actual = mapRuntime.replaySpeed || 1;
+    const nextIdx = (velocidades.indexOf(actual) + 1) % velocidades.length;
+    mapRuntime.replaySpeed = velocidades[nextIdx];
+
+    const btn = document.getElementById('btnReplaySpeed');
+    if (btn) btn.textContent = `${mapRuntime.replaySpeed}x`;
+}
+
+/**
+ * Alterna el centrado de cámara suave en el remero
+ */
+export function toggleReplaySeguirCamara() {
+    mapRuntime.replayFollowCamera = !mapRuntime.replayFollowCamera;
+    const txt = document.getElementById('replayFollowText');
+    const btn = document.getElementById('btnReplayFollow');
+    if (txt) txt.textContent = mapRuntime.replayFollowCamera ? 'Seguir' : 'Libre';
+    if (btn) {
+        if (mapRuntime.replayFollowCamera) {
+            btn.className = 'ps-chip ps-quick-pill text-[11px] font-bold text-sky-300 bg-sky-500/20 border-sky-400/50 hover:bg-sky-500/30 cursor-pointer active:scale-95';
+        } else {
+            btn.className = 'ps-chip ps-quick-pill text-[11px] font-bold text-slate-400 bg-slate-800 border-slate-700 hover:bg-slate-700 cursor-pointer active:scale-95';
+        }
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.toggleRutaLibre = toggleRutaLibre;
     window.limpiarRuta = limpiarRuta;
@@ -1512,4 +1902,11 @@ if (typeof window !== 'undefined') {
     window.centrarTramoMapa = centrarTramoMapa;
     window.generarGraficoSvgPerfilRuta = generarGraficoSvgPerfilRuta;
     window.calcularMeteoProgresivaPorTramo = calcularMeteoProgresivaPorTramo;
+    window.iniciarReplayRuta = iniciarReplayRuta;
+    window.togglePlayPauseReplayRuta = togglePlayPauseReplayRuta;
+    window.detenerReplayRuta = detenerReplayRuta;
+    window.actualizarPosicionReplayProgreso = actualizarPosicionReplayProgreso;
+    window.cambiarVelocidadReplayRuta = cambiarVelocidadReplayRuta;
+    window.toggleReplaySeguirCamara = toggleReplaySeguirCamara;
+    window.obtenerInterpolacionProgreso = obtenerInterpolacionProgreso;
 }

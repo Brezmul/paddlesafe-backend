@@ -21,7 +21,7 @@
     <link rel="manifest" href="/manifest.json">
     
     <!-- Tailwind CSS (Compilado localmente para offline y rendimiento de producción) -->
-    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v69">
+    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v70">
 
     <!-- Leaflet CSS y JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -454,6 +454,13 @@
                         <span>🌇</span> <span>Tarde (17:00)</span>
                     </button>
                 </div>
+
+                <div class="h-5 w-px bg-slate-700/60 shrink-0 mx-1"></div>
+
+                <!-- Thermal Wetsuit Calculator Pill (Batch #24) -->
+                <button type="button" id="btnOpenThermalCalc" onclick="window.abrirCalculadoraTermica()" class="ps-chip ps-quick-pill bg-sky-950/70 text-sky-300 border-sky-500/40 hover:bg-sky-500/20 active:scale-95 cursor-pointer shrink-0" title="Calculadora de Neopreno y Sensación Térmica">
+                    <span>🌡️</span> <span>Calculadora Neopreno</span>
+                </button>
             </div>
         </div>
 
@@ -956,6 +963,66 @@
                                 <span id="trackerSpeed" class="hidden" aria-hidden="true">0.0</span>
                                 <span id="trackerTime" class="hidden" aria-hidden="true">00:00:00</span>
                                 <span id="liveRtlHud" class="hidden" aria-hidden="true">--° --</span>
+
+                                <!-- 60FPS FLOATING ROUTE REPLAY HUD (UI 6.0) -->
+                                <div id="routeReplayHud" class="hidden absolute bottom-3 inset-x-2 sm:inset-x-6 z-[450] ps-bento-card p-3 sm:p-4 bg-slate-950/92 backdrop-blur-xl border border-sky-500/40 rounded-2xl shadow-2xl flex flex-col gap-2.5 text-white animate-fadeIn select-none">
+                                    <div class="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <span class="text-base sm:text-lg shrink-0">🏄</span>
+                                            <div class="truncate">
+                                                <span id="replayRouteTitle" class="text-xs sm:text-sm font-black text-sky-300 truncate block">Replay de Travesía</span>
+                                                <span class="text-[10px] text-slate-400 font-medium">Interpolación fluida a 60 FPS</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 shrink-0">
+                                            <button type="button" id="btnReplayFollow" onclick="window.toggleReplaySeguirCamara()" class="ps-chip ps-quick-pill text-[11px] font-bold text-sky-300 bg-sky-500/20 border-sky-400/50 hover:bg-sky-500/30 cursor-pointer active:scale-95" title="Centrar cámara en el remero">
+                                                <span>🎥</span> <span id="replayFollowText">Seguir</span>
+                                            </button>
+                                            <button type="button" id="btnReplaySpeed" onclick="window.cambiarVelocidadReplayRuta()" class="ps-chip ps-quick-pill text-[11px] font-black text-amber-300 bg-amber-500/20 border-amber-400/50 hover:bg-amber-500/30 font-mono cursor-pointer active:scale-95" title="Cambiar velocidad de reproducción">
+                                                1x
+                                            </button>
+                                            <button type="button" id="btnReplayClose" onclick="window.detenerReplayRuta()" class="ps-chip ps-quick-pill text-[11px] font-bold text-slate-400 hover:text-white bg-slate-800 border-slate-700 hover:bg-slate-700 cursor-pointer active:scale-95" title="Cerrar repetición">
+                                                ✕
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Scrubber Progress Bar & Play/Pause Controls -->
+                                    <div class="flex items-center gap-3 w-full">
+                                        <button type="button" id="btnReplayToggle" onclick="window.togglePlayPauseReplayRuta()" class="w-10 h-10 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-400 hover:to-emerald-400 text-slate-950 font-black flex items-center justify-center shrink-0 shadow-lg cursor-pointer active:scale-95 transition-transform" title="Reproducir / Pausar">
+                                            <span id="replayToggleIcon" class="text-base">▶️</span>
+                                        </button>
+
+                                        <div class="flex-1 flex flex-col gap-1 min-w-0">
+                                            <div class="flex items-center justify-between text-[10px] font-mono font-bold text-slate-400 px-0.5">
+                                                <span id="replayElapsedTime">00:00</span>
+                                                <span id="replayProgressPct">0%</span>
+                                            </div>
+                                            <input type="range" id="replayScrubberInput" min="0" max="1000" value="0" step="1" oninput="window.actualizarPosicionReplayProgreso(this.value / 1000, true)" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400 focus:outline-none" />
+                                        </div>
+                                    </div>
+
+                                    <!-- Live Telemetry Strip -->
+                                    <div class="grid grid-cols-4 gap-2 pt-1 border-t border-slate-800/60 text-center">
+                                        <div class="flex flex-col items-center">
+                                            <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Distancia</span>
+                                            <span id="replayDistKm" class="text-xs sm:text-sm font-black text-emerald-400 font-mono ps-tabular">0.00 km</span>
+                                        </div>
+                                        <div class="flex flex-col items-center">
+                                            <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Velocidad</span>
+                                            <span id="replayCurrentSpeed" class="text-xs sm:text-sm font-black text-sky-400 font-mono ps-tabular">0.0 km/h</span>
+                                        </div>
+                                        <div class="flex flex-col items-center">
+                                            <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Rumbo</span>
+                                            <span id="replayBearingDeg" class="text-xs sm:text-sm font-black text-amber-300 font-mono ps-tabular">000°</span>
+                                        </div>
+                                        <div class="flex flex-col items-center">
+                                            <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Tiempo</span>
+                                            <span id="replayTotalTime" class="text-xs sm:text-sm font-black text-slate-200 font-mono ps-tabular">00:00</span>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div id="mapaInteractivo" class="w-full h-full min-h-[460px] lg:min-h-[640px] z-0 relative"></div>
                             </div>
                         </div>
@@ -1581,6 +1648,150 @@
                 <span class="text-[10px] text-slate-400">Podrás cambiar tu tabla o añadir más spots en cualquier momento.</span>
                 <button type="button" onclick="window.cerrarAsistenteConfiguracion(true)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase rounded-xl transition-all cursor-pointer shrink-0">
                     Omitir por ahora
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CALCULADORA TÉRMICA & ASESOR DE NEOPRENO (BATCH #24) -->
+    <div id="thermalCalculatorModal" class="fixed inset-0 z-[145] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-5">
+        <div class="ps-bento-card bg-slate-900/95 backdrop-blur-2xl border border-sky-500/40 rounded-3xl p-5 sm:p-6 max-w-xl w-full shadow-2xl text-white flex flex-col gap-4 max-h-[92vh] overflow-y-auto custom-scrollbar animate-fadeIn select-none">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-2xl">🌡️</span>
+                    <div>
+                        <h3 class="text-base sm:text-lg font-black text-white">Calculadora Térmica & Neopreno</h3>
+                        <p class="text-[11px] text-slate-400 font-medium">Asesor físico de sensación térmica, grosor de traje y seguridad</p>
+                    </div>
+                </div>
+                <button type="button" onclick="window.cerrarCalculadoraTermica()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center text-sm font-black transition-colors cursor-pointer" title="Cerrar">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Controles Deslizantes Dinámicos -->
+            <div class="space-y-3.5 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800">
+                <!-- Slider Temp Agua -->
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between text-xs font-bold">
+                        <span class="text-slate-300 flex items-center gap-1.5">🌊 Temp. Agua</span>
+                        <span id="valTempAgua" class="text-sky-400 font-mono text-sm ps-tabular">18.0°C</span>
+                    </div>
+                    <input type="range" id="sliderTempAgua" min="10" max="28" step="0.5" value="18" oninput="window.actualizarVistaCalculadoraTermica()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400" />
+                    <div class="flex justify-between text-[9px] text-slate-500 font-mono"><span>10°C (Invierno)</span><span>19°C (Primavera)</span><span>28°C (Verano)</span></div>
+                </div>
+
+                <!-- Slider Temp Aire -->
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between text-xs font-bold">
+                        <span class="text-slate-300 flex items-center gap-1.5">☀️ Temp. Aire</span>
+                        <span id="valTempAire" class="text-amber-300 font-mono text-sm ps-tabular">21.0°C</span>
+                    </div>
+                    <input type="range" id="sliderTempAire" min="5" max="38" step="0.5" value="21" oninput="window.actualizarVistaCalculadoraTermica()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400" />
+                    <div class="flex justify-between text-[9px] text-slate-500 font-mono"><span>5°C (Frío)</span><span>20°C (Templado)</span><span>38°C (Calor)</span></div>
+                </div>
+
+                <!-- Slider Viento -->
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between text-xs font-bold">
+                        <span class="text-slate-300 flex items-center gap-1.5">💨 Viento (Windchill)</span>
+                        <span id="valViento" class="text-emerald-300 font-mono text-sm ps-tabular">8 kt</span>
+                    </div>
+                    <input type="range" id="sliderViento" min="0" max="35" step="1" value="8" oninput="window.actualizarVistaCalculadoraTermica()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-400" />
+                    <div class="flex justify-between text-[9px] text-slate-500 font-mono"><span>0 kt (Calma)</span><span>12 kt (Brisa)</span><span>35 kt (Fuerte)</span></div>
+                </div>
+
+                <!-- Checkbox Nublado -->
+                <label class="flex items-center gap-2 cursor-pointer pt-1 text-xs text-slate-300 font-medium">
+                    <input type="checkbox" id="checkNublado" onchange="window.actualizarVistaCalculadoraTermica()" class="rounded border-slate-700 bg-slate-800 text-sky-500 focus:ring-0 cursor-pointer w-4 h-4" />
+                    <span>☁️ Día nublado / Sin radiación solar directa (-1.5°C sensación)</span>
+                </label>
+            </div>
+
+            <!-- Segmented Pills: Intensidad & Sensibilidad -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="flex flex-col gap-1.5">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">🔥 Intensidad de Remada</span>
+                    <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        <button type="button" data-calc-intensidad="paseo" onclick="window.setCalculadoraTermicaSegment('intensidad', 'paseo')" class="ps-chip ps-quick-pill ps-chip-active flex-1 text-[11px] font-bold py-1 bg-sky-500/30 text-sky-200 border-sky-400 cursor-pointer">
+                            Paseo
+                        </button>
+                        <button type="button" data-calc-intensidad="travesia" onclick="window.setCalculadoraTermicaSegment('intensidad', 'travesia')" class="ps-chip ps-quick-pill flex-1 text-[11px] font-bold py-1 bg-slate-800 text-slate-300 border-slate-700 cursor-pointer">
+                            Travesía
+                        </button>
+                        <button type="button" data-calc-intensidad="race" onclick="window.setCalculadoraTermicaSegment('intensidad', 'race')" class="ps-chip ps-quick-pill flex-1 text-[11px] font-bold py-1 bg-slate-800 text-slate-300 border-slate-700 cursor-pointer">
+                            Race
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">🧬 Tu Sensibilidad al Frío</span>
+                    <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        <button type="button" data-calc-tolerancia="friolero" onclick="window.setCalculadoraTermicaSegment('tolerancia', 'friolero')" class="ps-chip ps-quick-pill flex-1 text-[11px] font-bold py-1 bg-slate-800 text-slate-300 border-slate-700 cursor-pointer">
+                            Friolero
+                        </button>
+                        <button type="button" data-calc-tolerancia="normal" onclick="window.setCalculadoraTermicaSegment('tolerancia', 'normal')" class="ps-chip ps-quick-pill ps-chip-active flex-1 text-[11px] font-bold py-1 bg-sky-500/30 text-sky-200 border-sky-400 cursor-pointer">
+                            Normal
+                        </button>
+                        <button type="button" data-calc-tolerancia="caluroso" onclick="window.setCalculadoraTermicaSegment('tolerancia', 'caluroso')" class="ps-chip ps-quick-pill flex-1 text-[11px] font-bold py-1 bg-slate-800 text-slate-300 border-slate-700 cursor-pointer">
+                            Caluroso
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Banner Alerta Regla del 30 -->
+            <div id="calcRegla30Alerta" class="hidden p-3 bg-red-950/80 border border-red-500/60 rounded-xl text-xs text-red-200 font-semibold animate-pulse leading-relaxed"></div>
+
+            <!-- Resultados en Tiempo Real (4 Cards) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <!-- Card 1: Traje Principal -->
+                <div id="calcTrajeCard" class="p-3 bg-slate-950/80 rounded-2xl border border-sky-500/30 flex flex-col justify-between gap-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-sky-400">Traje Sugerido</span>
+                        <span id="calcTrajeGrosor" class="text-xs font-mono font-black text-sky-300 px-1.5 py-0.5 rounded bg-sky-950/80 border border-sky-500/40">--</span>
+                    </div>
+                    <div class="flex items-center gap-2 my-1">
+                        <span id="calcTrajeIcono" class="text-2xl shrink-0">🩳</span>
+                        <div class="min-w-0">
+                            <span id="calcTrajeTitulo" class="text-xs sm:text-sm font-black text-white block truncate">Bañador y Lycra UV</span>
+                        </div>
+                    </div>
+                    <p id="calcTrajeDesc" class="text-[11px] text-slate-300 leading-snug">Confort pleno para aguas templadas.</p>
+                </div>
+
+                <!-- Card 2: Calzado -->
+                <div id="calcCalzadoCard" class="p-3 bg-slate-950/80 rounded-2xl border border-emerald-500/30 flex flex-col justify-between gap-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-emerald-400">Calzado Náutico</span>
+                    </div>
+                    <div class="flex items-center gap-2 my-1">
+                        <span id="calcCalzadoIcono" class="text-2xl shrink-0">🦶</span>
+                        <div class="min-w-0">
+                            <span id="calcCalzadoTitulo" class="text-xs sm:text-sm font-black text-white block truncate">Descalzo</span>
+                        </div>
+                    </div>
+                    <p id="calcCalzadoDesc" class="text-[11px] text-slate-300 leading-snug">Máxima sensibilidad en pad de EVA.</p>
+                </div>
+
+                <!-- Card 3: Accesorios & Hidratación -->
+                <div id="calcAccesoriosCard" class="p-3 bg-slate-950/80 rounded-2xl border border-amber-500/30 flex flex-col gap-1 sm:col-span-2">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-amber-400">Accesorios & Hidratación</span>
+                    <ul id="calcAccesoriosLista" class="text-[11px] text-slate-300 space-y-1 mt-0.5"></ul>
+                </div>
+            </div>
+
+            <!-- Footer con Índice y Nivel de Confort -->
+            <div class="flex items-center justify-between border-t border-slate-800 pt-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-400">Índice Térmico:</span>
+                    <span id="calcIndiceTermico" class="text-xs font-mono font-black text-white">--</span>
+                    <span id="calcConfortBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-300 border-emerald-500/40">Óptimo</span>
+                </div>
+                <button type="button" onclick="window.cerrarCalculadoraTermica()" class="px-4 py-2 bg-gradient-to-r from-sky-500 to-emerald-500 text-slate-950 font-black text-xs uppercase rounded-xl transition-all cursor-pointer shadow-lg active:scale-95">
+                    Listo
                 </button>
             </div>
         </div>
