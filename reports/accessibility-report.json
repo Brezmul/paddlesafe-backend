@@ -13,7 +13,7 @@
     "orientationAngle": 0,
     "orientationType": "portrait-primary"
   },
-  "timestamp": "2026-10-21T21:54:02.166Z",
+  "timestamp": "2026-10-21T22:19:04.263Z",
   "url": "http://127.0.0.1:8080/",
   "toolOptions": {
     "runOnly": {
@@ -6124,7 +6124,7 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span>Vie 23</span>",
+          "html": "<span>Sáb 24</span>",
           "target": [
             "#quickDayPill2 > span:nth-child(2)"
           ],
@@ -6162,7 +6162,7 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span>Sáb 24</span>",
+          "html": "<span>Dom 25</span>",
           "target": [
             "#quickDayPill3 > span:nth-child(2)"
           ],

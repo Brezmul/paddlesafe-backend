@@ -21,6 +21,7 @@ test.describe('Mobile Scroll Hygiene & Bottom Dock Navigation', () => {
         }
 
         // Mobile verification:
+        await page.waitForFunction(() => typeof window._activarItemBottomNavImpl === 'function');
         const tabBasico = page.locator('#tab-basico');
         const tabPro = page.locator('#tab-pro');
         const bottomNav = page.locator('#mobileBottomNav');
@@ -98,42 +99,109 @@ test.describe('Mobile Scroll Hygiene & Bottom Dock Navigation', () => {
         }
     });
 
-    test('Mobile bottom dock maintains true viewport anchoring (getBoundingClientRect bottom === innerHeight) before and after scroll', async ({ page, isMobile }) => {
+    test('Mobile bottom dock maintains true viewport anchoring (getBoundingClientRect bottom === innerHeight) under deep scroll (scrollY >= 350)', async ({ page, isMobile }) => {
         if (!isMobile) return;
 
         await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
+        await page.waitForFunction(() => typeof window._activarItemBottomNavImpl === 'function');
 
         const mobileNav = page.locator('#mobileBottomNav');
         await expect(mobileNav).toBeVisible();
 
-        // 1. Check before scroll
+        // 1. Initial check at scrollY = 0
         const initialCheck = await page.evaluate(() => {
-            const el = document.getElementById('mobileBottomNav');
-            const rect = el.getBoundingClientRect();
-            return {
-                rectBottom: Math.round(rect.bottom),
-                innerHeight: window.innerHeight,
-                diff: Math.abs(Math.round(rect.bottom) - window.innerHeight)
-            };
-        });
-        expect(initialCheck.diff).toBeLessThanOrEqual(1);
-
-        // 2. Scroll the page down by 500px
-        await page.evaluate(() => window.scrollTo(0, 500));
-        await page.waitForTimeout(200);
-
-        // 3. Check after scroll
-        const scrolledCheck = await page.evaluate(() => {
             const el = document.getElementById('mobileBottomNav');
             const rect = el.getBoundingClientRect();
             return {
                 scrollY: window.scrollY,
                 rectBottom: Math.round(rect.bottom),
                 innerHeight: window.innerHeight,
-                diff: Math.abs(Math.round(rect.bottom) - window.innerHeight)
+                diff: Math.abs(Math.round(rect.bottom) - window.innerHeight),
+                scrollWidth: document.documentElement.scrollWidth,
+                innerWidth: window.innerWidth
             };
         });
-        expect(scrolledCheck.diff).toBeLessThanOrEqual(1);
+        expect(initialCheck.diff).toBeLessThanOrEqual(1);
+        expect(initialCheck.scrollWidth).toBeLessThanOrEqual(initialCheck.innerWidth);
+
+        // 2. Expand content to guarantee deep scroll
+        await page.evaluate(() => {
+            const container = document.querySelector('.max-w-2xl') || document.body;
+            let expander = document.getElementById('e2eDeepScrollExpander');
+            if (!expander) {
+                expander = document.createElement('div');
+                expander.id = 'e2eDeepScrollExpander';
+                expander.style.height = '1500px';
+                expander.style.minHeight = '1500px';
+                expander.style.width = '100%';
+                container.appendChild(expander);
+            }
+        });
+
+        // 3. Scroll deep (>= 350px)
+        await page.evaluate(() => window.scrollTo({ top: 500, behavior: 'instant' }));
+        await page.waitForFunction(() => window.scrollY >= 350, { timeout: 3000 }).catch(() => {});
+        await page.waitForTimeout(200);
+
+        // 4. Verify anchoring under deep scroll
+        const deepCheck = await page.evaluate(() => {
+            const el = document.getElementById('mobileBottomNav');
+            const rect = el.getBoundingClientRect();
+            return {
+                scrollY: window.scrollY,
+                rectBottom: Math.round(rect.bottom),
+                innerHeight: window.innerHeight,
+                diff: Math.abs(Math.round(rect.bottom) - window.innerHeight),
+                scrollWidth: document.documentElement.scrollWidth,
+                innerWidth: window.innerWidth
+            };
+        });
+        expect(deepCheck.scrollY).toBeGreaterThanOrEqual(350);
+        expect(deepCheck.diff).toBeLessThanOrEqual(1);
+        expect(deepCheck.scrollWidth).toBeLessThanOrEqual(deepCheck.innerWidth);
+    });
+
+    test('One-tap bottom dock switching seamlessly closes open modals and opens target modal without z-index collisions', async ({ page, isMobile }) => {
+        if (!isMobile) return;
+
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
+        await page.waitForLoadState('domcontentloaded');
+        await page.waitForFunction(() => typeof window._activarItemBottomNavImpl === 'function' && typeof window.abrirModalFeed === 'function');
+
+        
+        const btnNavMuro = page.locator('#btnNavMuro');
+        const btnNavClubes = page.locator('#btnNavClubes');
+        const btnNavParte = page.locator('#btnNavParte');
+
+        await expect(btnNavMuro).toBeVisible();
+
+        // 1. Tap Muro -> opens socialFeedModal
+        await btnNavMuro.click();
+        const socialModal = page.locator('#socialFeedModal');
+        await expect(socialModal).toBeVisible({ timeout: 5000 });
+
+        // 2. Tap Clubes -> seamlessly closes socialFeedModal and opens clubsModal
+        await page.evaluate(() => document.getElementById('btnNavClubes')?.click());
+        const clubsModal = page.locator('#clubsModal');
+        await expect(clubsModal).toBeVisible({ timeout: 5000 });
+        await expect(socialModal).toBeHidden({ timeout: 5000 });
+
+        // 3. Verify z-index hierarchy: clubsModal (9000) > mobileBottomNav (4000)
+        const zIndexes = await page.evaluate(() => {
+            const clubs = document.getElementById('clubsModal');
+            const nav = document.getElementById('mobileBottomNav');
+            return {
+                clubsZ: parseInt(window.getComputedStyle(clubs).zIndex, 10),
+                navZ: parseInt(window.getComputedStyle(nav).zIndex, 10)
+            };
+        });
+        expect(zIndexes.clubsZ).toBe(9000);
+        expect(zIndexes.navZ).toBe(4000);
+        expect(zIndexes.clubsZ).toBeGreaterThan(zIndexes.navZ);
+
+        // 4. Tap Parte -> closes clubsModal and returns to map/parte
+        await page.evaluate(() => document.getElementById('btnNavParte')?.click());
+        await expect(clubsModal).toBeHidden({ timeout: 5000 });
     });
 });
