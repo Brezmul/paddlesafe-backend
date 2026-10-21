@@ -8,6 +8,7 @@
 import { supabaseClient, appState, CARTO_API_KEY, CARTO_TILE_URLS } from '../config.js';
 import { fetchConTimeout } from '../utils.js';
 import { mapRuntime } from './map.state.js';
+import { resolverSpotConocido } from '../engine/errors.js';
 import { activarWakeLock, liberarWakeLock } from './map.tracker.js';
 
 
@@ -257,6 +258,10 @@ export function buscarYCentrarMapa(t) {
     if (t.includes(',')) {
         const p = t.split(',');
         if (!isNaN(p[0]) && !isNaN(p[1])) return actualizarMapa(parseFloat(p[0]), parseFloat(p[1]));
+    }
+    const spotConocido = resolverSpotConocido(t);
+    if (spotConocido) {
+        return actualizarMapa(spotConocido.lat, spotConocido.lon);
     }
     fetchConTimeout(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(t)}`)
         .then(r => (r.ok ? r.json() : []))
