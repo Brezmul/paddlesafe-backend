@@ -1485,3 +1485,17 @@ window.addEventListener('resize', () => {
         if (tabPro) { tabPro.classList.remove('hidden'); tabPro.classList.add('flex'); }
     }
 }); // resizeMobileCockpitListener
+
+// Auto-inicializar Leaflet en escritorio si tab-pro es visible
+if (typeof window !== 'undefined') {
+    const autoInitDesktopMap = () => {
+        if (window.innerWidth >= 1024 && typeof MapModule.inicializarMapa === 'function' && !window.map) {
+            MapModule.inicializarMapa();
+        }
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', autoInitDesktopMap);
+    } else {
+        autoInitDesktopMap();
+    }
+}
