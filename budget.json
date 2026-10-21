@@ -1,0 +1,26 @@
+[
+  {
+    "resourceType": "script",
+    "budget": 300,
+    "unit": "gzip-kb",
+    "description": "JavaScript inicial transferido comprimido (< 300KB gzip)"
+  },
+  {
+    "resourceType": "stylesheet",
+    "budget": 150,
+    "unit": "gzip-kb",
+    "description": "Hojas de estilo CSS transferidas (< 150KB gzip)"
+  },
+  {
+    "resourceType": "image",
+    "budget": 200,
+    "unit": "kb",
+    "description": "Imágenes y recursos visuales críticos individuales (< 200KB)"
+  },
+  {
+    "resourceType": "total-initial-bundle",
+    "budget": 500,
+    "unit": "gzip-kb",
+    "description": "Bundle principal inicial de carga crítica (< 500KB gzip)"
+  }
+]

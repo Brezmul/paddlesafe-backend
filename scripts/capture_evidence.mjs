@@ -310,3 +310,4 @@ captureEvidence().catch(err => {
     console.error('Evidence capture failed:', err);
     process.exit(1);
 });
+

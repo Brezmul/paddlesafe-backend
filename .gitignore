@@ -3,12 +3,11 @@ Thumbs.db
 *.zip
 *.log
 node_modules/
-package*.json
 scratch/
 .vscode/
 hostinger_public_html_ready.zip
 paddlesafe-backend-main/
 Paddlesafe_frontend/
 .env*
-
 test-results/
+.lighthouseci/
