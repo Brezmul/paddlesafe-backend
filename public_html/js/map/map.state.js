@@ -130,7 +130,22 @@ export const mapRuntime = {
     replayProgress: 0,
     replaySpeed: 1,
     replayFollowCamera: true,
-    replayData: null
+    replayData: null,
+
+    // Radar Avanzado PaddleSafe State
+    radarActivo: false,
+    radarCapasActivas: {
+        viento: true,
+        lluvia: true,
+        oleaje: true,
+        deriva: true
+    },
+    radarOpacidad: 1.0,
+    radarWindGroup: null,
+    radarRainTile: null,
+    radarRainGroup: null,
+    radarWaveGroup: null,
+    radarDriftGroup: null
 };
 
 /**
