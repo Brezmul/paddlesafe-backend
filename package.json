@@ -1,5 +1,35 @@
 {
-  "name": "paddlesafe-backend",
+  "name": "paddlesafe",
   "version": "1.0.0",
-  "type": "module"
+  "description": "PaddleSafe - Plataforma Náutica Táctica, Pronóstico Marino y Comunidad SUP",
+  "main": "public_html/js/main.js",
+  "type": "module",
+  "scripts": {
+    "test": "node smoke_test_v2.mjs",
+    "test:smoke": "node smoke_test_v2.mjs",
+    "test:e2e": "playwright test",
+    "test:axe": "playwright test tests/e2e/06-accessibility-axe.spec.mjs",
+    "test:evidence": "node scripts/capture_evidence.mjs",
+    "lhci": "lhci autorun",
+    "perf:audit": "node scripts/audit_performance.mjs",
+    "security:audit": "npm audit"
+  },
+  "keywords": [
+    "paddlesafe",
+    "stand-up-paddle",
+    "sup",
+    "kayak",
+    "nautical",
+    "marine-forecast",
+    "leaflet",
+    "performance"
+  ],
+  "author": "PaddleSafe Team",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@lhci/cli": "^0.15.1",
+    "@playwright/test": "^1.50.0",
+    "axe-core": "^4.14.0"
+  }
 }

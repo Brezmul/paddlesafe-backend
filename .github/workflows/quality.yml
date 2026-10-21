@@ -1,0 +1,64 @@
+name: Quality, Performance & Security CI
+
+on:
+  push:
+    branches: [ main, database ]
+  pull_request:
+    branches: [ main, database ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality-gate:
+    name: Continuous Quality, E2E & Lighthouse Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 1. Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Node.js runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: 3. Install NPM dependencies
+        run: npm ci
+
+      - name: 4. Security Audit (Dependencies & Known Vulnerabilities)
+        run: npm audit --audit-level=high
+
+      - name: 5. Execute Core Smoke & Architecture Validation Tests (756 Assertions)
+        run: node smoke_test_v2.mjs
+
+      - name: 6. Install Playwright Chromium with system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: 7. Run Professional E2E Testing Matrix (Multi-Device Responsive)
+        run: npx playwright test
+
+      - name: 8. Execute Axe-Core Automated WCAG AA Accessibility Suite
+        run: npx playwright test tests/e2e/06-accessibility-axe.spec.mjs
+
+      - name: 9. Run Performance Budget & Core Web Vitals Auditor
+        run: node scripts/audit_performance.mjs
+
+      - name: 10. Run Lighthouse CI (Performance, A11y, Best Practices, SEO)
+        run: |
+          npx @lhci/cli autorun || echo "::warning::Lighthouse CI Quality Gate recorded advisory warnings (non-blocking policy)"
+
+      - name: 11. Upload Quality, Lighthouse & Accessibility Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paddlesafe-quality-reports
+          path: |
+            reports/
+            docs/performance/
+            docs/security/
+            docs/dependencies/
+          retention-days: 14
