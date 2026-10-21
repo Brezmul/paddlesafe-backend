@@ -1,6 +1,6 @@
 // ==============================================================================
 // PADDLESAFE NEXT-GEN - ADVANCED MARINE & METEOROLOGICAL RADAR (map.radar.js)
-// Multi-layer tactical analysis for SUP, Kayak and Coastal Crossings.
+// Multi-layer tactical analysis for SUP and Coastal Crossings.
 // Layers: 1) Wind Vectors, 2) Rain & Storms (RainViewer + Open-Meteo),
 //         3) Swell & Marine Waves, 4) Exclusive PaddleSafe Coastal Drift.
 // Includes 10-Second Quick Verdict and interactive click-to-inspect HUD.
