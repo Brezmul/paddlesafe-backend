@@ -46,7 +46,7 @@ const LIVE_HOSTS = [
   'vercel.app',                          // backend (StormGlass / AEMET)
   'nominatim.openstreetmap.org'
 ];
-const TILE_HOSTS = ['tile.openstreetmap.org', 'tiles.openseamap.org'];
+const TILE_HOSTS = ['tile.openstreetmap.org', 'tiles.openseamap.org', 'basemaps.cartocdn.com', 'cartocdn.com', 'server.arcgisonline.com'];
 const LIB_HOSTS  = ['unpkg.com', 'cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'cdn.tailwindcss.com'];
 const IMG_HOSTS  = ['api.dicebear.com', 'raw.githubusercontent.com'];   // deterministas / estáticos
 

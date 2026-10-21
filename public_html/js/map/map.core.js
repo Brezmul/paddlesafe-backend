@@ -5,7 +5,7 @@
 // Screen WakeLock re-export, and User Gear / Pace Calibration.
 // ==============================================================================
 
-import { supabaseClient, appState } from '../config.js';
+import { supabaseClient, appState, CARTO_API_KEY, CARTO_TILE_URLS } from '../config.js';
 import { fetchConTimeout } from '../utils.js';
 import { mapRuntime } from './map.state.js';
 import { activarWakeLock, liberarWakeLock } from './map.tracker.js';
@@ -439,7 +439,8 @@ export function calcularTilesBoundingBox(mapOrBounds, marcadores = [], zoom = 13
 
         for (let x = startX; x <= endX; x++) {
             for (let y = startY; y <= endY; y++) {
-                tileUrls.push(`https://tile.openstreetmap.org/${z}/${x}/${y}.png`);
+                const cartoKey = CARTO_API_KEY || 'cb1_4qv5_1_683638fb471571b180e5b9e6';
+                tileUrls.push(`https://a.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png?key=${cartoKey}`);
                 tileUrls.push(`https://tiles.openseamap.org/seamark/${z}/${x}/${y}.png`);
                 if (tileUrls.length >= MAX_TILES_TOTAL) {
                     break outerZoom;
@@ -602,24 +603,31 @@ export function cambiarCapaBaseMapa(tipoCapa = 'nautico') {
         }).addTo(mapInstance);
         mapRuntime.capaBaseTile.bringToBack();
     } else if (estilo === 'oscuro') {
-        mapRuntime.capaBaseTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            maxZoom: 19,
+        const darkUrl = (CARTO_TILE_URLS && CARTO_TILE_URLS.dark_all) ||
+            `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY || 'cb1_4qv5_1_683638fb471571b180e5b9e6'}`;
+        mapRuntime.capaBaseTile = L.tileLayer(darkUrl, {
+            maxZoom: 20,
             subdomains: 'abcd',
             crossOrigin: true,
-            attribution: '&copy; CARTO'
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
         }).addTo(mapInstance);
         mapRuntime.capaBaseTile.bringToBack();
     } else {
-        // 'nautico' (default)
-        mapRuntime.capaBaseTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 18,
+        // 'nautico' (default) -> CARTO Voyager HD con API Key + Carta marina OpenSeaMap
+        const voyagerUrl = (CARTO_TILE_URLS && CARTO_TILE_URLS.voyager) ||
+            `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY || 'cb1_4qv5_1_683638fb471571b180e5b9e6'}`;
+        mapRuntime.capaBaseTile = L.tileLayer(voyagerUrl, {
+            maxZoom: 20,
+            subdomains: 'abcd',
             crossOrigin: true,
-            attribution: '&copy; OpenStreetMap'
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
         }).addTo(mapInstance);
+
+        // Capa náutica superpuesta (boyas, faros y balizamiento de navegación de OpenSeaMap)
         mapRuntime.capaOverlayTile = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
             maxZoom: 18,
             crossOrigin: true,
-            attribution: '&copy; OpenSeaMap'
+            attribution: '&copy; <a href="http://www.openseamap.org">OpenSeaMap</a>'
         }).addTo(mapInstance);
         mapRuntime.capaBaseTile.bringToBack();
     }
