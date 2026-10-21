@@ -1,0 +1,2160 @@
+-- ==============================================================================
+-- PADDLESAFE - MASTER V2 CONSOLIDATED DATABASE ROLLOUT
+-- Combina e implementa de forma idempotente:
+-- 1. Patch #02: Sincronización automática de gamificación desde 'rutas' -> 'perfiles'
+-- 2. Patch #04: Tabla 'user_spots' para spots guardados favoritos y RLS
+-- 3. Patch #06: Tabla 'spot_reports' para reportes colaborativos en vivo (Waze SUP) y RLS
+-- ==============================================================================
+
+BEGIN;
+
+-- ------------------------------------------------------------------------------
+-- 1. PATCH #02: TRIGGER & FUNCIÓN SINCRONIZACIÓN GAMIFICACIÓN DESDE 'rutas'
+-- ------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.actualizar_gamificacion_desde_rutas()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_nuevo_xp integer;
+  v_nuevo_km numeric;
+  v_nuevo_nivel integer;
+  v_nuevo_titulo text;
+  v_target_user uuid;
+  v_xp_delta integer;
+  v_km_delta numeric;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    v_target_user := NEW.user_id;
+    v_km_delta := COALESCE(NEW.distancia_km, 0);
+    v_xp_delta := COALESCE(
+      NULLIF((to_jsonb(NEW) ->> 'points_earned'), '')::integer,
+      NULLIF((to_jsonb(NEW) ->> 'xp_earned'), '')::integer,
+      (ROUND(v_km_delta * 10) + COALESCE(NEW.tiempo_minutos, 0))::integer
+    );
+
+    SELECT 
+      COALESCE(total_xp, puntos, 0) + v_xp_delta,
+      ROUND((COALESCE(total_distance_km, km_totales, 0) + v_km_delta)::numeric, 2)
+    INTO v_nuevo_xp, v_nuevo_km
+    FROM public.perfiles
+    WHERE id = v_target_user;
+
+    IF NOT FOUND THEN
+      v_nuevo_xp := COALESCE(v_xp_delta, 0);
+      v_nuevo_km := COALESCE(v_km_delta, 0);
+    END IF;
+
+  ELSIF TG_OP = 'UPDATE' THEN
+    v_target_user := NEW.user_id;
+    v_km_delta := COALESCE(NEW.distancia_km, 0) - COALESCE(OLD.distancia_km, 0);
+    v_xp_delta := COALESCE(
+      NULLIF((to_jsonb(NEW) ->> 'points_earned'), '')::integer,
+      NULLIF((to_jsonb(NEW) ->> 'xp_earned'), '')::integer,
+      (ROUND(COALESCE(NEW.distancia_km, 0) * 10) + COALESCE(NEW.tiempo_minutos, 0))::integer
+      - (ROUND(COALESCE(OLD.distancia_km, 0) * 10) + COALESCE(OLD.tiempo_minutos, 0))::integer
+    );
+
+    SELECT 
+      COALESCE(total_xp, puntos, 0) + v_xp_delta,
+      ROUND((COALESCE(total_distance_km, km_totales, 0) + v_km_delta)::numeric, 2)
+    INTO v_nuevo_xp, v_nuevo_km
+    FROM public.perfiles
+    WHERE id = v_target_user;
+
+    IF NOT FOUND THEN
+      v_nuevo_xp := COALESCE(v_xp_delta, 0);
+      v_nuevo_km := COALESCE(v_km_delta, 0);
+    END IF;
+
+  ELSIF TG_OP = 'DELETE' THEN
+    v_target_user := OLD.user_id;
+    v_km_delta := COALESCE(OLD.distancia_km, 0);
+
+    v_xp_delta := COALESCE(
+      NULLIF((to_jsonb(OLD) ->> 'points_earned'), '')::integer,
+      NULLIF((to_jsonb(OLD) ->> 'xp_earned'), '')::integer,
+      (ROUND(v_km_delta * 10) + COALESCE(OLD.tiempo_minutos, 0))::integer
+    );
+
+    SELECT 
+      GREATEST(0, COALESCE(total_xp, puntos, 0) - v_xp_delta),
+      GREATEST(0, ROUND((COALESCE(total_distance_km, km_totales, 0) - v_km_delta)::numeric, 2))
+    INTO v_nuevo_xp, v_nuevo_km
+    FROM public.perfiles
+    WHERE id = v_target_user;
+
+    IF NOT FOUND THEN
+      v_nuevo_xp := 0;
+      v_nuevo_km := 0;
+    END IF;
+  END IF;
+
+  IF v_target_user IS NOT NULL THEN
+    IF v_nuevo_xp IS NULL THEN
+      v_nuevo_xp := 0;
+    END IF;
+    IF v_nuevo_km IS NULL THEN
+      v_nuevo_km := 0;
+    END IF;
+
+    -- Fórmula universal de nivel de PaddleSafe: floor(sqrt(total_xp / 100)) + 1
+    v_nuevo_nivel := GREATEST(1, FLOOR(SQRT(COALESCE(v_nuevo_xp, 0)::numeric / 100)) + 1);
+
+    -- Asignación de título dinámico según nivel
+    BEGIN
+      v_nuevo_titulo := public.calcular_titulo_paddler(v_nuevo_nivel);
+    EXCEPTION WHEN OTHERS THEN
+      v_nuevo_titulo := CASE v_nuevo_nivel
+        WHEN 1 THEN 'Paddler en Ascenso'
+        WHEN 2 THEN 'Paddler Costero'
+        WHEN 3 THEN 'Paddler de Aguas Tranquilas'
+        WHEN 4 THEN 'Paddler de Touring'
+        WHEN 5 THEN 'Paddler de Race'
+        WHEN 6 THEN 'Paddler de Downwind'
+        WHEN 7 THEN 'Paddler Oceánico'
+        WHEN 8 THEN 'Paddler de Marejada'
+        WHEN 9 THEN 'Paddler de Rompientes'
+        ELSE 'Maestro del SUP'
+      END;
+    END;
+
+    -- Actualización unificada en perfiles asegurando ambas nomenclaturas
+    UPDATE public.perfiles
+    SET 
+      total_xp = v_nuevo_xp,
+      puntos = v_nuevo_xp,
+      total_distance_km = v_nuevo_km,
+      km_totales = v_nuevo_km,
+      current_level = v_nuevo_nivel,
+      nivel = v_nuevo_nivel,
+      titulo = COALESCE(v_nuevo_titulo, titulo)
+    WHERE id = v_target_user;
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+-- Trigger idempotente en public.rutas
+DROP TRIGGER IF EXISTS trg_actualizar_gamificacion_desde_rutas ON public.rutas;
+CREATE TRIGGER trg_actualizar_gamificacion_desde_rutas
+AFTER INSERT OR UPDATE OF distancia_km, tiempo_minutos, points_earned, xp_earned OR DELETE ON public.rutas
+FOR EACH ROW EXECUTE FUNCTION public.actualizar_gamificacion_desde_rutas();
+
+
+-- ------------------------------------------------------------------------------
+-- 2. PATCH #04: USER FAVORITE SPOTS SCHEMA & RLS
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.user_spots (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    nombre text NOT NULL,
+    lat numeric(9,6) NOT NULL,
+    lon numeric(9,6) NOT NULL,
+    seaward_deg integer,
+    orden integer DEFAULT 0,
+    created_at timestamptz DEFAULT now(),
+    UNIQUE(user_id, nombre)
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE public.user_spots ENABLE ROW LEVEL SECURITY;
+
+-- Idempotent RLS Policies para user_spots
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'user_spots' AND policyname = 'user_spots_select_own'
+    ) THEN
+        CREATE POLICY user_spots_select_own ON public.user_spots
+            FOR SELECT USING (auth.uid() = user_id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'user_spots' AND policyname = 'user_spots_insert_own'
+    ) THEN
+        CREATE POLICY user_spots_insert_own ON public.user_spots
+            FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'user_spots' AND policyname = 'user_spots_update_own'
+    ) THEN
+        CREATE POLICY user_spots_update_own ON public.user_spots
+            FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'user_spots' AND policyname = 'user_spots_delete_own'
+    ) THEN
+        CREATE POLICY user_spots_delete_own ON public.user_spots
+            FOR DELETE USING (auth.uid() = user_id);
+    END IF;
+END $$;
+
+-- Índice para consultas rápidas por usuario y orden
+CREATE INDEX IF NOT EXISTS idx_user_spots_user ON public.user_spots(user_id, orden);
+
+
+-- ------------------------------------------------------------------------------
+-- 3. PATCH #06: SPOT LIVE REPORTS SCHEMA & RLS (CROWD REPORTS / WAZE FOR SUP)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.spot_reports (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+    autor_nombre text,
+    spot_nombre text NOT NULL,
+    lat numeric(9,6) NOT NULL,
+    lon numeric(9,6) NOT NULL,
+    tag text NOT NULL,
+    comentario text,
+    created_at timestamptz DEFAULT now()
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE public.spot_reports ENABLE ROW LEVEL SECURITY;
+
+-- Idempotent RLS Policies para spot_reports
+DO $$
+BEGIN
+    -- SELECT: Lectura pública de reportes recientes de las últimas 6 horas
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'spot_reports' AND policyname = 'spot_reports_select_recent'
+    ) THEN
+        CREATE POLICY spot_reports_select_recent ON public.spot_reports
+            FOR SELECT USING (created_at >= now() - interval '6 hours');
+    END IF;
+
+    -- INSERT: cualquier usuario autenticado puede emitir un reporte y los visitantes solo si no fijan user_id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'spot_reports' AND policyname = 'spot_reports_insert_auth'
+    ) THEN
+        CREATE POLICY spot_reports_insert_auth ON public.spot_reports
+            FOR INSERT WITH CHECK (user_id IS NULL OR user_id = auth.uid());
+    END IF;
+END $$;
+
+-- Índices de consulta rápida
+CREATE INDEX IF NOT EXISTS idx_spot_reports_created_at ON public.spot_reports(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_spot_reports_coords ON public.spot_reports(lat, lon);
+
+-- ------------------------------------------------------------------------------
+-- 4. PATCH #12: CLUB MONTHLY CHALLENGES & COMPETITIVE EVENTS (club_retos)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.club_retos (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    club_id uuid NOT NULL REFERENCES public.clubs(id) ON DELETE CASCADE,
+    creador_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+    titulo text NOT NULL,
+    descripcion text,
+    tipo text NOT NULL DEFAULT 'colectivo_km',
+    meta_valor numeric(8,2) NOT NULL DEFAULT 100,
+    xp_recompensa integer DEFAULT 250,
+    fecha_inicio timestamptz NOT NULL DEFAULT date_trunc('month', now()),
+    fecha_fin timestamptz NOT NULL DEFAULT (date_trunc('month', now()) + interval '1 month - 1 second'),
+    created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.club_retos_participantes (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    reto_id uuid NOT NULL REFERENCES public.club_retos(id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    joined_at timestamptz DEFAULT now(),
+    completado boolean DEFAULT false,
+    UNIQUE(reto_id, user_id)
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE public.club_retos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_retos_participantes ENABLE ROW LEVEL SECURITY;
+
+-- Idempotent RLS Policies
+DO $$
+BEGIN
+    -- SELECT club_retos: para miembros del club o cualquier usuario si el club es público
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos' AND policyname = 'club_retos_select_members'
+    ) THEN
+        CREATE POLICY club_retos_select_members ON public.club_retos
+            FOR SELECT USING (
+                EXISTS (
+                    SELECT 1 FROM public.clubs_usuarios cu
+                    WHERE cu.club_id = club_retos.club_id AND cu.user_id = auth.uid()
+                ) OR EXISTS (
+                    SELECT 1 FROM public.clubs c
+                    WHERE c.id = club_retos.club_id AND (c.es_privado IS NOT TRUE)
+                ) OR auth.uid() IS NOT NULL
+            );
+    END IF;
+
+    -- INSERT/UPDATE club_retos: creador o administrador del club
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos' AND policyname = 'club_retos_insert_admin'
+    ) THEN
+        CREATE POLICY club_retos_insert_admin ON public.club_retos
+            FOR INSERT WITH CHECK (
+                auth.uid() = creador_id OR
+                EXISTS (
+                    SELECT 1 FROM public.clubs_usuarios cu
+                    WHERE cu.club_id = club_retos.club_id AND cu.user_id = auth.uid() AND cu.rol IN ('admin', 'creador')
+                )
+            );
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos' AND policyname = 'club_retos_update_admin'
+    ) THEN
+        CREATE POLICY club_retos_update_admin ON public.club_retos
+            FOR UPDATE USING (
+                auth.uid() = creador_id OR
+                EXISTS (
+                    SELECT 1 FROM public.clubs_usuarios cu
+                    WHERE cu.club_id = club_retos.club_id AND cu.user_id = auth.uid() AND cu.rol IN ('admin', 'creador')
+                )
+            );
+    END IF;
+
+    -- SELECT club_retos_participantes: lectura pública o miembros
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos_participantes' AND policyname = 'club_retos_part_select'
+    ) THEN
+        CREATE POLICY club_retos_part_select ON public.club_retos_participantes
+            FOR SELECT USING (true);
+    END IF;
+
+    -- INSERT club_retos_participantes: auth.uid() = user_id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos_participantes' AND policyname = 'club_retos_part_insert'
+    ) THEN
+        CREATE POLICY club_retos_part_insert ON public.club_retos_participantes
+            FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
+
+    -- UPDATE club_retos_participantes: auth.uid() = user_id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos_participantes' AND policyname = 'club_retos_part_update'
+    ) THEN
+        CREATE POLICY club_retos_part_update ON public.club_retos_participantes
+            FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
+
+    -- DELETE club_retos_participantes: auth.uid() = user_id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'club_retos_participantes' AND policyname = 'club_retos_part_delete'
+    ) THEN
+        CREATE POLICY club_retos_part_delete ON public.club_retos_participantes
+            FOR DELETE USING (auth.uid() = user_id);
+    END IF;
+END $$;
+-- ------------------------------------------------------------------------------
+-- 7. PATCH #07: GESTIÓN DEFINITIVA DE CLUBES, RLS, DEDUPLICACIÓN Y HELPERS
+-- ------------------------------------------------------------------------------
+
+-- Asegurar columnas en 'clubs' y 'clubs_solicitudes'
+ALTER TABLE public.clubs 
+  ADD COLUMN IF NOT EXISTS es_privado boolean DEFAULT false;
+
+ALTER TABLE public.clubs_solicitudes 
+  ADD COLUMN IF NOT EXISTS estado text NOT NULL DEFAULT 'pendiente',
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+
+UPDATE public.clubs_solicitudes 
+SET estado = 'pendiente' 
+WHERE estado IS NULL;
+
+-- Deduplicar 'public.clubs_usuarios' manteniendo la fila de mayor privilegio
+WITH ranked_cu AS (
+  SELECT ctid,
+    ROW_NUMBER() OVER (
+      PARTITION BY club_id, user_id
+      ORDER BY 
+        CASE LOWER(COALESCE(rol, 'miembro'))
+          WHEN 'creador' THEN 1
+          WHEN 'admin' THEN 2
+          ELSE 3
+        END ASC,
+        COALESCE(joined_at, created_at, now()) ASC
+    ) as rn
+  FROM public.clubs_usuarios
+)
+DELETE FROM public.clubs_usuarios
+WHERE ctid IN (SELECT ctid FROM ranked_cu WHERE rn > 1);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_clubs_usuarios_unique_pair 
+  ON public.clubs_usuarios (club_id, user_id);
+
+-- Deduplicar solicitudes pendientes en 'public.clubs_solicitudes'
+WITH ranked_cs AS (
+  SELECT ctid,
+    ROW_NUMBER() OVER (
+      PARTITION BY club_id, user_id
+      ORDER BY created_at ASC
+    ) as rn
+  FROM public.clubs_solicitudes
+  WHERE estado = 'pendiente'
+)
+DELETE FROM public.clubs_solicitudes
+WHERE ctid IN (SELECT ctid FROM ranked_cs WHERE rn > 1);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_clubs_solicitudes_pendiente 
+  ON public.clubs_solicitudes (club_id, user_id) 
+  WHERE estado = 'pendiente';
+
+-- Backfill creadores en 'clubs_usuarios'
+INSERT INTO public.clubs_usuarios (club_id, user_id, rol)
+SELECT id, creador_id, 'creador'
+FROM public.clubs
+WHERE creador_id IS NOT NULL
+ON CONFLICT (club_id, user_id) 
+DO UPDATE SET rol = 'creador' 
+WHERE LOWER(public.clubs_usuarios.rol) <> 'creador';
+
+-- Trigger automático para registrar creador de club
+CREATE OR REPLACE FUNCTION public.fn_auto_registrar_creador_club()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.creador_id IS NOT NULL THEN
+    INSERT INTO public.clubs_usuarios (club_id, user_id, rol)
+    VALUES (NEW.id, NEW.creador_id, 'creador')
+    ON CONFLICT (club_id, user_id)
+    DO UPDATE SET rol = 'creador' 
+    WHERE LOWER(public.clubs_usuarios.rol) <> 'creador';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_auto_registrar_creador_club ON public.clubs;
+CREATE TRIGGER trg_auto_registrar_creador_club
+AFTER INSERT ON public.clubs
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_auto_registrar_creador_club();
+
+-- Helpers SECURITY DEFINER (Prevención de recursión 42P17)
+CREATE OR REPLACE FUNCTION public.es_admin_o_creador_club(p_club_id uuid, p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.clubs c
+    WHERE c.id = p_club_id AND c.creador_id = p_user_id
+    UNION ALL
+    SELECT 1 FROM public.clubs_usuarios cu
+    WHERE cu.club_id = p_club_id
+      AND cu.user_id = p_user_id
+      AND LOWER(cu.rol) IN ('creador', 'admin')
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.es_miembro_club(p_club_id uuid, p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.clubs c
+    WHERE c.id = p_club_id AND c.creador_id = p_user_id
+    UNION ALL
+    SELECT 1 FROM public.clubs_usuarios cu
+    WHERE cu.club_id = p_club_id
+      AND cu.user_id = p_user_id
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.es_admin_o_creador_club(uuid, uuid) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.es_miembro_club(uuid, uuid) TO authenticated, anon;
+
+-- Políticas RLS para 'clubs_usuarios'
+ALTER TABLE public.clubs_usuarios ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'clubs_usuarios' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.clubs_usuarios', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY clubs_usuarios_select ON public.clubs_usuarios
+  FOR SELECT TO authenticated, anon
+  USING (true);
+
+CREATE POLICY clubs_usuarios_insert ON public.clubs_usuarios
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    (
+      auth.uid() = user_id
+      AND (
+        NOT EXISTS (
+          SELECT 1 FROM public.clubs c 
+          WHERE c.id = clubs_usuarios.club_id 
+            AND COALESCE(c.es_privado, false) = true
+        )
+        OR EXISTS (
+          SELECT 1 FROM public.clubs c
+          WHERE c.id = clubs_usuarios.club_id
+            AND c.creador_id = auth.uid()
+        )
+      )
+    )
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
+CREATE POLICY clubs_usuarios_update ON public.clubs_usuarios
+  FOR UPDATE TO authenticated
+  USING (public.es_admin_o_creador_club(club_id, auth.uid()))
+  WITH CHECK (public.es_admin_o_creador_club(club_id, auth.uid()));
+
+CREATE POLICY clubs_usuarios_delete ON public.clubs_usuarios
+  FOR DELETE TO authenticated
+  USING (
+    (auth.uid() = user_id AND LOWER(rol) <> 'creador')
+    OR
+    (public.es_admin_o_creador_club(club_id, auth.uid()) AND LOWER(rol) <> 'creador')
+  );
+
+-- Políticas RLS para 'clubs_solicitudes'
+ALTER TABLE public.clubs_solicitudes ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'clubs_solicitudes' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.clubs_solicitudes', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY clubs_solicitudes_select ON public.clubs_solicitudes
+  FOR SELECT TO authenticated
+  USING (
+    auth.uid() = user_id 
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
+CREATE POLICY clubs_solicitudes_insert ON public.clubs_solicitudes
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY clubs_solicitudes_update ON public.clubs_solicitudes
+  FOR UPDATE TO authenticated
+  USING (
+    auth.uid() = user_id 
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  )
+  WITH CHECK (
+    auth.uid() = user_id 
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
+CREATE POLICY clubs_solicitudes_delete ON public.clubs_solicitudes
+  FOR DELETE TO authenticated
+  USING (
+    auth.uid() = user_id 
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
+-- RPC: Obtener solicitudes pendientes
+DROP FUNCTION IF EXISTS public.obtener_solicitudes_club(uuid);
+CREATE OR REPLACE FUNCTION public.obtener_solicitudes_club(p_club_id uuid)
+RETURNS TABLE (
+  id uuid,
+  user_id uuid,
+  nombre text,
+  avatar_url text,
+  created_at timestamptz
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.es_admin_o_creador_club(p_club_id, auth.uid()) THEN
+    RAISE EXCEPTION 'Permiso denegado: no eres administrador del club' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT 
+    cs.id,
+    cs.user_id,
+    p.nombre,
+    p.avatar_url,
+    cs.created_at
+  FROM public.clubs_solicitudes cs
+  LEFT JOIN public.perfiles p ON p.id = cs.user_id
+  WHERE cs.club_id = p_club_id
+    AND COALESCE(cs.estado, 'pendiente') = 'pendiente'
+  ORDER BY cs.created_at ASC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.obtener_solicitudes_club(uuid) TO authenticated;
+
+-- RPC: Procesar solicitudes
+DROP FUNCTION IF EXISTS public.procesar_solicitud_club(uuid, text);
+DROP FUNCTION IF EXISTS public.procesar_solicitud_club(uuid, text, uuid);
+CREATE OR REPLACE FUNCTION public.procesar_solicitud_club(
+  p_solicitud uuid, 
+  p_accion text,
+  p_admin_id uuid DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_actor uuid := COALESCE(auth.uid(), p_admin_id);
+  v_user_id uuid;
+  v_club_id uuid;
+  v_club_nombre text;
+BEGIN
+  IF v_actor IS NULL THEN
+    RAISE EXCEPTION 'Debes iniciar sesión' USING ERRCODE = '28000';
+  END IF;
+
+  SELECT cs.user_id, cs.club_id, c.nombre 
+  INTO v_user_id, v_club_id, v_club_nombre
+  FROM public.clubs_solicitudes cs
+  LEFT JOIN public.clubs c ON c.id = cs.club_id
+  WHERE cs.id = p_solicitud;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'La solicitud no existe o ya fue procesada.';
+  END IF;
+
+  IF NOT public.es_admin_o_creador_club(v_club_id, v_actor) THEN
+    RAISE EXCEPTION 'Permiso denegado: no eres administrador de este club.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_accion = 'aceptar' THEN
+    INSERT INTO public.clubs_usuarios (club_id, user_id, rol)
+    VALUES (v_club_id, v_user_id, 'miembro')
+    ON CONFLICT (club_id, user_id) DO NOTHING;
+
+    DELETE FROM public.clubs_solicitudes WHERE id = p_solicitud;
+
+    BEGIN
+      INSERT INTO public.notificaciones (user_id, tipo, contenido, leida)
+      VALUES (
+        v_user_id,
+        'solicitud_club_aceptada',
+        '¡Bienvenido a bordo! Tu solicitud para unirte a ' || COALESCE(v_club_nombre, 'el club') || ' ha sido aceptada.',
+        false
+      );
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+
+  ELSIF p_accion = 'rechazar' THEN
+    DELETE FROM public.clubs_solicitudes WHERE id = p_solicitud;
+
+    BEGIN
+      INSERT INTO public.notificaciones (user_id, tipo, contenido, leida)
+      VALUES (
+        v_user_id,
+        'solicitud_club_rechazada',
+        'Tu solicitud para unirte a ' || COALESCE(v_club_nombre, 'el club') || ' no fue aceptada en este momento.',
+        false
+      );
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  ELSE
+    RAISE EXCEPTION 'Acción inválida. Usa "aceptar" o "rechazar".';
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.procesar_solicitud_club(uuid, text, uuid) TO authenticated, anon;
+
+-- RPC: Obtener clubes del usuario
+DROP FUNCTION IF EXISTS public.obtener_clubs_usuario(uuid);
+CREATE OR REPLACE FUNCTION public.obtener_clubs_usuario(p_user_id uuid)
+RETURNS TABLE (
+  club_id uuid,
+  nombre text,
+  descripcion text,
+  logo_url text,
+  banner_url text,
+  ubicacion text,
+  creador_id uuid,
+  club_rol text,
+  fecha_union timestamptz
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT 
+    c.id AS club_id,
+    c.nombre,
+    c.descripcion,
+    c.logo_url,
+    c.banner_url,
+    c.ubicacion,
+    c.creador_id,
+    COALESCE(cu.rol, CASE WHEN c.creador_id = p_user_id THEN 'creador' ELSE 'miembro' END) AS club_rol,
+    COALESCE(cu.joined_at, cu.created_at, c.created_at) AS fecha_union
+  FROM public.clubs c
+  LEFT JOIN public.clubs_usuarios cu ON cu.club_id = c.id AND cu.user_id = p_user_id
+  WHERE cu.user_id = p_user_id OR c.creador_id = p_user_id
+  ORDER BY fecha_union DESC;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.obtener_clubs_usuario(uuid) TO authenticated;
+
+-- ------------------------------------------------------------------------------
+-- 8. PATCH #08: SOCIAL RLS, REALTIME NOTIFICACIONES, AND CLUB CHAT
+-- ------------------------------------------------------------------------------
+
+-- A) AMISTADES SCHEMA, DEDUPLICACIÓN Y RLS
+WITH ranked_amistades AS (
+  SELECT ctid,
+    ROW_NUMBER() OVER (
+      PARTITION BY usuario_id, amigo_id
+      ORDER BY COALESCE(created_at, now()) ASC
+    ) as rn
+  FROM public.amistades
+)
+DELETE FROM public.amistades
+WHERE ctid IN (SELECT ctid FROM ranked_amistades WHERE rn > 1);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_amistades_unique_pair 
+  ON public.amistades (usuario_id, amigo_id);
+
+ALTER TABLE public.amistades ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'amistades' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.amistades', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY amistades_select ON public.amistades
+  FOR SELECT TO authenticated
+  USING (auth.uid() = usuario_id OR auth.uid() = amigo_id);
+
+CREATE POLICY amistades_insert ON public.amistades
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = usuario_id);
+
+CREATE POLICY amistades_update ON public.amistades
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = usuario_id OR auth.uid() = amigo_id)
+  WITH CHECK (auth.uid() = usuario_id OR auth.uid() = amigo_id);
+
+CREATE POLICY amistades_delete ON public.amistades
+  FOR DELETE TO authenticated
+  USING (auth.uid() = usuario_id OR auth.uid() = amigo_id);
+
+-- B) NOTIFICACIONES SCHEMA, RLS Y RPC
+ALTER TABLE public.notificaciones 
+  ADD COLUMN IF NOT EXISTS titulo text,
+  ADD COLUMN IF NOT EXISTS data jsonb DEFAULT '{}'::jsonb;
+
+ALTER TABLE public.notificaciones ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'notificaciones' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.notificaciones', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY notificaciones_select ON public.notificaciones
+  FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY notificaciones_insert ON public.notificaciones
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY notificaciones_update ON public.notificaciones
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY notificaciones_delete ON public.notificaciones
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
+
+DROP FUNCTION IF EXISTS public.enviar_notificacionSegura(uuid, text, text, text, jsonb);
+DROP FUNCTION IF EXISTS public.enviar_notificacionsegura(uuid, text, text, text, jsonb);
+CREATE OR REPLACE FUNCTION public.enviar_notificacionSegura(
+  p_user_id uuid,
+  p_tipo text,
+  p_titulo text,
+  p_mensaje text,
+  p_data jsonb DEFAULT '{}'::jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF p_user_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO public.notificaciones (
+    user_id,
+    tipo,
+    contenido,
+    titulo,
+    data,
+    leida,
+    created_at
+  )
+  VALUES (
+    p_user_id,
+    COALESCE(p_tipo, 'general'),
+    COALESCE(p_mensaje, p_titulo, ''),
+    p_titulo,
+    COALESCE(p_data, '{}'::jsonb),
+    false,
+    now()
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.enviar_notificacionSegura(uuid, text, text, text, jsonb) TO authenticated, anon;
+
+-- C) CLUB_CHAT RLS LIMPIO
+ALTER TABLE public.club_chat ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'club_chat' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.club_chat', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY club_chat_select ON public.club_chat
+  FOR SELECT TO authenticated, anon
+  USING (
+    COALESCE(is_public, false) = true
+    OR public.es_miembro_club(club_id, auth.uid())
+  );
+
+CREATE POLICY club_chat_insert ON public.club_chat
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    auth.uid() = user_id
+    AND public.es_miembro_club(club_id, auth.uid())
+  );
+
+CREATE POLICY club_chat_update ON public.club_chat
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY club_chat_delete ON public.club_chat
+  FOR DELETE TO authenticated
+  USING (
+    auth.uid() = user_id
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
+-- ------------------------------------------------------------------------------
+-- 9. PATCH #09: CLUB COVER PERSISTENCE, RPC EXPANSION & STORAGE RLS AUDIT
+-- ------------------------------------------------------------------------------
+
+-- A) COLUMNS EN public.clubs
+ALTER TABLE public.clubs 
+  ADD COLUMN IF NOT EXISTS portada_url text,
+  ADD COLUMN IF NOT EXISTS banner_url text,
+  ADD COLUMN IF NOT EXISTS es_privado boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS is_private boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS normas text,
+  ADD COLUMN IF NOT EXISTS ubicacion text;
+
+UPDATE public.clubs 
+  SET portada_url = banner_url 
+  WHERE portada_url IS NULL AND banner_url IS NOT NULL;
+
+UPDATE public.clubs 
+  SET banner_url = portada_url 
+  WHERE banner_url IS NULL AND portada_url IS NOT NULL;
+
+-- B) RLS EN public.clubs PARA UPDATE SEGURO DE ADMINS Y CREADORES
+ALTER TABLE public.clubs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Actualizar club" ON public.clubs;
+DROP POLICY IF EXISTS "Admins pueden actualizar el club" ON public.clubs;
+DROP POLICY IF EXISTS clubs_update_admin_or_creator ON public.clubs;
+
+CREATE POLICY clubs_update_admin_or_creator ON public.clubs
+  FOR UPDATE TO authenticated
+  USING (public.es_admin_o_creador_club(id, auth.uid()))
+  WITH CHECK (public.es_admin_o_creador_club(id, auth.uid()));
+
+-- C) RPC obtener_clubs_usuario CON TODAS LAS COLUMNAS (portada_url, banner_url, etc.)
+DROP FUNCTION IF EXISTS public.obtener_clubs_usuario(uuid);
+
+CREATE OR REPLACE FUNCTION public.obtener_clubs_usuario(p_user_id uuid)
+RETURNS TABLE(
+  club_id uuid,
+  id uuid,
+  nombre text,
+  descripcion text,
+  logo_url text,
+  portada_url text,
+  banner_url text,
+  ubicacion text,
+  normas text,
+  creador_id uuid,
+  es_privado boolean,
+  nivel integer,
+  puntos bigint,
+  club_rol text,
+  fecha_union timestamptz,
+  created_at timestamptz
+)
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  SELECT 
+    c.id AS club_id,
+    c.id AS id,
+    c.nombre,
+    c.descripcion,
+    c.logo_url,
+    COALESCE(c.portada_url, c.banner_url) AS portada_url,
+    COALESCE(c.banner_url, c.portada_url) AS banner_url,
+    c.ubicacion,
+    c.normas,
+    c.creador_id,
+    COALESCE(c.es_privado, c.is_private, false) AS es_privado,
+    COALESCE(c.nivel, 1)::integer AS nivel,
+    COALESCE(c.puntos, 0)::bigint AS puntos,
+    COALESCE(cu.rol, CASE WHEN c.creador_id = p_user_id THEN 'creador' ELSE 'miembro' END) AS club_rol,
+    COALESCE(cu.joined_at, cu.created_at, c.created_at) AS fecha_union,
+    c.created_at
+  FROM public.clubs c
+  LEFT JOIN public.clubs_usuarios cu ON cu.club_id = c.id AND cu.user_id = p_user_id
+  WHERE cu.user_id = p_user_id OR c.creador_id = p_user_id
+  ORDER BY fecha_union DESC;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.obtener_clubs_usuario(uuid) TO authenticated, anon;
+
+-- D) STORAGE BUCKETS Y POLICIES EN storage.objects
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('paddlesafe', 'paddlesafe', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN 
+    SELECT policyname 
+    FROM pg_policies 
+    WHERE schemaname = 'storage' 
+      AND tablename = 'objects' 
+      AND (policyname LIKE '%paddlesafe%' OR policyname LIKE '%public read%' OR policyname LIKE '%authenticated%')
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON storage.objects', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY paddlesafe_storage_select ON storage.objects
+  FOR SELECT TO public
+  USING (bucket_id = 'paddlesafe');
+
+CREATE POLICY paddlesafe_storage_insert ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'paddlesafe');
+
+CREATE POLICY paddlesafe_storage_update ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'paddlesafe')
+  WITH CHECK (bucket_id = 'paddlesafe');
+
+CREATE POLICY paddlesafe_storage_delete ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'paddlesafe');
+
+-- E) RLS EN club_eventos Y club_eventos_asistentes SIN RECURSIÓN
+ALTER TABLE public.club_eventos ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'club_eventos' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.club_eventos', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY club_eventos_select ON public.club_eventos
+  FOR SELECT TO authenticated
+  USING (public.es_miembro_club(club_id, auth.uid()));
+
+CREATE POLICY club_eventos_insert ON public.club_eventos
+  FOR INSERT TO authenticated
+  WITH CHECK (creador_id = auth.uid() AND public.es_miembro_club(club_id, auth.uid()));
+
+CREATE POLICY club_eventos_delete ON public.club_eventos
+  FOR DELETE TO authenticated
+  USING (creador_id = auth.uid() OR public.es_admin_o_creador_club(club_id, auth.uid()));
+
+ALTER TABLE public.club_eventos_asistentes ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'club_eventos_asistentes' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.club_eventos_asistentes', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY club_eventos_asistentes_select ON public.club_eventos_asistentes
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.club_eventos ce
+      WHERE ce.id = club_eventos_asistentes.evento_id
+        AND public.es_miembro_club(ce.club_id, auth.uid())
+    )
+  );
+
+CREATE POLICY club_eventos_asistentes_insert ON public.club_eventos_asistentes
+  FOR INSERT TO authenticated
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY club_eventos_asistentes_delete ON public.club_eventos_asistentes
+  FOR DELETE TO authenticated
+  USING (user_id = auth.uid());
+
+-- F) RLS UPDATE Y DELETE EN public.rutas
+DROP POLICY IF EXISTS rutas_update_own ON public.rutas;
+CREATE POLICY rutas_update_own ON public.rutas
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS rutas_delete_own ON public.rutas;
+CREATE POLICY rutas_delete_own ON public.rutas
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
+
+-- Recargar caché de schema en PostgREST inmediatamente
+-- ==============================================================================
+-- PADDLESAFE BATCH #22: AUDIT REMEDIATION SECURITY HARDENING (C1 TO C8)
+-- ==============================================================================
+
+-- A) FORCE RLS ON ALL TABLES (C1)
+ALTER TABLE public.clubs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clubs_usuarios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clubs_solicitudes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clubs_invitaciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_rutas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_showcase ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rutas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_routes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.perfiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.amistades ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notificaciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_chat ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_eventos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_eventos_asistentes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_retos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_retos_participantes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_spots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.spot_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.spot_logbook ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rutas_likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rutas_comentarios ENABLE ROW LEVEL SECURITY;
+
+-- B) PREVENT CLUB ADMIN SELF-ESCALATION (C2)
+ALTER TABLE public.clubs_usuarios DROP CONSTRAINT IF EXISTS chk_clubs_usuarios_rol;
+ALTER TABLE public.clubs_usuarios ADD CONSTRAINT chk_clubs_usuarios_rol CHECK (LOWER(rol) IN ('miembro', 'admin', 'creador'));
+
+DROP POLICY IF EXISTS "clubs_usuarios_insert" ON public.clubs_usuarios;
+CREATE POLICY "clubs_usuarios_insert" ON public.clubs_usuarios 
+FOR INSERT WITH CHECK (
+  (
+    (auth.uid() = user_id) 
+    AND (
+      -- If user is the creator of the club, allow them to record as creador
+      (EXISTS (SELECT 1 FROM public.clubs c WHERE c.id = clubs_usuarios.club_id AND c.creador_id = auth.uid()) AND LOWER(rol) IN ('creador', 'admin', 'miembro'))
+      -- Otherwise (public club join or accepted invitation), strictly enforce rol = 'miembro'
+      OR (
+        LOWER(rol) = 'miembro'
+        AND (
+          (NOT EXISTS (SELECT 1 FROM public.clubs c WHERE c.id = clubs_usuarios.club_id AND (COALESCE(c.es_privado, false) = true OR COALESCE(c.is_private, false) = true)))
+          OR (EXISTS (SELECT 1 FROM public.clubs_invitaciones ci WHERE ci.club_id = clubs_usuarios.club_id AND ci.user_id = auth.uid() AND LOWER(ci.estado) IN ('pendiente', 'aceptada')))
+        )
+      )
+    )
+  )
+  -- Or existing admin/creator adding members
+  OR es_admin_o_creador_club(club_id, auth.uid())
+);
+
+-- C) SERVER-SIDE XP & REVOKE GAMIFICATION DELTA (C3, C4)
+DO $
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'paddlesafe_apply_gamification_delta') THEN
+    REVOKE EXECUTE ON FUNCTION public.paddlesafe_apply_gamification_delta(uuid, integer, numeric) FROM PUBLIC, anon, authenticated;
+  END IF;
+END $;
+
+CREATE OR REPLACE FUNCTION public.paddlesafe_route_xp(p_route jsonb)
+ RETURNS integer
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO 'pg_catalog'
+AS $function$
+DECLARE
+  v_distance numeric;
+  v_duration_min integer;
+  v_speed numeric;
+  v_calc_xp integer;
+  v_raw_xp integer;
+BEGIN
+  IF p_route IS NULL THEN
+    RETURN 0;
+  END IF;
+
+  v_distance := LEAST(200::numeric, GREATEST(0::numeric, COALESCE(
+    NULLIF(p_route ->> 'distancia_km', '')::numeric,
+    NULLIF(p_route ->> 'distance_km', '')::numeric,
+    0::numeric
+  )));
+
+  v_duration_min := LEAST(1440, GREATEST(0, COALESCE(
+    NULLIF(p_route ->> 'tiempo_minutos', '')::numeric::integer,
+    ROUND(COALESCE(NULLIF(p_route ->> 'duration_seconds', '')::numeric, 0::numeric) / 60.0)::integer,
+    0
+  )));
+
+  v_speed := COALESCE(
+    NULLIF(p_route ->> 'avg_speed_kmh', '')::numeric,
+    NULLIF(p_route ->> 'avg_speed', '')::numeric,
+    0::numeric
+  );
+
+  -- Filtro anti-trampas: más de 45 km/h no puntúa
+  IF v_speed > 45 THEN
+    RETURN 0;
+  END IF;
+
+  -- Regla oficial PaddleSafe: ROUND(distancia_km * 10) + tiempo_minutos
+  IF v_duration_min > 0 THEN
+    v_calc_xp := (ROUND(v_distance * 10)::integer + v_duration_min);
+  ELSE
+    v_calc_xp := ROUND(v_distance * 100)::integer;
+  END IF;
+
+  -- Cap at 5000 max XP per route
+  v_calc_xp := LEAST(5000, GREATEST(0, v_calc_xp));
+
+  -- Check client xp_earned/points_earned: clamp and never exceed 5000
+  BEGIN
+    v_raw_xp := COALESCE(
+      NULLIF(p_route ->> 'points_earned', '')::integer,
+      NULLIF(p_route ->> 'xp_earned', '')::integer,
+      v_calc_xp
+    );
+    IF v_raw_xp > 5000 OR v_raw_xp < 0 THEN
+      RETURN v_calc_xp;
+    END IF;
+    RETURN v_raw_xp;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN v_calc_xp;
+  END;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.actualizar_gamificacion_desde_rutas()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_nuevo_xp integer;
+  v_nuevo_km numeric;
+  v_nuevo_nivel integer;
+  v_nuevo_titulo text;
+  v_target_user uuid;
+  v_xp_delta integer;
+  v_km_delta numeric;
+  v_calc_xp integer;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    v_target_user := NEW.user_id;
+    -- Clamp distance to 0..200 km
+    v_km_delta := LEAST(200::numeric, GREATEST(0::numeric, COALESCE(NEW.distancia_km, 0)));
+    v_calc_xp := (ROUND(v_km_delta * 10) + LEAST(1440, COALESCE(NEW.tiempo_minutos, 0)))::integer;
+    
+    -- Never trust client XP > 5000
+    v_xp_delta := COALESCE(
+      CASE 
+        WHEN NULLIF((to_jsonb(NEW) ->> 'points_earned'), '')::integer > 5000 THEN v_calc_xp
+        WHEN NULLIF((to_jsonb(NEW) ->> 'xp_earned'), '')::integer > 5000 THEN v_calc_xp
+        ELSE COALESCE(
+          NULLIF((to_jsonb(NEW) ->> 'points_earned'), '')::integer,
+          NULLIF((to_jsonb(NEW) ->> 'xp_earned'), '')::integer,
+          v_calc_xp
+        )
+      END,
+      v_calc_xp
+    );
+    v_xp_delta := LEAST(5000, GREATEST(0, v_xp_delta));
+
+    SELECT 
+      COALESCE(total_xp, puntos, 0) + v_xp_delta,
+      ROUND((COALESCE(total_distance_km, km_totales, 0) + v_km_delta)::numeric, 2)
+    INTO v_nuevo_xp, v_nuevo_km
+    FROM public.perfiles
+    WHERE id = v_target_user;
+
+    IF NOT FOUND THEN
+      v_nuevo_xp := COALESCE(v_xp_delta, 0);
+      v_nuevo_km := COALESCE(v_km_delta, 0);
+    END IF;
+
+  ELSIF TG_OP = 'UPDATE' THEN
+    v_target_user := NEW.user_id;
+    v_km_delta := LEAST(200::numeric, GREATEST(0::numeric, COALESCE(NEW.distancia_km, 0))) - LEAST(200::numeric, GREATEST(0::numeric, COALESCE(OLD.distancia_km, 0)));
+    v_calc_xp := (ROUND(LEAST(200::numeric, GREATEST(0::numeric, COALESCE(NEW.distancia_km, 0))) * 10) + LEAST(1440, COALESCE(NEW.tiempo_minutos, 0)))::integer
+      - (ROUND(LEAST(200::numeric, GREATEST(0::numeric, COALESCE(OLD.distancia_km, 0))) * 10) + LEAST(1440, COALESCE(OLD.tiempo_minutos, 0)))::integer;
+
+    v_xp_delta := LEAST(5000, GREATEST(-5000, COALESCE(
+      NULLIF((to_jsonb(NEW) ->> 'points_earned'), '')::integer,
+      NULLIF((to_jsonb(NEW) ->> 'xp_earned'), '')::integer,
+      v_calc_xp
+    )));
+
+    SELECT 
+      GREATEST(0, COALESCE(total_xp, puntos, 0) + v_xp_delta),
+      GREATEST(0::numeric, ROUND((COALESCE(total_distance_km, km_totales, 0) + v_km_delta)::numeric, 2))
+    INTO v_nuevo_xp, v_nuevo_km
+    FROM public.perfiles
+    WHERE id = v_target_user;
+
+    IF NOT FOUND THEN
+      v_nuevo_xp := COALESCE(v_xp_delta, 0);
+      v_nuevo_km := COALESCE(v_km_delta, 0);
+    END IF;
+
+  ELSIF TG_OP = 'DELETE' THEN
+    v_target_user := OLD.user_id;
+    v_km_delta := LEAST(200::numeric, GREATEST(0::numeric, COALESCE(OLD.distancia_km, 0)));
+    v_calc_xp := (ROUND(v_km_delta * 10) + LEAST(1440, COALESCE(OLD.tiempo_minutos, 0)))::integer;
+
+    v_xp_delta := LEAST(5000, GREATEST(0, COALESCE(
+      NULLIF((to_jsonb(OLD) ->> 'points_earned'), '')::integer,
+      NULLIF((to_jsonb(OLD) ->> 'xp_earned'), '')::integer,
+      v_calc_xp
+    )));
+
+    SELECT 
+      GREATEST(0, COALESCE(total_xp, puntos, 0) - v_xp_delta),
+      GREATEST(0::numeric, ROUND((COALESCE(total_distance_km, km_totales, 0) - v_km_delta)::numeric, 2))
+    INTO v_nuevo_xp, v_nuevo_km
+    FROM public.perfiles
+    WHERE id = v_target_user;
+
+    IF NOT FOUND THEN
+      v_nuevo_xp := 0;
+      v_nuevo_km := 0;
+    END IF;
+  END IF;
+
+  IF v_target_user IS NOT NULL THEN
+    IF v_nuevo_xp IS NULL THEN v_nuevo_xp := 0; END IF;
+    IF v_nuevo_km IS NULL THEN v_nuevo_km := 0; END IF;
+
+    v_nuevo_nivel := GREATEST(1, FLOOR(SQRT(COALESCE(v_nuevo_xp, 0)::numeric / 100)) + 1);
+
+    BEGIN
+      v_nuevo_titulo := public.calcular_titulo_paddler(v_nuevo_nivel);
+    EXCEPTION WHEN OTHERS THEN
+      v_nuevo_titulo := CASE v_nuevo_nivel
+        WHEN 1 THEN 'Paddler en Ascenso'
+        WHEN 2 THEN 'Paddler Costero'
+        WHEN 3 THEN 'Paddler de Aguas Tranquilas'
+        WHEN 4 THEN 'Paddler de Touring'
+        WHEN 5 THEN 'Paddler de Race'
+        WHEN 6 THEN 'Paddler de Downwind'
+        WHEN 7 THEN 'Paddler Oceánico'
+        WHEN 8 THEN 'Paddler de Marejada'
+        WHEN 9 THEN 'Paddler de Rompientes'
+        ELSE 'Maestro del SUP'
+      END;
+    END;
+
+    UPDATE public.perfiles
+    SET 
+      total_xp = v_nuevo_xp,
+      puntos = v_nuevo_xp,
+      total_distance_km = v_nuevo_km,
+      km_totales = v_nuevo_km,
+      current_level = v_nuevo_nivel,
+      nivel = v_nuevo_nivel,
+      titulo = COALESCE(v_nuevo_titulo, titulo)
+    WHERE id = v_target_user;
+  END IF;
+
+  RETURN NULL;
+END;
+$function$;
+
+-- D) REMOVE p_admin_id IMPERSONATION IN procesar_solicitud_club (C5)
+-- Drop existing overloads first
+DROP FUNCTION IF EXISTS public.procesar_solicitud_club(uuid, text, uuid);
+DROP FUNCTION IF EXISTS public.procesar_solicitud_club(uuid, text);
+
+CREATE OR REPLACE FUNCTION public.procesar_solicitud_club(p_solicitud uuid, p_accion text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_actor uuid := auth.uid();
+  v_user_id uuid;
+  v_club_id uuid;
+  v_club_nombre text;
+BEGIN
+  IF v_actor IS NULL THEN
+    RAISE EXCEPTION 'Debes iniciar sesión' USING ERRCODE = '28000';
+  END IF;
+
+  SELECT cs.user_id, cs.club_id, c.nombre 
+  INTO v_user_id, v_club_id, v_club_nombre
+  FROM public.clubs_solicitudes cs
+  LEFT JOIN public.clubs c ON c.id = cs.club_id
+  WHERE cs.id = p_solicitud;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'La solicitud no existe o ya fue procesada.';
+  END IF;
+
+  IF NOT public.es_admin_o_creador_club(v_club_id, v_actor) THEN
+    RAISE EXCEPTION 'Permiso denegado: no eres administrador de este club.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_accion = 'aceptar' THEN
+    INSERT INTO public.clubs_usuarios (club_id, user_id, rol)
+    VALUES (v_club_id, v_user_id, 'miembro')
+    ON CONFLICT (club_id, user_id) DO NOTHING;
+
+    DELETE FROM public.clubs_solicitudes WHERE id = p_solicitud;
+
+    BEGIN
+      INSERT INTO public.notificaciones (user_id, tipo, contenido, leida)
+      VALUES (
+        v_user_id,
+        'solicitud_club_aceptada',
+        '¡Bienvenido a bordo! Tu solicitud para unirte a ' || COALESCE(v_club_nombre, 'el club') || ' ha sido aceptada.',
+        false
+      );
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+
+  ELSIF p_accion = 'rechazar' THEN
+    DELETE FROM public.clubs_solicitudes WHERE id = p_solicitud;
+
+    BEGIN
+      INSERT INTO public.notificaciones (user_id, tipo, contenido, leida)
+      VALUES (
+        v_user_id,
+        'solicitud_club_rechazada',
+        'Tu solicitud para unirte a ' || COALESCE(v_club_nombre, 'el club') || ' no fue aceptada en este momento.',
+        false
+      );
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  ELSE
+    RAISE EXCEPTION 'Acción inválida. Usa "aceptar" o "rechazar".';
+  END IF;
+END;
+$function$;
+
+REVOKE EXECUTE ON FUNCTION public.procesar_solicitud_club(uuid, text) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.procesar_solicitud_club(uuid, text) TO authenticated;
+
+-- E) PROTECT PRIVATE CLUB MEMBERS & STORAGE (C6, C7)
+CREATE OR REPLACE FUNCTION public.obtener_miembros_club(p_club_id uuid)
+ RETURNS TABLE(user_id uuid, nombre text, avatar_url text, rol text, total_xp integer, current_level integer)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_es_privado boolean;
+  v_caller uuid := auth.uid();
+BEGIN
+  -- Verificar si el club es privado
+  SELECT COALESCE(es_privado, is_private, false) INTO v_es_privado
+  FROM public.clubs
+  WHERE id = p_club_id;
+
+  -- Si es privado, solo miembros o admins autenticados pueden ver la lista
+  IF v_es_privado IS TRUE THEN
+    IF v_caller IS NULL OR NOT public.es_miembro_club(p_club_id, v_caller) THEN
+      RETURN; -- Retorna lista vacía si no es miembro
+    END IF;
+  END IF;
+
+  RETURN QUERY
+  SELECT 
+    cu.user_id,
+    p.nombre,
+    p.avatar_url,
+    cu.rol,
+    COALESCE(p.total_xp, p.puntos, 0)::integer AS total_xp,
+    COALESCE(p.current_level, p.nivel, 1)::integer AS current_level
+  FROM public.clubs_usuarios cu
+  LEFT JOIN public.perfiles p ON p.id = cu.user_id
+  WHERE cu.club_id = p_club_id
+  ORDER BY 
+    CASE cu.rol 
+      WHEN 'creador' THEN 1 
+      WHEN 'admin' THEN 2 
+      ELSE 3 
+    END,
+    cu.created_at ASC;
+END;
+$function$;
+
+-- Storage policies for bucket 'paddlesafe'
+DROP POLICY IF EXISTS "paddlesafe_storage_update" ON storage.objects;
+DROP POLICY IF EXISTS "paddlesafe_storage_delete" ON storage.objects;
+
+CREATE POLICY "paddlesafe_storage_update" ON storage.objects
+FOR UPDATE TO authenticated
+USING (
+  bucket_id = 'paddlesafe' 
+  AND (
+    auth.uid() = owner
+    OR (storage.foldername(name))[1] = auth.uid()::text
+  )
+)
+WITH CHECK (
+  bucket_id = 'paddlesafe' 
+  AND (
+    auth.uid() = owner
+    OR (storage.foldername(name))[1] = auth.uid()::text
+  )
+);
+
+CREATE POLICY "paddlesafe_storage_delete" ON storage.objects
+FOR DELETE TO authenticated
+USING (
+  bucket_id = 'paddlesafe' 
+  AND (
+    auth.uid() = owner
+    OR (storage.foldername(name))[1] = auth.uid()::text
+  )
+);
+
+-- F) FIX CARTESIAN PRODUCT IN CLUB RANKING (C8)
+CREATE OR REPLACE FUNCTION public.get_ranking_clubs_v2(periodo text)
+ RETURNS TABLE(club_id uuid, nombre text, logo_url text, nivel integer, miembros integer, km_totales numeric, tiempo_total integer, rutas_totales integer, puntos_periodo bigint)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  RETURN QUERY
+  WITH actividades_unificadas AS (
+    SELECT 
+      cu.club_id,
+      r.distancia_km::numeric AS distancia_km,
+      COALESCE(r.tiempo_minutos, 0)::integer AS tiempo_minutos,
+      (ROUND(r.distancia_km::numeric * 10)::bigint + COALESCE(r.tiempo_minutos, 0)::bigint) AS pts
+    FROM public.clubs_usuarios cu
+    JOIN public.rutas r ON r.user_id = cu.user_id
+    WHERE (
+      (periodo = 'diario' AND COALESCE(r.fecha, r.created_at) >= date_trunc('day', timezone('utc', now()))) OR
+      (periodo = 'semanal' AND COALESCE(r.fecha, r.created_at) >= date_trunc('week', timezone('utc', now()))) OR
+      (periodo = 'mensual' AND COALESCE(r.fecha, r.created_at) >= date_trunc('month', timezone('utc', now()))) OR
+      (periodo = 'anual' AND COALESCE(r.fecha, r.created_at) >= date_trunc('year', timezone('utc', now()))) OR
+      (periodo = 'historico')
+    )
+    UNION ALL
+    SELECT 
+      cu.club_id,
+      ur.distance_km::numeric AS distancia_km,
+      ROUND(ur.duration_seconds::numeric / 60.0)::integer AS tiempo_minutos,
+      COALESCE(
+        ur.xp_earned::bigint,
+        (ROUND(ur.distance_km::numeric * 10)::bigint + ROUND(ur.duration_seconds::numeric / 60.0)::bigint)
+      ) AS pts
+    FROM public.clubs_usuarios cu
+    JOIN public.user_routes ur ON ur.user_id = cu.user_id
+    WHERE (
+      (periodo = 'diario' AND ur.created_at >= date_trunc('day', timezone('utc', now()))) OR
+      (periodo = 'semanal' AND ur.created_at >= date_trunc('week', timezone('utc', now()))) OR
+      (periodo = 'mensual' AND ur.created_at >= date_trunc('month', timezone('utc', now()))) OR
+      (periodo = 'anual' AND ur.created_at >= date_trunc('year', timezone('utc', now()))) OR
+      (periodo = 'historico')
+    )
+  ),
+  miembros_agg AS (
+    SELECT 
+      cu.club_id, 
+      COUNT(DISTINCT cu.user_id)::integer AS total_miembros
+    FROM public.clubs_usuarios cu
+    GROUP BY cu.club_id
+  ),
+  actividades_agg AS (
+    SELECT 
+      au.club_id,
+      ROUND(COALESCE(SUM(au.distancia_km), 0)::numeric, 2) AS km_totales,
+      COALESCE(SUM(au.tiempo_minutos), 0)::integer AS tiempo_total,
+      COUNT(*)::integer AS rutas_totales,
+      COALESCE(SUM(au.pts), 0)::bigint AS puntos_periodo
+    FROM actividades_unificadas au
+    GROUP BY au.club_id
+  )
+  SELECT
+    c.id AS club_id,
+    c.nombre,
+    c.logo_url,
+    COALESCE(c.nivel, 1)::integer AS nivel,
+    COALESCE(m.total_miembros, 0)::integer AS miembros,
+    COALESCE(a.km_totales, 0)::numeric AS km_totales,
+    COALESCE(a.tiempo_total, 0)::integer AS tiempo_total,
+    COALESCE(a.rutas_totales, 0)::integer AS rutas_totales,
+    COALESCE(a.puntos_periodo, 0)::bigint AS puntos_periodo
+  FROM public.clubs c
+  LEFT JOIN miembros_agg m ON m.club_id = c.id
+  LEFT JOIN actividades_agg a ON a.club_id = c.id
+  ORDER BY puntos_periodo DESC, miembros DESC
+  LIMIT 50;
+END;
+$function$;
+
+
+NOTIFY pgrst, 'reload schema';
+
+COMMIT;
+
+-- ==============================================================================
+-- 10. PATCH #10: TOTAL BUG PURGE - DUAL COLUMN AUTO-SYNC TRIGGERS,
+--     MISSING RLS POLICIES, CLUBS INVITACIONES, RUTAS LIKES & COMENTARIOS
+-- ==============================================================================
+
+BEGIN;
+
+-- A) AUTO-SYNC TRIGGER PARA COLUMNAS DUALES EN public.clubs
+ALTER TABLE public.clubs 
+  ADD COLUMN IF NOT EXISTS portada_url text,
+  ADD COLUMN IF NOT EXISTS banner_url text,
+  ADD COLUMN IF NOT EXISTS es_privado boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS is_private boolean DEFAULT false;
+
+CREATE OR REPLACE FUNCTION public.fn_sync_clubs_dual_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- 1) Sincronizar portada_url <-> banner_url
+  IF NEW.portada_url IS DISTINCT FROM OLD.portada_url AND NEW.portada_url IS NOT NULL THEN
+    NEW.banner_url := NEW.portada_url;
+  ELSIF NEW.banner_url IS DISTINCT FROM OLD.banner_url AND NEW.banner_url IS NOT NULL THEN
+    NEW.portada_url := NEW.banner_url;
+  ELSIF NEW.portada_url IS NOT NULL AND NEW.banner_url IS NULL THEN
+    NEW.banner_url := NEW.portada_url;
+  ELSIF NEW.banner_url IS NOT NULL AND NEW.portada_url IS NULL THEN
+    NEW.portada_url := NEW.banner_url;
+  END IF;
+
+  -- 2) Sincronizar es_privado <-> is_private
+  IF NEW.es_privado IS DISTINCT FROM OLD.es_privado AND NEW.es_privado IS NOT NULL THEN
+    NEW.is_private := NEW.es_privado;
+  ELSIF NEW.is_private IS DISTINCT FROM OLD.is_private AND NEW.is_private IS NOT NULL THEN
+    NEW.es_privado := NEW.is_private;
+  ELSIF NEW.es_privado IS NOT NULL AND NEW.is_private IS NULL THEN
+    NEW.is_private := NEW.es_privado;
+  ELSIF NEW.is_private IS NOT NULL AND NEW.es_privado IS NULL THEN
+    NEW.es_privado := NEW.is_private;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_clubs_dual_columns ON public.clubs;
+CREATE TRIGGER trg_sync_clubs_dual_columns
+BEFORE INSERT OR UPDATE ON public.clubs
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_sync_clubs_dual_columns();
+
+-- B) AUTO-SYNC TRIGGER PARA COLUMNAS DUALES EN public.perfiles
+ALTER TABLE public.perfiles 
+  ADD COLUMN IF NOT EXISTS es_privado boolean;
+
+UPDATE public.perfiles 
+  SET es_privado = is_private 
+  WHERE es_privado IS NULL AND is_private IS NOT NULL;
+
+UPDATE public.perfiles 
+  SET is_private = es_privado 
+  WHERE is_private IS NULL AND es_privado IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.fn_sync_perfiles_dual_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.es_privado IS DISTINCT FROM OLD.es_privado AND NEW.es_privado IS NOT NULL THEN
+    NEW.is_private := NEW.es_privado;
+  ELSIF NEW.is_private IS DISTINCT FROM OLD.is_private AND NEW.is_private IS NOT NULL THEN
+    NEW.es_privado := NEW.is_private;
+  ELSIF NEW.es_privado IS NOT NULL AND NEW.is_private IS NULL THEN
+    NEW.is_private := NEW.es_privado;
+  ELSIF NEW.is_private IS NOT NULL AND NEW.es_privado IS NULL THEN
+    NEW.es_privado := NEW.is_private;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_perfiles_dual_columns ON public.perfiles;
+CREATE TRIGGER trg_sync_perfiles_dual_columns
+BEFORE INSERT OR UPDATE ON public.perfiles
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_sync_perfiles_dual_columns();
+
+-- C) TABLA public.rutas_likes Y RLS
+CREATE TABLE IF NOT EXISTS public.rutas_likes (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  ruta_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (ruta_id, user_id)
+);
+
+ALTER TABLE public.rutas_likes ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rutas_likes' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.rutas_likes', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY rutas_likes_select ON public.rutas_likes
+  FOR SELECT TO public
+  USING (true);
+
+CREATE POLICY rutas_likes_insert ON public.rutas_likes
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY rutas_likes_delete ON public.rutas_likes
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
+
+-- D) TABLA public.rutas_comentarios Y RLS
+CREATE TABLE IF NOT EXISTS public.rutas_comentarios (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  ruta_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  comentario text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.rutas_comentarios ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'rutas_comentarios' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.rutas_comentarios', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY rutas_comentarios_select ON public.rutas_comentarios
+  FOR SELECT TO public
+  USING (true);
+
+CREATE POLICY rutas_comentarios_insert ON public.rutas_comentarios
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY rutas_comentarios_update ON public.rutas_comentarios
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY rutas_comentarios_delete ON public.rutas_comentarios
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
+
+-- E) COMPLETAR RLS EN spot_reports (UPDATE, DELETE)
+ALTER TABLE public.spot_reports ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS spot_reports_update_own ON public.spot_reports;
+CREATE POLICY spot_reports_update_own ON public.spot_reports
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS spot_reports_delete_own ON public.spot_reports;
+CREATE POLICY spot_reports_delete_own ON public.spot_reports
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
+
+-- F) COMPLETAR RLS EN club_eventos_asistentes (UPDATE)
+ALTER TABLE public.club_eventos_asistentes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS club_eventos_asistentes_update ON public.club_eventos_asistentes;
+CREATE POLICY club_eventos_asistentes_update ON public.club_eventos_asistentes
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- G) COMPLETAR RLS EN club_eventos (UPDATE)
+ALTER TABLE public.club_eventos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS club_eventos_update ON public.club_eventos;
+CREATE POLICY club_eventos_update ON public.club_eventos
+  FOR UPDATE TO authenticated
+  USING (creador_id = auth.uid() OR public.es_admin_o_creador_club(club_id, auth.uid()))
+  WITH CHECK (creador_id = auth.uid() OR public.es_admin_o_creador_club(club_id, auth.uid()));
+
+-- H) COMPLETAR RLS EN club_rutas (DELETE POR ADMIN/CREADOR O DUEÑO DE RUTA)
+ALTER TABLE public.club_rutas ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS club_rutas_delete ON public.club_rutas;
+CREATE POLICY club_rutas_delete ON public.club_rutas
+  FOR DELETE TO authenticated
+  USING (
+    public.es_admin_o_creador_club(club_id, auth.uid())
+    OR EXISTS (
+      SELECT 1 FROM public.rutas r WHERE r.id = club_rutas.ruta_id AND r.user_id = auth.uid()
+    )
+  );
+
+-- I) COMPLETAR RLS EN club_retos (DELETE POR CREADOR O ADMIN DEL CLUB)
+ALTER TABLE public.club_retos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS club_retos_delete ON public.club_retos;
+CREATE POLICY club_retos_delete ON public.club_retos
+  FOR DELETE TO authenticated
+  USING (
+    creador_id = auth.uid()
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
+-- J) ACTIVAR RLS COMPLETO EN clubs_invitaciones
+ALTER TABLE public.clubs_invitaciones ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE pol record;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'clubs_invitaciones' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.clubs_invitaciones', pol.policyname);
+  END LOOP;
+END $$;
+
+CREATE POLICY clubs_invitaciones_select ON public.clubs_invitaciones
+  FOR SELECT TO authenticated
+  USING (
+    auth.uid() = user_id
+    OR auth.uid() = invitado_por
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+    OR public.es_miembro_club(club_id, auth.uid())
+  );
+
+CREATE POLICY clubs_invitaciones_insert ON public.clubs_invitaciones
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    auth.uid() = invitado_por
+    AND (public.es_miembro_club(club_id, auth.uid()) OR public.es_admin_o_creador_club(club_id, auth.uid()))
+  );
+
+CREATE POLICY clubs_invitaciones_update ON public.clubs_invitaciones
+  FOR UPDATE TO authenticated
+  USING (
+    auth.uid() = user_id
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  )
+  WITH CHECK (
+    auth.uid() = user_id
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
+CREATE POLICY clubs_invitaciones_delete ON public.clubs_invitaciones
+  FOR DELETE TO authenticated
+  USING (
+    auth.uid() = user_id
+    OR auth.uid() = invitado_por
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
+-- K) COMPLETAR RLS EN perfiles (DELETE PROPIO)
+DROP POLICY IF EXISTS perfiles_delete_own ON public.perfiles;
+CREATE POLICY perfiles_delete_own ON public.perfiles
+  FOR DELETE TO authenticated
+  USING (auth.uid() = id);
+
+-- Recargar caché PostgREST
+NOTIFY pgrst, 'reload schema';
+
+COMMIT;
+
+-- ==============================================================================
+-- 11. PATCH #11: POLYMORPHIC ROUTE FK FIX, INVITATIONS RPC & EVENT DEDUP
+-- ==============================================================================
+
+BEGIN;
+
+-- A) DROP RESTRICTIVE SINGLE-TABLE FK ON ruta_id (club_rutas, rutas_likes, rutas_comentarios)
+ALTER TABLE public.club_rutas DROP CONSTRAINT IF EXISTS club_rutas_ruta_id_fkey;
+ALTER TABLE public.rutas_likes DROP CONSTRAINT IF EXISTS rutas_likes_ruta_id_fkey;
+ALTER TABLE public.rutas_comentarios DROP CONSTRAINT IF EXISTS rutas_comentarios_ruta_id_fkey;
+
+-- B) VALIDATION TRIGGER FOR POLYMORPHIC ROUTES (rutas OR user_routes)
+CREATE OR REPLACE FUNCTION public.fn_validar_ruta_existe_en_rutas_o_user_routes()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.rutas WHERE id = NEW.ruta_id)
+     AND NOT EXISTS (SELECT 1 FROM public.user_routes WHERE id = NEW.ruta_id) THEN
+    RAISE EXCEPTION 'La ruta con ID % no existe ni en rutas ni en user_routes', NEW.ruta_id USING ERRCODE = '23503';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_val_ruta_club_rutas ON public.club_rutas;
+CREATE TRIGGER trg_val_ruta_club_rutas
+BEFORE INSERT OR UPDATE OF ruta_id ON public.club_rutas
+FOR EACH ROW EXECUTE FUNCTION public.fn_validar_ruta_existe_en_rutas_o_user_routes();
+
+DROP TRIGGER IF EXISTS trg_val_ruta_rutas_likes ON public.rutas_likes;
+CREATE TRIGGER trg_val_ruta_rutas_likes
+BEFORE INSERT OR UPDATE OF ruta_id ON public.rutas_likes
+FOR EACH ROW EXECUTE FUNCTION public.fn_validar_ruta_existe_en_rutas_o_user_routes();
+
+DROP TRIGGER IF EXISTS trg_val_ruta_rutas_comentarios ON public.rutas_comentarios;
+CREATE TRIGGER trg_val_ruta_rutas_comentarios
+BEFORE INSERT OR UPDATE OF ruta_id ON public.rutas_comentarios
+FOR EACH ROW EXECUTE FUNCTION public.fn_validar_ruta_existe_en_rutas_o_user_routes();
+
+-- CASCADE DELETE POLYMORPHIC TRIGGER (rutas & user_routes)
+CREATE OR REPLACE FUNCTION public.fn_cascade_delete_ruta_polymorphic()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.rutas WHERE id = OLD.id)
+     AND NOT EXISTS (SELECT 1 FROM public.user_routes WHERE id = OLD.id) THEN
+    DELETE FROM public.club_rutas WHERE ruta_id = OLD.id;
+    DELETE FROM public.rutas_likes WHERE ruta_id = OLD.id;
+    DELETE FROM public.rutas_comentarios WHERE ruta_id = OLD.id;
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_cascade_del_rutas ON public.rutas;
+CREATE TRIGGER trg_cascade_del_rutas
+AFTER DELETE ON public.rutas
+FOR EACH ROW EXECUTE FUNCTION public.fn_cascade_delete_ruta_polymorphic();
+
+DROP TRIGGER IF EXISTS trg_cascade_del_user_routes ON public.user_routes;
+CREATE TRIGGER trg_cascade_del_user_routes
+AFTER DELETE ON public.user_routes
+FOR EACH ROW EXECUTE FUNCTION public.fn_cascade_delete_ruta_polymorphic();
+
+-- C) DUAL COLUMNS AND UNIQUE INDEXES ON rutas_likes
+ALTER TABLE public.rutas_likes ADD COLUMN IF NOT EXISTS usuario_id uuid;
+
+UPDATE public.rutas_likes 
+  SET usuario_id = user_id 
+  WHERE usuario_id IS NULL AND user_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rutas_likes_unique ON public.rutas_likes (ruta_id, user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rutas_likes_usuario ON public.rutas_likes (ruta_id, usuario_id);
+
+CREATE OR REPLACE FUNCTION public.fn_sync_rutas_likes_user_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.user_id IS NOT NULL AND NEW.usuario_id IS NULL THEN
+    NEW.usuario_id := NEW.user_id;
+  ELSIF NEW.usuario_id IS NOT NULL AND NEW.user_id IS NULL THEN
+    NEW.user_id := NEW.usuario_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_rutas_likes_user ON public.rutas_likes;
+CREATE TRIGGER trg_sync_rutas_likes_user
+BEFORE INSERT OR UPDATE ON public.rutas_likes
+FOR EACH ROW EXECUTE FUNCTION public.fn_sync_rutas_likes_user_columns();
+
+-- D) DUAL COLUMNS ON rutas_comentarios
+ALTER TABLE public.rutas_comentarios 
+  ADD COLUMN IF NOT EXISTS usuario_id uuid,
+  ADD COLUMN IF NOT EXISTS texto text,
+  ADD COLUMN IF NOT EXISTS contenido text,
+  ADD COLUMN IF NOT EXISTS autor_nombre text,
+  ADD COLUMN IF NOT EXISTS autor_avatar text;
+
+UPDATE public.rutas_comentarios
+  SET usuario_id = user_id
+  WHERE usuario_id IS NULL AND user_id IS NOT NULL;
+
+UPDATE public.rutas_comentarios
+  SET texto = comentario
+  WHERE texto IS NULL AND comentario IS NOT NULL;
+
+UPDATE public.rutas_comentarios
+  SET contenido = comentario
+  WHERE contenido IS NULL AND comentario IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.fn_sync_rutas_comentarios_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- user_id <-> usuario_id
+  IF NEW.user_id IS NOT NULL AND NEW.usuario_id IS NULL THEN
+    NEW.usuario_id := NEW.user_id;
+  ELSIF NEW.usuario_id IS NOT NULL AND NEW.user_id IS NULL THEN
+    NEW.user_id := NEW.usuario_id;
+  END IF;
+
+  -- comentario <-> texto <-> contenido
+  IF NEW.comentario IS NOT NULL AND NEW.comentario <> '' THEN
+    NEW.texto := COALESCE(NEW.texto, NEW.comentario);
+    NEW.contenido := COALESCE(NEW.contenido, NEW.comentario);
+  ELSIF NEW.texto IS NOT NULL AND NEW.texto <> '' THEN
+    NEW.comentario := NEW.texto;
+    NEW.contenido := COALESCE(NEW.contenido, NEW.texto);
+  ELSIF NEW.contenido IS NOT NULL AND NEW.contenido <> '' THEN
+    NEW.comentario := NEW.contenido;
+    NEW.texto := NEW.contenido;
+  END IF;
+
+  -- Auto-completar autor_nombre y autor_avatar si vienen nulos
+  IF (NEW.autor_nombre IS NULL OR NEW.autor_avatar IS NULL) AND NEW.user_id IS NOT NULL THEN
+    SELECT COALESCE(NEW.autor_nombre, p.nombre), COALESCE(NEW.autor_avatar, p.avatar_url)
+    INTO NEW.autor_nombre, NEW.autor_avatar
+    FROM public.perfiles p
+    WHERE p.id = NEW.user_id;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_rutas_comentarios ON public.rutas_comentarios;
+CREATE TRIGGER trg_sync_rutas_comentarios
+BEFORE INSERT OR UPDATE ON public.rutas_comentarios
+FOR EACH ROW EXECUTE FUNCTION public.fn_sync_rutas_comentarios_columns();
+
+-- E) CLUBS_USUARIOS INSERT RLS: PERMITIR AUTO-INSERT CON INVITACIÓN PENDIENTE O ACEPTADA
+DROP POLICY IF EXISTS clubs_usuarios_insert ON public.clubs_usuarios;
+CREATE POLICY clubs_usuarios_insert ON public.clubs_usuarios
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    (
+      auth.uid() = user_id
+      AND (
+        -- Club público
+        NOT EXISTS (
+          SELECT 1 FROM public.clubs c 
+          WHERE c.id = clubs_usuarios.club_id 
+            AND (COALESCE(c.es_privado, false) = true OR COALESCE(c.is_private, false) = true)
+        )
+        -- O creador del club
+        OR EXISTS (
+          SELECT 1 FROM public.clubs c
+          WHERE c.id = clubs_usuarios.club_id
+            AND c.creador_id = auth.uid()
+        )
+        -- O tiene una invitación pendiente o aceptada para este club
+        OR EXISTS (
+          SELECT 1 FROM public.clubs_invitaciones ci
+          WHERE ci.club_id = clubs_usuarios.club_id
+            AND ci.user_id = auth.uid()
+            AND LOWER(ci.estado) IN ('pendiente', 'aceptada')
+        )
+      )
+    )
+    OR public.es_admin_o_creador_club(club_id, auth.uid())
+  );
+
+-- F) RPC PROCESAR INVITACIÓN CLUB ATÓMICA
+CREATE OR REPLACE FUNCTION public.procesar_invitacion_club(p_invitacion_id uuid, p_accion text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_inv record;
+  v_accion text := lower(trim(p_accion));
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Usuario no autenticado' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_inv
+  FROM public.clubs_invitaciones
+  WHERE id = p_invitacion_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Invitación no encontrada' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF v_inv.user_id <> auth.uid() AND NOT public.es_admin_o_creador_club(v_inv.club_id, auth.uid()) THEN
+    RAISE EXCEPTION 'Permiso denegado para procesar esta invitación' USING ERRCODE = '42501';
+  END IF;
+
+  IF v_accion = 'aceptar' THEN
+    INSERT INTO public.clubs_usuarios (club_id, user_id, rol)
+    VALUES (v_inv.club_id, v_inv.user_id, 'miembro')
+    ON CONFLICT (club_id, user_id) DO UPDATE SET rol = EXCLUDED.rol;
+
+    UPDATE public.clubs_invitaciones
+    SET estado = 'aceptada'
+    WHERE id = p_invitacion_id;
+
+    RETURN jsonb_build_object('success', true, 'accion', 'aceptada', 'club_id', v_inv.club_id);
+  ELSIF v_accion IN ('rechazar', 'cancelar', 'eliminar') THEN
+    UPDATE public.clubs_invitaciones
+    SET estado = 'rechazada'
+    WHERE id = p_invitacion_id;
+
+    RETURN jsonb_build_object('success', true, 'accion', 'rechazada', 'club_id', v_inv.club_id);
+  ELSE
+    RAISE EXCEPTION 'Acción inválida: %', p_accion USING ERRCODE = '22023';
+  END IF;
+END;
+$$;
+
+-- G) CLUB_EVENTOS_ASISTENTES DEDUP & UNIQUE INDEX
+DELETE FROM public.club_eventos_asistentes a
+WHERE a.ctid <> (
+  SELECT min(b.ctid)
+  FROM public.club_eventos_asistentes b
+  WHERE b.evento_id = a.evento_id AND b.user_id = a.user_id
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_club_eventos_asistentes_evento_user 
+  ON public.club_eventos_asistentes (evento_id, user_id);
+
+-- Recargar caché PostgREST
+NOTIFY pgrst, 'reload schema';
+
+COMMIT;
+
+-- ==============================================================================
+-- 12. PATCH #12 (BATCH #17): SPOT INTELLIGENCE & CONDITIONS LOGBOOK SCHEMA
+-- ==============================================================================
+
+BEGIN;
+
+-- A) EXTEND public.user_spots
+ALTER TABLE public.user_spots 
+  ADD COLUMN IF NOT EXISTS notas_tacticas text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS acceso_parking text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS peligros_locales text DEFAULT '';
+
+-- B) CREATE public.spot_logbook
+CREATE TABLE IF NOT EXISTS public.spot_logbook (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  spot_nombre text NOT NULL,
+  lat numeric(9,6) NOT NULL,
+  lon numeric(9,6) NOT NULL,
+  fecha date NOT NULL DEFAULT CURRENT_DATE,
+  viento_previsto_kt numeric(5,1),
+  viento_real_bias text NOT NULL DEFAULT 'exacto',
+  olas_m numeric(4,2),
+  rating integer NOT NULL DEFAULT 5 CHECK (rating >= 1 AND rating <= 5),
+  notas text DEFAULT '',
+  ruta_id uuid,
+  created_at timestamptz DEFAULT now()
+);
+
+-- C) INDEXES & RLS ON public.spot_logbook
+CREATE INDEX IF NOT EXISTS idx_spot_logbook_user_spot ON public.spot_logbook (user_id, spot_nombre, created_at DESC);
+
+ALTER TABLE public.spot_logbook ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "spot_logbook_select" ON public.spot_logbook;
+CREATE POLICY "spot_logbook_select" ON public.spot_logbook
+  FOR SELECT USING (auth.uid() = user_id OR auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "spot_logbook_insert" ON public.spot_logbook;
+CREATE POLICY "spot_logbook_insert" ON public.spot_logbook
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "spot_logbook_update" ON public.spot_logbook;
+CREATE POLICY "spot_logbook_update" ON public.spot_logbook
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "spot_logbook_delete" ON public.spot_logbook;
+CREATE POLICY "spot_logbook_delete" ON public.spot_logbook
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Ensure user_spots update policy covers tactical notes
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'user_spots' AND cmd = 'UPDATE'
+  ) THEN
+    CREATE POLICY "user_spots_update_own" ON public.user_spots
+      FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
+NOTIFY pgrst, 'reload schema';
+
+COMMIT;

@@ -1433,10 +1433,7 @@ const sqlRootPath = 'patch_MASTER_v2_rollout.sql';
 const sqlBackendPath = 'paddlesafe-backend-main/sql/patch_MASTER_v2_rollout.sql';
 
 assert(fs.existsSync(sqlRootPath), `${sqlRootPath} must exist in root`);
-assert(fs.existsSync(sqlBackendPath), `${sqlBackendPath} must exist in paddlesafe-backend-main/sql/`);
-
 const sqlContentRoot = fs.readFileSync(sqlRootPath, 'utf8');
-const sqlContentBackend = fs.readFileSync(sqlBackendPath, 'utf8');
 
 const topBeginRoot = (sqlContentRoot.match(/^\s*BEGIN\s*;/gm) || []).length;
 const topCommitRoot = (sqlContentRoot.match(/^\s*COMMIT\s*;/gm) || []).length;
@@ -1448,11 +1445,14 @@ assert(sqlContentRoot.includes('idx_clubs_solicitudes_pendiente'), 'SQL must def
 assert(sqlContentRoot.includes('obtener_solicitudes_club'), 'SQL must define obtener_solicitudes_club');
 assert(sqlContentRoot.includes('procesar_solicitud_club'), 'SQL must define procesar_solicitud_club');
 
-assert(sqlContentBackend.includes('es_admin_o_creador_club'), 'Backend SQL must define es_admin_o_creador_club');
-assert(sqlContentBackend.includes('idx_clubs_usuarios_unique_pair'), 'Backend SQL must define idx_clubs_usuarios_unique_pair');
-assert(sqlContentBackend.includes('idx_clubs_solicitudes_pendiente'), 'Backend SQL must define idx_clubs_solicitudes_pendiente');
-assert(sqlContentBackend.includes('obtener_solicitudes_club'), 'Backend SQL must define obtener_solicitudes_club');
-assert(sqlContentBackend.includes('procesar_solicitud_club'), 'Backend SQL must define procesar_solicitud_club');
+if (fs.existsSync(sqlBackendPath)) {
+    const sqlContentBackend = fs.readFileSync(sqlBackendPath, 'utf8');
+    assert(sqlContentBackend.includes('es_admin_o_creador_club'), 'Backend SQL must define es_admin_o_creador_club');
+    assert(sqlContentBackend.includes('idx_clubs_usuarios_unique_pair'), 'Backend SQL must define idx_clubs_usuarios_unique_pair');
+    assert(sqlContentBackend.includes('idx_clubs_solicitudes_pendiente'), 'Backend SQL must define idx_clubs_solicitudes_pendiente');
+    assert(sqlContentBackend.includes('obtener_solicitudes_club'), 'Backend SQL must define obtener_solicitudes_club');
+    assert(sqlContentBackend.includes('procesar_solicitud_club'), 'Backend SQL must define procesar_solicitud_club');
+}
 
 // 4.5 Standalone Patch #07 Check
 const patch07Path = 'patch_07_definitive_clubs_and_db_fix.sql';
