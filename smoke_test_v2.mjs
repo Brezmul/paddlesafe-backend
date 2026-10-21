@@ -124,7 +124,7 @@ const swContent = fs.readFileSync(swPath, 'utf8');
 const versionMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
 const expectedSwVersion = versionMatch ? versionMatch[1] : null;
 
-assert(expectedSwVersion === 'paddlesafe-v67', `sw.js version must be paddlesafe-v67, got: ${expectedSwVersion}`);
+assert(expectedSwVersion === 'paddlesafe-v68', `sw.js version must be paddlesafe-v68, got: ${expectedSwVersion}`);
 
 if (fs.existsSync(versionJsonPath)) {
     let vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
@@ -1551,6 +1551,72 @@ assert(!socialJsUpdated.includes("from('rutas')\n                        .select
 const clubPublicUpdated = fs.readFileSync('public_html/js/club/club.public.js', 'utf8');
 assert(!clubPublicUpdated.includes("select('created_at, rutas("), 'club.public.js must not attempt PostgREST embedded FK join on club_rutas');
 assert(clubPublicUpdated.includes("from('user_routes')"), 'club.public.js must support polymorphic routes from user_routes');
+
+// 4.12 Batch #22 Safety Engine, Weather Integrity & UI Overflow Audit
+const weatherJsUpdated = fs.readFileSync('public_html/js/map/map.weather.js', 'utf8');
+assert(!weatherJsUpdated.includes('Boolean(item.urlDoc)'), 'map.weather.js must not trigger emergency lock merely from presence of urlDoc');
+assert(weatherJsUpdated.includes('calcularMediaCircularGrados'), 'map.weather.js must define circular mean calculation for wind vectors');
+assert(weatherJsUpdated.includes('calcularDistanciaHaversineKm'), 'map.weather.js must define Haversine distance for snapshot cache');
+assert(weatherJsUpdated.includes('Aviso oficial AEMET no disponible temporalmente'), 'map.weather.js must report unavailable status when AEMET fails');
+assert(weatherJsUpdated.includes('sanitizeUrl'), 'map.weather.js must sanitize documentation URLs against XSS');
+
+const verdictJsUpdated = fs.readFileSync('public_html/js/engine/verdict.js', 'utf8');
+assert(!verdictJsUpdated.includes('Boolean(alertaOficial.urlDoc)'), 'verdict.js must not trigger emergency lock from urlDoc');
+assert(verdictJsUpdated.includes('SIN_DATOS'), 'verdict.js must define SIN_DATOS state');
+assert(verdictJsUpdated.includes('sinViento && sinOleaje'), 'verdict.js must guard against missing wind and wave data');
+
+const windowsJsUpdated = fs.readFileSync('public_html/js/engine/windows.js', 'utf8');
+assert(windowsJsUpdated.includes('sinDatos'), 'windows.js must check for missing weather data');
+
+const bentoJsUpdated = fs.readFileSync('public_html/js/map/map.bento.js', 'utf8');
+assert(!bentoJsUpdated.includes('lineasMultiPunto.forEach(l => currentMap.removeLayer(l)); lineasMultiPunto.length = 0;'), 'map.bento.js must not access bare lineasMultiPunto');
+
+const routesJsUpdated = fs.readFileSync('public_html/js/map/map.routes.js', 'utf8');
+assert(routesJsUpdated.includes('parsed?.coordinates || parsed?.points'), 'map.routes.js must support GPX coordinates property');
+
+const chatJsUpdated = fs.readFileSync('public_html/js/club/club.chat.js', 'utf8');
+assert(chatJsUpdated.includes("order('created_at', { ascending: false })"), 'club.chat.js must order descending to fetch latest messages');
+
+const compareJsUpdated = fs.readFileSync('paddlesafe-backend-main/lib/handlers/compare.js', 'utf8');
+assert(compareJsUpdated.includes('apiKey = process.env.OPENCAGE_KEY'), 'compare.js must declare apiKey parameter or module-scoped fallback');
+
+const historyJsUpdated = fs.readFileSync('paddlesafe-backend-main/lib/handlers/history.js', 'utf8');
+assert(historyJsUpdated.includes('fechas.splice(7)'), 'history.js must cap date range to max 7 days');
+
+const coachJsUpdated = fs.readFileSync('paddlesafe-backend-main/lib/handlers/coach.js', 'utf8');
+assert(coachJsUpdated.includes('cond.sinDatos'), 'coach.js must handle missing weather data');
+
+assert(!indexHtml.includes('https://cdn.tailwindcss.com'), 'index.html must not load duplicate CDN tailwind script');
+assert(indexHtml.includes('tailwind.min.css?v=paddlesafe-v68'), 'index.html must link tailwind.min.css?v=paddlesafe-v68');
+assert(indexHtml.includes('reg.update()'), 'index.html must call reg.update() on SW registration');
+
+// Runtime validation of circular mean
+const { calcularMediaCircularGrados } = await import('./public_html/js/map/map.weather.js');
+const meanNorth = calcularMediaCircularGrados([350, 10]);
+assert(meanNorth === 0 || meanNorth === 360, `Circular mean of 350 and 10 must be North (0/360), got ${meanNorth}`);
+
+// Runtime validation of null weather in verdict
+const verdictNull = generarVeredictoNextGen({ vientoKt: null, oleajeM: null, spotNombre: 'Cala Granadella' });
+assert(verdictNull.score === 0, `Verdict with null weather must return score 0, got ${verdictNull.score}`);
+assert(verdictNull.estado.includes('Sin datos'), `Verdict with null weather must be Sin datos, got ${verdictNull.estado}`);
+
+// Runtime validation of yellow alert without emergency veto
+const verdictYellow = generarVeredictoNextGen({
+    vientoKt: 5,
+    oleajeM: 0.2,
+    spotNombre: 'Cala Granadella',
+    alertaOficial: {
+        activa: true,
+        esVigente: true,
+        estadoTemporal: 'ACTIVA_AHORA',
+        nivel: 'AMARILLA',
+        tipo: 'Aviso Costero',
+        urlDoc: 'https://example.com/doc.pdf'
+    }
+});
+assert(verdictYellow.score > 0 && verdictYellow.score <= 70, `Yellow alert must apply penalty capped at 70, got score ${verdictYellow.score}`);
+assert(!verdictYellow.alertaEmergenciaActiva, 'Yellow alert must not trigger emergency alert');
+assert(verdictYellow.recomendacion !== 'PROHIBIDO POR EMERGENCIA', 'Yellow alert must not prohibit paddling');
 
 // ------------------------------------------------------------------------------
 // FINAL RESULT SUMMARY

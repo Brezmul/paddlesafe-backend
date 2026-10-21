@@ -339,7 +339,7 @@ export const ClubPublic = {
                 const myId = appState.sesionActual?.user?.id;
                 let esMiembro = false;
                 if (myId) {
-                    const { data: cu } = await supabaseClient.from('clubs_usuarios').select('id').eq('club_id', clubId).eq('user_id', myId).maybeSingle();
+                    const { data: cu } = await supabaseClient.from('clubs_usuarios').select('user_id, rol').eq('club_id', clubId).eq('user_id', myId).maybeSingle();
                     if (cu) esMiembro = true;
                 }
                 await ClubChat.render(c, clubId, esMiembro);

@@ -559,7 +559,11 @@ export async function guardarSpotActual() {
     const user = appState?.sesionActual?.user;
     const userId = user?.id || null;
     const infoCosta = resolverOrientacionCostera(locVal, lat, lon);
-    const seaward_deg = Number.isFinite(infoCosta?.gradosMar) ? infoCosta.gradosMar : null;
+    const seaward_deg = Number.isFinite(infoCosta?.seawardDeg)
+        ? infoCosta.seawardDeg
+        : (Number.isFinite(infoCosta?.seaward_deg)
+            ? infoCosta.seaward_deg
+            : (Number.isFinite(infoCosta?.gradosMar) ? infoCosta.gradosMar : null));
 
     const nuevoSpot = {
         id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('spot_' + Date.now()),

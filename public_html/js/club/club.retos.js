@@ -329,18 +329,18 @@ export async function premiarFinisherReto(reto, userId) {
     localStorage.setItem(rewardKey, new Date().toISOString());
 
     if (supabaseClient && typeof supabaseClient.from === 'function') {
-        supabaseClient.from('club_retos_participantes')
-            .update({ completado: true })
-            .eq('reto_id', reto.id)
-            .eq('user_id', userId)
-            .then(() => {})
-            .catch(() => {});
+        try {
+            await supabaseClient.from('club_retos_participantes')
+                .update({ completado: true })
+                .eq('reto_id', reto.id)
+                .eq('user_id', userId);
+        } catch (_) {}
     }
 
     const xp = Number(reto.xp_recompensa || 250);
 
     if (typeof window.sincronizarProgresion === 'function') {
-        window.sincronizarProgresion(xp, 0);
+        await window.sincronizarProgresion({ userId, distanceKm: 0, durationMinutes: 0, avgSpeed: 0, bonusXp: xp });
     } else if (appState.perfilUsuario) {
         appState.perfilUsuario.puntos = (appState.perfilUsuario.puntos || 0) + xp;
         if (supabaseClient && typeof supabaseClient.from === 'function') {

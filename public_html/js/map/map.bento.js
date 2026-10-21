@@ -668,8 +668,15 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
     const tramosParaCoach = [];
     if (esRutaTrazada) {
         const coords = mapRuntime.marcadoresRuta.map(m => m.getLatLng());
-        lineasMultiPunto.forEach(l => currentMap.removeLayer(l)); lineasMultiPunto.length = 0;
-        etiquetasDistancia.forEach(l => currentMap.removeLayer(l)); etiquetasDistancia.length = 0;
+        const currentMap = mapRuntime.map || mapRuntime.mapa || (typeof window !== 'undefined' ? window.map : null);
+        if (Array.isArray(mapRuntime.lineasMultiPunto)) {
+            mapRuntime.lineasMultiPunto.forEach(l => { if (currentMap && l) currentMap.removeLayer(l); });
+            mapRuntime.lineasMultiPunto.length = 0;
+        }
+        if (Array.isArray(mapRuntime.etiquetasDistancia)) {
+            mapRuntime.etiquetasDistancia.forEach(l => { if (currentMap && l) currentMap.removeLayer(l); });
+            mapRuntime.etiquetasDistancia.length = 0;
+        }
         
         const dirVientoGeneral = valorNumericoMeteo(dx.windDirection, dx.wind_direction);
         const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; let rutArray = [...coords];
@@ -726,12 +733,14 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
             const gustKtTramo = gustVientoTramo !== null ? kmhANudos(gustVientoTramo * 3.6) : null;
 
             let iV = evaluarVientoRelativoInfo(rumbo, dirVientoTramo);
-            const pline = L.polyline([rutArray[i], rutArray[i+1]], { color: iV.hexLineColor, weight: 5, className: 'ruta-animada' }).addTo(currentMap);
-            lineasMultiPunto.push(pline);
+            const pline = L.polyline([rutArray[i], rutArray[i+1]], { color: iV.hexLineColor, weight: 5, className: 'ruta-animada' });
+            if (currentMap) pline.addTo(currentMap);
+            if (Array.isArray(mapRuntime.lineasMultiPunto)) mapRuntime.lineasMultiPunto.push(pline);
             
             const midLat = (rutArray[i].lat + rutArray[i+1].lat) / 2; const midLng = (rutArray[i].lng + rutArray[i+1].lng) / 2;
-            const etiq = L.marker([midLat, midLng], { icon: L.divIcon({ className: 'dist-label-map', html: `${(dSeg/1000).toFixed(2)} km`, iconSize: [null, null] }) }).addTo(currentMap);
-            etiquetasDistancia.push(etiq);
+            const etiq = L.marker([midLat, midLng], { icon: L.divIcon({ className: 'dist-label-map', html: `${(dSeg/1000).toFixed(2)} km`, iconSize: [null, null] }) });
+            if (currentMap) etiq.addTo(currentMap);
+            if (Array.isArray(mapRuntime.etiquetasDistancia)) mapRuntime.etiquetasDistancia.push(etiq);
             
             const tSeg = ((dSeg / 1000) / Math.max(1.5, obtenerVelocidadCruceroUsuario() + iV.modVelocidad)) * 60;
             tt += tSeg;

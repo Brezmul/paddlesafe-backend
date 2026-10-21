@@ -301,15 +301,35 @@ export async function calcularXpRuta(params) {
  * Sincroniza la progresión de XP, distancia acumulada y nivel en la tabla 'perfiles'
  * tras finalizar una ruta o travesía GPS.
  */
-export async function sincronizarProgresion({ userId, distanceKm = 0, durationMinutes = 0, avgSpeed = 0 }) {
+export async function sincronizarProgresion(arg1, arg2) {
+    let userId = null;
+    let dist = 0;
+    let mins = 0;
+    let speed = 0;
+    let bonusXp = 0;
+
+    if (typeof arg1 === 'object' && arg1 !== null) {
+        userId = arg1.userId || (typeof appState !== 'undefined' ? appState.sesionActual?.user?.id : null);
+        dist = Math.max(0, Number(Number(arg1.distanceKm || 0).toFixed(2)));
+        mins = Math.max(0, Number(arg1.durationMinutes || 0));
+        speed = Number(arg1.avgSpeed || (mins > 0 ? (dist / (mins / 60)) : 0));
+        bonusXp = Number(arg1.bonusXp || 0);
+    } else {
+        bonusXp = Number(arg1 || 0);
+        dist = Math.max(0, Number(Number(arg2 || 0).toFixed(2)));
+        userId = typeof appState !== 'undefined' ? appState.sesionActual?.user?.id : null;
+    }
+
     if (!userId || !supabaseClient) return null;
-    const dist = Math.max(0, Number(Number(distanceKm || 0).toFixed(2)));
-    const mins = Math.max(0, Number(durationMinutes || 0));
-    const speed = Number(avgSpeed || (mins > 0 ? (dist / (mins / 60)) : 0));
 
     // 1. Calcular XP ganado con validación anti-trampas
-    const resXp = await calcularXpRutaNueva({ userId, distanceKm: dist, avgSpeed: speed });
-    const xpGanado = resXp.xpGanado || Math.round(dist * 100);
+    let xpGanado = 0;
+    if (bonusXp > 0) {
+        xpGanado = Math.min(5000, bonusXp);
+    } else {
+        const resXp = await calcularXpRutaNueva({ userId, distanceKm: dist, avgSpeed: speed });
+        xpGanado = resXp.xpGanado || Math.round(dist * 100);
+    }
 
     try {
         // 2. Obtener perfil actual para cálculo atómico

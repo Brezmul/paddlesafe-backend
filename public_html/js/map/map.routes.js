@@ -1218,9 +1218,10 @@ export async function importarRutaGPXPro(event) {
     try {
         const text = await file.text();
         const parsed = parseGPX(text);
-        if (parsed && Array.isArray(parsed.points) && parsed.points.length >= 2) {
+        const coords = parsed?.coordinates || parsed?.points || [];
+        if (parsed && Array.isArray(coords) && coords.length >= 2) {
             const nombre = parsed.name || (file.name ? file.name.replace(/\.gpx$/i, '') : 'Ruta GPX Importada');
-            cargarRutaEnMapaGrande(parsed.points, nombre);
+            cargarRutaEnMapaGrande(coords, nombre);
             if (event.target) event.target.value = '';
         } else {
             alert('⚠️ El archivo GPX no contiene suficientes trackpoints o waypoints para trazar la ruta.');

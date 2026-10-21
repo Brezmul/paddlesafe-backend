@@ -21,18 +21,7 @@
     <link rel="manifest" href="/manifest.json">
     
     <!-- Tailwind CSS (Compilado localmente para offline y rendimiento de producción) -->
-    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v67">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: { marine: '#0f172a', water: '#0ea5e9', premium: '#1e293b' },
-                    boxShadow: { 'glow': '0 0 15px rgba(14, 165, 233, 0.4)', 'glow-pro': '0 0 20px rgba(16, 185, 129, 0.4)' }
-                }
-            }
-        }
-    </script>
+    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v68">
 
     <!-- Leaflet CSS y JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -297,17 +286,17 @@
                         <span id="savedSpotsGuestPrompt" class="hidden text-[10px] text-amber-400 font-semibold">💡 Inicia sesión para sincronizar</span>
                     </div>
                     <div class="flex items-center gap-1.5 flex-wrap justify-end">
-                        <button type="button" id="btnQuickSetup" onclick="window.abrirAsistenteConfiguracion()" class="ps-chip text-emerald-300 hover:text-emerald-200 border-emerald-500/40 bg-emerald-500/10 active:scale-95 text-[11px]" title="Guía de inicio y packs de calas">
-                            <span>✨</span> <span>Guía / Packs de Calas</span>
+                        <button type="button" id="btnQuickSetup" onclick="window.abrirAsistenteConfiguracion()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full leading-tight text-emerald-300 hover:text-emerald-200 border-emerald-500/40 bg-emerald-500/10 active:scale-95 text-[11px]" title="Guía de inicio y packs de calas">
+                            <span class="shrink-0">✨</span> <span class="truncate">Guía / Packs</span>
                         </button>
-                        <button type="button" id="btnToggleSaveSpot" onclick="guardarSpotActual()" class="ps-chip text-amber-300 hover:text-amber-200 border-amber-500/40 bg-amber-500/10 active:scale-95 text-[11px]" title="Guardar spot actual en favoritos">
-                            <span id="btnToggleSaveSpotIcon">⭐</span> <span id="btnToggleSaveSpotText">Guardar Spot</span>
+                        <button type="button" id="btnToggleSaveSpot" onclick="guardarSpotActual()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full leading-tight text-amber-300 hover:text-amber-200 border-amber-500/40 bg-amber-500/10 active:scale-95 text-[11px]" title="Guardar spot actual en favoritos">
+                            <span id="btnToggleSaveSpotIcon" class="shrink-0">⭐</span> <span id="btnToggleSaveSpotText" class="truncate">Guardar Spot</span>
                         </button>
-                        <button type="button" id="btnCompararMisSpots" onclick="window.compararSpotsGuardados()" class="hidden ps-chip text-amber-300 hover:text-amber-200 border-amber-500/40 bg-amber-500/10 active:scale-95 text-[11px]" title="Comparar seguridad de mis spots">
-                            <span>⚡</span> <span>Comparar Spots</span>
+                        <button type="button" id="btnCompararMisSpots" onclick="window.compararSpotsGuardados()" class="hidden ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full leading-tight text-amber-300 hover:text-amber-200 border-amber-500/40 bg-amber-500/10 active:scale-95 text-[11px]" title="Comparar seguridad de mis spots">
+                            <span class="shrink-0">⚡</span> <span class="truncate">Comparar</span>
                         </button>
-                        <button type="button" id="btnOpenGearSelector" onclick="window.toggleSelectorEquipoUsuario()" class="ps-chip text-sky-300 hover:text-sky-200 border-sky-500/40 bg-sky-500/10 active:scale-95 text-[11px]" title="Ajustar tabla y ritmo personal">
-                            <span id="gearBadgeIcon">🏄</span> <span id="gearBadgeText" class="ps-tabular font-bold">Mi Tabla</span>
+                        <button type="button" id="btnOpenGearSelector" onclick="window.toggleSelectorEquipoUsuario()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full leading-tight text-sky-300 hover:text-sky-200 border-sky-500/40 bg-sky-500/10 active:scale-95 text-[11px]" title="Ajustar tabla y ritmo personal">
+                            <span id="gearBadgeIcon" class="shrink-0">🏄</span> <span id="gearBadgeText" class="ps-tabular font-bold truncate">Mi Tabla</span>
                         </button>
                     </div>
                 </div>
@@ -803,14 +792,14 @@
                                 <div id="multipuntoToolbar" class="hidden absolute bottom-6 left-1/2 transform -translate-x-1/2 z-[400] ps-bento-card ps-map-dock p-1.5 gap-1.5 border border-slate-700/80 flex items-center shadow-2xl backdrop-blur-xl max-w-[95%] overflow-x-auto">
                                     <!-- Grupo Ruta -->
                                     <div class="flex items-center gap-1 shrink-0">
-                                        <button type="button" id="btnIdaYVueltaMultipunto" onclick="cerrarIdaYVueltaMultipunto()" class="ps-chip text-white bg-teal-600/80 hover:bg-teal-500 border-teal-500/40 shadow-sm" title="Convertir ruta a ida y vuelta">
-                                            <span>🔄</span> <span>Ida y Vuelta</span>
+                                        <button type="button" id="btnIdaYVueltaMultipunto" onclick="cerrarIdaYVueltaMultipunto()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-white bg-teal-600/80 hover:bg-teal-500 border-teal-500/40 shadow-sm shrink-0" title="Convertir ruta a ida y vuelta">
+                                            <span class="shrink-0">🔄</span> <span class="truncate">Ida y Vuelta</span>
                                         </button>
-                                        <button type="button" onclick="deshacerUltimoPunto()" class="ps-chip text-slate-200 bg-slate-800/80 hover:bg-slate-700 border-slate-700" title="Deshacer último punto marcado">
-                                            <span>↩️</span> <span>Deshacer</span>
+                                        <button type="button" onclick="deshacerUltimoPunto()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-slate-200 bg-slate-800/80 hover:bg-slate-700 border-slate-700 shrink-0" title="Deshacer último punto marcado">
+                                            <span class="shrink-0">↩️</span> <span class="truncate">Deshacer</span>
                                         </button>
-                                        <button type="button" onclick="reiniciarRutaMultipunto()" class="ps-chip text-rose-300 bg-rose-950/50 hover:bg-rose-900/60 border-rose-500/30" title="Limpiar todo el trazado">
-                                            <span>🗑️</span> <span>Limpiar</span>
+                                        <button type="button" onclick="reiniciarRutaMultipunto()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-rose-300 bg-rose-950/50 hover:bg-rose-900/60 border-rose-500/30 shrink-0" title="Limpiar todo el trazado">
+                                            <span class="shrink-0">🗑️</span> <span class="truncate">Limpiar</span>
                                         </button>
                                     </div>
 
@@ -819,20 +808,20 @@
 
                                     <!-- Grupo Táctico -->
                                     <div class="flex items-center gap-1 shrink-0">
-                                        <button type="button" id="btnExportarGpxMultipunto" onclick="exportarRutaPlanificadaGPX()" class="ps-chip text-emerald-200 bg-emerald-800/60 hover:bg-emerald-700 border-emerald-500/40" title="Exportar ruta a archivo GPX">
-                                            <span>📲</span> <span>GPX</span>
+                                        <button type="button" id="btnExportarGpxMultipunto" onclick="exportarRutaPlanificadaGPX()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-emerald-200 bg-emerald-800/60 hover:bg-emerald-700 border-emerald-500/40 shrink-0" title="Exportar ruta a archivo GPX">
+                                            <span class="shrink-0">📲</span> <span class="truncate">GPX</span>
                                         </button>
-                                        <button type="button" onclick="document.getElementById('inputImportarGpxPro')?.click()" class="ps-chip text-sky-200 bg-sky-900/50 hover:bg-sky-800 border-sky-500/40" title="Importar trazado desde archivo GPX">
-                                            <span>📥</span> <span>Importar</span>
+                                        <button type="button" onclick="document.getElementById('inputImportarGpxPro')?.click()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-sky-200 bg-sky-900/50 hover:bg-sky-800 border-sky-500/40 shrink-0" title="Importar trazado desde archivo GPX">
+                                            <span class="shrink-0">📥</span> <span class="truncate">Importar</span>
                                         </button>
-                                        <button type="button" id="btnDescargarMapaOfflineMultipunto" onclick="descargarZonaMapaOffline()" class="ps-chip text-cyan-200 bg-slate-800/80 hover:bg-slate-700 border-cyan-500/30" title="Guardar mapa de la zona offline">
-                                            <span>📥</span> <span>Offline</span>
+                                        <button type="button" id="btnDescargarMapaOfflineMultipunto" onclick="descargarZonaMapaOffline()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-cyan-200 bg-slate-800/80 hover:bg-slate-700 border-cyan-500/30 shrink-0" title="Guardar mapa de la zona offline">
+                                            <span class="shrink-0">📥</span> <span class="truncate">Offline</span>
                                         </button>
-                                        <button type="button" onclick="iniciarCreacionQuedadaClub()" class="ps-chip text-indigo-200 bg-indigo-900/50 hover:bg-indigo-800 border-indigo-500/40" title="Crear quedada con este recorrido">
-                                            <span>⛵</span> <span>Quedada</span>
+                                        <button type="button" onclick="iniciarCreacionQuedadaClub()" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-indigo-200 bg-indigo-900/50 hover:bg-indigo-800 border-indigo-500/40 shrink-0" title="Crear quedada con este recorrido">
+                                            <span class="shrink-0">⛵</span> <span class="truncate">Quedada</span>
                                         </button>
-                                        <button type="button" onclick="document.getElementById('savedSpotsBar')?.scrollIntoView({behavior:'smooth'})" class="ps-chip text-amber-200 bg-amber-900/40 hover:bg-amber-800 border-amber-500/30" title="Ir a mis spots favoritos">
-                                            <span>⭐</span> <span>Spots</span>
+                                        <button type="button" onclick="document.getElementById('savedSpotsBar')?.scrollIntoView({behavior:'smooth'})" class="ps-chip inline-flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-amber-200 bg-amber-900/40 hover:bg-amber-800 border-amber-500/30 shrink-0" title="Ir a mis spots favoritos">
+                                            <span class="shrink-0">⭐</span> <span class="truncate">Spots</span>
                                         </button>
                                     </div>
                                 </div>
@@ -1699,6 +1688,9 @@
                 if ('serviceWorker' in navigator) {
                     window.addEventListener('load', () => {
                         navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
+                            if (typeof reg.update === 'function') {
+                                reg.update().catch(() => {});
+                            }
                             // Escuchar cuando el SW detecta una nueva versión byte a byte
                             reg.onupdatefound = () => {
                                 const installingWorker = reg.installing;
@@ -1741,6 +1733,7 @@
                 if ('serviceWorker' in navigator) {
                     window.addEventListener('load', () => {
                         navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+                            .then(reg => { if (typeof reg.update === 'function') reg.update().catch(() => {}); })
                             .catch(error => console.error('[app] No se pudo registrar el service worker:', error));
                     });
                 }

@@ -51,6 +51,12 @@ export const ESTADOS_VEREDICTO = {
         icono: '⛔',
         badgeCls: 'bg-red-950 text-red-200 border-red-600 animate-pulse shadow-lg',
         cardBorder: 'border-red-600 bg-red-950/60'
+    },
+    SIN_DATOS: {
+        titulo: 'Sin datos meteorológicos',
+        icono: '❓',
+        badgeCls: 'bg-zinc-800 text-zinc-300 border-zinc-600',
+        cardBorder: 'border-zinc-700 bg-zinc-900/40'
     }
 };
 
@@ -62,6 +68,8 @@ export const CLASES_RIESGO = {
     'Tormenta eléctrica': 'text-red-600 animate-pulse bg-red-50 border border-red-200 rounded-lg',
     'Riesgo meteorológico estimado': 'text-amber-500 bg-amber-950/80 border border-amber-500 rounded-lg',
     'Prohibido salir por emergencia': 'text-red-500 font-black animate-pulse bg-red-950/80 border border-red-600 rounded-lg',
+    'Sin datos meteorológicos': 'text-zinc-400 bg-zinc-900/80 border border-zinc-700 rounded-lg',
+    'SIN DATOS': 'text-zinc-400 bg-zinc-900/80 border border-zinc-700 rounded-lg',
     // Compatibilidad legacy
     'SEGURO': 'text-emerald-500 bg-emerald-50 border border-emerald-200 rounded-lg',
     'PRECAUCIÓN': 'text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-lg',
@@ -428,7 +436,6 @@ export function generarVeredictoNextGen(params = {}) {
                 /^1-?1-?2/i.test(alertaOficial.origen || '') ||
                 /protecci[oó]n\s*civil/i.test(alertaOficial.origen || alertaOficial.tipo || '') ||
                 ['NARANJA', 'ROJA'].includes(String(alertaOficial.nivel || '').toUpperCase()) ||
-                Boolean(alertaOficial.urlDoc) ||
                 /emergencia|inundaci|avenida|temporal\s*costero|galerna|ciclon|borrasca/i.test(`${alertaOficial.tipo || ''} ${alertaOficial.descripcion || ''}`)
             ))
             || alertasArray.some(a => 
@@ -437,7 +444,6 @@ export function generarVeredictoNextGen(params = {}) {
                     /^1-?1-?2/i.test(a?.origen || '') || 
                     /protecci[oó]n\s*civil/i.test(a?.origen || a?.tipo || '') ||
                     ['NARANJA', 'ROJA'].includes(String(a?.nivel || '').toUpperCase()) ||
-                    Boolean(a?.urlDoc) ||
                     /emergencia|inundaci|avenida|temporal\s*costero|galerna|ciclon|borrasca/i.test(`${a?.tipo || ''} ${a?.descripcion || ''}`)
                 )
             )
@@ -521,6 +527,56 @@ export function generarVeredictoNextGen(params = {}) {
         return resultadoEmergencia;
     }
 
+    // Comprobar si faltan datos meteorológicos esenciales (Viento y Oleaje)
+    const sinViento = vientoKt === null || isNaN(Number(vientoKt));
+    const sinOleaje = oleajeM === null || isNaN(Number(oleajeM));
+    if (sinViento && sinOleaje) {
+        const confEstado = ESTADOS_VEREDICTO.SIN_DATOS || {
+            titulo: 'Sin datos meteorológicos',
+            icono: '❓',
+            badgeCls: 'bg-zinc-800 text-zinc-300 border-zinc-600',
+            cardBorder: 'border-zinc-700 bg-zinc-900/40'
+        };
+        const msgSinDatos = 'No se dispone de datos meteorológicos suficientes (viento u oleaje) para evaluar la seguridad en este spot y horario.';
+        const resultadoSinDatos = {
+            estado: confEstado.titulo,
+            icono: confEstado.icono,
+            claseUI: confEstado,
+            cls: CLASES_RIESGO[confEstado.titulo] || 'text-zinc-400 bg-zinc-900/80 border border-zinc-700 rounded-lg',
+            scoreSeguridad: 0,
+            score: 0,
+            seguridad: { nivel: confEstado.titulo, score: 0 },
+            respuestaDirecta: '❓ SIN DATOS METEOROLÓGICOS',
+            recomendacion: 'SIN DATOS',
+            justificacion: msgSinDatos,
+            mensaje: msgSinDatos,
+            explicacionNautica: msgSinDatos,
+            factoresCriticos: ['Datos de viento y oleaje no disponibles o no concluyentes.'],
+            analysisConfidence: 0,
+            confianzaAnalisis: 0,
+            confianza: 'baja',
+            tormentaElectrica: false,
+            tormentaElectricaOficial: false,
+            alertaOficialActiva: false,
+            alertaEmergenciaActiva: false,
+            aemet: alertaOficial || { activa: false, disponible: false },
+            vientoNudos: null,
+            detallesTecnicos: { vientoKt: null, rachasKt: null, oleajeM: null },
+            beginnerIndex: { nivel: 'Sin Datos', score: 0, motivo: msgSinDatos },
+            deporte: { deporte: deporteKey, recomendable: false, estado: 'Sin datos', motivo: msgSinDatos },
+            ventanas: null,
+            ventanaRecomendada: null,
+            consenso: null,
+            deriva: null,
+            riesgoDeriva: { nivel: 'INDEFINIDO', score: 0, descripcion: 'Sin datos meteorológicos.' },
+            derivaCostera: null,
+            componenteCostera: { componente: 'desconocida', anguloIncidencia: 0 },
+            entorno: 'costa'
+        };
+        resultadoSinDatos.nextGen = resultadoSinDatos;
+        return resultadoSinDatos;
+    }
+
     // 2. Resolver orientación costera y vector de viento
     const infoCosta = orientacionCostaDeg !== null
         ? { seawardDeg: orientacionCostaDeg, esCosta: true, esEmbalse: false, tipoEntorno: 'mar_abierto' }
@@ -579,14 +635,14 @@ export function generarVeredictoNextGen(params = {}) {
 
     // 7. Cálculo del Safety Score Canónico (0 a 100)
     let score = 95;
-    const vReal = vientoKt ?? 0;
-    const oReal = oleajeM ?? 0;
+    const vReal = Number.isFinite(Number(vientoKt)) ? Number(vientoKt) : 0;
+    const oReal = Number.isFinite(Number(oleajeM)) ? Number(oleajeM) : 0;
     const rReal = rachasKt ?? vReal;
 
     if (vReal >= 20) score -= 60;
     else if (vReal >= 15) score -= 40;
     else if (vReal >= 11) score -= 20;
-    else if (vReal <= 6 && (oleajeM === null || oReal <= 0.3)) score = 98;
+    else if (vReal <= 6 && (oleajeM !== null && oReal <= 0.3)) score = 98;
 
     if (rReal - vReal >= 8) score -= 15;
     else if (rReal - vReal >= 5) score -= 8;
@@ -618,18 +674,24 @@ export function generarVeredictoNextGen(params = {}) {
 
     // Alertas oficiales AEMET (solo penalizan si aplican a la jornada consultada, no si son preventivas a futuro ni expiradas)
     const alertaActivaJornada = Boolean(
-        alertaOficial?.activa 
+        (alertaOficial?.activa || alertasArray.length > 0)
         && !avisoPreventivo 
-        && alertaOficial?.esVigente === true
-        && alertaOficial?.estadoTemporal === 'ACTIVA_AHORA'
-        && alertaOficial?.esEmergencia !== false
+        && (alertaOficial?.esVigente === true || alertasArray.some(a => a?.esVigente === true))
+        && (alertaOficial?.estadoTemporal === 'ACTIVA_AHORA' || alertasArray.some(a => a?.estadoTemporal === 'ACTIVA_AHORA'))
     );
 
     if (alertaActivaJornada) {
-        const nAlert = String(alertaOficial.nivel || '').toUpperCase();
-        if (nAlert === 'AMARILLA') score = Math.min(score, 70);
-        else if (nAlert === 'NARANJA') score = Math.min(score, 45);
-        else if (nAlert === 'ROJA') score = Math.min(score, 20);
+        const topA = alertasArray.find(a => a?.esVigente === true && a?.estadoTemporal === 'ACTIVA_AHORA') || alertaOficial;
+        const nAlert = String(topA?.nivel || '').toUpperCase();
+        if (nAlert === 'AMARILLA') {
+            score -= 15;
+            score = Math.min(score, 70);
+        } else if (nAlert === 'NARANJA') {
+            score -= 30;
+            score = Math.min(score, 45);
+        } else if (nAlert === 'ROJA') {
+            score = Math.min(score, 20);
+        }
     }
 
     score = Math.max(0, Math.min(100, Math.round(score)));
@@ -676,7 +738,8 @@ export function generarVeredictoNextGen(params = {}) {
     }
 
     // Análisis de evolución térmica y roladas próximas (+3h)
-    const evolucionProxima = analizarEvolucionProxima(params, vReal, rReal, dirVientoDeg, infoCosta.seawardDeg);
+    const seawardOrient = infoCosta?.seawardDeg ?? infoCosta?.seaward_deg ?? infoCosta?.gradosMar ?? 90;
+    const evolucionProxima = analizarEvolucionProxima(params, vReal, rReal, dirVientoDeg, seawardOrient);
     if (evolucionProxima && evolucionProxima.mensaje) {
         factoresCriticos.unshift(evolucionProxima.mensaje);
     }

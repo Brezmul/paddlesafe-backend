@@ -60,12 +60,13 @@ export const ClubChat = {
         if (!list) return;
 
         try {
-            const { data: msgs, error } = await supabaseClient
+            const { data: rawMsgs, error } = await supabaseClient
                 .from('club_chat')
                 .select('id, user_id, mensaje, visibility, is_public, created_at, perfiles(nombre, avatar_url)')
                 .eq('club_id', clubId)
-                .order('created_at', { ascending: true })
+                .order('created_at', { ascending: false })
                 .limit(60);
+            const msgs = Array.isArray(rawMsgs) ? [...rawMsgs].reverse() : [];
 
             if (error) {
                 console.error('[club.chat] error al cargar mensajes:', error);

@@ -226,13 +226,48 @@ export function guardarForecastSnapshot(nombreUbicacion, lat, lon, data) {
     }
 }
 
-export function recuperarForecastSnapshot() {
+export function calcularDistanciaHaversineKm(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radio medio de la Tierra en km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+export function calcularMediaCircularGrados(angulos) {
+    if (!angulos || !angulos.length) return null;
+    let sumSin = 0;
+    let sumCos = 0;
+    let validCount = 0;
+    for (const a of angulos) {
+        if (a != null && !isNaN(a)) {
+            const rad = (Number(a) * Math.PI) / 180;
+            sumSin += Math.sin(rad);
+            sumCos += Math.cos(rad);
+            validCount++;
+        }
+    }
+    if (validCount === 0) return null;
+    let meanRad = Math.atan2(sumSin, sumCos);
+    let meanDeg = (meanRad * 180) / Math.PI;
+    if (meanDeg < 0) meanDeg += 360;
+    return Math.round(meanDeg) % 360;
+}
+
+export function recuperarForecastSnapshot(targetLat = null, targetLon = null) {
     try {
         const raw = localStorage.getItem(SNAPSHOT_KEY);
         if (!raw) return null;
         const snapshot = JSON.parse(raw);
         if (!snapshot || !snapshot.ts || !snapshot.data) return null;
         if (Date.now() - snapshot.ts > SNAPSHOT_MAX_AGE_MS) return null;
+        if (targetLat != null && targetLon != null && snapshot.lat != null && snapshot.lon != null) {
+            const distKm = calcularDistanciaHaversineKm(Number(snapshot.lat), Number(snapshot.lon), Number(targetLat), Number(targetLon));
+            if (distKm > 15) return null;
+        }
         return snapshot;
     } catch (e) {
         return null;
@@ -439,7 +474,7 @@ export async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, 
     const clima = WMO_TEXT[weatherCode] || 'Variable';
 
     const windDirection = vDirs.length
-        ? Math.round(vDirs.reduce((acc, d) => acc + d, 0) / vDirs.length)
+        ? calcularMediaCircularGrados(vDirs)
         : null;
 
     let maxSpeedIdx = -1;
@@ -607,27 +642,32 @@ export async function solicitarPronostico(payload) {
         if (datosAemet) {
             datos.aemet = {
                 disponible: datosAemet.disponible !== false,
+                aemetAvailable: datosAemet.disponible !== false,
                 alertas: datosAemet.alertas || [],
                 activa: Array.isArray(datosAemet.alertas) && datosAemet.alertas.length > 0,
                 zona: datosAemet.zonaDetectada || null,
                 autoridad: autoridadLocal
             };
             datos.alertas = datosAemet.alertas || [];
+            datos.aemetAvailable = datosAemet.disponible !== false;
         } else if (datosBackend?.aemet || datosBackend?.alerta_aemet || datosBackend?.alertas || datosBackend?.warnings) {
             datos.aemet = datosBackend.aemet || datosBackend.alerta_aemet || datos.aemet;
             datos.alertas = datosBackend.alertas || datosBackend.warnings || datos.alertas;
             if (datos.aemet && !datos.aemet.autoridad) {
                 datos.aemet.autoridad = autoridadLocal;
             }
+            datos.aemetAvailable = datos.aemet?.disponible !== false;
         } else {
             datos.aemet = {
-                disponible: true,
+                disponible: false,
+                aemetAvailable: false,
                 activa: false,
                 alertas: [],
                 autoridad: autoridadLocal,
-                mensaje: 'Sin avisos meteorológicos activos.'
+                mensaje: 'Aviso oficial AEMET no disponible temporalmente.'
             };
             datos.alertas = [];
+            datos.aemetAvailable = false;
         }
 
         // Enriquecer alertas reales con metadatos de la autoridad competente
@@ -1011,8 +1051,7 @@ export function evaluarAlertasGlobales(d) {
         /^1-?1-?2/i.test(item.origen || '') ||
         /protecci[oó]n\s*civil/i.test(item.origen || item.tipo || '') ||
         /emergencia|inundaci|avenida|temporal\s*costero|galerna/i.test(item.tipo || '') ||
-        ['NARANJA', 'ROJA'].includes(String(item.nivel || '').toUpperCase()) ||
-        Boolean(item.urlDoc)
+        ['NARANJA', 'ROJA'].includes(String(item.nivel || '').toUpperCase())
     );
 
     // Detectar avisos preventivos futuros
@@ -1021,8 +1060,7 @@ export function evaluarAlertasGlobales(d) {
             item.esEspecial ||
             /^1-?1-?2/i.test(item.origen || '') ||
             /protecci[oó]n\s*civil/i.test(item.origen || item.tipo || '') ||
-            ['NARANJA', 'ROJA'].includes(String(item.nivel || '').toUpperCase()) ||
-            Boolean(item.urlDoc)
+            ['NARANJA', 'ROJA'].includes(String(item.nivel || '').toUpperCase())
         )
     );
     const esAvisoPreventivo = !esEmergencia && alertasPreventivas.length > 0;
@@ -1144,6 +1182,22 @@ export function renderizarAvisoSuperior(motor) {
         return;
     }
 
+    const escapeHtml = (str) => {
+        if (str == null) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    };
+
+    const sanitizeUrl = (url) => {
+        if (!url || typeof url !== 'string') return '';
+        const trimmed = url.trim();
+        return /^https?:\/\//i.test(trimmed) ? escapeHtml(trimmed) : '';
+    };
+
     let htmlTotal = '';
 
     if (tieneAlertaOficial) {
@@ -1154,21 +1208,26 @@ export function renderizarAvisoSuperior(motor) {
                     : (item.nivel === 'NARANJA' ? 'bg-amber-950/80 border-amber-500/60 text-amber-200'
                         : 'bg-yellow-950/60 border-yellow-500/40 text-yellow-200'));
             const icon = '🚨';
-            const badgeOrigen = `<span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${esEmergencia ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-800 text-slate-300 border border-slate-700'}">${item.origen || 'AEMET'}</span>`;
-            const badgeDoc = item.urlDoc ? `<a href="${item.urlDoc}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white underline decoration-dotted transition-colors ml-auto"><span>📄</span> Documento Oficial</a>` : '';
-            const explicacion = item.explicacionHumana || item.descripcion || 'Aviso meteorológico oficial activo.';
+            const badgeOrigen = `<span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${esEmergencia ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-800 text-slate-300 border border-slate-700'}">${escapeHtml(item.origen || 'AEMET')}</span>`;
+            const docUrl = sanitizeUrl(item.urlDoc);
+            const badgeDoc = docUrl ? `<a href="${docUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white underline decoration-dotted transition-colors ml-auto"><span>📄</span> Documento Oficial</a>` : '';
+            const explicacion = escapeHtml(item.explicacionHumana || item.descripcion || 'Aviso meteorológico oficial activo.');
+            const tipoAviso = escapeHtml(item.tipo || item.titulo || 'Aviso');
+            const nivelAviso = escapeHtml(item.nivel || 'AMARILLA');
+            const zonaAviso = escapeHtml(item.zona || '');
+            const periodoAviso = escapeHtml(item.periodoTexto || '');
 
             htmlTotal += `
                 <div class="p-3.5 rounded-2xl border ${bgCls} shadow-lg backdrop-blur-md mb-2 animate-fadeIn flex flex-col gap-2">
                     <div class="flex items-center gap-2">
                         <span class="text-lg">${icon}</span>
-                        <span class="font-black text-xs uppercase tracking-wide flex-1">Aviso Oficial AEMET: ${item.tipo || item.titulo || 'Aviso'} (${item.nivel || 'AMARILLA'})</span>
+                        <span class="font-black text-xs uppercase tracking-wide flex-1">Aviso Oficial AEMET: ${tipoAviso} (${nivelAviso})</span>
                         ${badgeOrigen}
                         ${badgeDoc}
                     </div>
-                    ${item.zona ? `<div class="text-[11px] text-slate-300 pl-6 font-semibold">📍 Zona: ${item.zona}</div>` : ''}
+                    ${zonaAviso ? `<div class="text-[11px] text-slate-300 pl-6 font-semibold">📍 Zona: ${zonaAviso}</div>` : ''}
                     <p class="text-xs text-slate-200 leading-relaxed font-medium pl-6">${explicacion}</p>
-                    ${item.periodoTexto ? `<div class="text-[10px] text-slate-400 pl-6 flex items-center gap-1 font-mono"><span>⏱️</span> Vigencia: ${item.periodoTexto}</div>` : ''}
+                    ${periodoAviso ? `<div class="text-[10px] text-slate-400 pl-6 flex items-center gap-1 font-mono"><span>⏱️</span> Vigencia: ${periodoAviso}</div>` : ''}
                     <div class="text-[10px] text-slate-400 pl-6 italic">Fuente oficial: Agencia Estatal de Meteorología (AEMET)</div>
                 </div>
             `;

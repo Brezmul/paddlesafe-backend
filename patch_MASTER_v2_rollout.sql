@@ -1070,6 +1070,501 @@ CREATE POLICY rutas_delete_own ON public.rutas
   USING (auth.uid() = user_id);
 
 -- Recargar caché de schema en PostgREST inmediatamente
+-- ==============================================================================
+-- PADDLESAFE BATCH #22: AUDIT REMEDIATION SECURITY HARDENING (C1 TO C8)
+-- ==============================================================================
+
+-- A) FORCE RLS ON ALL TABLES (C1)
+ALTER TABLE public.clubs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clubs_usuarios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clubs_solicitudes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clubs_invitaciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_rutas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_showcase ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rutas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_routes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.perfiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.amistades ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notificaciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_chat ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_eventos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_eventos_asistentes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_retos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_retos_participantes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_spots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.spot_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.spot_logbook ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rutas_likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rutas_comentarios ENABLE ROW LEVEL SECURITY;
+
+-- B) PREVENT CLUB ADMIN SELF-ESCALATION (C2)
+ALTER TABLE public.clubs_usuarios DROP CONSTRAINT IF EXISTS chk_clubs_usuarios_rol;
+ALTER TABLE public.clubs_usuarios ADD CONSTRAINT chk_clubs_usuarios_rol CHECK (LOWER(rol) IN ('miembro', 'admin', 'creador'));
+
+DROP POLICY IF EXISTS "clubs_usuarios_insert" ON public.clubs_usuarios;
+CREATE POLICY "clubs_usuarios_insert" ON public.clubs_usuarios 
+FOR INSERT WITH CHECK (
+  (
+    (auth.uid() = user_id) 
+    AND (
+      -- If user is the creator of the club, allow them to record as creador
+      (EXISTS (SELECT 1 FROM public.clubs c WHERE c.id = clubs_usuarios.club_id AND c.creador_id = auth.uid()) AND LOWER(rol) IN ('creador', 'admin', 'miembro'))
+      -- Otherwise (public club join or accepted invitation), strictly enforce rol = 'miembro'
+      OR (
+        LOWER(rol) = 'miembro'
+        AND (
+          (NOT EXISTS (SELECT 1 FROM public.clubs c WHERE c.id = clubs_usuarios.club_id AND (COALESCE(c.es_privado, false) = true OR COALESCE(c.is_private, false) = true)))
+          OR (EXISTS (SELECT 1 FROM public.clubs_invitaciones ci WHERE ci.club_id = clubs_usuarios.club_id AND ci.user_id = auth.uid() AND LOWER(ci.estado) IN ('pendiente', 'aceptada')))
+        )
+      )
+    )
+  )
+  -- Or existing admin/creator adding members
+  OR es_admin_o_creador_club(club_id, auth.uid())
+);
+
+-- C) SERVER-SIDE XP & REVOKE GAMIFICATION DELTA (C3, C4)
+DO $
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'paddlesafe_apply_gamification_delta') THEN
+    REVOKE EXECUTE ON FUNCTION public.paddlesafe_apply_gamification_delta(uuid, integer, numeric) FROM PUBLIC, anon, authenticated;
+  END IF;
+END $;
+
+CREATE OR REPLACE FUNCTION public.paddlesafe_route_xp(p_route jsonb)
+ RETURNS integer
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO 'pg_catalog'
+AS $function$
+DECLARE
+  v_distance numeric;
+  v_duration_min integer;
+  v_speed numeric;
+  v_calc_xp integer;
+  v_raw_xp integer;
+BEGIN
+  IF p_route IS NULL THEN
+    RETURN 0;
+  END IF;
+
+  v_distance := LEAST(200::numeric, GREATEST(0::numeric, COALESCE(
+    NULLIF(p_route ->> 'distancia_km', '')::numeric,
+    NULLIF(p_route ->> 'distance_km', '')::numeric,
+    0::numeric
+  )));
+
+  v_duration_min := LEAST(1440, GREATEST(0, COALESCE(
+    NULLIF(p_route ->> 'tiempo_minutos', '')::numeric::integer,
+    ROUND(COALESCE(NULLIF(p_route ->> 'duration_seconds', '')::numeric, 0::numeric) / 60.0)::integer,
+    0
+  )));
+
+  v_speed := COALESCE(
+    NULLIF(p_route ->> 'avg_speed_kmh', '')::numeric,
+    NULLIF(p_route ->> 'avg_speed', '')::numeric,
+    0::numeric
+  );
+
+  -- Filtro anti-trampas: más de 45 km/h no puntúa
+  IF v_speed > 45 THEN
+    RETURN 0;
+  END IF;
+
+  -- Regla oficial PaddleSafe: ROUND(distancia_km * 10) + tiempo_minutos
+  IF v_duration_min > 0 THEN
+    v_calc_xp := (ROUND(v_distance * 10)::integer + v_duration_min);
+  ELSE
+    v_calc_xp := ROUND(v_distance * 100)::integer;
+  END IF;
+
+  -- Cap at 5000 max XP per route
+  v_calc_xp := LEAST(5000, GREATEST(0, v_calc_xp));
+
+  -- Check client xp_earned/points_earned: clamp and never exceed 5000
+  BEGIN
+    v_raw_xp := COALESCE(
+      NULLIF(p_route ->> 'points_earned', '')::integer,
+      NULLIF(p_route ->> 'xp_earned', '')::integer,
+      v_calc_xp
+    );
+    IF v_raw_xp > 5000 OR v_raw_xp < 0 THEN
+      RETURN v_calc_xp;
+    END IF;
+    RETURN v_raw_xp;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN v_calc_xp;
+  END;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.actualizar_gamificacion_desde_rutas()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_nuevo_xp integer;
+  v_nuevo_km numeric;
+  v_nuevo_nivel integer;
+  v_nuevo_titulo text;
+  v_target_user uuid;
+  v_xp_delta integer;
+  v_km_delta numeric;
+  v_calc_xp integer;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    v_target_user := NEW.user_id;
+    -- Clamp distance to 0..200 km
+    v_km_delta := LEAST(200::numeric, GREATEST(0::numeric, COALESCE(NEW.distancia_km, 0)));
+    v_calc_xp := (ROUND(v_km_delta * 10) + LEAST(1440, COALESCE(NEW.tiempo_minutos, 0)))::integer;
+    
+    -- Never trust client XP > 5000
+    v_xp_delta := COALESCE(
+      CASE 
+        WHEN NULLIF((to_jsonb(NEW) ->> 'points_earned'), '')::integer > 5000 THEN v_calc_xp
+        WHEN NULLIF((to_jsonb(NEW) ->> 'xp_earned'), '')::integer > 5000 THEN v_calc_xp
+        ELSE COALESCE(
+          NULLIF((to_jsonb(NEW) ->> 'points_earned'), '')::integer,
+          NULLIF((to_jsonb(NEW) ->> 'xp_earned'), '')::integer,
+          v_calc_xp
+        )
+      END,
+      v_calc_xp
+    );
+    v_xp_delta := LEAST(5000, GREATEST(0, v_xp_delta));
+
+    SELECT 
+      COALESCE(total_xp, puntos, 0) + v_xp_delta,
+      ROUND((COALESCE(total_distance_km, km_totales, 0) + v_km_delta)::numeric, 2)
+    INTO v_nuevo_xp, v_nuevo_km
+    FROM public.perfiles
+    WHERE id = v_target_user;
+
+    IF NOT FOUND THEN
+      v_nuevo_xp := COALESCE(v_xp_delta, 0);
+      v_nuevo_km := COALESCE(v_km_delta, 0);
+    END IF;
+
+  ELSIF TG_OP = 'UPDATE' THEN
+    v_target_user := NEW.user_id;
+    v_km_delta := LEAST(200::numeric, GREATEST(0::numeric, COALESCE(NEW.distancia_km, 0))) - LEAST(200::numeric, GREATEST(0::numeric, COALESCE(OLD.distancia_km, 0)));
+    v_calc_xp := (ROUND(LEAST(200::numeric, GREATEST(0::numeric, COALESCE(NEW.distancia_km, 0))) * 10) + LEAST(1440, COALESCE(NEW.tiempo_minutos, 0)))::integer
+      - (ROUND(LEAST(200::numeric, GREATEST(0::numeric, COALESCE(OLD.distancia_km, 0))) * 10) + LEAST(1440, COALESCE(OLD.tiempo_minutos, 0)))::integer;
+
+    v_xp_delta := LEAST(5000, GREATEST(-5000, COALESCE(
+      NULLIF((to_jsonb(NEW) ->> 'points_earned'), '')::integer,
+      NULLIF((to_jsonb(NEW) ->> 'xp_earned'), '')::integer,
+      v_calc_xp
+    )));
+
+    SELECT 
+      GREATEST(0, COALESCE(total_xp, puntos, 0) + v_xp_delta),
+      GREATEST(0::numeric, ROUND((COALESCE(total_distance_km, km_totales, 0) + v_km_delta)::numeric, 2))
+    INTO v_nuevo_xp, v_nuevo_km
+    FROM public.perfiles
+    WHERE id = v_target_user;
+
+    IF NOT FOUND THEN
+      v_nuevo_xp := COALESCE(v_xp_delta, 0);
+      v_nuevo_km := COALESCE(v_km_delta, 0);
+    END IF;
+
+  ELSIF TG_OP = 'DELETE' THEN
+    v_target_user := OLD.user_id;
+    v_km_delta := LEAST(200::numeric, GREATEST(0::numeric, COALESCE(OLD.distancia_km, 0)));
+    v_calc_xp := (ROUND(v_km_delta * 10) + LEAST(1440, COALESCE(OLD.tiempo_minutos, 0)))::integer;
+
+    v_xp_delta := LEAST(5000, GREATEST(0, COALESCE(
+      NULLIF((to_jsonb(OLD) ->> 'points_earned'), '')::integer,
+      NULLIF((to_jsonb(OLD) ->> 'xp_earned'), '')::integer,
+      v_calc_xp
+    )));
+
+    SELECT 
+      GREATEST(0, COALESCE(total_xp, puntos, 0) - v_xp_delta),
+      GREATEST(0::numeric, ROUND((COALESCE(total_distance_km, km_totales, 0) - v_km_delta)::numeric, 2))
+    INTO v_nuevo_xp, v_nuevo_km
+    FROM public.perfiles
+    WHERE id = v_target_user;
+
+    IF NOT FOUND THEN
+      v_nuevo_xp := 0;
+      v_nuevo_km := 0;
+    END IF;
+  END IF;
+
+  IF v_target_user IS NOT NULL THEN
+    IF v_nuevo_xp IS NULL THEN v_nuevo_xp := 0; END IF;
+    IF v_nuevo_km IS NULL THEN v_nuevo_km := 0; END IF;
+
+    v_nuevo_nivel := GREATEST(1, FLOOR(SQRT(COALESCE(v_nuevo_xp, 0)::numeric / 100)) + 1);
+
+    BEGIN
+      v_nuevo_titulo := public.calcular_titulo_paddler(v_nuevo_nivel);
+    EXCEPTION WHEN OTHERS THEN
+      v_nuevo_titulo := CASE v_nuevo_nivel
+        WHEN 1 THEN 'Paddler en Ascenso'
+        WHEN 2 THEN 'Paddler Costero'
+        WHEN 3 THEN 'Paddler de Aguas Tranquilas'
+        WHEN 4 THEN 'Paddler de Touring'
+        WHEN 5 THEN 'Paddler de Race'
+        WHEN 6 THEN 'Paddler de Downwind'
+        WHEN 7 THEN 'Paddler Oceánico'
+        WHEN 8 THEN 'Paddler de Marejada'
+        WHEN 9 THEN 'Paddler de Rompientes'
+        ELSE 'Maestro del SUP'
+      END;
+    END;
+
+    UPDATE public.perfiles
+    SET 
+      total_xp = v_nuevo_xp,
+      puntos = v_nuevo_xp,
+      total_distance_km = v_nuevo_km,
+      km_totales = v_nuevo_km,
+      current_level = v_nuevo_nivel,
+      nivel = v_nuevo_nivel,
+      titulo = COALESCE(v_nuevo_titulo, titulo)
+    WHERE id = v_target_user;
+  END IF;
+
+  RETURN NULL;
+END;
+$function$;
+
+-- D) REMOVE p_admin_id IMPERSONATION IN procesar_solicitud_club (C5)
+-- Drop existing overloads first
+DROP FUNCTION IF EXISTS public.procesar_solicitud_club(uuid, text, uuid);
+DROP FUNCTION IF EXISTS public.procesar_solicitud_club(uuid, text);
+
+CREATE OR REPLACE FUNCTION public.procesar_solicitud_club(p_solicitud uuid, p_accion text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_actor uuid := auth.uid();
+  v_user_id uuid;
+  v_club_id uuid;
+  v_club_nombre text;
+BEGIN
+  IF v_actor IS NULL THEN
+    RAISE EXCEPTION 'Debes iniciar sesión' USING ERRCODE = '28000';
+  END IF;
+
+  SELECT cs.user_id, cs.club_id, c.nombre 
+  INTO v_user_id, v_club_id, v_club_nombre
+  FROM public.clubs_solicitudes cs
+  LEFT JOIN public.clubs c ON c.id = cs.club_id
+  WHERE cs.id = p_solicitud;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'La solicitud no existe o ya fue procesada.';
+  END IF;
+
+  IF NOT public.es_admin_o_creador_club(v_club_id, v_actor) THEN
+    RAISE EXCEPTION 'Permiso denegado: no eres administrador de este club.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_accion = 'aceptar' THEN
+    INSERT INTO public.clubs_usuarios (club_id, user_id, rol)
+    VALUES (v_club_id, v_user_id, 'miembro')
+    ON CONFLICT (club_id, user_id) DO NOTHING;
+
+    DELETE FROM public.clubs_solicitudes WHERE id = p_solicitud;
+
+    BEGIN
+      INSERT INTO public.notificaciones (user_id, tipo, contenido, leida)
+      VALUES (
+        v_user_id,
+        'solicitud_club_aceptada',
+        '¡Bienvenido a bordo! Tu solicitud para unirte a ' || COALESCE(v_club_nombre, 'el club') || ' ha sido aceptada.',
+        false
+      );
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+
+  ELSIF p_accion = 'rechazar' THEN
+    DELETE FROM public.clubs_solicitudes WHERE id = p_solicitud;
+
+    BEGIN
+      INSERT INTO public.notificaciones (user_id, tipo, contenido, leida)
+      VALUES (
+        v_user_id,
+        'solicitud_club_rechazada',
+        'Tu solicitud para unirte a ' || COALESCE(v_club_nombre, 'el club') || ' no fue aceptada en este momento.',
+        false
+      );
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  ELSE
+    RAISE EXCEPTION 'Acción inválida. Usa "aceptar" o "rechazar".';
+  END IF;
+END;
+$function$;
+
+REVOKE EXECUTE ON FUNCTION public.procesar_solicitud_club(uuid, text) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.procesar_solicitud_club(uuid, text) TO authenticated;
+
+-- E) PROTECT PRIVATE CLUB MEMBERS & STORAGE (C6, C7)
+CREATE OR REPLACE FUNCTION public.obtener_miembros_club(p_club_id uuid)
+ RETURNS TABLE(user_id uuid, nombre text, avatar_url text, rol text, total_xp integer, current_level integer)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_es_privado boolean;
+  v_caller uuid := auth.uid();
+BEGIN
+  -- Verificar si el club es privado
+  SELECT COALESCE(es_privado, is_private, false) INTO v_es_privado
+  FROM public.clubs
+  WHERE id = p_club_id;
+
+  -- Si es privado, solo miembros o admins autenticados pueden ver la lista
+  IF v_es_privado IS TRUE THEN
+    IF v_caller IS NULL OR NOT public.es_miembro_club(p_club_id, v_caller) THEN
+      RETURN; -- Retorna lista vacía si no es miembro
+    END IF;
+  END IF;
+
+  RETURN QUERY
+  SELECT 
+    cu.user_id,
+    p.nombre,
+    p.avatar_url,
+    cu.rol,
+    COALESCE(p.total_xp, p.puntos, 0)::integer AS total_xp,
+    COALESCE(p.current_level, p.nivel, 1)::integer AS current_level
+  FROM public.clubs_usuarios cu
+  LEFT JOIN public.perfiles p ON p.id = cu.user_id
+  WHERE cu.club_id = p_club_id
+  ORDER BY 
+    CASE cu.rol 
+      WHEN 'creador' THEN 1 
+      WHEN 'admin' THEN 2 
+      ELSE 3 
+    END,
+    cu.created_at ASC;
+END;
+$function$;
+
+-- Storage policies for bucket 'paddlesafe'
+DROP POLICY IF EXISTS "paddlesafe_storage_update" ON storage.objects;
+DROP POLICY IF EXISTS "paddlesafe_storage_delete" ON storage.objects;
+
+CREATE POLICY "paddlesafe_storage_update" ON storage.objects
+FOR UPDATE TO authenticated
+USING (
+  bucket_id = 'paddlesafe' 
+  AND (
+    auth.uid() = owner
+    OR (storage.foldername(name))[1] = auth.uid()::text
+  )
+)
+WITH CHECK (
+  bucket_id = 'paddlesafe' 
+  AND (
+    auth.uid() = owner
+    OR (storage.foldername(name))[1] = auth.uid()::text
+  )
+);
+
+CREATE POLICY "paddlesafe_storage_delete" ON storage.objects
+FOR DELETE TO authenticated
+USING (
+  bucket_id = 'paddlesafe' 
+  AND (
+    auth.uid() = owner
+    OR (storage.foldername(name))[1] = auth.uid()::text
+  )
+);
+
+-- F) FIX CARTESIAN PRODUCT IN CLUB RANKING (C8)
+CREATE OR REPLACE FUNCTION public.get_ranking_clubs_v2(periodo text)
+ RETURNS TABLE(club_id uuid, nombre text, logo_url text, nivel integer, miembros integer, km_totales numeric, tiempo_total integer, rutas_totales integer, puntos_periodo bigint)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  RETURN QUERY
+  WITH actividades_unificadas AS (
+    SELECT 
+      cu.club_id,
+      r.distancia_km::numeric AS distancia_km,
+      COALESCE(r.tiempo_minutos, 0)::integer AS tiempo_minutos,
+      (ROUND(r.distancia_km::numeric * 10)::bigint + COALESCE(r.tiempo_minutos, 0)::bigint) AS pts
+    FROM public.clubs_usuarios cu
+    JOIN public.rutas r ON r.user_id = cu.user_id
+    WHERE (
+      (periodo = 'diario' AND COALESCE(r.fecha, r.created_at) >= date_trunc('day', timezone('utc', now()))) OR
+      (periodo = 'semanal' AND COALESCE(r.fecha, r.created_at) >= date_trunc('week', timezone('utc', now()))) OR
+      (periodo = 'mensual' AND COALESCE(r.fecha, r.created_at) >= date_trunc('month', timezone('utc', now()))) OR
+      (periodo = 'anual' AND COALESCE(r.fecha, r.created_at) >= date_trunc('year', timezone('utc', now()))) OR
+      (periodo = 'historico')
+    )
+    UNION ALL
+    SELECT 
+      cu.club_id,
+      ur.distance_km::numeric AS distancia_km,
+      ROUND(ur.duration_seconds::numeric / 60.0)::integer AS tiempo_minutos,
+      COALESCE(
+        ur.xp_earned::bigint,
+        (ROUND(ur.distance_km::numeric * 10)::bigint + ROUND(ur.duration_seconds::numeric / 60.0)::bigint)
+      ) AS pts
+    FROM public.clubs_usuarios cu
+    JOIN public.user_routes ur ON ur.user_id = cu.user_id
+    WHERE (
+      (periodo = 'diario' AND ur.created_at >= date_trunc('day', timezone('utc', now()))) OR
+      (periodo = 'semanal' AND ur.created_at >= date_trunc('week', timezone('utc', now()))) OR
+      (periodo = 'mensual' AND ur.created_at >= date_trunc('month', timezone('utc', now()))) OR
+      (periodo = 'anual' AND ur.created_at >= date_trunc('year', timezone('utc', now()))) OR
+      (periodo = 'historico')
+    )
+  ),
+  miembros_agg AS (
+    SELECT 
+      cu.club_id, 
+      COUNT(DISTINCT cu.user_id)::integer AS total_miembros
+    FROM public.clubs_usuarios cu
+    GROUP BY cu.club_id
+  ),
+  actividades_agg AS (
+    SELECT 
+      au.club_id,
+      ROUND(COALESCE(SUM(au.distancia_km), 0)::numeric, 2) AS km_totales,
+      COALESCE(SUM(au.tiempo_minutos), 0)::integer AS tiempo_total,
+      COUNT(*)::integer AS rutas_totales,
+      COALESCE(SUM(au.pts), 0)::bigint AS puntos_periodo
+    FROM actividades_unificadas au
+    GROUP BY au.club_id
+  )
+  SELECT
+    c.id AS club_id,
+    c.nombre,
+    c.logo_url,
+    COALESCE(c.nivel, 1)::integer AS nivel,
+    COALESCE(m.total_miembros, 0)::integer AS miembros,
+    COALESCE(a.km_totales, 0)::numeric AS km_totales,
+    COALESCE(a.tiempo_total, 0)::integer AS tiempo_total,
+    COALESCE(a.rutas_totales, 0)::integer AS rutas_totales,
+    COALESCE(a.puntos_periodo, 0)::bigint AS puntos_periodo
+  FROM public.clubs c
+  LEFT JOIN miembros_agg m ON m.club_id = c.id
+  LEFT JOIN actividades_agg a ON a.club_id = c.id
+  ORDER BY puntos_periodo DESC, miembros DESC
+  LIMIT 50;
+END;
+$function$;
+
+
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;

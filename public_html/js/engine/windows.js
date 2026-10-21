@@ -51,6 +51,10 @@ export function detectarVentanasOptimas(horasPronostico = [], userLevel = 'Inter
     }[userLevel] || { vMax: 13, oMax: 0.65 };
 
     const horasCalificadas = diurnas.map(h => {
+        const sinDatos = (h.vientoKt == null || isNaN(Number(h.vientoKt))) && (h.oleajeM == null || isNaN(Number(h.oleajeM)));
+        if (sinDatos) {
+            return { ...h, score: 0, esApta: false, horaNum: parseInt(String(h.hora || '').slice(0, 2), 10) };
+        }
         const v = Number(h.vientoKt || 0);
         const r = Number(h.rachasKt || v);
         const o = Number(h.oleajeM || 0);
