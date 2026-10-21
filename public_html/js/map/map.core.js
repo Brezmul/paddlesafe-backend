@@ -321,6 +321,9 @@ export function inicializarMapa() {
         } else if (mapRuntime.modoRutaLibreActivo) {
             if (typeof window.gestionarClicRutaLibre === 'function') window.gestionarClicRutaLibre(e.latlng);
         } else {
+            if (mapRuntime.radarActivo && typeof window.actualizarCapasRadar === 'function') {
+                window.actualizarCapasRadar(lat.toFixed(5), lon.toFixed(5));
+            }
             actualizarMapa(lat.toFixed(5), lon.toFixed(5));
             const locInput = document.getElementById('location');
             if (locInput) locInput.value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
@@ -612,7 +615,13 @@ export function cambiarCapaBaseMapa(tipoCapa = 'nautico') {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
         }).addTo(mapInstance);
         mapRuntime.capaBaseTile.bringToBack();
+        if (typeof window !== 'undefined' && typeof window.activarModoRadar === 'function') {
+            window.activarModoRadar();
+        }
     } else {
+        if (typeof window !== 'undefined' && typeof window.desactivarModoRadar === 'function') {
+            window.desactivarModoRadar();
+        }
         // 'nautico' (default) -> CARTO Voyager HD con API Key + Carta marina OpenSeaMap
         const voyagerUrl = (CARTO_TILE_URLS && CARTO_TILE_URLS.voyager) ||
             `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY || 'cb1_4qv5_1_683638fb471571b180e5b9e6'}`;

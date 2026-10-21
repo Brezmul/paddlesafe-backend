@@ -940,6 +940,79 @@
                                         <span>🌑</span> <span>Radar</span>
                                     </button>
                                 </div>
+
+                                <!-- ADVANCED RADAR COCKPIT CONTROL & TELEMETRY (PADDLESAFE RADAR ENGINE) -->
+                                <div id="radarCockpitPanel" class="hidden absolute top-14 left-3 right-3 sm:right-auto sm:w-[350px] z-[410] bg-slate-900/95 backdrop-blur-xl border border-sky-500/50 rounded-2xl p-3 shadow-2xl text-white flex flex-col gap-2.5 transition-all animate-fadeIn">
+                                    <!-- Header with 10-Second Quick Verdict -->
+                                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-lg">📡</span>
+                                            <div>
+                                                <h4 class="text-xs font-black uppercase tracking-wider text-sky-300">Radar Marítimo Avanzado</h4>
+                                                <p id="radarVerdictSubtitle" class="text-[10px] text-slate-400 font-semibold truncate max-w-[210px]">Análisis meteorológico y de deriva SUP</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-1.5">
+                                            <span id="radarVerdictBadge" class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">🟢 Excelente</span>
+                                            <button type="button" onclick="document.getElementById('radarCockpitPanel')?.classList.add('hidden')" class="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white font-bold cursor-pointer text-xs" title="Minimizar panel radar">✕</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Layer Toggles Bar (Viento, Lluvia, Oleaje, Deriva) -->
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <button type="button" id="btnRadarLayerWind" onclick="window.toggleCapaRadar('viento')" class="ps-chip ps-quick-pill text-[10px] font-bold text-sky-200 bg-sky-500/20 border-sky-400/50 active:scale-95 cursor-pointer ps-chip-active active" title="Capa de viento y vectores de intensidad">
+                                            <span>💨</span> <span>Viento</span>
+                                        </button>
+                                        <button type="button" id="btnRadarLayerRain" onclick="window.toggleCapaRadar('lluvia')" class="ps-chip ps-quick-pill text-[10px] font-bold text-blue-200 bg-blue-500/20 border-blue-400/50 active:scale-95 cursor-pointer ps-chip-active active" title="Radar Doppler de lluvia y tormentas en tiempo real">
+                                            <span>🌧️</span> <span>Lluvia</span>
+                                        </button>
+                                        <button type="button" id="btnRadarLayerWave" onclick="window.toggleCapaRadar('oleaje')" class="ps-chip ps-quick-pill text-[10px] font-bold text-teal-200 bg-teal-500/20 border-teal-400/50 active:scale-95 cursor-pointer ps-chip-active active" title="Dirección de swell y altura de oleaje">
+                                            <span>🌊</span> <span>Oleaje</span>
+                                        </button>
+                                        <button type="button" id="btnRadarLayerDrift" onclick="window.toggleCapaRadar('deriva')" class="ps-chip ps-quick-pill text-[10px] font-bold text-purple-200 bg-purple-500/20 border-purple-400/50 active:scale-95 cursor-pointer ps-chip-active active" title="Deriva costera estimada PaddleSafe">
+                                            <span>🧭</span> <span>Deriva</span>
+                                        </button>
+                                    </div>
+
+                                    <!-- Active telemetry inspector for clicked / active coordinate -->
+                                    <div id="radarPointInspector" class="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-1.5 text-[11px]">
+                                        <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold border-b border-slate-800/80 pb-1">
+                                            <span id="radarInspectorCoords">📍 Punto: --, --</span>
+                                            <span id="radarInspectorBias" class="text-amber-300">Offshore / Onshore</span>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <span class="text-[9px] uppercase font-bold text-slate-400 block">💨 Viento:</span>
+                                                <span id="radarInspectorWind" class="font-bold text-white">-- kt</span>
+                                            </div>
+                                            <div>
+                                                <span class="text-[9px] uppercase font-bold text-slate-400 block">🌊 Mar / Swell:</span>
+                                                <span id="radarInspectorWave" class="font-bold text-white">-- m</span>
+                                            </div>
+                                            <div>
+                                                <span class="text-[9px] uppercase font-bold text-slate-400 block">🌧️ Precipitación:</span>
+                                                <span id="radarInspectorRain" class="font-bold text-white">0.0 mm/h (0%)</span>
+                                            </div>
+                                            <div>
+                                                <span class="text-[9px] uppercase font-bold text-purple-300 block">🧭 Deriva Neta:</span>
+                                                <span id="radarInspectorDrift" class="font-bold text-purple-200">-- kt (--)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Opacity slider & controls footer -->
+                                    <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800">
+                                        <div class="flex items-center gap-1.5">
+                                            <span>Opacidad:</span>
+                                            <button type="button" onclick="window.ajustarOpacidadRadar(0.5)" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">50%</button>
+                                            <button type="button" onclick="window.ajustarOpacidadRadar(0.75)" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">75%</button>
+                                            <button type="button" onclick="window.ajustarOpacidadRadar(1.0)" class="px-1.5 py-0.5 rounded bg-sky-900/60 text-sky-300 font-bold cursor-pointer">100%</button>
+                                        </div>
+                                        <button type="button" onclick="window.actualizarCapasRadar()" class="text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 cursor-pointer">
+                                            <span>🔄</span> <span>Actualizar</span>
+                                        </button>
+                                    </div>
+                                </div>
                                 <div id="mapWindWaveHud" class="hidden absolute bottom-4 right-4 z-[400] bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 shadow-2xl text-white pointer-events-auto flex flex-col gap-1 min-w-[130px] max-w-[170px] transition-all">
                                     <div class="flex items-center justify-between border-b border-slate-700/60 pb-1 text-[10px] font-bold text-slate-300">
                                         <span class="flex items-center gap-1">🧭 <span id="hudPointName" class="truncate max-w-[75px]">Spot</span></span>
