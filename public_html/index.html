@@ -238,7 +238,7 @@
         };
     </script>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans min-h-[100dvh] overflow-x-hidden w-full max-w-full flex items-start sm:items-center justify-center p-0 sm:p-5 pb-24 md:pb-10 relative selection:bg-sky-500 selection:text-white" style="background-color: #0b1120; background-image: radial-gradient(ellipse at top, rgba(14, 165, 233, 0.12), transparent 60%);">
+<body class="bg-slate-950 text-slate-100 font-sans min-h-[100dvh] overflow-x-hidden w-full max-w-full flex items-start justify-center p-0 sm:p-5 pb-24 md:pb-10 relative selection:bg-sky-500 selection:text-white" style="background-color: #0b1120; background-image: radial-gradient(ellipse at top, rgba(14, 165, 233, 0.12), transparent 60%);">
 
     <!-- ATMOSPHERIC AMBIENT LIGHTING (DESIGN SYSTEM 4.0) -->
     <div class="hidden sm:block fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -596,7 +596,7 @@
                     <div class="flex items-center gap-3">
                         <div id="basicVerdictScoreBadge" class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/30 border border-emerald-500/50 flex flex-col items-center justify-center shrink-0 shadow-inner">
                             <span id="basicScoreNumber" class="text-base font-black text-emerald-300 ps-tabular">--</span>
-                            <span class="text-[8px] font-bold text-emerald-400 uppercase tracking-tighter">Score</span>
+                            <span class="text-[9px] font-black text-emerald-400 uppercase tracking-tight">Score</span>
                         </div>
                         <div>
                             <div class="flex items-center gap-2 flex-wrap">
@@ -826,7 +826,7 @@
                 <svg id="btnProIcon" class="transition-transform duration-300 text-white/70 group-hover:text-white rotate-180" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
 
-            <div id="panelPro" class="grid transition-all duration-300 ease-in-out w-full lg:!grid-rows-[1fr]" style="grid-template-rows: 0fr;">
+            <div id="panelPro" class="grid transition-all duration-300 ease-in-out w-full lg:!grid-rows-[1fr]" style="grid-template-rows: 1fr;">
                 <div class="overflow-hidden min-h-0 w-full">
                     <div class="pt-5 flex flex-col gap-5 w-full">
                         
@@ -897,7 +897,7 @@
                                     </div>
                                 </div>
 
-                                <div id="panelQuedadaMap" class="hidden absolute top-14 left-3 right-3 sm:top-3 sm:left-4 sm:right-auto sm:w-[340px] z-[450] bg-slate-900/95 backdrop-blur-md border border-indigo-500/50 rounded-2xl p-3 shadow-2xl text-white">
+                                <div id="panelQuedadaMap" class="hidden absolute top-[80px] left-3 right-3 sm:left-3 sm:right-auto sm:w-[340px] z-[450] bg-slate-900/95 backdrop-blur-md border border-indigo-500/50 rounded-2xl p-3 shadow-2xl text-white">
                                     <div class="flex items-center justify-between gap-2">
                                         <div class="min-w-0">
                                             <h4 class="text-[11px] font-black uppercase tracking-wider text-water">⛵ Planificar quedada</h4>
@@ -932,7 +932,7 @@
                                 </div>
 
                                 <!-- ADVANCED RADAR COCKPIT CONTROL & TELEMETRY (PADDLESAFE RADAR ENGINE) -->
-                                <div id="radarCockpitPanel" class="hidden absolute top-14 left-3 right-3 sm:right-auto sm:w-[350px] z-[410] bg-slate-900/95 backdrop-blur-xl border border-sky-500/50 rounded-2xl p-3 shadow-2xl text-white flex flex-col gap-2.5 transition-all animate-fadeIn">
+                                <div id="radarCockpitPanel" class="hidden absolute top-[80px] left-3 right-3 sm:left-3 sm:right-auto sm:w-[350px] z-[410] bg-slate-900/95 backdrop-blur-xl border border-sky-500/50 rounded-2xl p-3 shadow-2xl text-white flex flex-col gap-2.5 transition-all animate-fadeIn">
                                     <!-- Header with 10-Second Quick Verdict -->
                                     <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                                         <div class="flex items-center gap-2">
@@ -1005,8 +1005,11 @@
                                 </div>
                                 <div id="mapWindWaveHud" class="hidden absolute bottom-4 right-4 z-[400] bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 shadow-2xl text-white pointer-events-auto flex flex-col gap-1 min-w-[130px] max-w-[170px] transition-all">
                                     <div class="flex items-center justify-between border-b border-slate-700/60 pb-1 text-[10px] font-bold text-slate-300">
-                                        <span class="flex items-center gap-1">🧭 <span id="hudPointName" class="truncate max-w-[75px]">Spot</span></span>
-                                        <span id="hudCostalBadge" class="px-1 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-300">Costa</span>
+                                        <span class="flex items-center gap-1">🧭 <span id="hudPointName" class="truncate max-w-[70px]">Spot</span></span>
+                                        <div class="flex items-center gap-1">
+                                            <span id="hudCostalBadge" class="px-1 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-300">Costa</span>
+                                            <button type="button" onclick="document.getElementById('mapWindWaveHud')?.classList.add('hidden')" class="w-4 h-4 rounded flex items-center justify-center text-slate-400 hover:text-white cursor-pointer" title="Cerrar HUD">✕</button>
+                                        </div>
                                     </div>
                                     <div class="flex items-center justify-between text-xs font-bold">
                                         <span class="flex items-center gap-1"><span id="hudWindArrow" class="inline-block transition-transform">💨</span> <span id="hudWindSpeed">-- kt</span></span>
@@ -1107,7 +1110,7 @@
                                 </div>
                                 <div class="sm:col-span-2">
                                     <label for="quedadaTituloInput" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Nombre de la travesía</label>
-                                    <input type="text" id="quedadaTituloInput" placeholder="Ej: Travesía a la Cueva del Lobo" maxlength="80" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-water placeholder:text-slate-500">
+                                    <input type="text" id="quedadaTituloInput" placeholder="Ej: Travesía a la Cueva del Lobo" maxlength="80" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-water placeholder:text-slate-400">
                                 </div>
                                 <div>
                                     <label for="quedadaFechaInput" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Fecha (máx. 7 días)</label>
@@ -1119,7 +1122,7 @@
                                 </div>
                                 <div class="sm:col-span-2">
                                     <label for="quedadaDescInput" class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Notas / material (opcional)</label>
-                                    <input type="text" id="quedadaDescInput" placeholder="Chaleco, agua, dificultad media..." maxlength="120" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-water placeholder:text-slate-500">
+                                    <input type="text" id="quedadaDescInput" placeholder="Chaleco, agua, dificultad media..." maxlength="120" class="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-water placeholder:text-slate-400">
                                 </div>
                                 <div id="quedadaMeteoPreview" class="hidden sm:col-span-2"></div>
                             </div>
@@ -1230,7 +1233,7 @@
                                     <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                                         <span>📈</span> Perfil de Viento y Velocidad de Remada (Komoot / Windy)
                                     </span>
-                                    <span class="text-[9px] text-slate-500 font-mono">Toca un tramo para centrar en el mapa</span>
+                                    <span class="text-[9px] text-slate-400 font-mono">Toca un tramo para centrar en el mapa</span>
                                 </div>
                                 <div id="proRouteWindChart" class="w-full overflow-hidden rounded-xl bg-slate-900/80 border border-slate-800/80 p-2"></div>
                             </div>
@@ -1239,9 +1242,9 @@
                             <div id="proBiometricsBar" class="p-3.5 border-b border-slate-800 bg-slate-950/60 w-full hidden flex-col gap-2"></div>
 
                             <div class="p-5 border-b border-slate-800 bg-slate-900 w-full">
-                                <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-800 pb-1">Previsión Hora a Hora</h4>
+                                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-800 pb-1">Previsión Hora a Hora</h4>
                                 <div id="proDashHorasContainer" class="flex overflow-x-auto gap-3 pb-2 custom-scrollbar">
-                                    <p class="text-xs text-slate-500 font-mono py-2">Esperando datos horarios del backend...</p>
+                                    <p class="text-xs text-slate-400 font-mono py-2">Esperando datos horarios del backend...</p>
                                 </div>
                             </div>
 
@@ -1266,7 +1269,7 @@
                                     <div class="w-16 h-px bg-slate-600 relative">
                                         <span class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-slate-400 text-xs">➔</span>
                                     </div>
-                                    <span class="text-[10px] font-bold text-slate-500 mt-1" id="proTiempoTotal">-- min</span>
+                                    <span class="text-[10px] font-bold text-slate-300 font-mono mt-1" id="proTiempoTotal">-- min</span>
                                  </div>
                                  <div class="text-right flex flex-col min-w-0 flex-1">
                                      <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 truncate">Llegada Estimada</span>
@@ -1299,7 +1302,7 @@
                             </div>
 
                             <div class="p-5 w-full bg-slate-900 rounded-b-xl">
-                                <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-800 pb-1" id="proTituloTramos">Análisis por Tramos</h4>
+                                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-800 pb-1" id="proTituloTramos">Análisis por Tramos</h4>
                                 <div id="proDashTramosContainer" class="flex flex-col gap-2 w-full mb-4"></div>
                                 <button type="button" onclick="volverPlanificadorPro()" class="w-full h-11 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs uppercase tracking-widest active:scale-95 transition-colors border border-slate-700 cursor-pointer">🔄 Modificar Ruta o Salida</button>
                             </div>
@@ -1316,7 +1319,7 @@
 
     <!-- Modal de Notas Tácticas del Spot (Reubicado en root de modales para evitar conflictos de backdrop-blur) -->
     <!-- MODAL DE NOTAS TÁCTICAS DEL SPOT -->
-            <div id="modalNotasTacticasSpot" class="fixed inset-0 z-[1200] ps-modal-backdrop hidden items-center justify-center p-3 sm:p-4">
+            <div id="modalNotasTacticasSpot" class="fixed inset-0 z-[150] ps-modal-backdrop hidden items-center justify-center p-3 sm:p-4">
                 <div class="ps-bento-card bg-slate-900 border border-slate-700/80 w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar p-5 rounded-2xl shadow-2xl flex flex-col gap-4 text-white">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-3">
                         <div class="flex items-center gap-2.5 min-w-0">
@@ -1346,6 +1349,8 @@
                         <button type="button" onclick="window.cerrarModalNotasTacticasSpot()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer transition-colors">Cerrar</button>
                         <button type="button" onclick="window.confirmarGuardarNotasTacticas()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-md active:scale-95 cursor-pointer transition-transform">Guardar Notas</button>
                     </div>
+                </div>
+            </div>
 
     <!-- Modal de Autenticación / Perfil Propio -->
     <div id="authModal" class="fixed inset-0 z-[100] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-4 opacity-0 transition-opacity duration-300">
@@ -1384,8 +1389,8 @@
                 <!-- Tabs -->
                 <div class="flex justify-center gap-1 sm:gap-2 w-full">
                     <button type="button" onclick="cambiarTabClubs('miclub')" id="tabMiClub" class="h-9 px-3 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-xl shadow flex-1 cursor-pointer transition-all">Mi Club</button>
-                    <button type="button" onclick="cambiarTabClubs('buscar_club')" id="tabBuscarClub" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-all">Clubes</button>
-                    <button type="button" onclick="cambiarTabClubs('paddlers')" id="tabPaddlers" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-all">Paddlers</button>
+                    <button type="button" onclick="cambiarTabClubs('buscar_club')" id="tabBuscarClub" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-all">Clubes</button>
+                    <button type="button" onclick="cambiarTabClubs('paddlers')" id="tabPaddlers" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-all">Paddlers</button>
                 </div>
             </div>
             <div id="clubsContent" class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full"></div>
@@ -1411,8 +1416,8 @@
                 <!-- Tabs -->
                 <div class="flex justify-center gap-1 sm:gap-2 w-full">
                     <button type="button" onclick="socialFeed.cambiarFiltro('global')" id="tabFeedGlobal" class="h-9 px-3 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-xl shadow flex-1 cursor-pointer transition-colors">Global</button>
-                    <button type="button" onclick="socialFeed.cambiarFiltro('mis_clubs')" id="tabFeedClubs" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors">Mis Clubes</button>
-                    <button type="button" onclick="socialFeed.cambiarFiltro('mis_amigos')" id="tabFeedAmigos" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors">Amigos</button>
+                    <button type="button" onclick="socialFeed.cambiarFiltro('mis_clubs')" id="tabFeedClubs" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors">Mis Clubes</button>
+                    <button type="button" onclick="socialFeed.cambiarFiltro('mis_amigos')" id="tabFeedAmigos" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors">Amigos</button>
                 </div>
             </div>
             <div id="feedContainerList" class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar w-full"></div>
@@ -1437,10 +1442,10 @@
                 
                 <!-- Period Selector -->
                 <div class="flex justify-start sm:justify-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar w-full px-0.5">
-                    <button type="button" onclick="cargarTopPaddlers('diario')" id="tabRankDiario" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Hoy</button>
-                    <button type="button" onclick="cargarTopPaddlers('semanal')" id="tabRankSemanal" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Semana</button>
-                    <button type="button" onclick="cargarTopPaddlers('mensual')" id="tabRankMensual" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Mes</button>
-                    <button type="button" onclick="cargarTopPaddlers('anual')" id="tabRankAnual" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Año</button>
+                    <button type="button" onclick="cargarTopPaddlers('diario')" id="tabRankDiario" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Hoy</button>
+                    <button type="button" onclick="cargarTopPaddlers('semanal')" id="tabRankSemanal" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Semana</button>
+                    <button type="button" onclick="cargarTopPaddlers('mensual')" id="tabRankMensual" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Mes</button>
+                    <button type="button" onclick="cargarTopPaddlers('anual')" id="tabRankAnual" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Año</button>
                     <button type="button" onclick="cargarTopPaddlers('historico')" id="tabRankHistorico" class="h-8 px-2.5 bg-marine dark:bg-water text-white text-[10px] font-bold rounded-lg shadow flex-shrink-0 cursor-pointer transition-colors">Total</button>
                     <button type="button" onclick="cargarTopPaddlers('clubes')" id="tabRankClubes" class="h-8 px-2.5 bg-slate-100 dark:bg-slate-800 text-amber-600 dark:text-amber-400 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">Clubes</button>
                 </div>
@@ -1448,17 +1453,17 @@
                 <!-- Scope Selector Strip (#rankingScopeTabs) -->
                 <div id="rankingScopeTabs" class="flex justify-start sm:justify-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar w-full px-0.5 border-t border-slate-100 dark:border-slate-800 pt-1.5">
                     <button type="button" onclick="cambiarAmbitoRanking('global')" id="scopeRankGlobal" class="h-7 px-2.5 bg-marine dark:bg-water text-white text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer shadow-sm transition-colors">🌍 Global</button>
-                    <button type="button" onclick="cambiarAmbitoRanking('mi_club')" id="scopeRankMiClub" class="h-7 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">🛡️ Mi Club</button>
-                    <button type="button" onclick="cambiarAmbitoRanking('amigos')" id="scopeRankAmigos" class="h-7 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">🤝 Amigos</button>
+                    <button type="button" onclick="cambiarAmbitoRanking('mi_club')" id="scopeRankMiClub" class="h-7 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">🛡️ Mi Club</button>
+                    <button type="button" onclick="cambiarAmbitoRanking('amigos')" id="scopeRankAmigos" class="h-7 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">🤝 Amigos</button>
                     <button type="button" onclick="cambiarAmbitoRanking('liga_clubes')" id="scopeRankLigaClubes" class="h-7 px-2.5 bg-slate-100 dark:bg-slate-800 text-amber-600 hover:bg-amber-100 text-[10px] font-bold rounded-lg flex-shrink-0 cursor-pointer transition-colors">🏆 Liga de Clubes</button>
                 </div>
 
                 <!-- Category Selector Strip (#rankingCategoryTabs) -->
                 <div id="rankingCategoryTabs" class="flex justify-start sm:justify-center gap-1 overflow-x-auto pb-0.5 custom-scrollbar w-full px-0.5">
                     <button type="button" onclick="cambiarCategoriaRanking('km_total')" id="catRankKmTotal" class="h-7 px-2 bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-700 text-[9px] font-black rounded-lg flex-shrink-0 cursor-pointer transition-colors">📏 Distancia Total</button>
-                    <button type="button" onclick="cambiarCategoriaRanking('max_route')" id="catRankMaxRoute" class="h-7 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 text-[9px] font-black rounded-lg flex-shrink-0 cursor-pointer transition-colors">🔱 Mayor Travesía</button>
-                    <button type="button" onclick="cambiarCategoriaRanking('best_speed')" id="catRankBestSpeed" class="h-7 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 text-[9px] font-black rounded-lg flex-shrink-0 cursor-pointer transition-colors">⚡ Velocidad Media</button>
-                    <button type="button" onclick="cambiarCategoriaRanking('xp_total')" id="catRankXpTotal" class="h-7 px-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 text-[9px] font-black rounded-lg flex-shrink-0 cursor-pointer transition-colors">🏅 XP / Nivel</button>
+                    <button type="button" onclick="cambiarCategoriaRanking('max_route')" id="catRankMaxRoute" class="h-7 px-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 text-[9px] font-black rounded-lg flex-shrink-0 cursor-pointer transition-colors">🔱 Mayor Travesía</button>
+                    <button type="button" onclick="cambiarCategoriaRanking('best_speed')" id="catRankBestSpeed" class="h-7 px-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 text-[9px] font-black rounded-lg flex-shrink-0 cursor-pointer transition-colors">⚡ Velocidad Media</button>
+                    <button type="button" onclick="cambiarCategoriaRanking('xp_total')" id="catRankXpTotal" class="h-7 px-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 text-[9px] font-black rounded-lg flex-shrink-0 cursor-pointer transition-colors">🏅 XP / Nivel</button>
                 </div>
             </div>
 
@@ -1487,7 +1492,7 @@
                 <p id="spaUserLevel" class="text-[10px] font-bold text-water uppercase tracking-widest mt-0.5 mb-2">Nivel --</p>
                 <div id="spaBtnContainer" class="flex justify-center items-center gap-2 mt-1 mb-3 empty:hidden"></div>
                 <div class="flex justify-center gap-1 sm:gap-2 w-full">
-                    <button type="button" onclick="cambiarTabPerfilSPA('insignias')" id="spaTabInsignias" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors">Insignias</button>
+                    <button type="button" onclick="cambiarTabPerfilSPA('insignias')" id="spaTabInsignias" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors">Insignias</button>
                     <button type="button" onclick="cambiarTabPerfilSPA('rutas')" id="spaTabRutas" class="h-9 px-3 bg-marine dark:bg-water text-white shadow text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors">Rutas</button>
                 </div>
             </div>
@@ -1510,7 +1515,7 @@
                 <h2 id="cpvName" class="text-2xl sm:text-3xl font-black text-marine dark:text-white mt-1 truncate px-2">Cargando...</h2>
                 <p id="cpvStats" class="text-[10px] font-bold text-water uppercase tracking-widest mt-1 mb-2">Nivel -- • -- pts • -- Miembros</p>
                 
-                <p id="cpvDescription" class="text-xs text-slate-500 dark:text-slate-400 px-4 line-clamp-3 mb-4 leading-relaxed h-[3.5rem] flex items-center justify-center italic">Cargando descripción...</p>
+                <p id="cpvDescription" class="text-xs text-slate-300 px-4 line-clamp-3 mb-4 leading-relaxed min-h-[2.5rem] text-center italic">Cargando descripción...</p>
                 
                 <!-- Botón de Unirse -->
                 <button id="cpvJoinBtn" class="w-full h-11 bg-gradient-to-r from-water to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-bold rounded-xl shadow-md active:scale-95 transition-transform uppercase tracking-widest text-[11px] cursor-pointer">
@@ -1528,15 +1533,15 @@
 
                 <!-- TABS DEL PERFIL DEL CLUB -->
                 <div class="mt-4 w-full">
-                    <div class="flex justify-center gap-1 sm:gap-2 mb-4 overflow-x-auto pb-1 custom-scrollbar">
+                    <div class="flex justify-start sm:justify-center gap-1 sm:gap-2 mb-4 overflow-x-auto pb-1 custom-scrollbar px-1">
                         <button type="button" onclick="cambiarTabClub('info')" id="cpvTabInfo" class="h-10 px-3 bg-marine text-white text-[11px] font-bold rounded-lg shadow flex-1 min-w-[70px] cursor-pointer">Info</button>
-                        <button type="button" onclick="cambiarTabClub('miembros')" id="cpvTabMiembros" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[75px] cursor-pointer">Miembros</button>
-                        <button type="button" onclick="cambiarTabClub('eventos')" id="cpvTabEventos" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[75px] cursor-pointer">Eventos</button>
-                        <button type="button" onclick="cambiarTabClub('rutas')" id="cpvTabRutas" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[70px] cursor-pointer">Rutas</button>
-                        <button type="button" onclick="cambiarTabClub('vitrina')" id="cpvTabVitrina" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[70px] cursor-pointer">Vitrina</button>
-                        <button type="button" onclick="cambiarTabClub('chat')" id="cpvTabChat" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[70px] cursor-pointer">Chat</button>
-                        <button type="button" onclick="cambiarTabClub('admin')" id="cpvTabAdmin" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[70px] cursor-pointer hidden">Admin</button>
-                        <button type="button" onclick="cambiarTabClub('solicitudes')" id="cpvTabSolicitudes" class="h-10 px-3 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg flex-1 min-w-[85px] cursor-pointer hidden">Solicitudes</button>
+                        <button type="button" onclick="cambiarTabClub('miembros')" id="cpvTabMiembros" class="h-10 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 min-w-[75px] cursor-pointer">Miembros</button>
+                        <button type="button" onclick="cambiarTabClub('eventos')" id="cpvTabEventos" class="h-10 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 min-w-[75px] cursor-pointer">Eventos</button>
+                        <button type="button" onclick="cambiarTabClub('rutas')" id="cpvTabRutas" class="h-10 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 min-w-[70px] cursor-pointer">Rutas</button>
+                        <button type="button" onclick="cambiarTabClub('vitrina')" id="cpvTabVitrina" class="h-10 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 min-w-[70px] cursor-pointer">Vitrina</button>
+                        <button type="button" onclick="cambiarTabClub('chat')" id="cpvTabChat" class="h-10 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 min-w-[70px] cursor-pointer">Chat</button>
+                        <button type="button" onclick="cambiarTabClub('admin')" id="cpvTabAdmin" class="h-10 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 min-w-[70px] cursor-pointer hidden">Admin</button>
+                        <button type="button" onclick="cambiarTabClub('solicitudes')" id="cpvTabSolicitudes" class="h-10 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg flex-1 min-w-[85px] cursor-pointer hidden">Solicitudes</button>
                     </div>
 
                     <!-- CONTENEDOR PRINCIPAL TABS -->
@@ -1592,7 +1597,7 @@
                 
                 <div class="flex justify-center gap-1 sm:gap-2 w-full mt-3">
                     <button type="button" onclick="cambiarTabAmistades('lista')" id="tabMisAmigos" class="h-9 px-3 bg-marine dark:bg-water text-white text-[11px] font-bold rounded-xl shadow flex-1 cursor-pointer transition-colors">Mis Amigos</button>
-                    <button type="button" onclick="cambiarTabAmistades('solicitudes')" id="tabSolicitudesAmistad" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors relative">
+                    <button type="button" onclick="cambiarTabAmistades('solicitudes')" id="tabSolicitudesAmistad" class="h-9 px-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-xl flex-1 cursor-pointer transition-colors relative">
                         Solicitudes
                         <span id="badgeSolicitudesAmistad" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-5 h-5 flex items-center justify-center rounded-full hidden border-2 border-white">0</span>
                     </button>
@@ -1775,7 +1780,7 @@
                         <span id="valTempAgua" class="text-sky-400 font-mono text-sm ps-tabular">18.0°C</span>
                     </div>
                     <input type="range" id="sliderTempAgua" min="10" max="28" step="0.5" value="18" oninput="window.actualizarVistaCalculadoraTermica()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400" />
-                    <div class="flex justify-between text-[9px] text-slate-500 font-mono"><span>10°C (Invierno)</span><span>19°C (Primavera)</span><span>28°C (Verano)</span></div>
+                    <div class="flex justify-between text-[10px] text-slate-400 font-mono font-medium"><span>10°C (Invierno)</span><span>19°C (Primavera)</span><span>28°C (Verano)</span></div>
                 </div>
 
                 <!-- Slider Temp Aire -->
@@ -1785,7 +1790,7 @@
                         <span id="valTempAire" class="text-amber-300 font-mono text-sm ps-tabular">21.0°C</span>
                     </div>
                     <input type="range" id="sliderTempAire" min="5" max="38" step="0.5" value="21" oninput="window.actualizarVistaCalculadoraTermica()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400" />
-                    <div class="flex justify-between text-[9px] text-slate-500 font-mono"><span>5°C (Frío)</span><span>20°C (Templado)</span><span>38°C (Calor)</span></div>
+                    <div class="flex justify-between text-[10px] text-slate-400 font-mono font-medium"><span>5°C (Frío)</span><span>20°C (Templado)</span><span>38°C (Calor)</span></div>
                 </div>
 
                 <!-- Slider Viento -->
@@ -1795,7 +1800,7 @@
                         <span id="valViento" class="text-emerald-300 font-mono text-sm ps-tabular">8 kt</span>
                     </div>
                     <input type="range" id="sliderViento" min="0" max="35" step="1" value="8" oninput="window.actualizarVistaCalculadoraTermica()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-400" />
-                    <div class="flex justify-between text-[9px] text-slate-500 font-mono"><span>0 kt (Calma)</span><span>12 kt (Brisa)</span><span>35 kt (Fuerte)</span></div>
+                    <div class="flex justify-between text-[10px] text-slate-400 font-mono font-medium"><span>0 kt (Calma)</span><span>12 kt (Brisa)</span><span>35 kt (Fuerte)</span></div>
                 </div>
 
                 <!-- Checkbox Nublado -->
