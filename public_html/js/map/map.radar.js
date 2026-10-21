@@ -570,3 +570,4 @@ if (typeof window !== 'undefined') {
     window.calcularDerivaCosteraPaddle = calcularDerivaCosteraPaddle;
     window.calcularValoracionRapidaPaddleSafe = calcularValoracionRapidaPaddleSafe;
 }
+

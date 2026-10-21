@@ -208,11 +208,26 @@
             if (typeof window._activarItemBottomNavImpl === 'function') {
                 return window._activarItemBottomNavImpl(tabId);
             }
+            const isMobile = window.innerWidth < 1024;
+            const tabBasico = document.getElementById('tab-basico');
+            const tabPro = document.getElementById('tab-pro');
+            const panelPro = document.getElementById('panelPro');
+
             if (tabId === 'parte') {
+                if (isMobile) {
+                    if (tabBasico) { tabBasico.classList.remove('hidden'); tabBasico.classList.add('block'); }
+                    if (tabPro) { tabPro.classList.add('hidden'); tabPro.classList.remove('flex'); }
+                }
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             } else if (tabId === 'pro') {
+                if (isMobile) {
+                    if (tabPro) { tabPro.classList.remove('hidden'); tabPro.classList.add('flex'); }
+                    if (tabBasico) { tabBasico.classList.add('hidden'); tabBasico.classList.remove('block'); }
+                    if (panelPro) panelPro.style.gridTemplateRows = "1fr";
+                }
                 if (window.togglePanelPro) window.togglePanelPro(true);
-                document.getElementById('mapaInteractivo')?.scrollIntoView({ behavior: 'smooth' });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                setTimeout(() => { if (window.map) window.map.invalidateSize(); }, 150);
             } else if (tabId === 'muro') {
                 window.abrirModalFeed();
             } else if (tabId === 'clubes') {
@@ -226,12 +241,12 @@
 <body class="bg-slate-950 text-slate-100 font-sans min-h-[100dvh] overflow-x-hidden w-full max-w-full flex items-start sm:items-center justify-center p-0 sm:p-5 pb-24 md:pb-10 relative selection:bg-sky-500 selection:text-white" style="background-color: #0b1120; background-image: radial-gradient(ellipse at top, rgba(14, 165, 233, 0.12), transparent 60%);">
 
     <!-- ATMOSPHERIC AMBIENT LIGHTING (DESIGN SYSTEM 4.0) -->
-    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <div class="hidden sm:block fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div id="ambientGlowTop" class="ps-ambient-radial w-[600px] h-[600px] -top-48 left-1/2 -translate-x-1/2 bg-gradient-to-br from-sky-500/15 via-teal-500/10 to-transparent"></div>
         <div id="ambientGlowBottom" class="ps-ambient-radial w-[500px] h-[500px] -bottom-32 right-10 bg-gradient-to-tl from-indigo-500/15 via-cyan-500/10 to-transparent"></div>
     </div>
 
-    <div class="max-w-2xl lg:max-w-[1600px] w-full bg-slate-900/95 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-16 sm:pb-0 border border-slate-800 z-10 backdrop-blur-xl mx-auto">
+    <div class="max-w-2xl lg:max-w-[1600px] w-full bg-slate-900/95 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative min-h-[100dvh] sm:min-h-0 pb-4 sm:pb-0 border border-slate-800 z-10 backdrop-blur-xl mx-auto">
         
         <!-- CABECERA PRINCIPAL -->
         <div class="bg-marine p-4 sm:p-7 text-center relative flex flex-col items-center justify-center shadow-inner z-50 border-b border-slate-800/80">
@@ -791,49 +806,24 @@
                 </div>
             </section>
 
-            <!-- MODAL DE NOTAS TÁCTICAS DEL SPOT -->
-            <div id="modalNotasTacticasSpot" class="fixed inset-0 z-[1200] ps-modal-backdrop hidden items-center justify-center p-3 sm:p-4">
-                <div class="ps-bento-card bg-slate-900 border border-slate-700/80 w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar p-5 rounded-2xl shadow-2xl flex flex-col gap-4 text-white">
-                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-                        <div class="flex items-center gap-2.5 min-w-0">
-                            <span class="text-2xl shrink-0">📝</span>
-                            <div>
-                                <h3 class="text-sm sm:text-base font-black text-white flex items-center gap-2">Notas Tácticas y Acceso al Spot</h3>
-                                <p class="text-[10px] text-slate-400 font-semibold">Consejos de seguridad, rampas de arena y peligros locales</p>
-                            </div>
-                        </div>
-                        <button type="button" aria-label="Cerrar notas" onclick="window.cerrarModalNotasTacticasSpot()" class="ps-modal-close-btn" title="Cerrar">✕</button>
-                    </div>
-                    <div class="flex flex-col gap-3 text-xs">
-                        <div>
-                            <label for="inputSpotNotasTacticas" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Notas Tácticas / Consejos de Navegación</label>
-                            <textarea id="inputSpotNotasTacticas" rows="3" placeholder="Ej. Con viento de tierra salir por la orilla norte detrás del espigón..." class="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-sky-500"></textarea>
-                        </div>
-                        <div>
-                            <label for="inputSpotAccesoParking" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Acceso, Parking y Entrada al Agua</label>
-                            <input type="text" id="inputSpotAccesoParking" placeholder="Ej. Parking gratuito a 50m, acceso por rampa de arena suave..." class="w-full h-10 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-sky-500">
-                        </div>
-                        <div>
-                            <label for="inputSpotPeligrosLocales" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Peligros Locales / Fondos Rocosos / Corrientes</label>
-                            <input type="text" id="inputSpotPeligrosLocales" placeholder="Ej. Rocas sumergidas a la derecha de la cala con marea baja..." class="w-full h-10 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-rose-500">
-                        </div>
-                    </div>
-                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                        <button type="button" onclick="window.cerrarModalNotasTacticasSpot()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer transition-colors">Cerrar</button>
-                        <button type="button" onclick="window.confirmarGuardarNotasTacticas()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-md active:scale-95 cursor-pointer transition-transform">Guardar Notas</button>
-                    </div>
-                </div>
-            </div>
             </div>
 
-            <!-- RIGHT INTERACTIVE MAP & PRO ROUTE COLUMN (lg:col-span-7 xl:col-span-7 lg:sticky lg:top-6 space-y-4) -->
+            <!-- RIGHT INTERACTIVE MAP<!-- RIGHT INTERACTIVE MAP & PRO ROUTE COLUMN (lg:col-span-7 xl:col-span-7 lg:sticky lg:top-6 space-y-4) -->
             <!-- ========================================== -->
         <!-- VERSIÓN PRO: MAPA AMPLIADO Y COPILOTO (TAB-PRO) -->
         <!-- ========================================== -->
-        <div id="tab-pro" class="bg-premium lg:bg-transparent border-t lg:border-t-0 border-slate-800 p-4 sm:p-6 lg:p-0 flex flex-col flex-1 lg:col-span-7 xl:col-span-7 lg:sticky lg:top-6 space-y-4">
-            <button type="button" id="btnPro" onclick="togglePanelPro()" class="lg:hidden relative z-10 w-full min-h-[52px] bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black px-5 rounded-xl shadow-lg hover:shadow-glow-pro transition-all flex justify-between items-center group cursor-pointer mb-2">
-                <span class="flex items-center gap-2 sm:text-lg"><span>✨</span> Copiloto Inteligente Pro</span>
-                <svg id="btnProIcon" class="transition-transform duration-300 text-white/70 group-hover:text-white" viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.5" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        <div id="tab-pro" class="hidden lg:flex w-full bg-transparent p-0 flex-col flex-1 lg:col-span-7 xl:col-span-7 lg:sticky lg:top-6 space-y-4">
+            <!-- Mobile Return to Parte Navigation Pill -->
+            <div class="lg:hidden flex items-center justify-between pb-1 px-1">
+                <button type="button" onclick="window.activarItemBottomNav('parte')" class="ps-chip text-sky-300 border-sky-500/40 bg-sky-500/10 cursor-pointer active:scale-95 text-xs font-bold" title="Volver al Parte y Pronóstico">
+                    <span>🌊</span> <span>Ver Parte y Pronóstico</span>
+                </button>
+                <span class="text-[11px] font-black uppercase tracking-wider text-water">🧭 Mapa y Ruta Pro</span>
+            </div>
+
+            <button type="button" id="btnPro" onclick="togglePanelPro()" class="lg:hidden relative z-10 w-full min-h-[48px] bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black px-4 rounded-xl shadow-lg hover:shadow-glow-pro transition-all flex justify-between items-center group cursor-pointer mb-2">
+                <span class="flex items-center gap-2 text-sm sm:text-base"><span>✨</span> Herramientas Pro & Mapa</span>
+                <svg id="btnProIcon" class="transition-transform duration-300 text-white/70 group-hover:text-white rotate-180" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
 
             <div id="panelPro" class="grid transition-all duration-300 ease-in-out w-full lg:!grid-rows-[1fr]" style="grid-template-rows: 0fr;">
@@ -1323,6 +1313,39 @@
     </div>
 
     <!-- MODALES JS -->
+
+    <!-- Modal de Notas Tácticas del Spot (Reubicado en root de modales para evitar conflictos de backdrop-blur) -->
+    <!-- MODAL DE NOTAS TÁCTICAS DEL SPOT -->
+            <div id="modalNotasTacticasSpot" class="fixed inset-0 z-[1200] ps-modal-backdrop hidden items-center justify-center p-3 sm:p-4">
+                <div class="ps-bento-card bg-slate-900 border border-slate-700/80 w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar p-5 rounded-2xl shadow-2xl flex flex-col gap-4 text-white">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="text-2xl shrink-0">📝</span>
+                            <div>
+                                <h3 class="text-sm sm:text-base font-black text-white flex items-center gap-2">Notas Tácticas y Acceso al Spot</h3>
+                                <p class="text-[10px] text-slate-400 font-semibold">Consejos de seguridad, rampas de arena y peligros locales</p>
+                            </div>
+                        </div>
+                        <button type="button" aria-label="Cerrar notas" onclick="window.cerrarModalNotasTacticasSpot()" class="ps-modal-close-btn" title="Cerrar">✕</button>
+                    </div>
+                    <div class="flex flex-col gap-3 text-xs">
+                        <div>
+                            <label for="inputSpotNotasTacticas" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Notas Tácticas / Consejos de Navegación</label>
+                            <textarea id="inputSpotNotasTacticas" rows="3" placeholder="Ej. Con viento de tierra salir por la orilla norte detrás del espigón..." class="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-sky-500"></textarea>
+                        </div>
+                        <div>
+                            <label for="inputSpotAccesoParking" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Acceso, Parking y Entrada al Agua</label>
+                            <input type="text" id="inputSpotAccesoParking" placeholder="Ej. Parking gratuito a 50m, acceso por rampa de arena suave..." class="w-full h-10 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div>
+                            <label for="inputSpotPeligrosLocales" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Peligros Locales / Fondos Rocosos / Corrientes</label>
+                            <input type="text" id="inputSpotPeligrosLocales" placeholder="Ej. Rocas sumergidas a la derecha de la cala con marea baja..." class="w-full h-10 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-rose-500">
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                        <button type="button" onclick="window.cerrarModalNotasTacticasSpot()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer transition-colors">Cerrar</button>
+                        <button type="button" onclick="window.confirmarGuardarNotasTacticas()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-md active:scale-95 cursor-pointer transition-transform">Guardar Notas</button>
+                    </div>
 
     <!-- Modal de Autenticación / Perfil Propio -->
     <div id="authModal" class="fixed inset-0 z-[100] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-4 opacity-0 transition-opacity duration-300">
