@@ -119,3 +119,4 @@ flowchart TD
    - Cero conflictos de fusión (merge conflicts) en Git gracias a ficheros compactos (< 300 LOC) con responsabilidades unívocas.
 3. **Multiplataforma Unificada:**
    - La arquitectura modular permitirá que la versión Web, la PWA y las aplicaciones nativas de iOS y Android compartan el **95% de la base de código**, minimizando costes de mantenimiento a largo plazo.
+

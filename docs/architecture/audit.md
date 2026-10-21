@@ -273,3 +273,4 @@ PUNTUACIÓN DE MADUREZ TÉCNICA GLOBAL: 78 / 100
 - **Modularidad y Acoplamiento de Código:** **58 / 100** (Presencia de 7 archivos monolíticos > 1,500 LOC).
 - **Gestión de Estado y Espacio Global:** **65 / 100** (326 funciones en `window`, mutación directa de `appState`).
 - **Seguridad e Infraestructura CI/CD:** **88 / 100** (0 vulnerabilidades npm, GitHub Actions, Dependabot activo).
+

@@ -5,7 +5,7 @@ test.describe('Leaflet Map & Cockpit Controls Audit', () => {
         await page.addInitScript(() => {
             try { localStorage.setItem('ps_quick_setup_dismissed', '1'); } catch (_) {}
         });
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
         await page.waitForFunction(() => window.mapRuntime !== undefined);
 
@@ -127,5 +127,45 @@ test.describe('Leaflet Map & Cockpit Controls Audit', () => {
         await page.waitForTimeout(200);
 
         await expect(hud).toBeHidden();
+    });
+    test('Telemetry HUD and Layer Switcher have zero overlap and maintain adequate separation distance', async ({ page }) => {
+        // Trigger HUD
+        await page.evaluate(() => {
+            if (typeof window.actualizarHudVectoresMapa === 'function') {
+                window.actualizarHudVectoresMapa(38.80, 0.18, {
+                    windSpeed: 4.2,
+                    windGusts: 6.1,
+                    windDirection: 90,
+                    waveHeight: 0.4,
+                    wavePeriod: 5.0
+                });
+            }
+        });
+        await page.waitForTimeout(200);
+
+        const switcher = page.locator('#mapLayerSwitcher');
+        const hud = page.locator('#mapWindWaveHud');
+
+        await expect(switcher).toBeVisible();
+        await expect(hud).toBeVisible();
+
+        const switcherRect = await switcher.boundingBox();
+        const hudRect = await hud.boundingBox();
+
+        expect(switcherRect).not.toBeNull();
+        expect(hudRect).not.toBeNull();
+
+        // 1. Zero vertical or horizontal overlap
+        const hasOverlap = !(
+            hudRect.x >= switcherRect.x + switcherRect.width ||
+            hudRect.x + hudRect.width <= switcherRect.x ||
+            hudRect.y >= switcherRect.y + switcherRect.height ||
+            hudRect.y + hudRect.height <= switcherRect.y
+        );
+        expect(hasOverlap, 'mapWindWaveHud and mapLayerSwitcher must never overlap').toBe(false);
+
+        // 2. Sufficient vertical separation (HUD at bottom-right, Switcher at top-right)
+        const verticalDistance = hudRect.y - (switcherRect.y + switcherRect.height);
+        expect(verticalDistance, `Vertical distance between Switcher and HUD must be > 50px, got ${verticalDistance}`).toBeGreaterThan(50);
     });
 });
