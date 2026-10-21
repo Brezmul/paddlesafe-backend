@@ -8,7 +8,7 @@ test.describe('Mobile Scroll Hygiene & Bottom Dock Navigation', () => {
     });
 
     test('Mobile view switches seamlessly between Parte and Ruta Pro without stacked page underneath', async ({ page, isMobile }) => {
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
 
         if (!isMobile) {
@@ -57,7 +57,7 @@ test.describe('Mobile Scroll Hygiene & Bottom Dock Navigation', () => {
     });
 
     test('Zero nested scroll contexts or runaway overflow containers', async ({ page }) => {
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
 
         // Check for any body-level scroll leaks
@@ -73,7 +73,7 @@ test.describe('Mobile Scroll Hygiene & Bottom Dock Navigation', () => {
     });
 
     test('Desktop header navigation is strictly hidden on mobile and visible on desktop', async ({ page, isMobile }) => {
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
 
         const desktopNav = page.locator('#desktopHeaderNav');

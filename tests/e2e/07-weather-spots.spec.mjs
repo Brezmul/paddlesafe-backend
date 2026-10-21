@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { setupWeatherMocks } from './helpers/weather-mock.mjs';
 
 test.describe('Weather & Spot Selection Engine (End-to-End)', () => {
     let pageErrors = [];
@@ -8,6 +9,8 @@ test.describe('Weather & Spot Selection Engine (End-to-End)', () => {
         page.on('pageerror', err => {
             pageErrors.push(err.message || String(err));
         });
+
+        await setupWeatherMocks(page);
 
         await page.addInitScript(() => {
             try { localStorage.setItem('ps_quick_setup_dismissed', '1'); } catch (_) {}

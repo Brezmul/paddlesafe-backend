@@ -5,7 +5,7 @@ test.describe('Modal Architecture & Isolation Suite', () => {
         await page.addInitScript(() => {
             try { localStorage.setItem('ps_quick_setup_dismissed', '1'); } catch (_) {}
         });
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
         await page.waitForFunction(() => window.mapRuntime !== undefined && typeof window.cerrarModalNotasTacticasSpot === 'function');
     });

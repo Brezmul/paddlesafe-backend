@@ -23,7 +23,7 @@ test.describe('Layout & Responsive Viewport Audit', () => {
             if (msg.type() === 'error') consoleErrors.push(msg.text());
         });
 
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(500);
 
@@ -69,7 +69,7 @@ test.describe('Layout & Responsive Viewport Audit', () => {
     });
 
     test('Header elements and Omnibar are fully visible and readable', async ({ page }) => {
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
 
         // Location input, date, timeRange, userLevel and CTA button must be present
@@ -88,7 +88,7 @@ test.describe('Layout & Responsive Viewport Audit', () => {
     });
 
     test('Quick pills bar scrolls cleanly without breaking layout', async ({ page }) => {
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
 
         const pillsBar = page.locator('#quickTimePillsBar');

@@ -11,7 +11,7 @@ test.describe('Accessibility & WCAG AA Audit (Axe-Core)', () => {
     });
 
     test('Home screen passes core WCAG AA accessibility standards', async ({ page }) => {
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(500);
 
@@ -39,7 +39,7 @@ test.describe('Accessibility & WCAG AA Audit (Axe-Core)', () => {
     });
 
     test('All interactive buttons have aria-label, title or accessible text', async ({ page }) => {
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
 
         const buttonAudits = await page.evaluate(() => {
@@ -69,7 +69,7 @@ test.describe('Accessibility & WCAG AA Audit (Axe-Core)', () => {
     });
 
     test('Keyboard Tab navigation reaches key interactive controls', async ({ page }) => {
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.waitForLoadState('domcontentloaded');
 
         // Press Tab repeatedly and verify focus progresses
