@@ -1803,6 +1803,52 @@ assert(deployPs1.includes('Set-Alias -Name Upload-FtpFile -Value Send-FtpFile'),
 assert(deployPs1.includes('Set-Alias -Name Ensure-FtpDirectory -Value New-FtpDirectory'), 'deploy_hostinger.ps1 must preserve Ensure-FtpDirectory alias');
 
 // ------------------------------------------------------------------------------
+// PADDLESAFE ADVANCED MARINE RADAR ENGINE AUDIT
+// ------------------------------------------------------------------------------
+console.log('--- [RADAR ENGINE] Advanced Marine & Drift Analysis Audit ---');
+const radarModule = await import('./public_html/js/map/map.radar.js');
+assert(typeof radarModule.activarModoRadar === 'function', 'map.radar.js must export activarModoRadar');
+assert(typeof radarModule.desactivarModoRadar === 'function', 'map.radar.js must export desactivarModoRadar');
+assert(typeof radarModule.toggleCapaRadar === 'function', 'map.radar.js must export toggleCapaRadar');
+assert(typeof radarModule.ajustarOpacidadRadar === 'function', 'map.radar.js must export ajustarOpacidadRadar');
+assert(typeof radarModule.actualizarCapasRadar === 'function', 'map.radar.js must export actualizarCapasRadar');
+assert(typeof radarModule.calcularDerivaCosteraPaddle === 'function', 'map.radar.js must export calcularDerivaCosteraPaddle');
+assert(typeof radarModule.calcularValoracionRapidaPaddleSafe === 'function', 'map.radar.js must export calcularValoracionRapidaPaddleSafe');
+assert(typeof radarModule.obtenerColorEscalaViento === 'function', 'map.radar.js must export obtenerColorEscalaViento');
+assert(typeof radarModule.obtenerColorEscalaOleaje === 'function', 'map.radar.js must export obtenerColorEscalaOleaje');
+assert(typeof radarModule.obtenerColorEscalaLluvia === 'function', 'map.radar.js must export obtenerColorEscalaLluvia');
+
+// Test wind color scale
+assert(radarModule.obtenerColorEscalaViento(4) === '#10b981', 'Wind <= 5kt must be green');
+assert(radarModule.obtenerColorEscalaViento(8) === '#f59e0b', 'Wind 5-10kt must be yellow');
+assert(radarModule.obtenerColorEscalaViento(12) === '#f97316', 'Wind 10-15kt must be orange');
+assert(radarModule.obtenerColorEscalaViento(18) === '#ef4444', 'Wind > 15kt must be red');
+
+// Test wave color scale
+assert(radarModule.obtenerColorEscalaOleaje(0.3) === '#10b981', 'Wave <= 0.5m must be green');
+assert(radarModule.obtenerColorEscalaOleaje(0.8) === '#f59e0b', 'Wave 0.5-1m must be yellow');
+assert(radarModule.obtenerColorEscalaOleaje(1.2) === '#f97316', 'Wave 1-1.5m must be orange');
+assert(radarModule.obtenerColorEscalaOleaje(1.8) === '#ef4444', 'Wave > 1.5m must be red');
+
+// Test drift calculation physics
+const testDeriva = radarModule.calcularDerivaCosteraPaddle(10, 0, 0.6, 180, 'inflat_allround');
+assert(Number.isFinite(testDeriva.velocidadKt) && testDeriva.velocidadKt > 0, 'Drift calculation must yield positive speed');
+assert(Number.isFinite(testDeriva.direccionDeg) && testDeriva.direccionDeg >= 0 && testDeriva.direccionDeg <= 360, 'Drift direction must be valid degrees');
+assert(testDeriva.velocidadMpm > 0, 'Drift speed must provide meters per minute');
+
+// Test 10-second verdict
+const verdictOptimo = radarModule.calcularValoracionRapidaPaddleSafe({ vientoKt: 4, olaM: 0.3, derivaKt: 0.1, precipMm: 0 });
+assert(verdictOptimo.nivel === 'excelente', 'Mild conditions must be rated excelente');
+
+const verdictPeligro = radarModule.calcularValoracionRapidaPaddleSafe({ vientoKt: 18, olaM: 1.5, derivaKt: 0.9, precipMm: 0 });
+assert(verdictPeligro.nivel === 'no_recomendable', 'Severe conditions must be rated no_recomendable');
+
+// Facade re-export audit
+const mapFacadeRadar = await import('./public_html/js/map.js');
+assert(typeof mapFacadeRadar.calcularDerivaCosteraPaddle === 'function', 'map.js must re-export calcularDerivaCosteraPaddle');
+assert(typeof mapFacadeRadar.calcularValoracionRapidaPaddleSafe === 'function', 'map.js must re-export calcularValoracionRapidaPaddleSafe');
+
+// ------------------------------------------------------------------------------
 // FINAL RESULT SUMMARY
 // ------------------------------------------------------------------------------
 const summary = {

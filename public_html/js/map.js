@@ -18,6 +18,7 @@ export * from './map/map.poster.js';
 export * from './map/map.routes.js';
 export * from './map/map.coach.js';
 export * from './map/map.spots.js';
+export * from './map/map.radar.js';
 export { generarGuiaHumanaEquipamiento, calcularEquipamientoTermicoDetallado } from './utils.js';
 
 // 2. Importaciones nombradas para cableado global reactivo en window.*
