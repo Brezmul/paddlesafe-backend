@@ -489,7 +489,7 @@
                 <div class="h-5 w-px bg-slate-700/60 shrink-0 mx-1"></div>
 
                 <!-- Thermal Wetsuit Calculator Pill (Batch #24) -->
-                <button type="button" id="btnOpenThermalCalc" onclick="window.abrirCalculadoraTermica()" class="ps-chip ps-quick-pill bg-sky-950/70 text-sky-300 border-sky-500/40 hover:bg-sky-500/20 active:scale-95 cursor-pointer shrink-0" title="Calculadora de Neopreno y Sensación Térmica">
+                <button type="button" id="btnOpenThermalCalc" onclick="window.abrirCalculadoraTermica()" class="ps-chip ps-quick-pill bg-sky-950/70 text-sky-300 border-sky-500/40 hover:bg-sky-500/20 active:scale-95 cursor-pointer shrink-0" title="Calculadora de Neopreno y Sensación Térmica" aria-label="Abrir calculadora de neopreno y sensación térmica">
                     <span>🌡️</span> <span>Calculadora Neopreno</span>
                 </button>
             </div>
@@ -1057,13 +1057,13 @@
                                             </div>
                                         </div>
                                         <div class="flex items-center gap-1.5 shrink-0">
-                                            <button type="button" id="btnReplayFollow" onclick="window.toggleReplaySeguirCamara()" class="ps-chip ps-quick-pill text-[11px] font-bold text-sky-300 bg-sky-500/20 border-sky-400/50 hover:bg-sky-500/30 cursor-pointer active:scale-95" title="Centrar cámara en el remero">
+                                            <button type="button" id="btnReplayFollow" onclick="window.toggleReplaySeguirCamara()" class="ps-chip ps-quick-pill text-[11px] font-bold text-sky-300 bg-sky-500/20 border-sky-400/50 hover:bg-sky-500/30 cursor-pointer active:scale-95" title="Centrar cámara en el remero" aria-label="Seguir marcador con la cámara">
                                                 <span>🎥</span> <span id="replayFollowText">Seguir</span>
                                             </button>
-                                            <button type="button" id="btnReplaySpeed" onclick="window.cambiarVelocidadReplayRuta()" class="ps-chip ps-quick-pill text-[11px] font-black text-amber-300 bg-amber-500/20 border-amber-400/50 hover:bg-amber-500/30 font-mono cursor-pointer active:scale-95" title="Cambiar velocidad de reproducción">
+                                            <button type="button" id="btnReplaySpeed" onclick="window.cambiarVelocidadReplayRuta()" class="ps-chip ps-quick-pill text-[11px] font-black text-amber-300 bg-amber-500/20 border-amber-400/50 hover:bg-amber-500/30 font-mono cursor-pointer active:scale-95" title="Cambiar velocidad de reproducción" aria-label="Cambiar velocidad de reproducción">
                                                 1x
                                             </button>
-                                            <button type="button" id="btnReplayClose" onclick="window.detenerReplayRuta()" class="ps-chip ps-quick-pill text-[11px] font-bold text-slate-400 hover:text-white bg-slate-800 border-slate-700 hover:bg-slate-700 cursor-pointer active:scale-95" title="Cerrar repetición">
+                                            <button type="button" id="btnReplayClose" onclick="window.detenerReplayRuta()" class="ps-chip ps-quick-pill text-[11px] font-bold text-slate-400 hover:text-white bg-slate-800 border-slate-700 hover:bg-slate-700 cursor-pointer active:scale-95" title="Cerrar repetición" aria-label="Cerrar repetición de travesía">
                                                 ✕
                                             </button>
                                         </div>
@@ -1071,7 +1071,7 @@
 
                                     <!-- Scrubber Progress Bar & Play/Pause Controls -->
                                     <div class="flex items-center gap-3 w-full">
-                                        <button type="button" id="btnReplayToggle" onclick="window.togglePlayPauseReplayRuta()" class="w-10 h-10 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-400 hover:to-emerald-400 text-slate-950 font-black flex items-center justify-center shrink-0 shadow-lg cursor-pointer active:scale-95 transition-transform" title="Reproducir / Pausar">
+                                        <button type="button" id="btnReplayToggle" onclick="window.togglePlayPauseReplayRuta()" class="w-10 h-10 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-400 hover:to-emerald-400 text-slate-950 font-black flex items-center justify-center shrink-0 shadow-lg cursor-pointer active:scale-95 transition-transform" title="Reproducir / Pausar" aria-label="Reproducir o pausar repetición de travesía">
                                             <span id="replayToggleIcon" class="text-base">▶️</span>
                                         </button>
 
@@ -1080,7 +1080,7 @@
                                                 <span id="replayElapsedTime">00:00</span>
                                                 <span id="replayProgressPct">0%</span>
                                             </div>
-                                            <input type="range" id="replayScrubberInput" aria-label="Control de reproducción y posición de ruta" min="0" max="1000" value="0" step="1" oninput="window.actualizarPosicionReplayProgreso(this.value / 1000, true)" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400 focus:outline-none" />
+                                            <input type="range" id="replayScrubberInput" aria-label="Progreso de la travesía" min="0" max="1000" value="0" step="1" oninput="window.actualizarPosicionReplayProgreso(this.value / 1000, true)" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400 focus:outline-none" />
                                         </div>
                                     </div>
 
@@ -1783,18 +1783,18 @@
     </div>
 
     <!-- MODAL DE CALCULADORA TÉRMICA & ASESOR DE NEOPRENO (BATCH #24) -->
-    <div id="thermalCalculatorModal" class="fixed inset-0 z-[145] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-5">
+    <div id="thermalCalculatorModal" role="dialog" aria-modal="true" aria-labelledby="thermalModalTitle" class="fixed inset-0 z-[145] hidden ps-modal-backdrop flex items-center justify-center p-3 sm:p-5">
         <div class="ps-bento-card bg-slate-900/95 backdrop-blur-2xl border border-sky-500/40 rounded-3xl p-5 sm:p-6 max-w-xl w-full shadow-2xl text-white flex flex-col gap-4 max-h-[92vh] overflow-y-auto custom-scrollbar animate-fadeIn select-none">
             <!-- Modal Header -->
             <div class="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div class="flex items-center gap-2.5">
                     <span class="text-2xl">🌡️</span>
                     <div>
-                        <h3 class="text-base sm:text-lg font-black text-white">Calculadora Térmica & Neopreno</h3>
+                        <h3 id="thermalModalTitle" class="text-base sm:text-lg font-black text-white">Calculadora Térmica & Neopreno</h3>
                         <p class="text-[11px] text-slate-400 font-medium">Asesor físico de sensación térmica, grosor de traje y seguridad</p>
                     </div>
                 </div>
-                <button type="button" onclick="window.cerrarCalculadoraTermica()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center text-sm font-black transition-colors cursor-pointer" title="Cerrar">
+                <button type="button" onclick="window.cerrarCalculadoraTermica()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center text-sm font-black transition-colors cursor-pointer" title="Cerrar" aria-label="Cerrar calculadora térmica">
                     ✕
                 </button>
             </div>
@@ -1804,36 +1804,36 @@
                 <!-- Slider Temp Agua -->
                 <div class="space-y-1">
                     <div class="flex items-center justify-between text-xs font-bold">
-                        <span class="text-slate-300 flex items-center gap-1.5">🌊 Temp. Agua</span>
+                        <label for="sliderTempAgua" class="text-slate-300 flex items-center gap-1.5 cursor-pointer">🌊 Temp. Agua</label>
                         <span id="valTempAgua" class="text-sky-400 font-mono text-sm ps-tabular">18.0°C</span>
                     </div>
-                    <input type="range" id="sliderTempAgua" aria-label="Selector de temperatura del agua en grados" min="10" max="28" step="0.5" value="18" oninput="window.actualizarVistaCalculadoraTermica()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400" />
+                    <input type="range" id="sliderTempAgua" name="sliderTempAgua" aria-label="Selector de temperatura del agua en grados Celsius" min="10" max="28" step="0.5" value="18" oninput="window.actualizarVistaCalculadoraTermica()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400" />
                     <div class="flex justify-between text-[10px] text-slate-400 font-mono font-medium"><span>10°C (Invierno)</span><span>19°C (Primavera)</span><span>28°C (Verano)</span></div>
                 </div>
 
                 <!-- Slider Temp Aire -->
                 <div class="space-y-1">
                     <div class="flex items-center justify-between text-xs font-bold">
-                        <span class="text-slate-300 flex items-center gap-1.5">☀️ Temp. Aire</span>
+                        <label for="sliderTempAire" class="text-slate-300 flex items-center gap-1.5 cursor-pointer">☀️ Temp. Aire</label>
                         <span id="valTempAire" class="text-amber-300 font-mono text-sm ps-tabular">21.0°C</span>
                     </div>
-                    <input type="range" id="sliderTempAire" aria-label="Selector de temperatura del aire en grados" min="5" max="38" step="0.5" value="21" oninput="window.actualizarVistaCalculadoraTermica()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400" />
+                    <input type="range" id="sliderTempAire" name="sliderTempAire" aria-label="Selector de temperatura del aire en grados Celsius" min="5" max="38" step="0.5" value="21" oninput="window.actualizarVistaCalculadoraTermica()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400" />
                     <div class="flex justify-between text-[10px] text-slate-400 font-mono font-medium"><span>5°C (Frío)</span><span>20°C (Templado)</span><span>38°C (Calor)</span></div>
                 </div>
 
                 <!-- Slider Viento -->
                 <div class="space-y-1">
                     <div class="flex items-center justify-between text-xs font-bold">
-                        <span class="text-slate-300 flex items-center gap-1.5">💨 Viento (Windchill)</span>
+                        <label for="sliderViento" class="text-slate-300 flex items-center gap-1.5 cursor-pointer">💨 Viento (Windchill)</label>
                         <span id="valViento" class="text-emerald-300 font-mono text-sm ps-tabular">8 kt</span>
                     </div>
-                    <input type="range" id="sliderViento" aria-label="Selector de velocidad del viento en nudos" min="0" max="35" step="1" value="8" oninput="window.actualizarVistaCalculadoraTermica()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-400" />
+                    <input type="range" id="sliderViento" name="sliderVientoTermico" aria-label="Selector de velocidad del viento en nudos" min="0" max="35" step="1" value="8" oninput="window.actualizarVistaCalculadoraTermica()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-400" />
                     <div class="flex justify-between text-[10px] text-slate-400 font-mono font-medium"><span>0 kt (Calma)</span><span>12 kt (Brisa)</span><span>35 kt (Fuerte)</span></div>
                 </div>
 
                 <!-- Checkbox Nublado -->
                 <label class="flex items-center gap-2 cursor-pointer pt-1 text-xs text-slate-300 font-medium">
-                    <input type="checkbox" id="checkNublado" onchange="window.actualizarVistaCalculadoraTermica()" class="rounded border-slate-700 bg-slate-800 text-sky-500 focus:ring-0 cursor-pointer w-4 h-4" />
+                    <input type="checkbox" id="checkNublado" name="checkNublado" aria-label="Día nublado sin radiación solar directa" onchange="window.actualizarVistaCalculadoraTermica()" class="rounded border-slate-700 bg-slate-800 text-sky-500 focus:ring-0 cursor-pointer w-4 h-4" />
                     <span>☁️ Día nublado / Sin radiación solar directa (-1.5°C sensación)</span>
                 </label>
             </div>
@@ -1843,13 +1843,13 @@
                 <div class="flex flex-col gap-1.5">
                     <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">🔥 Intensidad de Remada</span>
                     <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                        <button type="button" data-calc-intensidad="paseo" onclick="window.setCalculadoraTermicaSegment('intensidad', 'paseo')" class="ps-chip ps-quick-pill ps-chip-active flex-1 text-[11px] font-bold py-1 bg-sky-500/30 text-sky-200 border-sky-400 cursor-pointer">
+                        <button type="button" data-calc-intensidad="paseo" aria-label="Intensidad de remada: Paseo" onclick="window.setCalculadoraTermicaSegment('intensidad', 'paseo')" class="ps-chip ps-quick-pill ps-chip-active flex-1 text-[11px] font-bold py-1 bg-sky-500/30 text-sky-200 border-sky-400 cursor-pointer">
                             Paseo
                         </button>
-                        <button type="button" data-calc-intensidad="travesia" onclick="window.setCalculadoraTermicaSegment('intensidad', 'travesia')" class="ps-chip ps-quick-pill flex-1 text-[11px] font-bold py-1 bg-slate-800 text-slate-300 border-slate-700 cursor-pointer">
+                        <button type="button" data-calc-intensidad="travesia" aria-label="Intensidad de remada: Travesía" onclick="window.setCalculadoraTermicaSegment('intensidad', 'travesia')" class="ps-chip ps-quick-pill flex-1 text-[11px] font-bold py-1 bg-slate-800 text-slate-300 border-slate-700 cursor-pointer">
                             Travesía
                         </button>
-                        <button type="button" data-calc-intensidad="race" onclick="window.setCalculadoraTermicaSegment('intensidad', 'race')" class="ps-chip ps-quick-pill flex-1 text-[11px] font-bold py-1 bg-slate-800 text-slate-300 border-slate-700 cursor-pointer">
+                        <button type="button" data-calc-intensidad="race" aria-label="Intensidad de remada: Race" onclick="window.setCalculadoraTermicaSegment('intensidad', 'race')" class="ps-chip ps-quick-pill flex-1 text-[11px] font-bold py-1 bg-slate-800 text-slate-300 border-slate-700 cursor-pointer">
                             Race
                         </button>
                     </div>
@@ -1858,13 +1858,13 @@
                 <div class="flex flex-col gap-1.5">
                     <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">🧬 Tu Sensibilidad al Frío</span>
                     <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                        <button type="button" data-calc-tolerancia="friolero" onclick="window.setCalculadoraTermicaSegment('tolerancia', 'friolero')" class="ps-chip ps-quick-pill flex-1 text-[11px] font-bold py-1 bg-slate-800 text-slate-300 border-slate-700 cursor-pointer">
+                        <button type="button" data-calc-tolerancia="friolero" aria-label="Sensibilidad al frío: Friolero" onclick="window.setCalculadoraTermicaSegment('tolerancia', 'friolero')" class="ps-chip ps-quick-pill flex-1 text-[11px] font-bold py-1 bg-slate-800 text-slate-300 border-slate-700 cursor-pointer">
                             Friolero
                         </button>
-                        <button type="button" data-calc-tolerancia="normal" onclick="window.setCalculadoraTermicaSegment('tolerancia', 'normal')" class="ps-chip ps-quick-pill ps-chip-active flex-1 text-[11px] font-bold py-1 bg-sky-500/30 text-sky-200 border-sky-400 cursor-pointer">
+                        <button type="button" data-calc-tolerancia="normal" aria-label="Sensibilidad al frío: Normal" onclick="window.setCalculadoraTermicaSegment('tolerancia', 'normal')" class="ps-chip ps-quick-pill ps-chip-active flex-1 text-[11px] font-bold py-1 bg-sky-500/30 text-sky-200 border-sky-400 cursor-pointer">
                             Normal
                         </button>
-                        <button type="button" data-calc-tolerancia="caluroso" onclick="window.setCalculadoraTermicaSegment('tolerancia', 'caluroso')" class="ps-chip ps-quick-pill flex-1 text-[11px] font-bold py-1 bg-slate-800 text-slate-300 border-slate-700 cursor-pointer">
+                        <button type="button" data-calc-tolerancia="caluroso" aria-label="Sensibilidad al frío: Caluroso" onclick="window.setCalculadoraTermicaSegment('tolerancia', 'caluroso')" class="ps-chip ps-quick-pill flex-1 text-[11px] font-bold py-1 bg-slate-800 text-slate-300 border-slate-700 cursor-pointer">
                             Caluroso
                         </button>
                     </div>
