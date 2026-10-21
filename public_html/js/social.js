@@ -686,14 +686,14 @@ export async function cargarComentariosRuta(rutaId) {
             const comTexto = c.comentario || c.texto || c.contenido || '';
 
             return `
-                <div class="flex items-start gap-2 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 text-left">
+                <div class="flex items-start gap-2 bg-slate-900/80 p-2.5 rounded-xl border border-slate-700/60 text-left">
                     <img src="${esc(avatar)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center justify-between gap-1">
-                            <span class="text-[11px] font-bold text-marine dark:text-white truncate">${esc(autor)}</span>
+                            <span class="text-[11px] font-bold text-white truncate">${esc(autor)}</span>
                             <span class="text-[9px] text-slate-400 shrink-0">${esc(fecha)}</span>
                         </div>
-                        <p class="text-[11px] text-slate-700 dark:text-slate-300 break-words mt-0.5">${esc(comTexto)}</p>
+                        <p class="text-[11px] text-slate-200 break-words mt-0.5">${esc(comTexto)}</p>
                     </div>
                     ${esMio ? `
                         <button type="button" onclick="eliminarComentarioRuta('${esc(c.id)}', '${esc(rutaId)}')" class="text-slate-400 hover:text-red-500 text-[10px] p-0.5 shrink-0 transition-colors cursor-pointer" title="Borrar comentario">🗑️</button>
@@ -1555,7 +1555,7 @@ export const socialFeed = {
                         clubId: i.club_id,
                         userId: i.user_id,
                         is_public: true,
-                        html: `<div class="flex items-center gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full border-2 border-emerald-100 dark:border-emerald-800 object-cover shadow-sm shrink-0"><p class="text-sm text-slate-600 dark:text-slate-300 leading-snug"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre || 'Paddler')}</strong> se unió a <strong class="text-emerald-600 dark:text-emerald-400 font-bold">${esc(i.clubs?.nombre || 'un club')}</strong>.</p></div>`
+                        html: `<div class="flex items-center gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full border-2 border-emerald-500/50 object-cover shadow-sm shrink-0"><p class="text-sm text-slate-300 leading-snug"><strong class="text-white font-bold">${esc(i.perfiles?.nombre || 'Paddler')}</strong> se unió a <strong class="text-emerald-400 font-semibold">${esc(i.clubs?.nombre || 'un club')}</strong>.</p></div>`
                     });
                     this.itemsIds.add(uniqueKey);
                 } catch (errCard) {
@@ -1620,7 +1620,7 @@ export const socialFeed = {
                         userId: i.user_id,
                         visibility: i.visibility || 'club_only',
                         is_public: i.is_public === true,
-                        html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700 shadow-sm mt-1 shrink-0"><div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap mb-1"><strong class="text-marine dark:text-white font-black">${esc(i.perfiles?.nombre || 'Paddler')}</strong><span class="text-[9px] bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-sky-200 dark:border-sky-800/50"><span>🔒</span> Chat del Club</span></div><p class="text-xs text-slate-500 dark:text-slate-400">En <strong class="text-marine dark:text-white font-bold">${esc(i.clubs?.nombre || 'Club')}</strong></p><div class="mt-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/50 p-3 rounded-2xl rounded-tl-sm text-sm text-slate-700 dark:text-slate-300 italic shadow-sm">"${esc(i.mensaje)}"</div></div></div>`
+                        html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-700 shadow-sm mt-1 shrink-0"><div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap mb-1"><strong class="text-white font-bold">${esc(i.perfiles?.nombre || 'Paddler')}</strong><span class="text-[9px] bg-sky-950/70 text-sky-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-sky-800/70"><span>🔒</span> Chat del Club</span></div><p class="text-xs text-slate-400">En <strong class="text-emerald-400 font-semibold">${esc(i.clubs?.nombre || 'Club')}</strong></p><div class="mt-2 bg-slate-900/80 border border-slate-700/70 p-3 rounded-2xl rounded-tl-sm text-sm text-slate-100 italic shadow-sm">"${esc(i.mensaje)}"</div></div></div>`
                     });
                     this.itemsIds.add(uniqueKey);
                 } catch (errCard) {
@@ -1686,10 +1686,10 @@ export const socialFeed = {
                     mensajeVacio = "Aún no tienes amigos añadidos. Puedes buscar otros paddlers y enviarles solicitudes de amistad.";
                 }
                 c.innerHTML = `
-                    <div class="flex flex-col items-center justify-center p-8 text-center bg-slate-800/40 rounded-2xl border border-slate-700/50 my-4">
+                    <div class="flex flex-col items-center justify-center p-8 text-center bg-slate-900/70 rounded-2xl border border-slate-700/50 my-4">
                         <span class="text-3xl mb-2">🌊</span>
-                        <p class="text-sm font-bold text-slate-300">No hay actividad disponible</p>
-                        <p class="text-xs text-slate-500 mt-1">${mensajeVacio}</p>
+                        <p class="text-sm font-bold text-white">No hay actividad disponible</p>
+                        <p class="text-xs text-slate-400 mt-1">${mensajeVacio}</p>
                     </div>`;
                 return;
             }
@@ -1698,12 +1698,12 @@ export const socialFeed = {
             if (queryErrors.length > 0) {
                 h += `<p class="text-center text-amber-600 dark:text-amber-400 text-xs py-2">No se pudo cargar toda la actividad.</p>`;
             }
-            h += this.items.map(i => `<div class="ps-bento-card bg-slate-900/90 border border-slate-700/80 p-5 rounded-[24px] shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">${i.html}<div class="mt-4 pt-3 border-t border-slate-50 dark:border-slate-700/50 flex justify-end"><span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-900/50 px-2 py-1 rounded-md">${i.date.toLocaleDateString(undefined, {month:'short', day:'numeric'})} • ${i.date.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})}</span></div></div>`).join('');
+            h += this.items.map(i => `<div class="ps-bento-card bg-slate-900/90 border border-slate-700/80 p-5 rounded-[24px] shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">${i.html}<div class="mt-4 pt-3 border-t border-slate-800/80 flex justify-end"><span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-950/60 border border-slate-800 px-2 py-1 rounded-md">${i.date.toLocaleDateString(undefined, {month:'short', day:'numeric'})} • ${i.date.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})}</span></div></div>`).join('');
 
             if (this.hayMas) {
                 h += `
                     <div id="feedCargarMasContainer" class="py-3 text-center">
-                        <button type="button" id="btnCargarMasFeed" onclick="socialFeed.cargarMas()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer active:scale-95">
+                        <button type="button" id="btnCargarMasFeed" onclick="socialFeed.cargarMas()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold rounded-xl transition cursor-pointer active:scale-95">
                             Cargar más actividad
                         </button>
                     </div>

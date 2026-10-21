@@ -43,7 +43,7 @@ export const ClubChat = {
 
                 <!-- Barra de Entrada de Mensaje -->
                 <div class="p-3 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 flex items-center gap-2">
-                    <input type="text" id="clubChatInput" placeholder="Escribe un mensaje al club..." maxlength="500" class="flex-1 h-11 px-4 bg-slate-50 dark:bg-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-water border border-slate-200 dark:border-slate-600 dark:text-white transition-all" onkeydown="if(event.key==='Enter') window.Club.enviarMensajeChat('${esc(clubId)}')">
+                    <input type="text" id="clubChatInput" placeholder="Escribe un mensaje al club..." maxlength="500" class="flex-1 h-11 px-4 bg-slate-50 dark:bg-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-water border border-slate-200 dark:border-slate-600 !text-slate-900 dark:!text-white placeholder:text-slate-400 font-medium transition-all" onkeydown="if(event.key==='Enter') window.Club.enviarMensajeChat('${esc(clubId)}')">
                     <button type="button" id="btnSendClubChat" onclick="window.Club.enviarMensajeChat('${esc(clubId)}')" class="h-11 px-4 bg-marine dark:bg-water text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md active:scale-95 transition-transform flex items-center gap-1.5 cursor-pointer shrink-0">
                         <span>Enviar</span>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>

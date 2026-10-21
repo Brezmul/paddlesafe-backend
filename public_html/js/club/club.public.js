@@ -134,9 +134,9 @@ export const ClubPublic = {
             const btn = document.getElementById(`cpvTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
             if (btn) {
                 if (t === tab) {
-                    btn.className = "h-10 px-3 ps-pill-tab ps-pill-tab-active text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors";
+                    btn.className = "inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 ps-pill-tab ps-pill-tab-active cursor-pointer transition-colors";
                 } else {
-                    btn.className = "h-10 px-3 ps-pill-tab text-[11px] font-bold rounded-lg flex-1 cursor-pointer transition-colors";
+                    btn.className = "inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 ps-pill-tab cursor-pointer transition-colors";
                 }
             }
         });
@@ -167,9 +167,9 @@ export const ClubPublic = {
             if (c && club) {
                 c.innerHTML = `
                     <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 space-y-3 shadow-sm">
-                        ${club.ubicacion ? `<div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Ubicación</p><p class="text-sm font-bold text-marine dark:text-white">📍 ${esc(club.ubicacion)}</p></div>` : ''}
-                        ${club.normas ? `<div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Normas del Club</p><p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">${esc(club.normas)}</p></div>` : ''}
-                        <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Descripción</p><p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">${esc(club.descripcion || 'Sin descripción.')}</p></div>
+                        ${club.ubicacion ? `<div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Ubicación</p><p class="text-sm font-bold text-slate-900 dark:text-white">📍 ${esc(club.ubicacion)}</p></div>` : ''}
+                        ${club.normas ? `<div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Normas del Club</p><p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">${esc(club.normas)}</p></div>` : ''}
+                        <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Descripción</p><p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">${esc(club.descripcion || 'Sin descripción.')}</p></div>
                     </div>`;
             }
         } else if (tab === 'miembros') {
