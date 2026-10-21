@@ -1760,6 +1760,14 @@ assert(socialJs.includes('Replay'), 'social.js must render Replay badge on route
 const mapJsLinesBatch24 = fs.readFileSync('public_html/js/map.js', 'utf8').split('\n').length;
 assert(mapJsLinesBatch24 <= 200, `map.js must remain strictly under 200 LOC, got ${mapJsLinesBatch24}`);
 
+// CARTO API Key & Raster Tiles Integration Audit
+const cartoConfig = await import('./public_html/js/config.js');
+assert(cartoConfig.CARTO_API_KEY === 'cb1_4qv5_1_683638fb471571b180e5b9e6', 'config.js must export CARTO_API_KEY');
+assert(cartoConfig.CARTO_TILE_URLS && cartoConfig.CARTO_TILE_URLS.voyager.includes('cb1_4qv5_1_683638fb471571b180e5b9e6'), 'CARTO_TILE_URLS.voyager must include user API key');
+assert(cartoConfig.CARTO_TILE_URLS && cartoConfig.CARTO_TILE_URLS.dark_all.includes('cb1_4qv5_1_683638fb471571b180e5b9e6'), 'CARTO_TILE_URLS.dark_all must include user API key');
+const swFileContent = fs.readFileSync('public_html/sw.js', 'utf8');
+assert(swFileContent.includes('cartocdn.com'), 'sw.js must include cartocdn.com in TILE_HOSTS for offline caching');
+
 // ------------------------------------------------------------------------------
 // FINAL RESULT SUMMARY
 // ------------------------------------------------------------------------------
