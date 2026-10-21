@@ -21,7 +21,8 @@ import {
     calcularBeginnerIndex,
     evaluarCondicionesDeporte,
     generarConsejoCoach,
-    calcularSolYCrepusculo
+    calcularSolYCrepusculo,
+    generarGuiaHumanaEquipamiento
 } from '../utils.js';
 import { mapRuntime } from './map.state.js';
 import {
@@ -59,6 +60,7 @@ import {
     calcularMeteoProgresivaPorTramo
 } from './map.routes.js';
 import {
+    buscarYCentrarMapa,
     obtenerVelocidadCruceroUsuario
 } from './map.core.js';
 import { generarPerfilTacticoSpot } from '../engine/coastal.js';
@@ -176,6 +178,31 @@ export function renderizarResumenExperto(motor, prefijo = 'basic') {
             if (driftBarEl) {
                 driftBarEl.style.width = `${Math.min(100, Math.max(5, dScore))}%`;
                 driftBarEl.className = dScore <= 35 ? 'bg-gradient-to-r from-emerald-500 to-teal-400 h-full transition-all duration-500' : (dScore <= 65 ? 'bg-gradient-to-r from-amber-500 to-yellow-400 h-full transition-all duration-500' : 'bg-gradient-to-r from-rose-500 to-red-600 h-full transition-all duration-500');
+            }
+        }
+
+        // 10-Second Human Decision & Thermal Wetsuit Advisor (UI 6.0)
+        let briefingBar = document.getElementById('humanQuickBriefingBar');
+        const scoreVal = motor?.seguridad?.score ?? 80;
+        const vKmh = motor?.factores?.vientoKmh ?? motor?.detallesTecnicos?.vientoKmh ?? motor?.vientoKmh ?? 10;
+        const vientoKt = vKmh / 1.852;
+        const olaM = motor?.factores?.olaM ?? motor?.detallesTecnicos?.olaM ?? motor?.olaM ?? 0.2;
+        const tempAireC = motor?.temperatura ?? motor?.detallesTecnicos?.temperatura ?? 21;
+        
+        const fnGuia = typeof generarGuiaHumanaEquipamiento === 'function'
+            ? generarGuiaHumanaEquipamiento
+            : (typeof window !== 'undefined' ? window.generarGuiaHumanaEquipamiento : null);
+
+        if (typeof fnGuia === 'function') {
+            const guia = fnGuia(tempAireC, vientoKt, olaM, scoreVal);
+            if (briefingBar) {
+                briefingBar.outerHTML = guia.html;
+            } else if (contenedor) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = guia.html;
+                if (tempDiv.firstElementChild) {
+                    contenedor.insertBefore(tempDiv.firstElementChild, mensaje || contenedor.firstChild);
+                }
             }
         }
     }
@@ -1410,6 +1437,172 @@ export function cambiarSubVistaSpot(vista = 'todas') {
     return v;
 }
 
+// ==============================================================================
+// 1-TAP DAY & TIME FILTERING, QUICK SPOT LAUNCH & CALENDAR PILLS (UI 6.0)
+// ==============================================================================
+
+/**
+ * Inicializa las etiquetas dinámicas de días en el Omnibar (+2 y +3 días)
+ */
+export function inicializarPildorasCalendario() {
+    if (typeof document === 'undefined') return;
+    const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const hoy = new Date();
+
+    const d2 = new Date(hoy);
+    d2.setDate(hoy.getDate() + 2);
+    const pill2 = document.getElementById('quickDayPill2');
+    if (pill2) {
+        const label = `${diasSemana[d2.getDay()]} ${d2.getDate()}`;
+        pill2.innerHTML = `<span>📅</span> <span>${label}</span>`;
+        pill2.setAttribute('data-date', d2.toISOString().slice(0, 10));
+    }
+
+    const d3 = new Date(hoy);
+    d3.setDate(hoy.getDate() + 3);
+    const pill3 = document.getElementById('quickDayPill3');
+    if (pill3) {
+        const label = `${diasSemana[d3.getDay()]} ${d3.getDate()}`;
+        pill3.innerHTML = `<span>📅</span> <span>${label}</span>`;
+        pill3.setAttribute('data-date', d3.toISOString().slice(0, 10));
+    }
+}
+
+/**
+ * Actualiza visualmente el estado activo de las píldoras de día y franja horaria
+ * @param {number|null} diaOffset 
+ * @param {string|null} horaStr 
+ */
+export function actualizarPildorasTiempoUI(diaOffset = null, horaStr = null) {
+    if (typeof document === 'undefined') return;
+    const container = document.getElementById('quickTimePillsBar');
+    if (!container) return;
+
+    if (diaOffset !== null) {
+        const dayPills = container.querySelectorAll('[data-day]');
+        dayPills.forEach(btn => {
+            const bOffset = btn.getAttribute('data-day');
+            const isAhora = horaStr === 'ahora';
+            const isActive = isAhora ? btn.getAttribute('data-time') === 'ahora' : (bOffset === String(diaOffset) && btn.getAttribute('data-time') !== 'ahora');
+            if (isActive) {
+                btn.className = 'ps-chip ps-quick-pill bg-sky-500/30 text-sky-200 border-sky-400 font-bold active:scale-95 cursor-pointer shadow-sm';
+            } else {
+                btn.className = 'ps-chip ps-quick-pill bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 active:scale-95 cursor-pointer';
+            }
+        });
+    }
+
+    if (horaStr && horaStr !== 'ahora') {
+        const slotPills = container.querySelectorAll('[data-slot]');
+        slotPills.forEach(btn => {
+            const slot = btn.getAttribute('data-slot');
+            if (slot === horaStr) {
+                btn.className = 'ps-chip ps-quick-pill bg-emerald-500/30 text-emerald-200 border-emerald-400 font-bold active:scale-95 cursor-pointer shadow-sm';
+            } else {
+                btn.className = 'ps-chip ps-quick-pill bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 active:scale-95 cursor-pointer';
+            }
+        });
+    }
+}
+
+/**
+ * Aplica en 1-tap el filtro rápido de día y hora, actualizando inputs y disparando evaluación
+ * @param {number|null} diaOffset Desplazamiento en días (0: hoy, 1: mañana, etc.)
+ * @param {string|null} horaStr 'ahora', '09:00', '13:00', '17:00'
+ */
+export function aplicarFiltroRapidoTiempo(diaOffset = null, horaStr = null) {
+    if (typeof document === 'undefined') return;
+
+    const dateInput = document.getElementById('date');
+    const timeSelect = document.getElementById('timeRange');
+
+    let targetDate = null;
+    if (diaOffset !== null) {
+        const d = new Date();
+        d.setDate(d.getDate() + Number(diaOffset));
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        targetDate = `${year}-${month}-${day}`;
+        if (dateInput) {
+            dateInput.value = targetDate;
+        }
+    }
+
+    if (horaStr) {
+        if (horaStr === 'ahora') {
+            const now = new Date();
+            const hour = now.getHours();
+            if (timeSelect) {
+                if (hour < 12) {
+                    timeSelect.value = "Mañana (06:00 - 12:00)";
+                } else if (hour < 18) {
+                    timeSelect.value = "Tarde (12:00 - 18:00)";
+                } else {
+                    timeSelect.value = "Ocaso (18:00 - 21:00)";
+                }
+            }
+            if (dateInput && !dateInput.value) {
+                const now = new Date();
+                dateInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            }
+        } else if (timeSelect) {
+            if (horaStr === '09:00') {
+                timeSelect.value = "Mañana (06:00 - 12:00)";
+            } else if (horaStr === '13:00') {
+                timeSelect.value = "Tarde (12:00 - 18:00)";
+            } else if (horaStr === '17:00') {
+                timeSelect.value = "Tarde (12:00 - 18:00)";
+            }
+        }
+    }
+
+    actualizarPildorasTiempoUI(diaOffset, horaStr);
+
+    const locInput = document.getElementById('location');
+    const hasLocation = locInput && locInput.value.trim().length > 0;
+    if (hasLocation && typeof window.consultarBasico === 'function') {
+        window.consultarBasico();
+    }
+}
+
+/**
+ * Carga un spot sugerido en 1-tap, centra el mapa y ejecuta la evaluación automática
+ * @param {string} nombreSpot 
+ */
+export function cargarSpotRapido(nombreSpot) {
+    if (typeof document === 'undefined') return;
+    const locInput = document.getElementById('location');
+    if (locInput) {
+        locInput.value = nombreSpot;
+    }
+    if (typeof buscarYCentrarMapa === 'function') {
+        buscarYCentrarMapa(nombreSpot);
+    } else if (typeof window.buscarYCentrarMapa === 'function') {
+        window.buscarYCentrarMapa(nombreSpot);
+    }
+    const dateInput = document.getElementById('date');
+    if (dateInput && !dateInput.value) {
+        const now = new Date();
+        dateInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    }
+    const timeSelect = document.getElementById('timeRange');
+    if (timeSelect && !timeSelect.value) {
+        timeSelect.value = "Mañana (06:00 - 12:00)";
+    }
+    if (typeof window.consultarBasico === 'function') {
+        window.consultarBasico();
+    }
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', inicializarPildorasCalendario);
+    } else {
+        inicializarPildorasCalendario();
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.aplicarGlowVerdictBento = aplicarGlowVerdictBento;
     window.renderizarResumenExperto = renderizarResumenExperto;
@@ -1427,4 +1620,8 @@ if (typeof window !== 'undefined') {
     window.actualizarHudVectoresMapa = actualizarHudVectoresMapa;
     window.renderizarMejoresVentanas72h = renderizarMejoresVentanas72h;
     window.aplicarVentanaOptimaSpot = aplicarVentanaOptimaSpot;
+    window.inicializarPildorasCalendario = inicializarPildorasCalendario;
+    window.actualizarPildorasTiempoUI = actualizarPildorasTiempoUI;
+    window.aplicarFiltroRapidoTiempo = aplicarFiltroRapidoTiempo;
+    window.cargarSpotRapido = cargarSpotRapido;
 }

@@ -18,6 +18,7 @@ export * from './map/map.poster.js';
 export * from './map/map.routes.js';
 export * from './map/map.coach.js';
 export * from './map/map.spots.js';
+export { generarGuiaHumanaEquipamiento } from './utils.js';
 
 // 2. Importaciones nombradas para cableado global reactivo en window.*
 import { mapRuntime } from './map/map.state.js';
@@ -45,7 +46,9 @@ import {
     renderizarRosaVectoresMapa, actualizarHudVectoresMapa,
     activarSkeletonCargaSpot, desactivarSkeletonCargaSpot,
     renderizarMejoresVentanas72h, aplicarVentanaOptimaSpot,
-    generarSvgAnilloScore, cambiarSubVistaSpot
+    generarSvgAnilloScore, cambiarSubVistaSpot,
+    inicializarPildorasCalendario, actualizarPildorasTiempoUI,
+    aplicarFiltroRapidoTiempo, cargarSpotRapido
 } from './map/map.bento.js';
 
 import {
@@ -103,7 +106,7 @@ import {
 } from './map/map.spots.js';
 
 import { parseGPX, generarGPX, descargarGPX } from './gpxParser.js';
-import { calcularSolYCrepusculo } from './utils.js';
+import { calcularSolYCrepusculo, generarGuiaHumanaEquipamiento } from './utils.js';
 import { generarPerfilTacticoSpot } from './engine/coastal.js';
 
 // 3. Inyección y sincronización global en window.* para el 100% de retrocompatibilidad
@@ -171,6 +174,8 @@ if (typeof window !== 'undefined') {
         seleccionarTablaAsistente, cargarPackYFinalizarAsistente,
         parseGPX, generarGPX, descargarGPX,
         calcularSolYCrepusculo, generarPerfilTacticoSpot,
+        inicializarPildorasCalendario, actualizarPildorasTiempoUI,
+        aplicarFiltroRapidoTiempo, cargarSpotRapido, generarGuiaHumanaEquipamiento,
         descargarRutaActivaGPX: exportarRutaPlanificadaGPX,
         descartarCheckpointTravesia: descartarCheckpoint
     });

@@ -30,7 +30,10 @@ param(
 $ErrorActionPreference = "Stop"
 
 $rootDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$publicHtmlDir = Join-Path $rootDir "Paddlesafe_frontend\public_html"
+$publicHtmlDir = Join-Path $rootDir "public_html"
+if (-not (Test-Path $publicHtmlDir)) {
+    $publicHtmlDir = Join-Path $rootDir "Paddlesafe_frontend\public_html"
+}
 
 if (-not (Test-Path $publicHtmlDir)) {
     Write-Error "No se encontró el directorio public_html en: $publicHtmlDir"
