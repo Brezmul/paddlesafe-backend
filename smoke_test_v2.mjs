@@ -124,7 +124,7 @@ const swContent = fs.readFileSync(swPath, 'utf8');
 const versionMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
 const expectedSwVersion = versionMatch ? versionMatch[1] : null;
 
-assert(expectedSwVersion === 'paddlesafe-v69', `sw.js version must be paddlesafe-v69, got: ${expectedSwVersion}`);
+assert(expectedSwVersion === 'paddlesafe-v70', `sw.js version must be paddlesafe-v70, got: ${expectedSwVersion}`);
 
 if (fs.existsSync(versionJsonPath)) {
     let vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
@@ -1590,7 +1590,7 @@ const coachJsUpdated = fs.readFileSync(coachJsPath, 'utf8');
 assert(coachJsUpdated.includes('cond.sinDatos'), 'coach.js must handle missing weather data');
 
 assert(!indexHtml.includes('https://cdn.tailwindcss.com'), 'index.html must not load duplicate CDN tailwind script');
-assert(indexHtml.includes('tailwind.min.css?v=paddlesafe-v69'), 'index.html must link tailwind.min.css?v=paddlesafe-v69');
+assert(indexHtml.includes('tailwind.min.css?v=paddlesafe-v70'), 'index.html must link tailwind.min.css?v=paddlesafe-v70');
 assert(indexHtml.includes('reg.update()'), 'index.html must call reg.update() on SW registration');
 
 // Runtime validation of circular mean
@@ -1658,6 +1658,107 @@ assert(typeof mapFacade.aplicarFiltroRapidoTiempo === 'function', 'map.js must r
 assert(typeof mapFacade.cargarSpotRapido === 'function', 'map.js must re-export cargarSpotRapido');
 assert(typeof mapFacade.inicializarPildorasCalendario === 'function', 'map.js must re-export inicializarPildorasCalendario');
 assert(typeof mapFacade.generarGuiaHumanaEquipamiento === 'function', 'map.js must re-export generarGuiaHumanaEquipamiento');
+
+// ==============================================================================
+// Batch #24 - 60FPS Interactive Route Replay & Thermal Wetsuit Calculator Assertions
+// ==============================================================================
+console.log('--- [TASK Batch #24] 60FPS Route Replay & Thermal Calculator Audit ---');
+
+// Replay HUD and controls
+assert(indexHtml.includes('id="routeReplayHud"'), 'index.html must contain #routeReplayHud');
+assert(indexHtml.includes('id="btnReplayToggle"'), 'index.html must contain #btnReplayToggle');
+assert(indexHtml.includes('id="replayScrubberInput"'), 'index.html must contain #replayScrubberInput');
+assert(indexHtml.includes('id="btnReplaySpeed"'), 'index.html must contain #btnReplaySpeed');
+assert(indexHtml.includes('id="btnReplayFollow"'), 'index.html must contain #btnReplayFollow');
+assert(indexHtml.includes('id="replayDistKm"'), 'index.html must contain #replayDistKm');
+assert(indexHtml.includes('id="replayElapsedTime"'), 'index.html must contain #replayElapsedTime');
+assert(indexHtml.includes('id="replayCurrentSpeed"'), 'index.html must contain #replayCurrentSpeed');
+assert(indexHtml.includes('id="replayBearingDeg"'), 'index.html must contain #replayBearingDeg');
+
+// Thermal Calculator modal and controls
+assert(indexHtml.includes('id="thermalCalculatorModal"'), 'index.html must contain #thermalCalculatorModal');
+assert(indexHtml.includes('id="sliderTempAgua"'), 'index.html must contain #sliderTempAgua');
+assert(indexHtml.includes('id="sliderTempAire"'), 'index.html must contain #sliderTempAire');
+assert(indexHtml.includes('id="sliderViento"'), 'index.html must contain #sliderViento');
+assert(indexHtml.includes('id="calcTrajeCard"'), 'index.html must contain #calcTrajeCard');
+assert(indexHtml.includes('id="calcRegla30Alerta"'), 'index.html must contain #calcRegla30Alerta');
+assert(indexHtml.includes('id="btnOpenThermalCalc"'), 'index.html must contain #btnOpenThermalCalc');
+
+// Runtime validation of obtenerInterpolacionProgreso (O(log N) binary search + lerp)
+const { obtenerInterpolacionProgreso } = await import('./public_html/js/map/map.routes.js');
+const { mapRuntime } = await import('./public_html/js/map/map.state.js');
+assert(typeof obtenerInterpolacionProgreso === 'function', 'map.routes.js must export obtenerInterpolacionProgreso');
+
+mapRuntime.replayData = {
+    normCoords: [
+        { lat: 38.7000, lon: 0.1500 },
+        { lat: 38.7100, lon: 0.1600 },
+        { lat: 38.7200, lon: 0.1700 }
+    ],
+    cumDistances: [0, 1.25, 2.50],
+    totalDistKm: 2.50
+};
+
+const startInterp = obtenerInterpolacionProgreso(0.0);
+assert(Math.abs(startInterp.lat - 38.7000) < 0.0001, `Start interp lat must be 38.7000, got ${startInterp.lat}`);
+assert(Math.abs(startInterp.lon - 0.1500) < 0.0001, `Start interp lon must be 0.1500, got ${startInterp.lon}`);
+
+const midInterp = obtenerInterpolacionProgreso(0.5);
+assert(Math.abs(midInterp.lat - 38.7100) < 0.001, `Mid interp lat must be ~38.7100, got ${midInterp.lat}`);
+assert(midInterp.bearing >= 0 && midInterp.bearing <= 360, `Mid interp bearing must be 0-360, got ${midInterp.bearing}`);
+
+const endInterp = obtenerInterpolacionProgreso(1.0);
+assert(Math.abs(endInterp.lat - 38.7200) < 0.0001, `End interp lat must be 38.7200, got ${endInterp.lat}`);
+
+// Runtime validation of calcularEquipamientoTermicoDetallado
+const { calcularEquipamientoTermicoDetallado } = await import('./public_html/js/utils.js');
+assert(typeof calcularEquipamientoTermicoDetallado === 'function', 'utils.js must export calcularEquipamientoTermicoDetallado');
+
+const coldCalc = calcularEquipamientoTermicoDetallado({
+    tempAguaC: 13,
+    tempAireC: 14,
+    vientoKt: 16,
+    intensidad: 'media',
+    toleranciaFrio: 'normal',
+    nublado: true
+});
+assert(coldCalc.regla30Activa === true, '13C water + 14C air (< 30) must trigger Rule of 30 shock warning');
+assert(coldCalc.trajePrincipal.grosorMm.includes('4/3') || coldCalc.trajePrincipal.titulo.includes('4/3') || coldCalc.trajePrincipal.explicacion.includes('4/3'), 'Cold water must recommend 4/3mm wetsuit');
+assert((Array.isArray(coldCalc.accesorios) && coldCalc.accesorios.some(c => c.toLowerCase().includes('escarpines'))) || (coldCalc.calzado && coldCalc.calzado.tipo.toLowerCase().includes('escarpines')), 'Cold water must recommend booties');
+
+const warmCalc = calcularEquipamientoTermicoDetallado({
+    tempAguaC: 25,
+    tempAireC: 28,
+    vientoKt: 4,
+    intensidad: 'media',
+    toleranciaFrio: 'normal',
+    nublado: false
+});
+assert(warmCalc.regla30Activa === false, '25C water + 28C air must NOT trigger Rule of 30 warning');
+assert(warmCalc.trajePrincipal.titulo.includes('Bañador') || warmCalc.trajePrincipal.titulo.includes('Lycra') || warmCalc.trajePrincipal.grosorMm.includes('0mm'), 'Warm conditions must be summer/light gear');
+
+// Re-exports validation in map.js facade
+assert(typeof mapFacade.iniciarReplayRuta === 'function', 'map.js must re-export iniciarReplayRuta');
+assert(typeof mapFacade.togglePlayPauseReplayRuta === 'function', 'map.js must re-export togglePlayPauseReplayRuta');
+assert(typeof mapFacade.detenerReplayRuta === 'function', 'map.js must re-export detenerReplayRuta');
+assert(typeof mapFacade.actualizarPosicionReplayProgreso === 'function', 'map.js must re-export actualizarPosicionReplayProgreso');
+assert(typeof mapFacade.cambiarVelocidadReplayRuta === 'function', 'map.js must re-export cambiarVelocidadReplayRuta');
+assert(typeof mapFacade.toggleReplaySeguirCamara === 'function', 'map.js must re-export toggleReplaySeguirCamara');
+assert(typeof mapFacade.obtenerInterpolacionProgreso === 'function', 'map.js must re-export obtenerInterpolacionProgreso');
+assert(typeof mapFacade.abrirCalculadoraTermica === 'function', 'map.js must re-export abrirCalculadoraTermica');
+assert(typeof mapFacade.cerrarCalculadoraTermica === 'function', 'map.js must re-export cerrarCalculadoraTermica');
+assert(typeof mapFacade.actualizarVistaCalculadoraTermica === 'function', 'map.js must re-export actualizarVistaCalculadoraTermica');
+assert(typeof mapFacade.setCalculadoraTermicaSegment === 'function', 'map.js must re-export setCalculadoraTermicaSegment');
+assert(typeof mapFacade.calcularEquipamientoTermicoDetallado === 'function', 'map.js must re-export calcularEquipamientoTermicoDetallado');
+
+// Social.js replay button integration
+const socialJs = fs.readFileSync('public_html/js/social.js', 'utf8');
+assert(socialJs.includes('abrirRutaSocialConReplay'), 'social.js must include abrirRutaSocialConReplay');
+assert(socialJs.includes('Replay'), 'social.js must render Replay badge on route cards');
+
+// Check line count of map.js Facade strictly under 200 LOC
+const mapJsLinesBatch24 = fs.readFileSync('public_html/js/map.js', 'utf8').split('\n').length;
+assert(mapJsLinesBatch24 <= 200, `map.js must remain strictly under 200 LOC, got ${mapJsLinesBatch24}`);
 
 // ------------------------------------------------------------------------------
 // FINAL RESULT SUMMARY

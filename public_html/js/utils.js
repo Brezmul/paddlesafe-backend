@@ -743,10 +743,167 @@ export function generarGuiaHumanaEquipamiento(tempAireC = 20, vientoKt = 5, olas
                     <div class="text-[11px] font-semibold text-slate-200 truncate" title="${estrategia}">${estrategia}</div>
                 </div>
             </div>
+            <button type="button" onclick="if(typeof window.abrirCalculadoraTermica==='function')window.abrirCalculadoraTermica({tempAire:${t},viento:${v}})" class="col-span-full py-1.5 px-3 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-300 text-[11px] font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all" title="Abrir Calculadora Térmica Interactiva">
+                <span>🌡️</span> <span>Personalizar Neopreno en Calculadora Térmica Interactiva</span> <span>→</span>
+            </button>
         </div>
     `;
 
     return { vestimenta, tabla, estrategia, html };
+}
+
+/**
+ * Calculadora térmica avanzada de confort, neopreno y equipamiento según física náutica
+ * @param {Object} [params]
+ * @param {number} [params.tempAguaC=18] Temperatura del agua en °C
+ * @param {number} [params.tempAireC=21] Temperatura del aire en °C
+ * @param {number} [params.vientoKt=8] Velocidad del viento en nudos
+ * @param {('paseo'|'travesia'|'race')} [params.intensidad='paseo'] Nivel de esfuerzo metabólico
+ * @param {('friolero'|'normal'|'caluroso')} [params.toleranciaFrio='normal'] Sensibilidad personal al frío
+ * @param {boolean} [params.nublado=false] Si el cielo está cubierto
+ * @returns {Object} Recomendación térmica estructurada
+ */
+export function calcularEquipamientoTermicoDetallado({
+    tempAguaC = 18,
+    tempAireC = 21,
+    vientoKt = 8,
+    intensidad = 'paseo',
+    toleranciaFrio = 'normal',
+    nublado = false
+} = {}) {
+    const tAgua = Number(tempAguaC ?? 18);
+    const tAire = Number(tempAireC ?? 21);
+    const vKt = Number(vientoKt ?? 8);
+    const esNublado = Boolean(nublado);
+
+    // 1. Sensación térmica por Windchill náutico
+    const sensacionTermicaC = Number((tAire - (vKt > 7 ? (vKt - 7) * 0.45 : 0) - (esNublado ? 1.5 : 0)).toFixed(1));
+
+    // 2. Offsets por esfuerzo metabólico y tolerancia personal
+    const metabolicOffset = intensidad === 'race' ? 2.5 : (intensidad === 'travesia' ? 1.0 : 0.0);
+    const personalOffset = toleranciaFrio === 'friolero' ? -2.0 : (toleranciaFrio === 'caluroso' ? 1.5 : 0.0);
+
+    // 3. Índice térmico combinado (60% agua en caso de caída / inmersión, 40% ambiente percibido)
+    const indiceTermico = Number(((tAgua * 0.6) + ((sensacionTermicaC + metabolicOffset + personalOffset) * 0.4)).toFixed(1));
+
+    // 4. Regla del 30 (Regla de seguridad náutica internacional: Temp Agua + Temp Aire < 30°C = Cold Water Shock)
+    const sumaTemps = tAgua + tAire;
+    const regla30Activa = sumaTemps < 30;
+    const alertaRegla30 = regla30Activa
+        ? `⚠️ Alerta Shock Térmico (Regla del 30): Agua (${tAgua}°C) + Aire (${tAire}°C) = ${sumaTemps}°C (< 30°C). Caer al agua puede provocar reflejo de boqueo involuntario e hipotermia rápida. Obligatorio chaleco salvavidas 50N y traje sellado.`
+        : null;
+
+    // 5. Traje principal / Neopreno recomendado
+    let trajePrincipal = { titulo: '', grosorMm: '', icono: '', explicacion: '' };
+    if (indiceTermico >= 22) {
+        trajePrincipal = {
+            titulo: 'Bañador y Lycra UV',
+            grosorMm: '0mm',
+            icono: '🩳',
+            explicacion: 'Excelente confort térmico. Protección solar UV50+ y máxima ligereza sin sobrecalentamiento.'
+        };
+    } else if (indiceTermico >= 18) {
+        trajePrincipal = {
+            titulo: 'Neopreno Shorty 2mm',
+            grosorMm: '2mm',
+            icono: '🩱',
+            explicacion: 'Mantiene el core caliente frente al viento y salpicaduras con hombros y rodillas libres.'
+        };
+    } else if (indiceTermico >= 14) {
+        trajePrincipal = {
+            titulo: 'Neopreno Integral 3/2mm Sellado',
+            grosorMm: '3/2mm',
+            icono: '🧥',
+            explicacion: 'Aislamiento ideal para aguas frescas y viento moderado. Costuras estancas (GBS) recomendadas.'
+        };
+    } else if (indiceTermico >= 10) {
+        trajePrincipal = {
+            titulo: 'Neopreno Integral 4/3mm + Cinta Térmica',
+            grosorMm: '4/3mm',
+            icono: '🧤',
+            explicacion: 'Protección térmica avanzada para agua fría. Evita la pérdida rápida de calor en brazos y piernas.'
+        };
+    } else {
+        trajePrincipal = {
+            titulo: 'Traje Seco o 5/4mm con Capucha Integrada',
+            grosorMm: '5/4mm',
+            icono: '❄️',
+            explicacion: 'Condiciones invernales severas. Requiere traje estanco o neopreno de máximo grosor con barrera craneal.'
+        };
+    }
+
+    // 6. Calzado náutico
+    let calzado = { tipo: '', icono: '', explicacion: '' };
+    if (tAgua >= 18 && tAire >= 18) {
+        calzado = {
+            tipo: 'Descalzo',
+            icono: '🦶',
+            explicacion: 'Máxima sensibilidad y agarre natural sobre el pad de EVA de la tabla.'
+        };
+    } else if (tAgua >= 14) {
+        calzado = {
+            tipo: 'Escarpines bajos 2mm',
+            icono: '🧦',
+            explicacion: 'Protección para dedos y suela con aislamiento ligero sin perder tacto.'
+        };
+    } else {
+        calzado = {
+            tipo: 'Escarpines altos 3-5mm con suela reforzada',
+            icono: '🥾',
+            explicacion: 'Suela de goma antideslizante y caña alta sobre el tobillo para retener calor.'
+        };
+    }
+
+    // 7. Accesorios e hidratación recomendada
+    const accesorios = [];
+    const tasaHidratacion = intensidad === 'race' ? '1.0 L/h isotónico con sales' : (intensidad === 'travesia' ? '0.8 L/h agua y electrolitos' : '0.5 L/h agua fresca');
+    accesorios.push(`💧 Hidratación: mínimo ${tasaHidratacion}`);
+
+    if (vKt >= 12) {
+        accesorios.push('💨 Cortavientos náutico ligero de secado rápido sobre el neopreno');
+    }
+    if (indiceTermico < 13) {
+        accesorios.push('🧤 Guantes térmicos de neopreno con palma antideslizante');
+        accesorios.push('🧢 Gorro de neopreno o cinta cubre-orejas');
+    }
+    if (!esNublado) {
+        accesorios.push('🧴 Crema solar mineral SPF50 resistente al agua');
+        accesorios.push('🕶️ Gafas polarizadas con flotador y cinta de seguridad');
+    }
+
+    // 8. Nivel de confort global
+    let nivelConfort = '';
+    let nivelBadgeColor = '';
+    if (indiceTermico >= 20) {
+        nivelConfort = 'Óptimo / Confort Pleno';
+        nivelBadgeColor = 'emerald';
+    } else if (indiceTermico >= 15) {
+        nivelConfort = 'Templado / Muy Favorable';
+        nivelBadgeColor = 'teal';
+    } else if (indiceTermico >= 11) {
+        nivelConfort = 'Fresco / Precaución Térmica';
+        nivelBadgeColor = 'amber';
+    } else {
+        nivelConfort = 'Frío Intenso / Riesgo Hipotermia';
+        nivelBadgeColor = 'rose';
+    }
+
+    return {
+        tempAguaC: tAgua,
+        tempAireC: tAire,
+        vientoKt: vKt,
+        sensacionTermicaC,
+        metabolicOffset,
+        personalOffset,
+        indiceTermico,
+        regla30Activa,
+        alertaRegla30,
+        trajePrincipal,
+        calzado,
+        accesorios,
+        nivelConfort,
+        nivelBadgeColor
+    };
 }
 
 if (typeof window !== 'undefined') {
@@ -755,4 +912,5 @@ if (typeof window !== 'undefined') {
     window.comprimirImagenCliente = comprimirImagenCliente;
     window.generarMiniSvgTrazadoRuta = generarMiniSvgTrazadoRuta;
     window.generarGuiaHumanaEquipamiento = generarGuiaHumanaEquipamiento;
+    window.calcularEquipamientoTermicoDetallado = calcularEquipamientoTermicoDetallado;
 }
