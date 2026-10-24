@@ -33,7 +33,8 @@ const MAP_MODULES_PRECACHE = [
   '/js/map/map.poster.js',
   '/js/map/map.routes.js',
   '/js/map/map.coach.js',
-  '/js/map/map.spots.js'
+  '/js/map/map.spots.js',
+  '/js/map/map.radar.js'
 ];
 
 // ---------- Clasificación de hosts ----------

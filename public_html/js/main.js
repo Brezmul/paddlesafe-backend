@@ -58,6 +58,7 @@ const openClubProfileSafe = (id) => {
 window.iniciarCreacionQuedadaClub = (...args) => MapModule.iniciarCreacionQuedadaClub(...args);
 window.cancelarCreacionQuedadaClub = () => MapModule.cancelarCreacionQuedadaClub();
 window.deshacerUltimoPuntoQuedada = () => MapModule.deshacerUltimoPuntoQuedada();
+let listenerNavegacionModalesInicializado = false;
 window.reiniciarPuntosQuedada = () => MapModule.reiniciarPuntosQuedada();
 window.guardarQuedadaDesdeMapa = () => MapModule.guardarQuedadaDesdeMapa();
 window.cargarRutaEnMapaGrande = (...args) => MapModule.cargarRutaEnMapaGrande(...args);
@@ -447,7 +448,6 @@ export function cerrarModalActivo(modalInfo) {
     return true;
 }
 
-let listenerNavegacionModalesInicializado = false;
 export function inicializarManejadorNavegacionModales() {
     if (listenerNavegacionModalesInicializado) return;
     listenerNavegacionModalesInicializado = true;
@@ -1304,7 +1304,7 @@ export async function actualizarRankingCompleto() {
         ] = await Promise.all([
             supabaseClient.from('user_routes').select('id, user_id, title, distance_km, duration_seconds, avg_speed, max_speed, xp_earned, created_at, route_coordinates'),
             supabaseClient.from('rutas').select('id, user_id, distancia_km, tiempo_minutos, fecha, avg_speed_kmh, points_earned, ruta_json'),
-            supabaseClient.from('perfiles').select('id, nombre, avatar_url, nivel, titulo_paddler, distancia_total_km, puntos, experiencia, is_private'),
+            supabaseClient.from('perfiles').select('id, nombre, avatar_url, nivel, titulo, km_totales, puntos, is_private'),
             supabaseClient.from('clubs').select('id, nombre, logo_url, descripcion, nivel'),
             supabaseClient.from('clubs_usuarios').select('club_id, user_id, rol'),
             supabaseClient.from('amistades').select('usuario_id, amigo_id, estado').eq('estado', 'aceptada')
@@ -1530,7 +1530,7 @@ window.addEventListener('resize', () => {
 // Auto-inicializar Leaflet en escritorio si tab-pro es visible
 if (typeof window !== 'undefined') {
     const autoInitDesktopMap = () => {
-        if (window.innerWidth >= 1024 && typeof MapModule.inicializarMapa === 'function' && !window.map) {
+        if (window.innerWidth >= 1024 && typeof MapModule.inicializarMapa === 'function' && typeof window.L !== 'undefined' && !window.map) {
             MapModule.inicializarMapa();
         }
     };

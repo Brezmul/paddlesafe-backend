@@ -295,6 +295,12 @@ export function actualizarMapa(lat, lon) {
  */
 export function inicializarMapa() {
     if (mapRuntime.map) return;
+    if (typeof L === 'undefined') {
+        if (typeof window !== 'undefined') {
+            window.addEventListener('load', () => inicializarMapa(), { once: true });
+        }
+        return;
+    }
     const initialLat = mapRuntime.latitudActual || 38.80;
     const initialLon = mapRuntime.longitudActual || 0.18;
 
