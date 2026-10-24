@@ -1227,6 +1227,19 @@ export function renderizarRosaVectoresMapa(lat, lon, datosMeteo) {
         zIndexOffset: 250
     }).addTo(currentMap);
 
+    mapRuntime.activeSpotData = {
+        lat: latNum,
+        lon: lonNum,
+        windSpeedMs: vMs || 0,
+        windKt: vKt,
+        windGustKt: rKt,
+        windDir: dirVientoNum,
+        windBlowsToDeg: rotViento,
+        waveHeightM: waveM || 0,
+        wavePeriodS: valorNumericoMeteo(datosMeteo.wavePeriod, datosMeteo.wave_period) || 0,
+        waveDir: dirOla !== null ? Number(dirOla) : dirVientoNum,
+        waveBlowsToDeg: rotOla
+    };
     actualizarHudVectoresMapa(latNum, lonNum, datosMeteo);
 }
 
@@ -1234,7 +1247,7 @@ export function actualizarHudVectoresMapa(lat, lon, datosMeteo) {
     const hud = document.getElementById('mapWindWaveHud');
     if (!hud) return;
 
-    if (!datosMeteo) {
+    if (!datosMeteo || mapRuntime.radarActivo) {
         hud.classList.add('hidden');
         return;
     }
@@ -1278,7 +1291,8 @@ export function actualizarHudVectoresMapa(lat, lon, datosMeteo) {
 
     const elArrow = document.getElementById('hudWindArrow');
     if (elArrow) {
-        elArrow.style.transform = `rotate(${dirViento}deg)`;
+        const rotViento = (Number(dirViento) + 180) % 360;
+        elArrow.style.transform = `rotate(${rotViento}deg)`;
     }
 
     const elSpeed = document.getElementById('hudWindSpeed');

@@ -20,6 +20,9 @@ import { obtenerVelocidadCruceroUsuario, descargarZonaMapaOffline } from './map.
  * Activa / desactiva el modo de trazado multipunto libre.
  */
 export function toggleRutaLibre() {
+    if (mapRuntime.radarActivo && typeof window.desactivarModoRadar === 'function') {
+        window.desactivarModoRadar();
+    }
     if (mapRuntime.modoTravesiaActivo && typeof window.toggleModoTravesia === 'function') {
         window.toggleModoTravesia();
     }
@@ -42,10 +45,21 @@ export function toggleRutaLibre() {
         limpiarRuta();
         if (msg) msg.textContent = "📍 Toca el mapa para añadir puntos";
     } else {
+        // Al desactivar Multipunto, limpiar también el modo Quedada Club si estaba activo
+        if (mapRuntime.modoQuedadaClubActivo) {
+            mapRuntime.modoQuedadaClubActivo = false;
+            mapRuntime.clubParaEvento = null;
+            const panelQuedada = document.getElementById('panelQuedadaMap');
+            const formQuedada = document.getElementById('quedadaFormPanel');
+            if (panelQuedada) panelQuedada.classList.add('hidden');
+            if (formQuedada) formQuedada.classList.add('hidden');
+            const btnQ = document.getElementById('btnQuedadaClub');
+            if (btnQ) btnQ.innerHTML = "⛵ Quedada Club";
+        }
         if (b) {
             b.classList.replace('bg-red-500', 'bg-teal-600');
             b.classList.replace('hover:bg-red-400', 'hover:bg-teal-500');
-            b.innerHTML = "🔗 Multipunto";
+            b.innerHTML = "✍️ Multipunto";
         }
         const leyenda = document.getElementById('leyendaMapa');
         if (leyenda) leyenda.classList.replace('flex', 'hidden');
@@ -596,6 +610,9 @@ export function volverAlMapaQuedada() {
 }
 
 export async function iniciarCreacionQuedadaClub(clubIdPreseleccionado = null) {
+    if (mapRuntime.radarActivo && typeof window.desactivarModoRadar === 'function') {
+        window.desactivarModoRadar();
+    }
     if (!appState.sesionActual || appState.esInvitado) {
         alert("Debes iniciar sesión con tu cuenta para planificar y publicar quedadas.");
         if (window.abrirModalAuth) window.abrirModalAuth();
@@ -659,6 +676,10 @@ export async function iniciarCreacionQuedadaClub(clubIdPreseleccionado = null) {
         }
     }
 
+    // Si estaba activo el modo travesía A-B, cancelarlo primero
+    if (mapRuntime.modoTravesiaActivo && typeof window.toggleModoTravesia === 'function') {
+        window.toggleModoTravesia();
+    }
     // Limpiar trazado anterior y activar modo multipunto
     limpiarRuta();
     if (!mapRuntime.modoRutaLibreActivo) {

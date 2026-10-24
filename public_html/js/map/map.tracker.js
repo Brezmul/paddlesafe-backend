@@ -336,9 +336,26 @@ export function construirPayloadRutaSupabase({
 // ==============================================================================
 
 export function toggleModoTravesia() {
+    if (mapRuntime.radarActivo && typeof window.desactivarModoRadar === 'function') {
+        window.desactivarModoRadar();
+    }
     if (mapRuntime.modoRutaLibreActivo && typeof window.toggleRutaLibre === 'function') {
         window.toggleRutaLibre();
     }
+    // Desactivar y limpiar explícitamente Quedada Club si estaba activa
+    if (mapRuntime.modoQuedadaClubActivo) {
+        mapRuntime.modoQuedadaClubActivo = false;
+        mapRuntime.clubParaEvento = null;
+        const btnQuedada = document.getElementById('btnQuedadaClub');
+        if (btnQuedada) btnQuedada.innerHTML = "⛵ Quedada Club";
+    }
+    const panelQuedada = document.getElementById('panelQuedadaMap');
+    const formQuedada = document.getElementById('quedadaFormPanel');
+    const toolbar = document.getElementById('multipuntoToolbar');
+    if (panelQuedada) panelQuedada.classList.add('hidden');
+    if (formQuedada) formQuedada.classList.add('hidden');
+    if (toolbar) toolbar.classList.replace('flex', 'hidden');
+
     mapRuntime.modoTravesiaActivo = !mapRuntime.modoTravesiaActivo;
     const b = document.getElementById('btnTravesia');
     const msg = document.getElementById('mapMsg');

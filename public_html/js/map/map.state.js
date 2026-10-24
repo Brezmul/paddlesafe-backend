@@ -108,6 +108,7 @@ export const mapRuntime = {
     cacheMeteoQuedada: null,
 
     // Inteligencia de Spots y Meteorología
+    activeSpotData: null,
     datosMeteoActuales: null,
     pronosticoDiaCompletoActual: null,
     horaSeleccionadaTimeline: null,
