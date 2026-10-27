@@ -636,7 +636,7 @@ export function actualizarUIPresencia() {
 
 
 /**
- * Generador ultra-rápido de mini trazados SVG para tarjetas de rutas tipo Strava / Garmin (Batch #21)
+ * Generador ultra-rápido de mini trazados SVG para tarjetas de rutas (Batch #21)
  * @param {Array|string} coordenadas - Array [[lat, lon], ...] o [{lat, lng}, ...] o string JSON
  * @param {string} colorHex - Color hexadecimal del trazado (defecto: '#38bdf8')
  * @returns {string} Markup SVG inline listo para inyectar en DOM

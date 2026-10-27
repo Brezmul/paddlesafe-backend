@@ -1,7 +1,7 @@
 // ==============================================================================
 // PADDLESAFE NEXT-GEN - ORQUESTADOR DE VEREDICTO EXPERTO (verdict.js)
 // Genera la respuesta definitiva de seguridad en 5 estados categóricos y
-// una justificación náutica profesional unificada e inspirada en PredictWind y Windy.
+// una justificación náutica profesional unificada.
 // ==============================================================================
 
 import { calcularConsensoModelos } from './consensus.js';

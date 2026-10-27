@@ -9,7 +9,7 @@ import { mapRuntime } from './map.state.js';
 import { resolverOrientacionCostera, kmhANudos } from '../utils.js';
 
 /**
- * Escala cromática de intensidad de viento (Windy Color LUT for SUP)
+ * Escala cromática de intensidad de viento (Color LUT for SUP)
  * Verde: 0-5 kt | Amarillo: 5-10 kt | Naranja: 10-15 kt | Rojo: >15 kt
  */
 export function obtenerColorEscalaViento(nudos) {
@@ -21,7 +21,7 @@ export function obtenerColorEscalaViento(nudos) {
 }
 
 /**
- * Escala cromática de partículas Windy para Stand Up Paddle (Canvas Engine):
+ * Escala cromática de partículas dinámicas para Stand Up Paddle (Canvas Engine):
  * 0 a 8 kt (Calma): Verde/Cian (#10b981 / #06b6d4)
  * 8 a 14 kt (Brisa): Amarillo/Ámbar (#eab308)
  * 14 a 20+ kt (Riesgo): Naranja/Rojo (#f97316 / #ef4444)
@@ -346,7 +346,7 @@ function reiniciarParticulasStreamlines(w, h) {
 }
 
 /**
- * Dibuja el Heatmap Escalar continuo con la paleta Windy para Stand Up Paddle
+ * Dibuja el Heatmap Escalar continuo para Stand Up Paddle
  */
 function renderizarScalarHeatmap() {
     const canvas = mapRuntime._radarCanvasHeatmap;
@@ -376,7 +376,7 @@ function renderizarScalarHeatmap() {
     const grad = ctx.createRadialGradient(cx, cy, 25, cx, cy, radius);
 
     if (mapRuntime.radarCapasActivas?.viento !== false) {
-        // Escala Windy para Viento SUP: <8kt esmeralda/cyan, 8-14kt ámbar, >14kt rosa/rojo
+        // Escala cromática para Viento SUP: <8kt esmeralda/cyan, 8-14kt ámbar, >14kt rosa/rojo
         if (windKt < 8) {
             grad.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
             grad.addColorStop(0.45, 'rgba(6, 182, 212, 0.20)');
@@ -443,7 +443,7 @@ function renderizarStreamlinesLoop() {
     const w = canvas.width;
     const h = canvas.height;
 
-    // Desvanecimiento suave tipo estela de cometa Windy (destination-in con opacidad 0.93)
+    // Desvanecimiento suave tipo estela de cometa (destination-in con opacidad 0.93)
     ctx.globalCompositeOperation = 'destination-in';
     ctx.fillStyle = 'rgba(0, 0, 0, 0.93)';
     ctx.fillRect(0, 0, w, h);

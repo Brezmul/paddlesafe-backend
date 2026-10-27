@@ -1,6 +1,6 @@
 // ==============================================================================
 // PADDLESAFE NEXT-GEN - FINISHER POSTER GENERATOR (map.poster.js)
-// HTML5 Canvas 2D telemetry stamper in Strava / Garmin finisher style.
+// HTML5 Canvas 2D telemetry stamper in finisher style.
 // Extracted from map.js under Strangler Fig architecture.
 // ==============================================================================
 
@@ -290,7 +290,7 @@ export function dibujarTrazadoRutaEnCanvas(ctx, width, height, coords = [], opti
 }
 
 /**
- * Estampa la banda Finisher estilo Strava / Garmin en el canvas 2D con telemetría de travesía.
+ * Estampa la banda Finisher en el canvas 2D con telemetría de travesía.
  * Soporta tanto un CanvasRenderingContext2D como un elemento HTMLCanvasElement como primer parámetro.
  * 
  * @param {CanvasRenderingContext2D|HTMLCanvasElement} ctxOrCanvas

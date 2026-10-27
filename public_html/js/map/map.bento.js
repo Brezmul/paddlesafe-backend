@@ -894,7 +894,7 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
         document.getElementById('proLlegadaHora').textContent = `${etaHH}:${etaMM}`;
         document.getElementById('proContainerNavegacion').classList.remove('hidden'); document.getElementById('proContainerNavegacion').classList.add('flex');
 
-        // Komoot/Windy-style Interactive SVG Route Profile Chart
+        // Interactive SVG Route Profile Chart
         window._tramosRutaActuales = tramosParaCoach;
         const chartContainer = document.getElementById('proRouteWindChartContainer');
         const chartTarget = document.getElementById('proRouteWindChart');
@@ -1457,7 +1457,7 @@ export async function aplicarVentanaOptimaSpot(fechaStr, horaInicio) {
 }
 
 /**
- * UI 5.0 - Apple Weather / Garmin-style Animated SVG Radial Score Gauge
+ * UI 5.0 - Animated SVG Radial Score Gauge
  * Genera un dial circular nítido con pista de fondo, arco reactivo al score (0-100),
  * drop-shadow luminoso, valor numérico en el centro y etiqueta de seguridad.
  * @param {number|string} score 0 - 100

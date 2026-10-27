@@ -21,7 +21,7 @@
     <link rel="manifest" href="/manifest.json">
     
     <!-- Tailwind CSS (Compilado localmente para offline y rendimiento de producción) -->
-    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v603">
+    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v604">
 
     <!-- Leaflet CSS y JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -966,7 +966,7 @@
                                         </div>
                                     </div>
 
-                                    <!-- 3. Radar Marítimo Cockpit (Compact Top Pill Bar Estilo Windy) -->
+                                    <!-- 3. Radar Marítimo Cockpit (Compact Top Pill Bar) -->
                                     <div id="radarCockpitPanel" class="hidden absolute ps-floating-panel-top top-[105px] left-3 right-3 sm:left-3 sm:right-auto sm:w-[350px] z-[410] bg-slate-900/95 backdrop-blur-xl border border-sky-500/50 rounded-2xl p-2.5 shadow-2xl text-white flex flex-col gap-2 transition-all animate-fadeIn pointer-events-auto">
                                         <!-- Header with Quick Verdict & Collapse Controls -->
                                         <div class="flex items-center justify-between gap-1.5 border-b border-slate-800 pb-1.5">
@@ -1004,7 +1004,7 @@
                                     </div>
                                 </div>
 
-                                <!-- 4. RADAR BOTTOM BAR (HORIZONTAL TRANSLUCENT DOCK ESTILO WINDY) -->
+                                <!-- 4. RADAR BOTTOM BAR (HORIZONTAL TRANSLUCENT DOCK) -->
                                 <div id="radarBottomBar" class="hidden absolute bottom-3 left-3 right-3 sm:left-4 sm:right-auto sm:max-w-[720px] z-[1010] bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2 sm:p-2.5 shadow-2xl text-white pointer-events-auto flex flex-col sm:flex-row items-center gap-2.5 transition-all animate-fadeIn">
                                     <!-- Active Point Telemetry Section -->
                                     <div id="radarPointInspector" class="flex items-center gap-2.5 text-[10px] shrink-0 flex-wrap sm:flex-nowrap border-b sm:border-b-0 sm:border-r border-slate-800 pb-1 sm:pb-0 sm:pr-2.5">
@@ -1052,7 +1052,7 @@
                                     </div>
                                 </div>
 
-                                <!-- Garmin / Apple Watch Ultra Marine Telemetry HUD Cockpit (Batch #21) -->
+                                <!-- Ultra Marine Telemetry HUD Cockpit (Batch #21) -->
                                 <div id="liveTrackingPanel" data-alias="liveTrackerPanel panelTravesia" class="hidden absolute top-3 left-3 right-3 z-[400] ps-live-hud rounded-2xl p-4 shadow-2xl text-white max-w-xl mx-auto"></div>
                                 <div id="liveTrackerPanel" class="hidden pointer-events-none" aria-hidden="true"></div>
                                 <div id="panelTravesia" class="hidden pointer-events-none" aria-hidden="true"></div>
@@ -1297,11 +1297,11 @@
                                 </div>
                             </div>
 
-                            <!-- GRAFICO INTERACTIVO DE PERFIL DE VIENTO Y VELOCIDAD DE REMADA (KOMOOT / WINDY) -->
+                            <!-- GRAFICO INTERACTIVO DE PERFIL DE VIENTO Y VELOCIDAD DE REMADA -->
                             <div id="proRouteWindChartContainer" class="p-4 border-b border-slate-800 bg-slate-950/40 w-full hidden flex-col gap-2">
                                 <div class="flex items-center justify-between">
                                     <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                                        <span>📈</span> Perfil de Viento y Velocidad de Remada (Komoot / Windy)
+                                        <span>📈</span> Perfil de Viento y Velocidad de Remada
                                     </span>
                                     <span class="text-[9px] text-slate-400 font-mono">Toca un tramo para centrar en el mapa</span>
                                 </div>
@@ -2134,7 +2134,7 @@
                 };
 
                 // Notificación suave de actualización PWA sin romper la sesión activa
-                window.mostrarNotificacionActualizacionPwa = function(nuevaVersion = 'v6.03') {
+                window.mostrarNotificacionActualizacionPwa = function(nuevaVersion = 'v6.04') {
                     if (document.getElementById('pwaUpdateToast')) return;
                     const enGrabacion = Boolean(window.appState?.trackerActivo || document.getElementById('liveTrackingPanel')?.classList.contains('hidden') === false);
                     if (enGrabacion) {

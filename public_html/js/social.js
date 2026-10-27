@@ -181,7 +181,7 @@ export function renderTarjetaRutaSocial(ruta, clubNombre = null) {
         `;
     }
 
-    // 2. Previsualización de Trazado Mini SVG (Strava-style)
+    // 2. Previsualización de Trazado Mini SVG
     let miniSvgHtml = '';
     if (tieneCoords) {
         const svgCode = (typeof window !== 'undefined' && typeof window.generarMiniSvgTrazadoRuta === 'function')
