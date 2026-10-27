@@ -591,6 +591,24 @@ html, body {
 #leyendaMapa {
   z-index: 1000 !important;
 }
+/* Dock Flotante Inferior de Trazado de Rutas (Multipunto Design System 3.0) */
+#multipuntoToolbar {
+  position: absolute !important;
+  top: auto !important;
+  bottom: 1rem !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 1000 !important;
+  max-width: calc(100% - 1.5rem) !important;
+}
+
+@media (min-width: 640px) {
+  #multipuntoToolbar {
+    bottom: 1.5rem !important;
+    max-width: 90% !important;
+  }
+}
+
 
 /* Layer Switcher top-priority z-index (permanently accessible above all telemetry/cockpits) */
 #mapLayerSwitcher {

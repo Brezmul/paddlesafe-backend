@@ -21,7 +21,7 @@
     <link rel="manifest" href="/manifest.json">
     
     <!-- Tailwind CSS (Compilado localmente para offline y rendimiento de producción) -->
-    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v601">
+    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v602">
 
     <!-- Leaflet CSS y JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -875,7 +875,7 @@
 
                                 
                                 <!-- BARRA SEGMENTADA MULTIPUNTO DESIGN SYSTEM 3.0 -->
-                                <div id="multipuntoToolbar" class="hidden absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 z-[400] ps-bento-card ps-map-dock p-1.5 gap-1.5 border border-slate-700/80 flex items-center shadow-2xl backdrop-blur-xl max-w-[95%] overflow-x-auto [&::-webkit-scrollbar]:hidden" style="scrollbar-width: none; -ms-overflow-style: none;">
+                                <div id="multipuntoToolbar" class="hidden absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 z-[400] ps-bento-card ps-map-dock p-1.5 gap-1.5 border border-slate-700/80 flex items-center shadow-2xl backdrop-blur-xl max-w-[95%] overflow-x-auto [&::-webkit-scrollbar]:hidden" style="scrollbar-width: none; -ms-overflow-style: none; bottom: 1rem;">
                                     <!-- Métrica acumulada en vivo -->
                                     <div id="multipuntoMetricasRuta" class="hidden items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-950/70 border border-teal-500/40 text-teal-300 font-mono text-[11px] font-black shrink-0 shadow-inner">
                                         <span class="text-teal-400">📏</span>
@@ -2134,7 +2134,7 @@
                 };
 
                 // Notificación suave de actualización PWA sin romper la sesión activa
-                window.mostrarNotificacionActualizacionPwa = function(nuevaVersion = 'v6.01') {
+                window.mostrarNotificacionActualizacionPwa = function(nuevaVersion = 'v6.02') {
                     if (document.getElementById('pwaUpdateToast')) return;
                     const enGrabacion = Boolean(window.appState?.trackerActivo || document.getElementById('liveTrackingPanel')?.classList.contains('hidden') === false);
                     if (enGrabacion) {

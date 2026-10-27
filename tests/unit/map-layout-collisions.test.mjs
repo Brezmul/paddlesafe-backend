@@ -30,6 +30,11 @@ describe('SUITE DE UI/UX: LAYOUT DEL MAPA Y PREVENCIÓN DE SOLAPAMIENTOS', () =>
         assert(indexHtml.includes('Modificar Ruta o Salida'), 'Debe contener el texto visible para el usuario');
     });
 
+    it('TAREA 1: #multipuntoToolbar tiene anclaje inferior en CSS para no flotar hacia arriba ni colisionar con #mapLayerSwitcher', () => {
+        assert(tailwindInputCss.includes('#multipuntoToolbar') && tailwindInputCss.includes('bottom: 1rem !important'), 'tailwind-input.css debe fijar bottom: 1rem para #multipuntoToolbar');
+        assert(tailwindCss.includes('#multipuntoToolbar') && tailwindCss.includes('bottom:1rem!important'), 'tailwind.min.css debe fijar bottom: 1rem para #multipuntoToolbar');
+    });
+
     it('TAREA 1: #mapWindWaveHud tiene margen vertical inferior para no solapar #multipuntoToolbar en móvil', () => {
         // En HTML debe tener bottom-[74px] sm:bottom-6
         assert(indexHtml.includes('id="mapWindWaveHud" class="hidden absolute ps-map-telemetry-hud bottom-[74px] sm:bottom-6 right-3 sm:right-4'),
