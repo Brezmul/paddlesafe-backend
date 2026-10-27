@@ -1,4 +1,4 @@
-// ==============================================================================
+﻿// ==============================================================================
 // PADDLESAFE NEXT-GEN - INSTRUCTOR PROFESIONAL DE PADDLE SURF (coach.js)
 // Actúa como un Instructor Profesional de Paddle Surf certificado (ISA / FESurfing).
 // Convierte datos meteorológicos y marinos en DECISIONES náuticas y de seguridad.

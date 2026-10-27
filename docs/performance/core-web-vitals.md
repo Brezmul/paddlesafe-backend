@@ -61,6 +61,40 @@ Estándares recomendados por Google (Chrome UX Report):
 
 ---
 
-## 4. Conclusión de Calidad Continua
+## 4. Estrategia PWA, Caching y Cabeceras de Servidor (Service Worker & .htaccess)
+
+Para maximizar las métricas LCP, FCP y TTFB preservando al 100% la seguridad marítima, la arquitectura de caché PWA se divide en capas estrictas:
+
+### 1. Datos en Tiempo Real y Meteorología (Cero Riesgo de Datos Caducados)
+* **Supabase (Auth, Realtime, RPC, REST) y Backend (`/api/*`, `api/backend.js`):**
+  - **Estrategia:** `NetworkOnly`. El Service Worker nunca intercepta ni almacena respuestas dinámicas o transaccionales en caché, garantizando que el estado de sesión y reportes de usuario sean siempre fidedignos.
+* **Open-Meteo (`api.open-meteo.com`, `marine-api.open-meteo.com`):**
+  - **Estrategia:** `NetworkFirst` con timeout corto acotado a **2.5 segundos** (`SHORT_API_TIMEOUT = 2500`).
+  - **Motivación:** Jamás se utiliza `CacheFirst` para partes meteorológicos. La red satelital se consulta siempre en primera instancia; únicamente si la conexión cae totalmente en alta mar se recurre al último pronóstico efímero disponible para no congelar la cabina de radar.
+
+### 2. Recursos de Navegación y Shell de la Aplicación
+* **Navegación SPA (`/`, `/user/*`, `/club/*`) y Módulos JS:**
+  - **Estrategia:** `NetworkFirst` con timeout de 4.0s y precarga de navegación (`navigationPreload`).
+  - **Limpieza de Versiones:** Al almacenar una nueva versión de un script JS, el Service Worker elimina proactivamente las copias anteriores del mismo archivo.
+
+### 3. Teselas de Mapa y Librerías de Terceros
+* **Tiles Cartográficos (OpenStreetMap, CartoDB, ArcGis, OpenSeaMap) y CDNs (Leaflet, Tailwind):**
+  - **Estrategia:** `StaleWhileRevalidate` con cuotas máximas (1000 tiles, 24 librerías). Permite renderizado instantáneo offline con refresco asíncrono en segundo plano.
+
+### 4. Ciclo de Vida PWA y Actualización No Destructiva
+* **Vinculación con `version.json`:**
+  - La clave `VERSION` en `sw.js` (`paddlesafe-v74`) se sincroniza estrictamente con `version.json`.
+* **Limpieza Automática:** En el evento `activate`, el Service Worker purga automáticamente todos los buckets de versiones anteriores (`paddlesafe-*`).
+* **Notificación Suave:** La aplicación no realiza recargas bruscas (`window.location.reload()`) que interrumpan grabaciones GPS o sesiones activas; en su lugar, notifica al usuario mediante un toast flotante no invasivo (`mostrarNotificacionActualizacionPwa`) que permite actualizar voluntariamente.
+
+### 5. Cabeceras HTTP de Servidor (.htaccess Unificado)
+Tanto la raíz del servidor como el directorio `public_html/` implementan directivas unificadas:
+* **Seguridad:** `Content-Security-Policy` estricta para orígenes autorizados, `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin` y `Permissions-Policy: geolocation=(self)`.
+* **Caché Cero (Revalidación Inmediata):** `index.html`, `version.json`, `sw.js` y `manifest.json` viajan con `Cache-Control: "no-cache, no-store, must-revalidate"`.
+* **Caché Inmutable a Largo Plazo:** CSS, imágenes, fuentes e iconos utilizan `Cache-Control: "public, max-age=31536000, immutable"`.
+
+---
+
+## 5. Conclusión de Calidad Continua
 
 La plataforma **PaddleSafe** cumple holgadamente con los estándares de rendimiento Core Web Vitals de Google para dispositivos de escritorio y móviles. La puntuación global de experiencia de usuario se mantiene en el percentil superior gracias a la arquitectura ligera, la ausencia de frameworks sobrecargados y la carga bajo demanda de la cabina de radar y modales.

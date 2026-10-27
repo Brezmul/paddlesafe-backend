@@ -603,7 +603,7 @@ html, body {
   position: absolute !important;
   top: auto !important;
   left: auto !important;
-  bottom: 1.5rem !important;
+  bottom: 4.75rem !important; /* 76px on mobile: clears multipuntoToolbar (60px) and attribution */
   right: 0.75rem !important;
   max-width: calc(100% - 1.5rem) !important;
   z-index: 1000 !important;
@@ -616,6 +616,14 @@ html, body {
     right: 1rem !important;
     max-width: 220px !important;
   }
+}
+
+#liveTrackingPanel {
+  z-index: 1200 !important;
+}
+
+#routeReplayHud {
+  z-index: 1050 !important;
 }
 
 #radarCockpitPanel {
@@ -662,7 +670,10 @@ html, body {
 #clubProfileViewModal,
 #clubAdminRequestsModal,
 #friendSystemModal,
-#rutaDetalleModal {
+#rutaDetalleModal,
+#posterFinisherLightbox,
+#modalSplitsKm,
+#modalAiRouteCoach {
   z-index: 9000 !important;
 }
 
@@ -862,7 +873,8 @@ html, body {
   bottom: 0.75rem !important;
   left: 0.75rem !important;
   right: 0.75rem !important;
-  z-index: 420 !important;
+  z-index: 1010 !important;
+  padding: 0.5rem !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
 }
@@ -871,5 +883,39 @@ html, body {
     left: 1rem !important;
     right: auto !important;
     max-width: 720px !important;
+    padding: 0.625rem !important;
+  }
+}
+
+
+/* Mobile Landscape Ergonomics (Pantallas apaisadas con altura reducida <= 500px) */
+@media (orientation: landscape) and (max-height: 500px) {
+  #mapContainer {
+    height: 75vh !important;
+    min-height: 280px !important;
+  }
+  #mapTopPanelsWrapper,
+  .map-top-panels-wrapper,
+  .map-overlay-top {
+    top: 60px !important;
+    max-height: calc(100% - 68px) !important;
+    max-width: 320px !important;
+  }
+  .ps-floating-panel-top {
+    top: 60px !important;
+  }
+  #mapWindWaveHud {
+    bottom: 8px !important;
+    right: 8px !important;
+    padding: 6px !important;
+    max-width: 170px !important;
+  }
+  #radarBottomBar {
+    bottom: 6px !important;
+    padding: 6px !important;
+  }
+  #multipuntoToolbar {
+    bottom: 6px !important;
+    padding: 4px !important;
   }
 }

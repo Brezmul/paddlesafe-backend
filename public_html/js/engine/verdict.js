@@ -213,6 +213,8 @@ export function generarVeredictoNextGen(params = {}) {
     const userLevel = params.userLevel || params.nivelUsuario || params.nivel_usuario || 'Intermedio';
     const deporteKey = params.deporteKey || params.deporte || 'paddle_surf';
 
+    const numOrNull = (v) => (v !== null && v !== undefined && Number.isFinite(Number(v)) ? Number(v) : null);
+
     // Conversión segura km/h a nudos si no vienen directamente en nudos
     let vientoKt = params.vientoKt ?? params.viento_kt ?? null;
     if (vientoKt === null && params.vientoKmh !== null && params.vientoKmh !== undefined) {
@@ -220,19 +222,22 @@ export function generarVeredictoNextGen(params = {}) {
     } else if (vientoKt === null && params.viento_kmh !== null && params.viento_kmh !== undefined) {
         vientoKt = Number((params.viento_kmh / 1.852).toFixed(1));
     }
+    vientoKt = numOrNull(vientoKt);
+
     let rachasKt = params.rachasKt ?? params.rachas_kt ?? null;
     if (rachasKt === null && params.rachasKmh !== null && params.rachasKmh !== undefined) {
         rachasKt = Number((params.rachasKmh / 1.852).toFixed(1));
     } else if (rachasKt === null && params.rachas_kmh !== null && params.rachas_kmh !== undefined) {
         rachasKt = Number((params.rachas_kmh / 1.852).toFixed(1));
     }
+    rachasKt = numOrNull(rachasKt);
 
-    const dirVientoDeg = params.dirVientoDeg ?? params.dir_viento_deg ?? params.direccionViento ?? null;
-    const oleajeM = params.oleajeM ?? params.olaM ?? params.altura_ola_m ?? null;
-    const periodoOlaS = params.periodoOlaS ?? params.periodoOla ?? params.periodo_ola_s ?? params.wavePeriod ?? params.wave_period ?? null;
-    const swellM = params.swellM ?? params.swell_height ?? null;
-    const swellPeriodoS = params.swellPeriodoS ?? params.periodoSwell ?? params.swell_period ?? null;
-    const swellDirDeg = params.swellDirDeg ?? params.direccionSwell ?? params.swell_direction ?? null;
+    const dirVientoDeg = numOrNull(params.dirVientoDeg ?? params.dir_viento_deg ?? params.direccionViento ?? null);
+    const oleajeM = numOrNull(params.oleajeM ?? params.olaM ?? params.altura_ola_m ?? null);
+    const periodoOlaS = numOrNull(params.periodoOlaS ?? params.periodoOla ?? params.periodo_ola_s ?? params.wavePeriod ?? params.wave_period ?? null);
+    const swellM = numOrNull(params.swellM ?? params.swell_height ?? null);
+    const swellPeriodoS = numOrNull(params.swellPeriodoS ?? params.periodoSwell ?? params.swell_period ?? null);
+    const swellDirDeg = numOrNull(params.swellDirDeg ?? params.direccionSwell ?? params.swell_direction ?? null);
     const tempAireC = params.tempAireC ?? params.tempAire ?? params.temp_c ?? params.temperature_2m ?? null;
     const tempAguaC = params.tempAguaC ?? params.tempAgua ?? params.temp_agua_c ?? params.sea_surface_temperature ?? null;
     const presionHpa = params.presionHpa ?? params.presion ?? params.presion_hpa ?? null;
@@ -642,7 +647,7 @@ export function generarVeredictoNextGen(params = {}) {
     if (vReal >= 20) score -= 60;
     else if (vReal >= 15) score -= 40;
     else if (vReal >= 11) score -= 20;
-    else if (vReal <= 6 && (oleajeM !== null && oReal <= 0.3)) score = 98;
+    else if (vReal <= 6 && (!infoCosta.esCosta || oleajeM === null || oReal <= 0.3)) score = 98;
 
     if (rReal - vReal >= 8) score -= 15;
     else if (rReal - vReal >= 5) score -= 8;
@@ -764,15 +769,25 @@ export function generarVeredictoNextGen(params = {}) {
     // 11. Justificación Náutica Profesional
     let justificacion = '';
     if (estadoKey === 'FAVORABLE') {
-        justificacion = `Viento suave (${vReal} kt) y mar calmo (${oReal.toFixed(1)} m). Condiciones óptimas para remar con fluidez y mínimo esfuerzo.`;
+        justificacion = !infoCosta.esCosta
+            ? `Viento suave (${vReal} kt) en aguas interiores. Condiciones óptimas para remar con fluidez y mínimo esfuerzo.`
+            : oleajeM !== null
+                ? `Viento suave (${vReal} kt) y mar calmo (${oReal.toFixed(1)} m). Condiciones óptimas para remar con fluidez y mínimo esfuerzo.`
+                : `Viento suave (${vReal} kt) y aguas tranquilas. Condiciones óptimas para remar con fluidez y mínimo esfuerzo.`;
     } else if (estadoKey === 'PRECAUCION') {
         justificacion = compViento.componente === 'offshore'
             ? `Viento de ${vReal} kt con componente hacia mar abierto (offshore). Conviene remar en paralelo a la orilla y vigilar referencias fijas en tierra.`
-            : `Viento de ${vReal} kt y ligera ondulación (${oReal.toFixed(1)} m). Sesión viable gestionando el ritmo.`;
+            : !infoCosta.esCosta
+                ? `Viento de ${vReal} kt en aguas interiores. Sesión viable gestionando el ritmo cerca de la orilla.`
+                : `Viento de ${vReal} kt y ${oleajeM !== null ? `ligera ondulación (${oReal.toFixed(1)} m)` : 'aguas navegables'}. Sesión viable gestionando el ritmo.`;
     } else if (estadoKey === 'EXIGENTE') {
-        justificacion = `Viento activo de ${vReal} kt y oleaje de ${oReal.toFixed(1)} m. Requiere experiencia previa, equilibrio reactivo y buena condición física.`;
+        justificacion = !infoCosta.esCosta
+            ? `Viento activo de ${vReal} kt en aguas interiores. Requiere experiencia previa, equilibrio reactivo y buena condición física.`
+            : `Viento activo de ${vReal} kt${oleajeM !== null ? ` y oleaje de ${oReal.toFixed(1)} m` : ''}. Requiere experiencia previa, equilibrio reactivo y buena condición física.`;
     } else {
-        justificacion = `Condiciones adversas (viento de ${vReal} kt y olas de ${oReal.toFixed(1)} m). Alto riesgo de caída, deriva mar adentro y agotamiento muscular.`;
+        justificacion = !infoCosta.esCosta
+            ? `Condiciones adversas (viento de ${vReal} kt en aguas interiores). Alto riesgo de caída y agotamiento muscular.`
+            : `Condiciones adversas (viento de ${vReal} kt${oleajeM !== null ? ` y olas de ${oReal.toFixed(1)} m` : ''}). Alto riesgo de caída, deriva mar adentro y agotamiento muscular.`;
     }
 
     if (avisoPreventivo && datosPreventivo) {
@@ -823,17 +838,17 @@ export function generarVeredictoNextGen(params = {}) {
             vientoKt: vReal,
             rachasKt: rReal,
             direccionDeg: dirVientoDeg,
-            oleajeM: oReal,
+            oleajeM: oleajeM !== null ? oReal : null,
             periodoOlaS: periodo > 0 ? periodo : null,
             tipoMar: tipoMar || null,
             evolucionProxima: evolucionProxima || null,
-            swellM,
-            tempAireC,
-            tempAguaC,
-            presionHpa,
-            humedadPct,
-            visibilidadKm,
-            probLluviaPct
+            swellM: numOrNull(swellM),
+            tempAireC: numOrNull(tempAireC),
+            tempAguaC: numOrNull(tempAguaC),
+            presionHpa: numOrNull(presionHpa),
+            humedadPct: numOrNull(humedadPct),
+            visibilidadKm: numOrNull(visibilidadKm),
+            probLluviaPct: numOrNull(probLluviaPct)
         }
     };
 

@@ -454,9 +454,10 @@ export async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, 
     const getSeries = (name) => horas[name] || horas[`${name}_best_match`] || [];
     const times = horas.time || [];
 
-    const marineTimeMap = new Map((marine?.hourly?.time || []).map((t, idx) => [t, idx]));
+    const normalizarIsoHora = (iso) => (iso ? String(iso).slice(0, 13) : '');
+    const marineTimeMap = new Map((marine?.hourly?.time || []).map((t, idx) => [normalizarIsoHora(t), idx]));
     const getMarineVal = (name, timeStr) => {
-        const idx = marineTimeMap.get(timeStr);
+        const idx = marineTimeMap.get(normalizarIsoHora(timeStr));
         if (idx === undefined || !marine?.hourly?.[name]) return null;
         const v = marine.hourly[name][idx];
         return Number.isFinite(Number(v)) ? Number(v) : null;

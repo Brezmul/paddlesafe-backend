@@ -177,7 +177,10 @@ export async function comprimirImagenCliente(file, maxWidth = 1600, quality = 0.
 }
 
 export function formatearTiempo(minutos) {
-    const m = Math.round(minutos);
+    if (minutos === null || minutos === undefined || Number.isNaN(Number(minutos))) return '-- min';
+    const num = Number(minutos);
+    if (!Number.isFinite(num) || num <= 0) return '0 min';
+    const m = Math.round(num);
     if (m < 60) return `${m} min`;
     const h = Math.floor(m / 60);
     const resto = m % 60;
@@ -521,7 +524,13 @@ export function calcularVeredicto(params) {
 // RE-EXPORTS DEL MOTOR PADDLESAFE NEXT GENERATION
 // ==============================================================================
 export { calcularConsensoModelos } from './engine/consensus.js';
-export { resolverOrientacionCostera, calcularComponenteVientoAuto, calcularIndiceDerivaPaddleSafe } from './engine/coastal.js';
+export {
+    resolverOrientacionCostera,
+    calcularComponenteVientoAuto,
+    calcularComponenteOleaje,
+    calcularComponenteCorriente,
+    calcularIndiceDerivaPaddleSafe
+} from './engine/coastal.js';
 export { calcularBeginnerIndex, evaluarCondicionesDeporte, DEPORTES } from './engine/sports.js';
 export { detectarVentanasOptimas } from './engine/windows.js';
 export { generarVeredictoNextGen, ESTADOS_VEREDICTO, ICONOS_SEGURIDAD } from './engine/verdict.js';
@@ -963,4 +972,5 @@ if (typeof window !== 'undefined') {
     window.generarMiniSvgTrazadoRuta = generarMiniSvgTrazadoRuta;
     window.generarGuiaHumanaEquipamiento = generarGuiaHumanaEquipamiento;
     window.calcularEquipamientoTermicoDetallado = calcularEquipamientoTermicoDetallado;
+    window.formatearTiempo = formatearTiempo;
 }

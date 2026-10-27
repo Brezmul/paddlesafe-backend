@@ -1,0 +1,29 @@
+DirectoryIndex public_html/index.html public_html/index.php index.html index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Seguridad: bloqueo total contra peticiones a backend, lib o sql
+  RewriteRule ^(api|lib|sql|node_modules|\.git)(/|$) - [F,L]
+  RewriteRule \.(sql|env|log)$ - [F,L]
+
+  # Si la petición ya incluye public_html/, no volver a reescribir
+  RewriteRule ^public_html/ - [L]
+
+  # Si el recurso solicitado existe físicamente en public_html/, servirlo
+  RewriteCond %{DOCUMENT_ROOT}/public_html/$1 -f [OR]
+  RewriteCond %{DOCUMENT_ROOT}/public_html/$1 -d
+  RewriteRule ^(.*)$ public_html/$1 [L]
+
+  # Servir index.html de public_html/ en la raíz del sitio
+  RewriteRule ^$ public_html/index.html [L]
+
+  # Fallback para rutas amigables SPA a public_html/index.html
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . public_html/index.html [L]
+</IfModule>
+
+Options -Indexes
+

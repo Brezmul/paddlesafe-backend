@@ -110,7 +110,11 @@ import {
 import { calcularXpRuta } from '../gamification.js';
 import { parseGPX, generarGPX } from '../gpxParser.js';
 import { mapRuntime, GPS_MIN_DISTANCIA_METROS, resetTrackingRuntime } from './map.state.js';
-import { estamparPosterFinisherCanvas } from './map.poster.js';
+import {
+    estamparPosterFinisherCanvas,
+    prepararMapaPosterFinisher,
+    extraerCoordenadasRuta
+} from './map.poster.js';
 import { valorNumericoMeteo } from './map.weather.js';
 
 // ==============================================================================
@@ -776,7 +780,7 @@ export function mostrarModalSplitsKm(rutaId) {
 
     const modal = document.createElement('div');
     modal.id = 'modalSplitsKm';
-    modal.className = 'fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm';
+    modal.className = 'fixed inset-0 z-[1200] ps-modal-backdrop flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm';
     modal.innerHTML = `
         <div class="bg-slate-900 border border-sky-500/40 rounded-2xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl flex flex-col gap-3">
             <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -960,6 +964,11 @@ export async function iniciarTravesia() {
     document.getElementById('btnIniciarLive')?.classList.add('hidden');
     if (document.getElementById('proDashboardResumen')) document.getElementById('proDashboardResumen').classList.replace('flex', 'hidden');
     if (document.getElementById('proPlanificador')) document.getElementById('proPlanificador').classList.replace('flex', 'hidden');
+    document.getElementById('multipuntoToolbar')?.classList.replace('flex', 'hidden');
+    document.getElementById('mapWindWaveHud')?.classList.add('hidden');
+    document.getElementById('radarCockpitPanel')?.classList.add('hidden');
+    document.getElementById('radarBottomBar')?.classList.add('hidden');
+    document.getElementById('leyendaMapa')?.classList.replace('flex', 'hidden');
 
     if (mapRuntime.lineaRuta && currentMap) currentMap.removeLayer(mapRuntime.lineaRuta);
     if (currentMap && typeof L !== 'undefined') {
@@ -1113,10 +1122,10 @@ export async function finalizarTravesia() {
         alert("Ruta demasiado corta.");
         return restaurarTracker();
     }
-    if (appState.esInvitado) {
-        if (typeof localStorage !== 'undefined') localStorage.removeItem('paddlesafe_live_checkpoint');
-        alert(`🏅 ${mapRuntime.trackDistanceKm.toFixed(2)} km en ${formatearTiempo(m)}.`);
-        return restaurarTracker();
+    const currentUserId = appState.sesionActual?.user?.id 
+        || (appState.esInvitado ? ((typeof localStorage !== 'undefined' ? localStorage.getItem('ps_guest_uid') : null) || `guest_${Date.now()}`) : null);
+    if (appState.esInvitado && currentUserId && typeof localStorage !== 'undefined') {
+        localStorage.setItem('ps_guest_uid', currentUserId);
     }
 
     const eqFinisher = (typeof window !== 'undefined' && typeof window.recuperarEquipoUsuario === 'function')
@@ -1158,14 +1167,22 @@ export async function finalizarTravesia() {
     let imgBase64Backup = null;
     const currentMap = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);
     try {
-        if (mapRuntime.livePolyline && mapRuntime.trackCoords.length && currentMap) {
-            currentMap.fitBounds(mapRuntime.livePolyline.getBounds());
+        // Extraer coordenadas de ruta activa (live GPS, A-B, Multipunto o waypoints)
+        const coordsRuta = extraerCoordenadasRuta(mapRuntime);
+        const prepMapa = prepararMapaPosterFinisher({ currentMap, mapRuntime, coordsRuta });
+
+        if (prepMapa.esRuta && (!mapRuntime.trackCoords || mapRuntime.trackCoords.length < 2)) {
+            mapRuntime.trackCoords = coordsRuta;
         }
-        await new Promise(r => setTimeout(r, 1000));
+
+        await new Promise(r => setTimeout(r, 600));
         if (typeof html2canvas !== 'undefined' && document.getElementById('mapContainer')) {
             const cv = await html2canvas(document.getElementById('mapContainer'), {
                 useCORS: true, backgroundColor: '#e2e8f0',
-                ignoreElements: (el) => el.classList.contains('leaflet-control-container') || el.id === 'liveTrackingPanel'
+                ignoreElements: (el) =>
+                    el.classList.contains('leaflet-control-container') ||
+                    el.id === 'liveTrackingPanel' ||
+                    (prepMapa.esRuta && el.classList.contains('tactical-compass-marker'))
             });
 
             let targetCanvas = cv;
@@ -1200,8 +1217,8 @@ export async function finalizarTravesia() {
             imgBase64Backup = targetCanvas.toDataURL('image/jpeg', 0.5);
 
             const b = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.7));
-            const fn = `rutas/${appState.sesionActual.user.id}-${Date.now()}.jpg`;
-            if (supabaseClient) {
+            const fn = `rutas/${currentUserId || 'offline'}-${Date.now()}.jpg`;
+            if (supabaseClient && appState.sesionActual?.user?.id) {
                 const { error: ue } = await supabaseClient.storage.from('paddlesafe').upload(fn, b, { upsert: true, contentType: 'image/jpeg' });
                 if (!ue) {
                     const { data } = supabaseClient.storage.from('paddlesafe').getPublicUrl(fn);
@@ -1261,19 +1278,21 @@ export async function finalizarTravesia() {
 
     const avgSpeed = m > 0 ? Number((mapRuntime.trackDistanceKm / (m / 60)).toFixed(1)) : 0;
     let pointsEarned = avgSpeed > 45 ? 0 : Math.round(mapRuntime.trackDistanceKm * 100);
-    try {
-        const xpResult = await calcularXpRuta({
-            userId: appState.sesionActual.user.id,
-            distanceKm: mapRuntime.trackDistanceKm,
-            avgSpeed
-        });
-        pointsEarned = Number(xpResult?.xpGanado ?? pointsEarned);
-    } catch (xpError) {
-        console.warn('No se pudo calcular XP de la travesía; se aplica la regla base de PaddleSafe:', xpError);
+    if (appState.sesionActual?.user?.id) {
+        try {
+            const xpResult = await calcularXpRuta({
+                userId: currentUserId,
+                distanceKm: mapRuntime.trackDistanceKm,
+                avgSpeed
+            });
+            pointsEarned = Number(xpResult?.xpGanado ?? pointsEarned);
+        } catch (xpError) {
+            console.warn('No se pudo calcular XP de la travesía; se aplica la regla base de PaddleSafe:', xpError);
+        }
     }
 
     const payloadRuta = construirPayloadRutaSupabase({
-        userId: appState.sesionActual.user.id,
+        userId: currentUserId,
         distanciaKm: mapRuntime.trackDistanceKm,
         tiempoMinutos: m,
         coords: mapRuntime.trackCoords,
@@ -1291,7 +1310,7 @@ export async function finalizarTravesia() {
 
     let nuevaRuta = null;
     let errRuta = null;
-    if (supabaseClient) {
+    if (supabaseClient && appState.sesionActual?.user?.id) {
         const res = await supabaseClient.from('rutas').insert([payloadRuta]).select().single();
         nuevaRuta = res.data;
         errRuta = res.error;
@@ -1299,7 +1318,7 @@ export async function finalizarTravesia() {
 
     if (errRuta || !nuevaRuta) {
         guardarRutaOffline({
-            user_id: appState.sesionActual.user.id,
+            user_id: currentUserId,
             km: mapRuntime.trackDistanceKm,
             min: m,
             coords: payloadRuta.ruta_json,
@@ -1311,12 +1330,33 @@ export async function finalizarTravesia() {
             ts: Date.now()
         });
 
+        try {
+            const velCrucero = (typeof window !== 'undefined' && typeof window.obtenerVelocidadCruceroUsuario === 'function')
+                ? window.obtenerVelocidadCruceroUsuario()
+                : 4.5;
+            const telemetryData = {
+                rutaId: null,
+                distanciaKm: mapRuntime.trackDistanceKm,
+                duracionMin: m,
+                splits: mapRuntime.splitsKm,
+                biometria: biometriaFinal,
+                meteo: meteoSnapshot,
+                velCruceroKmh: velCrucero,
+                timestamp: Date.now()
+            };
+            if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('ps_telemetry_last', JSON.stringify(telemetryData));
+            }
+        } catch (_) {}
+
         if (pnl) {
+            const esInvitadoMsg = appState.esInvitado ? 'Travesía de invitado guardada localmente' : 'No se pudo guardar';
+            const subMsg = appState.esInvitado ? 'Inicia sesión para subirla a la nube' : 'Se conserva una copia en este dispositivo';
             pnl.innerHTML = `
                 <div class="text-center py-4 w-full">
-                    <span class="text-4xl block mb-2">⚠️</span>
-                    <h3 class="font-black text-white text-lg">No se pudo guardar</h3>
-                    <p class="text-amber-300 font-bold text-[10px] uppercase tracking-widest mb-3">Se conserva una copia en este dispositivo</p>
+                    <span class="text-4xl block mb-2">${appState.esInvitado ? '🏅' : '⚠️'}</span>
+                    <h3 class="font-black text-white text-lg">${esInvitadoMsg}</h3>
+                    <p class="text-amber-300 font-bold text-[10px] uppercase tracking-widest mb-3">${subMsg}</p>
                     <button type="button" onclick="window.restaurarTracker()" class="bg-slate-700 text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest w-full active:scale-95 transition-transform cursor-pointer">Cerrar Panel</button>
                 </div>`;
         }
@@ -1398,13 +1438,13 @@ export async function sincronizarRutasPendientes() {
             alert("Se descartó una ruta pendiente antigua porque no se puede verificar a qué cuenta pertenece.");
             return;
         }
-        if (p.user_id !== appState.sesionActual.user.id) {
+        if (p.user_id !== appState.sesionActual.user.id && !String(p.user_id).startsWith('guest_')) {
             console.warn("Ruta pendiente asociada a otra cuenta; se conserva sin sincronizar.");
             return;
         }
 
         let urlSincronizada = p.img || null;
-        if (!urlSincronizada && p.b64 && supabaseClient) {
+        if (!urlSincronizada && p.b64 && supabaseClient && appState.sesionActual?.user?.id) {
             try {
                 const res = await fetch(p.b64);
                 const blob = await res.blob();
@@ -1474,6 +1514,23 @@ export async function sincronizarRutasPendientes() {
 // ==============================================================================
 
 export function restaurarTracker() {
+    const currentMap = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);
+    if (mapRuntime.livePolyline && currentMap) {
+        try { currentMap.removeLayer(mapRuntime.livePolyline); } catch (_) {}
+        mapRuntime.livePolyline = null;
+    }
+    if (mapRuntime.posterPolyline && currentMap) {
+        try { currentMap.removeLayer(mapRuntime.posterPolyline); } catch (_) {}
+        mapRuntime.posterPolyline = null;
+    }
+    if (mapRuntime.cronometroInterval) {
+        clearInterval(mapRuntime.cronometroInterval);
+        mapRuntime.cronometroInterval = null;
+    }
+    if (mapRuntime.watchId && typeof navigator !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(mapRuntime.watchId);
+        mapRuntime.watchId = null;
+    }
     mapRuntime.isSavingRoute = false;
     mapRuntime.isTracking = false;
     isTracking = false;
@@ -1484,17 +1541,19 @@ export function restaurarTracker() {
     mapRuntime.modoSolTrackerActivo = false;
     modoSolTrackerActivo = false;
     liberarWakeLock().catch(() => {});
-    const pnl = document.getElementById('liveTrackingPanel');
-    if (pnl) {
-        pnl.classList.remove('modo-sol-activo');
-        pnl.classList.add('hidden');
-    }
-    const btnLive = document.getElementById('btnIniciarLive');
-    if (btnLive) btnLive.classList.remove('hidden');
-    const proPlan = document.getElementById('proPlanificador');
-    if (proPlan) {
-        proPlan.classList.remove('hidden');
-        proPlan.classList.add('flex');
+    if (typeof document !== 'undefined') {
+        const pnl = document.getElementById('liveTrackingPanel');
+        if (pnl) {
+            pnl.classList.remove('modo-sol-activo');
+            pnl.classList.add('hidden');
+        }
+        const btnLive = document.getElementById('btnIniciarLive');
+        if (btnLive) btnLive.classList.remove('hidden');
+        const proPlan = document.getElementById('proPlanificador');
+        if (proPlan) {
+            proPlan.classList.remove('hidden');
+            proPlan.classList.add('flex');
+        }
     }
     syncTrackerState();
 }

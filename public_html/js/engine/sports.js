@@ -78,21 +78,24 @@ export function calcularBeginnerIndex({
         };
     }
 
+    const v = Number.isFinite(Number(vientoKt)) ? Math.max(0, Number(vientoKt)) : 0;
+    const r = Number.isFinite(Number(rachasKt)) ? Math.max(0, Number(rachasKt)) : v;
+    const o = (oleajeM !== null && Number.isFinite(Number(oleajeM))) ? Math.max(0, Number(oleajeM)) : 0;
     const isOffshore = esCosta && componente === 'offshore';
 
-    if (vientoKt > 13 || rachasKt > 17 || oleajeM > 0.8 || (isOffshore && vientoKt > 7)) {
+    if (v > 13 || r > 17 || o > 0.8 || (isOffshore && v > 7)) {
         return {
             nivel: 'No Recomendado',
             color: 'text-red-500 bg-red-50 border-red-200',
             score: 20,
-            motivo: isOffshore && vientoKt > 7
+            motivo: isOffshore && v > 7
                 ? 'Viento hacia mar abierto (offshore): alto riesgo de alejarse sin fuerza para retornar.'
                 : 'Viento o marejada por encima del margen de seguridad para iniciación.',
             consejo: 'Cancela la sesión de iniciación o busca una bahía interior totalmente resguardada.'
         };
     }
 
-    if (vientoKt >= 10 || rachasKt >= 14 || oleajeM >= 0.5) {
+    if (v >= 10 || r >= 14 || o >= 0.5) {
         return {
             nivel: 'Exigente',
             color: 'text-orange-500 bg-orange-50 border-orange-200',
@@ -102,7 +105,7 @@ export function calcularBeginnerIndex({
         };
     }
 
-    if (vientoKt >= 7 || oleajeM >= 0.3 || (isOffshore && vientoKt > 4)) {
+    if (v >= 7 || o >= 0.3 || (isOffshore && v > 4)) {
         return {
             nivel: 'Moderado',
             color: 'text-yellow-600 bg-yellow-50 border-yellow-200',
@@ -112,7 +115,7 @@ export function calcularBeginnerIndex({
         };
     }
 
-    if (vientoKt >= 4 || oleajeM >= 0.15) {
+    if (v >= 4 || o >= 0.15) {
         return {
             nivel: 'Fácil',
             color: 'text-emerald-600 bg-emerald-50 border-emerald-200',
@@ -159,22 +162,27 @@ export function evaluarCondicionesDeporte({
         };
     }
 
+    const v = Number.isFinite(Number(vientoKt)) ? Math.max(0, Number(vientoKt)) : 0;
+    const r = Number.isFinite(Number(rachasKt)) ? Math.max(0, Number(rachasKt)) : v;
+    const o = (oleajeM !== null && Number.isFinite(Number(oleajeM))) ? Math.max(0, Number(oleajeM)) : 0;
+    const sw = (swellM !== null && Number.isFinite(Number(swellM))) ? Math.max(0, Number(swellM)) : 0;
+
     const maxV = deporte.vientoMax[nivelNorm] || 12;
     const maxO = deporte.olaMax ? (deporte.olaMax[nivelNorm] || 0.6) : 99;
 
     // Regla especial para Wing Foil (requiere viento mínimo)
-    if (deporte.requiereViento && vientoKt < (deporte.vientoMin || 11)) {
+    if (deporte.requiereViento && v < (deporte.vientoMin || 11)) {
         return {
             recomendable: false,
             estado: 'Viento en calma para Foil',
-            motivo: `El Wing Foil requiere al menos ${deporte.vientoMin} kt para sustentación en foil (viento actual: ${vientoKt} kt).`,
+            motivo: `El Wing Foil requiere al menos ${deporte.vientoMin} kt para sustentación en foil (viento actual: ${v} kt).`,
             consejo: 'Viento suave ideal para Paddle Surf recreativo. Espera a la brisa térmica si deseas practicar Wing Foil.'
         };
     }
 
     // Regla especial para Surf (requiere olas / swell)
     if (deporte.requiereOlas) {
-        const olaEfectiva = swellM > 0 ? swellM : oleajeM;
+        const olaEfectiva = sw > 0 ? sw : o;
         const minO = deporte.olaMinima[nivelNorm] || 0.5;
         if (olaEfectiva < minO) {
             return {
@@ -187,19 +195,19 @@ export function evaluarCondicionesDeporte({
     }
 
     // Comprobación de límites de seguridad
-    const superaViento = vientoKt > maxV;
-    const superaRacha = rachasKt > (maxV + 6);
-    const superaOla = oleajeM > maxO;
+    const superaViento = v > maxV;
+    const superaRacha = r > (maxV + 6);
+    const superaOla = o > maxO;
 
     if (superaViento || superaRacha || superaOla) {
         return {
             recomendable: false,
             estado: 'Condiciones exigentes / Límite superado',
             motivo: superaViento
-                ? `Viento de ${vientoKt} kt supera el límite cómodo (${maxV} kt) para tu nivel en ${deporte.nombre}.`
+                ? `Viento de ${v} kt supera el límite cómodo (${maxV} kt) para tu nivel en ${deporte.nombre}.`
                 : superaOla
-                    ? `Oleaje de ${oleajeM.toFixed(1)} m supera el límite de seguridad (${maxO} m).`
-                    : `Rachas de ${rachasKt} kt comprometen la estabilidad.`,
+                    ? `Oleaje de ${o.toFixed(1)} m supera el límite de seguridad (${maxO} m).`
+                    : `Rachas de ${r} kt comprometen la estabilidad.`,
             consejo: 'Valora salir con una embarcación de mayor manga, posponer la sesión o buscar una zona protegida.'
         };
     }
@@ -207,7 +215,7 @@ export function evaluarCondicionesDeporte({
     return {
         recomendable: true,
         estado: 'Favorable',
-        motivo: `Condiciones acordes para ${deporte.nombre} (${nivelNorm.toLowerCase()}). Viento ${vientoKt} kt y olas ${oleajeM.toFixed(1)} m.`,
+        motivo: `Condiciones acordes para ${deporte.nombre} (${nivelNorm.toLowerCase()}). Viento ${v} kt y olas ${o.toFixed(1)} m.`,
         consejo: 'Disfruta de la sesión manteniendo siempre el leash y el chaleco puestos.'
     };
 }

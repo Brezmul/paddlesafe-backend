@@ -87,8 +87,8 @@ export function calcularDerivaCosteraPaddle(vientoKt, vientoDirDeg, olaM, swellD
     const uWind = vWindDrift * Math.sin(vientoHaciaRad);
     const vWind = vWindDrift * Math.cos(vientoHaciaRad);
 
-    // Componente de oleaje (arrastre de Stokes hacia la dirección del swell)
-    const swellHaciaRad = (sDir % 360) * Math.PI / 180;
+    // Componente de oleaje (arrastre de Stokes hacia la dirección a la que viajan las olas: dir + 180)
+    const swellHaciaRad = ((sDir + 180) % 360) * Math.PI / 180;
     const vSwellDrift = sM * 0.25; // ~0.25 kt por cada metro de ola
     const uSwell = vSwellDrift * Math.sin(swellHaciaRad);
     const vSwell = vSwellDrift * Math.cos(swellHaciaRad);
@@ -677,6 +677,10 @@ export async function activarModoRadar() {
     const hud = document.getElementById('mapWindWaveHud');
     if (hud) {
         hud.classList.add('hidden');
+    }
+    const toolbar = document.getElementById('multipuntoToolbar');
+    if (toolbar) {
+        toolbar.classList.replace('flex', 'hidden');
     }
 
     const mapInstance = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);

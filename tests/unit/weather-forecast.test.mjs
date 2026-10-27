@@ -4,6 +4,7 @@
  */
 
 import assert from 'node:assert';
+import { formatearTiempo } from '../../public_html/js/utils.js';
 import {
     BaseAppError,
     WeatherError,
@@ -272,6 +273,35 @@ it('logForecastService registra llamadas con error en formato estructurado', () 
     } finally {
         console.warn = originalWarn;
     }
+});
+
+
+// --------------------------------------------------
+// 6. FORMATEO DE TIEMPO Y DURACIÓN DE RUTAS (formatearTiempo)
+// --------------------------------------------------
+console.log('\n[GRUPO 6] Formateo de Tiempo y Duración de Rutas (formatearTiempo)');
+
+it('formatearTiempo: minutos simples (< 60 min)', () => {
+    assert.strictEqual(formatearTiempo(45), '45 min');
+    assert.strictEqual(formatearTiempo(1), '1 min');
+});
+
+it('formatearTiempo: horas exactas sin minutos restantes', () => {
+    assert.strictEqual(formatearTiempo(60), '1h');
+    assert.strictEqual(formatearTiempo(120), '2h');
+});
+
+it('formatearTiempo: horas compuestas con minutos restantes', () => {
+    assert.strictEqual(formatearTiempo(75), '1h 15 min');
+    assert.strictEqual(formatearTiempo(130), '2h 10 min');
+});
+
+it('formatearTiempo defensivo: valores nulos, undefined, NaN o negativos', () => {
+    assert.strictEqual(formatearTiempo(null), '-- min');
+    assert.strictEqual(formatearTiempo(undefined), '-- min');
+    assert.strictEqual(formatearTiempo(NaN), '-- min');
+    assert.strictEqual(formatearTiempo('invalido'), '-- min');
+    assert.strictEqual(formatearTiempo(-10), '0 min');
 });
 
 console.log('\n==================================================');

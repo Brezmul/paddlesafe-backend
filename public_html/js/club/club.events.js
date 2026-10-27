@@ -139,6 +139,8 @@ export const ClubEvents = {
     },
 
     renderTarjetaEvento(ev, creador, totalAsistentes, esAsistente, puedeEliminar, clubId) {
+        if (!ClubEvents._eventosCache) ClubEvents._eventosCache = {};
+        ClubEvents._eventosCache[ev.id] = ev;
         const fecha = new Date(ev.fecha_evento);
         const ahora = new Date();
         const diffMs = fecha.getTime() - ahora.getTime();
@@ -160,7 +162,7 @@ export const ClubEvents = {
         const horaLabel = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
         return `
-            <div id="card-evento-${ev.id}" class="ps-bento-card bg-slate-900/90 rounded-2xl border border-slate-700/80 shadow-md overflow-hidden transition-all hover:shadow-lg">
+            <div id="card-evento-${esc(ev.id)}" class="ps-bento-card bg-slate-900/90 rounded-2xl border border-slate-700/80 shadow-md overflow-hidden transition-all hover:shadow-lg">
                 <!-- Cabecera de la Tarjeta -->
                 <div class="p-4 border-b border-slate-100 dark:border-slate-700/60">
                     <div class="flex items-start justify-between gap-3 mb-2">
@@ -196,14 +198,14 @@ export const ClubEvents = {
 
                 <!-- 'Captura' / Previsualización de la Ruta en Mapa -->
                 <div class="relative w-full h-36 bg-slate-200 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700">
-                    <div id="minimap-event-${ev.id}" class="w-full h-full"></div>
-                    <button type="button" onclick="window.Club.abrirRutaEnMapaGrande('${esc(JSON.stringify(ev.ruta_json))}', '${esc(ev.nombre)}')" class="absolute bottom-2 right-2 z-[400] px-3 py-1 bg-slate-900/80 hover:bg-slate-900 text-white font-bold text-[10px] rounded-lg shadow-md backdrop-blur-xs flex items-center gap-1 cursor-pointer transition-colors">
+                    <div id="minimap-event-${esc(ev.id)}" class="w-full h-full"></div>
+                    <button type="button" onclick="window.Club.abrirRutaEvento('${esc(ev.id)}');" class="absolute bottom-2 right-2 z-[400] px-3 py-1 bg-slate-900/80 hover:bg-slate-900 text-white font-bold text-[10px] rounded-lg shadow-md backdrop-blur-xs flex items-center gap-1 cursor-pointer transition-colors">
                         <span>🔍 Abrir en mapa</span>
                     </button>
                 </div>
 
                 <!-- Previsión Meteorológica y Marina en Tiempo Real -->
-                <div id="weather-event-${ev.id}" class="p-3 bg-slate-50/70 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700 text-xs">
+                <div id="weather-event-${esc(ev.id)}" class="p-3 bg-slate-50/70 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700 text-xs">
                     <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider animate-pulse">📡 Obteniendo previsión marina en tiempo real...</p>
                 </div>
 

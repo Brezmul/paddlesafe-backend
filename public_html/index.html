@@ -502,7 +502,7 @@
                 <div id="global-alert-container" class="w-full flex flex-col gap-2" aria-live="assertive"></div>
 
             <!-- BENTO WEATHER GRID: 4-COLUMN METRIC CARDS -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div id="basicCards" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <!-- METRIC 1: VIENTO -->
                 <div class="ps-bento-card p-3.5 flex flex-col items-center justify-between text-center relative overflow-hidden">
                     <div class="w-full flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-700/50 pb-1">
@@ -673,6 +673,10 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" id="btnPlayTimeline24h" onclick="window.reproducirTimeline24hSpot ? window.reproducirTimeline24hSpot() : null" class="h-8 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-slate-700/80 active:scale-95" title="Reproducir evolución 24h">
+                            <span>▶️</span>
+                        </button>
+                        <span id="timelineScrubberClock" class="font-mono text-xs text-sky-400 font-bold px-2 py-1 rounded-lg bg-slate-950/80 border border-slate-800">--:--</span>
                         <button type="button" id="btnTimelineAbrirPro" onclick="abrirSpotActualEnPlanificadorPro()" class="ps-chip text-emerald-300 border-emerald-500/40 bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95">
                             <span>🗺️</span> <span>Abrir en Planificador Pro</span>
                         </button>
@@ -866,7 +870,7 @@
                             </div>
 
                             <div id="mapContainer" class="h-[460px] lg:h-[640px] w-full relative z-0 bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-700/80">
-                                <input type="file" id="inputImportarGpxPro" aria-label="Importar archivo de travesía GPX" accept=".gpx" class="hidden" onchange="window.importarRutaGPXPro ? window.importarRutaGPXPro(event) : null">
+                                <input type="file" id="inputImportarGpxPro" aria-label="Importar archivo de travesía GPX o TCX" accept=".gpx,.tcx" class="hidden" onchange="window.importarRutaGPXPro ? window.importarRutaGPXPro(event) : null">
 
 
                                 
@@ -992,7 +996,7 @@
                                 </div>
 
                                 <!-- 4. RADAR BOTTOM BAR (HORIZONTAL TRANSLUCENT DOCK ESTILO WINDY) -->
-                                <div id="radarBottomBar" class="hidden absolute bottom-3 left-3 right-3 sm:left-4 sm:right-auto sm:max-w-[720px] z-[420] bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 shadow-2xl text-white pointer-events-auto flex flex-col sm:flex-row items-center gap-2.5 transition-all animate-fadeIn">
+                                <div id="radarBottomBar" class="hidden absolute bottom-3 left-3 right-3 sm:left-4 sm:right-auto sm:max-w-[720px] z-[1010] bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2 sm:p-2.5 shadow-2xl text-white pointer-events-auto flex flex-col sm:flex-row items-center gap-2.5 transition-all animate-fadeIn">
                                     <!-- Active Point Telemetry Section -->
                                     <div id="radarPointInspector" class="flex items-center gap-2.5 text-[10px] shrink-0 flex-wrap sm:flex-nowrap border-b sm:border-b-0 sm:border-r border-slate-800 pb-1 sm:pb-0 sm:pr-2.5">
                                         <div class="flex items-center gap-1 font-mono text-slate-300">
@@ -1021,7 +1025,7 @@
                                         <button type="button" onclick="window.actualizarCapasRadar()" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 font-bold cursor-pointer" title="Actualizar datos">🔄</button>
                                     </div>
                                 </div>
-                                <div id="mapWindWaveHud" class="hidden absolute ps-map-telemetry-hud bottom-6 right-3 sm:bottom-6 sm:right-4 z-[400] bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 shadow-2xl text-white pointer-events-auto flex flex-col gap-1 min-w-[140px] max-w-[200px] transition-all">
+                                <div id="mapWindWaveHud" class="hidden absolute ps-map-telemetry-hud bottom-[74px] sm:bottom-6 right-3 sm:right-4 z-[400] bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 shadow-2xl text-white pointer-events-auto flex flex-col gap-1 min-w-[140px] max-w-[200px] transition-all">
                                     <div class="flex items-center justify-between border-b border-slate-700/60 pb-1 text-[10px] font-bold text-slate-300">
                                         <span class="flex items-center gap-1">🧭 <span id="hudPointName" class="truncate max-w-[85px]">Spot</span></span>
                                         <div class="flex items-center gap-1">
@@ -1189,6 +1193,20 @@
 
                         <!-- DASHBOARD PREMIUM -->
                         <div id="proDashboardResumen" class="bg-slate-900 rounded-2xl p-1 shadow-2xl border border-slate-700 hidden flex-col w-full">
+                            <!-- PANEL DE ACCIÓN RÁPIDA: MODIFICAR RUTA O SALIDA (REUBICADO INMEDIATAMENTE BAJO EL MAPA) -->
+                            <div id="panelModificarRuta" class="p-3.5 sm:p-4 w-full bg-slate-900 border-b border-slate-800 rounded-t-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <span class="text-lg sm:text-xl shrink-0">🧭</span>
+                                    <div class="truncate">
+                                        <h4 class="text-xs sm:text-sm font-black text-white uppercase tracking-wider block truncate">Análisis Pro de Travesía</h4>
+                                        <p class="text-[10px] text-slate-400 font-medium block truncate">Condiciones tácticas de tu ruta calculada</p>
+                                    </div>
+                                </div>
+                                <button type="button" id="btnVolverPlanificador" onclick="volverPlanificadorPro()" class="w-full sm:w-auto h-11 px-5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs uppercase tracking-widest active:scale-95 transition-colors border border-slate-700 cursor-pointer flex items-center justify-center gap-2 shrink-0 shadow-sm">
+                                    <span>🔄</span> <span>Modificar Ruta o Salida</span>
+                                </button>
+                            </div>
+
                             
                             <!-- CONTENEDOR SUPERIOR DE ALERTAS OFICIALES AEMET / 112 CV -->
                             <div id="proAlertTopContainer" class="w-full flex flex-col gap-2 p-4 pb-0 empty:hidden" aria-live="assertive"></div>
@@ -1319,7 +1337,7 @@
                                 </div>
                             </div>
 
-                            <div class="p-5 w-full bg-slate-900 rounded-b-xl">
+                            <div id="proTramoDetalle" class="p-5 w-full bg-slate-900 rounded-b-xl">
                                 <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-800 pb-1" id="proTituloTramos">Análisis por Tramos</h4>
                                 <div id="proDashTramosContainer" class="flex flex-col gap-2 w-full mb-4"></div>
                                 <button type="button" onclick="volverPlanificadorPro()" class="w-full h-11 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs uppercase tracking-widest active:scale-95 transition-colors border border-slate-700 cursor-pointer">🔄 Modificar Ruta o Salida</button>
@@ -1652,7 +1670,7 @@
     </div>
 
     <!-- LIGHTBOX POSTER FINISHER FULLSCREEN -->
-    <div id="posterFinisherLightbox" class="fixed inset-0 z-[130] hidden bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+    <div id="posterFinisherLightbox" class="fixed inset-0 z-[130] hidden ps-modal-backdrop bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div id="posterFinisherContent" class="relative max-w-xl w-full flex flex-col items-center gap-3"></div>
     </div>
 
@@ -2095,9 +2113,55 @@
                         mostrarErrorCargaApp();
                         return;
                     }
-                    const destUrl = new URL(window.location.href);
-                    destUrl.searchParams.set('force_update', Date.now().toString());
-                    window.location.replace(destUrl.toString());
+                    window.aplicarActualizacionPwa();
+                };
+
+                // Notificación suave de actualización PWA sin romper la sesión activa
+                window.mostrarNotificacionActualizacionPwa = function(nuevaVersion = 'v5.74') {
+                    if (document.getElementById('pwaUpdateToast')) return;
+                    const enGrabacion = Boolean(window.appState?.trackerActivo || document.getElementById('liveTrackingPanel')?.classList.contains('hidden') === false);
+                    if (enGrabacion) {
+                        return;
+                    }
+                    const toast = document.createElement('div');
+                    toast.id = 'pwaUpdateToast';
+                    toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[9999] bg-slate-900/95 text-white border border-sky-500/50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-md animate-in fade-in slide-in-from-top-4 transition-all duration-300 max-w-[92vw] sm:max-w-md';
+                    toast.innerHTML = `
+                        <span class="text-xl shrink-0">✨</span>
+                        <div class="flex-1 min-w-0 text-left">
+                            <p class="text-xs font-black text-sky-400 uppercase tracking-wider">Actualización Disponible</p>
+                            <p class="text-[11px] text-slate-300 leading-tight truncate">Nueva versión de PaddleSafe (${nuevaVersion}) lista.</p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button type="button" id="btnPwaUpdateAceptar" class="px-3 py-1.5 bg-gradient-to-r from-sky-500 to-water hover:from-sky-400 hover:to-cyan-400 text-white font-bold text-xs rounded-xl shadow active:scale-95 transition-transform cursor-pointer">Actualizar</button>
+                            <button type="button" id="btnPwaUpdateDescartar" class="text-slate-400 hover:text-white p-1 text-sm cursor-pointer" title="Descartar">✕</button>
+                        </div>
+                    `;
+                    document.body.appendChild(toast);
+                    document.getElementById('btnPwaUpdateAceptar')?.addEventListener('click', () => window.aplicarActualizacionPwa());
+                    document.getElementById('btnPwaUpdateDescartar')?.addEventListener('click', () => toast.remove());
+                };
+
+                window.aplicarActualizacionPwa = function(nuevoHash) {
+                    window._pwaUserRequestedReload = true;
+                    const toast = document.getElementById('pwaUpdateToast');
+                    if (toast) {
+                        toast.innerHTML = '<span class="text-xs font-bold text-sky-300 animate-pulse">Aplicando actualización de PaddleSafe...</span>';
+                    }
+                    if (nuevoHash) {
+                        localStorage.setItem('paddlesafe_version', nuevoHash);
+                    }
+                    if (navigator.serviceWorker) {
+                        navigator.serviceWorker.getRegistration().then(reg => {
+                            if (reg && reg.waiting) {
+                                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                            } else {
+                                window.location.reload();
+                            }
+                        }).catch(() => window.location.reload());
+                    } else {
+                        window.location.reload();
+                    }
                 };
 
                 // 4. Registrar el Service Worker
@@ -2107,38 +2171,38 @@
                             if (typeof reg.update === 'function') {
                                 reg.update().catch(() => {});
                             }
-                            // Escuchar cuando el SW detecta una nueva versión byte a byte
                             reg.onupdatefound = () => {
                                 const installingWorker = reg.installing;
                                 if (!installingWorker) return;
                                 installingWorker.onstatechange = () => {
                                     if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                        // Nueva versión detectada por el navegador. Forzamos chequeo de version.json
-                                        fetch(`/version.json?t=${new Date().getTime()}`, { cache: "no-store" })
+                                        fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' })
                                             .then(r => r.json())
-                                            .then(async newData => {
+                                            .then(newData => {
                                                 if (newData.hash && newData.hash !== localStorage.getItem('paddlesafe_version')) {
-                                                    if ('caches' in window) {
-                                                        const cacheKeys = await caches.keys();
-                                                        await Promise.all(cacheKeys
-                                                            .filter(key => key.startsWith('paddlesafe-'))
-                                                            .map(key => caches.delete(key)));
-                                                    }
-                                                    localStorage.removeItem('paddlesafe_version');
-                                                    const destUrl = new URL(window.location.href);
-                                                    destUrl.searchParams.set('v', newData.hash);
-                                                    window.location.replace(destUrl.toString());
+                                                    window.mostrarNotificacionActualizacionPwa(newData.version || newData.hash);
                                                 }
-                                            });
+                                            })
+                                            .catch(() => window.mostrarNotificacionActualizacionPwa());
                                     }
                                 };
                             };
                         });
                     });
 
+                    // Notificación suave ante activación de Service Worker
+                    navigator.serviceWorker.addEventListener('message', event => {
+                        if (event.data && (event.data.type === 'SW_ACTIVATED' || event.data.type === 'SW_UPDATE_AVAILABLE')) {
+                            const cur = localStorage.getItem('paddlesafe_version');
+                            if (!cur || cur !== event.data.version) {
+                                window.mostrarNotificacionActualizacionPwa(event.data.version);
+                            }
+                        }
+                    });
+
                     let refreshing = false;
                     navigator.serviceWorker.addEventListener('controllerchange', () => {
-                        if (!refreshing) {
+                        if (window._pwaUserRequestedReload && !refreshing) {
                             refreshing = true;
                             window.location.reload();
                         }

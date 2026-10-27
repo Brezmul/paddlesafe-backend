@@ -13,7 +13,7 @@
     "lhci": "lhci autorun",
     "perf:audit": "node scripts/audit_performance.mjs",
     "security:audit": "npm audit",
-    "test:unit": "node tests/unit/weather-forecast.test.mjs && node tests/unit/ranking-avatars.test.mjs"
+    "test:unit": "node tests/unit/weather-forecast.test.mjs && node tests/unit/ranking-avatars.test.mjs && node tests/unit/engine-resilience.test.mjs && node tests/unit/gpx-parser-resilience.test.mjs && node tests/unit/social-club-resilience.test.mjs && node tests/unit/pwa-sw-resilience.test.mjs && node tests/unit/poster-finisher-resilience.test.mjs && node tests/unit/map-layout-collisions.test.mjs && node tests/unit/critical-fixes-guest-subvista.test.mjs && node tests/unit/medium-fixes-zindex-modals.test.mjs && node tests/unit/minor-fixes-dom-exports.test.mjs"
   },
   "keywords": [
     "paddlesafe",

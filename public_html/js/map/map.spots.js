@@ -1,4 +1,4 @@
-// ==============================================================================
+﻿// ==============================================================================
 // PADDLESAFE NEXT-GEN - MAP SPOTS, COMPARATOR & INTELLIGENCE MODULE (map.spots.js)
 // Strangler Fig Pattern: Extracted from map.js to modularize spot management,
 // live crowd reports (Waze for SUP), 24h daytime timeline scrubber,
@@ -1415,7 +1415,10 @@ export function seleccionarHoraTimeline(horaStr, doScroll = false) {
     }
 
     if (doScroll) {
-        document.getElementById('basicCards')?.scrollIntoView({ behavior: 'smooth' });
+        const elScroll = document.getElementById('basicCards') || document.getElementById('tab-basico') || document.getElementById('basicScoreBanner') || document.getElementById('basicExpertSummary');
+        if (elScroll) {
+            elScroll.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
     }
 }
 export const seleccionarHoraScrubber24h = seleccionarHoraTimeline;

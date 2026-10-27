@@ -3,7 +3,7 @@
 // ====================================================
 
 import { supabaseClient, appState } from './config.js';
-import { IMG_FALLBACK, esc, safeUrl } from './utils.js'; // AÑADIDO: esc y safeUrl
+import { IMG_FALLBACK, esc, safeUrl, formatearTiempo } from './utils.js'; // AÑADIDO: esc y safeUrl
 import * as Auth from './auth.js';
 import * as MapModule from './map.js';
 import * as Social from './social.js';
@@ -1517,6 +1517,14 @@ window.abrirDetalleClubDesdeRanking = abrirDetalleClubDesdeRanking;
 window.obtenerModalActivo = obtenerModalActivo;
 window.cerrarModalActivo = cerrarModalActivo;
 window.inicializarManejadorNavegacionModales = inicializarManejadorNavegacionModales;
+window.formatearTiempo = window.formatearTiempo || formatearTiempo;
+window.aplicarActualizacionPwa = window.aplicarActualizacionPwa || function(nuevoHash) {
+    if (typeof window.aplicarActualizacionPwa === 'function') {
+        window.aplicarActualizacionPwa(nuevoHash);
+    } else {
+        window.location.reload();
+    }
+};
 // Asegurar que en pantallas de escritorio ambas columnas se muestren simultáneamente
 window.addEventListener('resize', () => {
     if (window.innerWidth >= 1024) {
