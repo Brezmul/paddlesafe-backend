@@ -30,7 +30,7 @@ export function haversineDistance(lat1, lon1, lat2, lon2) {
 /**
  * Extrae los trackpoints [lat, lon, time, ele] usando DOMParser en navegador
  * o expresiones regulares optimizadas si se ejecuta en Node.js sin DOM.
- * Soporta estándares GPX (<trkpt>, <rtept>, <wpt>) y Garmin TCX (<Trackpoint>).
+ * Soporta estándares GPX (<trkpt>, <rtept>, <wpt>) y TCX (<Trackpoint>).
  * @param {string} xmlString 
  * @returns {{points: Array<{lat: number, lon: number, time: number|null, ele: number}>, hasRealTimestamps: boolean}}
  */
@@ -87,7 +87,7 @@ function extractTrackpoints(xmlString) {
                 points.push({ lat, lon, time, ele });
             }
         } else {
-            // B. Intentar extraer puntos Garmin TCX (<Trackpoint>)
+            // B. Intentar extraer puntos TCX (<Trackpoint>)
             const tcxNodes = xmlDoc.querySelectorAll("Trackpoint");
             if (tcxNodes && tcxNodes.length > 0) {
                 for (let i = 0; i < tcxNodes.length; i++) {

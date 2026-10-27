@@ -233,10 +233,10 @@
 
 
 /* ==============================================================================
-   UI 5.1 GARMIN ULTRA LIVE TRACKER, SUNLIGHT GLARE & PODIUM DESIGN SYSTEM
+   UI 5.1 ULTRA LIVE TRACKER, SUNLIGHT GLARE & PODIUM DESIGN SYSTEM
    ============================================================================== */
 
-/* Garmin Ultra Live Marine Telemetry HUD */
+/* Ultra Live Marine Telemetry HUD */
 .ps-live-hud {
   background: linear-gradient(180deg, rgba(2, 6, 23, 0.96) 0%, rgba(15, 23, 42, 0.94) 100%);
   backdrop-filter: blur(24px);
@@ -372,7 +372,7 @@
   box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35) !important;
 }
 
-/* Olympic / Strava-style Podium Bento */
+/* Olympic Podium Bento */
 .ps-podium-card {
   position: relative;
   border-radius: 1.25rem;
@@ -884,7 +884,7 @@ html, body {
 }
 
 
-/* Radar Horizontal Glass Dock Estilo Windy */
+/* Radar Horizontal Glass Dock */
 #radarBottomBar {
   pointer-events: auto !important;
   position: absolute !important;

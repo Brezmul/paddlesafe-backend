@@ -2,10 +2,10 @@
 .ps-omnibar{background:linear-gradient(135deg,rgba(15,23,42,.92) 0%,rgba(30,41,59,.88) 100%);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(148,163,184,.18);box-shadow:0 10px 25px -5px rgba(0,0,0,.4),0 8px 10px -6px rgba(0,0,0,.3);transition:all .25s cubic-bezier(.16,1,.3,1)}.ps-omnibar:focus-within{border-color:rgba(56,189,248,.4);box-shadow:0 12px 30px -5px rgba(14,165,233,.25)}.ps-subview-tab{color:#94a3b8;border:1px solid transparent;transition:all .2s cubic-bezier(.16,1,.3,1)}.ps-subview-tab:hover{color:#f1f5f9;background:rgba(51,65,85,.4)}.ps-subview-tab-active{color:#38bdf8!important;background:rgba(14,165,233,.18)!important;border-color:rgba(56,189,248,.45)!important;box-shadow:0 2px 8px rgba(14,165,233,.25)}.ps-gauge-ring circle{transition:stroke-dashoffset .85s cubic-bezier(.16,1,.3,1),stroke .3s ease}.ps-map-dock{background:rgba(15,23,42,.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(148,163,184,.2);box-shadow:0 8px 24px rgba(0,0,0,.45)}.ps-map-layer-pill{border:1px solid transparent;transition:all .18s ease}.ps-map-layer-pill:hover{background:rgba(51,65,85,.6);color:#fff}
 
 /* ==============================================================================
-   UI 5.1 GARMIN ULTRA LIVE TRACKER, SUNLIGHT GLARE & PODIUM DESIGN SYSTEM
+   UI 5.1 ULTRA LIVE TRACKER, SUNLIGHT GLARE & PODIUM DESIGN SYSTEM
    ============================================================================== */
 
-/* Garmin Ultra Live Marine Telemetry HUD */
+/* Ultra Live Marine Telemetry HUD */
 .ps-live-hud {
   background: linear-gradient(180deg, rgba(2, 6, 23, 0.96) 0%, rgba(15, 23, 42, 0.94) 100%);
   backdrop-filter: blur(24px);
@@ -141,7 +141,7 @@
   box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35) !important;
 }
 
-/* Olympic / Strava-style Podium Bento */
+/* Olympic Podium Bento */
 .ps-podium-card {
   position: relative;
   border-radius: 1.25rem;
@@ -635,7 +635,7 @@ html, body { overflow-x: hidden; max-width: 100vw; }
 }
 
 
-/* Radar Horizontal Glass Dock Estilo Windy */
+/* Radar Horizontal Glass Dock */
 #radarBottomBar {
   pointer-events: auto !important;
   position: absolute !important;

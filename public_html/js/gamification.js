@@ -1360,7 +1360,7 @@ export function calcularProgresoRetoClub(reto, rutasMiembros = [], participantes
 // Exponer en window para acceso global si fuese necesario
 
 /**
- * Renderiza el podio olímpico / Strava Bento Top 3 (Batch #21)
+ * Renderiza el podio náutico Bento Top 3 (Batch #21)
  * Columna 1: #2 Plata (izquierda)
  * Columna 2: #1 Oro (centro elevado)
  * Columna 3: #3 Bronce (derecha)
