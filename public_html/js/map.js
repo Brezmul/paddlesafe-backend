@@ -19,7 +19,7 @@ export * from './map/map.routes.js';
 export * from './map/map.coach.js';
 export * from './map/map.spots.js';
 export * from './map/map.radar.js';
-export { generarGuiaHumanaEquipamiento, calcularEquipamientoTermicoDetallado } from './utils.js';
+export { generarGuiaHumanaEquipamiento, calcularEquipamientoTermicoDetallado, formatearTiempo } from './utils.js';
 
 // 2. Importaciones nombradas para cableado global reactivo en window.*
 import { mapRuntime } from './map/map.state.js';
@@ -55,7 +55,6 @@ import {
     compartirPosicionActualLive, compartirPosicionSOS, actualizarRetornoSalidaLive,
     actualizarDuracionCheckin, extenderCheckinTravesia, enviarAlertaCheckinWhatsApp,
     verificarAlertaCheckin, mostrarModalSplitsKm, cerrarModalSplitsKm, syncTrackerState, calcularZonaRitmoLive } from './map/map.tracker.js';
-import { estamparPosterFinisherCanvas } from './map/map.poster.js';
 import {
     toggleRutaLibre, limpiarRuta, gestionarClicRuta, gestionarClicRutaLibre,
     deshacerUltimoPunto, reiniciarRutaMultipunto, cerrarIdaYVueltaMultipunto,
@@ -126,7 +125,6 @@ if (typeof window !== 'undefined') {
         compartirPosicionActualLive, compartirPosicionSOS, actualizarRetornoSalidaLive,
         actualizarDuracionCheckin, extenderCheckinTravesia, enviarAlertaCheckinWhatsApp,
         verificarAlertaCheckin, mostrarModalSplitsKm, cerrarModalSplitsKm, syncTrackerState, calcularZonaRitmoLive,
-        estamparPosterFinisherCanvas,
         toggleRutaLibre, limpiarRuta, gestionarClicRuta, gestionarClicRutaLibre,
         deshacerUltimoPunto, reiniciarRutaMultipunto, cerrarIdaYVueltaMultipunto,
         renderPreviewRuta, evaluarVientoRelativoInfo, actualizarMetricasQuedada,

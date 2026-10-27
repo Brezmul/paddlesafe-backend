@@ -10,6 +10,7 @@ import {
     fetchConTimeout,
     esc,
     kmhANudos,
+    formatearTiempo,
     deduplicateInsights,
     sonMensajesEquivalentes,
     filtrarConsejosRedundantes,
@@ -340,8 +341,10 @@ export function renderizarResumenExperto(motor, prefijo = 'basic') {
 
     contenedor.dataset.haSidoCargado = 'true';
     contenedor.classList.remove('hidden');
-    if (typeof cambiarSubVistaSpot === 'function' && mapRuntime.subVistaSpotActual) {
-        cambiarSubVistaSpot(mapRuntime.subVistaSpotActual);
+    const fnSubVista = (typeof cambiarSubVistaSpot === 'function' ? cambiarSubVistaSpot : null) 
+        || (typeof window !== 'undefined' ? window.cambiarSubVistaSpot : null);
+    if (typeof fnSubVista === 'function' && (mapRuntime.subVistaSpotActual || (typeof window !== 'undefined' && window.subVistaSpotActual))) {
+        fnSubVista(mapRuntime.subVistaSpotActual || (typeof window !== 'undefined' ? window.subVistaSpotActual : null));
     }
 }
 
@@ -852,7 +855,7 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
             });
             
             arrayHtmlTramos.push(`
-                <div class="bg-slate-800 rounded-xl p-3 border-l-4 shadow-sm w-full relative overflow-hidden" style="border-color:${iV.hexLineColor}">
+                <div id="proTramoDetalle-${i}" class="bg-slate-800 rounded-xl p-3 border-l-4 shadow-sm w-full relative overflow-hidden" style="border-color:${iV.hexLineColor}">
                     <div class="flex justify-between items-center text-white text-[11px] mb-2 border-b border-slate-700/50 pb-2 flex-wrap gap-1">
                         <span class="font-black ${iV.colorRumbo} tracking-wider">${nombreTramo}</span>
                         <div class="flex items-center gap-1.5">
@@ -1070,6 +1073,7 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
 
 export async function cargarPrevisionHorariaExacta(lat, lon, startISO, durationMinutes) {
     const cont = document.getElementById('proDashHorasContainer');
+    if (!cont) return;
     cont.innerHTML = 'Consultando radar...';
     try {
         const start = new Date(startISO);
@@ -1079,25 +1083,34 @@ export async function cargarPrevisionHorariaExacta(lat, lon, startISO, durationM
         const pos = `latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&timezone=GMT`;
         const json = r => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)));
         const [wx, marine] = await Promise.all([
-            fetchConTimeout(`https://api.open-meteo.com/v1/forecast?${pos}&hourly=windspeed_10m,windgusts_10m,precipitation_probability,uv_index&start_hour=${horaUTC(start)}&end_hour=${horaUTC(end)}`, { cache: 'no-store' }).then(json),
+            fetchConTimeout(`https://api.open-meteo.com/v1/forecast?${pos}&hourly=wind_speed_10m,wind_gusts_10m,windspeed_10m,windgusts_10m,precipitation_probability,uv_index&start_hour=${horaUTC(start)}&end_hour=${horaUTC(end)}`, { cache: 'no-store' }).then(json),
             fetchConTimeout(`https://marine-api.open-meteo.com/v1/marine?${pos}&hourly=wave_height&start_date=${diaUTC(start)}&end_date=${diaUTC(end)}`, { cache: 'no-store' }).then(json).catch(() => null)
         ]);
         if (!wx.hourly || !wx.hourly.time || wx.hourly.time.length === 0) throw new Error('Rango sin cobertura');
         const olas = new Map();
-        if (marine && marine.hourly && marine.hourly.time) marine.hourly.time.forEach((t, i) => olas.set(t, marine.hourly.wave_height[i]));
-        const num = (v, dec = 0) => (Number.isFinite(Number(v)) && v !== null ? Number(v).toFixed(dec) : null);
+        if (marine && marine.hourly && marine.hourly.time) {
+            marine.hourly.time.forEach((t, i) => {
+                const val = marine.hourly.wave_height?.[i];
+                if (val !== null && val !== undefined && Number.isFinite(Number(val))) {
+                    olas.set(t, Number(val));
+                }
+            });
+        }
+        const num = (v, dec = 0) => (v !== null && v !== undefined && Number.isFinite(Number(v)) ? Number(v).toFixed(dec) : null);
         
         cont.innerHTML = wx.hourly.time.map((t, i) => {
             const horaLabel = new Date(t + 'Z').toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-            const wind = Number(wx.hourly.windspeed_10m[i]);
-            const gust = Number(wx.hourly.windgusts_10m[i]);
-            const windKt = kmhANudos(wind);
-            const gustKt = kmhANudos(gust);
+            const windRaw = wx.hourly.wind_speed_10m?.[i] ?? wx.hourly.windspeed_10m?.[i];
+            const gustRaw = wx.hourly.wind_gusts_10m?.[i] ?? wx.hourly.windgusts_10m?.[i];
+            const wind = Number.isFinite(Number(windRaw)) ? Number(windRaw) : null;
+            const gust = Number.isFinite(Number(gustRaw)) ? Number(gustRaw) : wind;
+            const windKt = wind !== null ? kmhANudos(wind) : null;
+            const gustKt = gust !== null ? kmhANudos(gust) : null;
             const wave = num(olas.get(t), 1);
-            const rain = num(wx.hourly.precipitation_probability[i]);
-            const uv = num(wx.hourly.uv_index[i], 1);
-            const colorViento = windKt > 20 ? 'text-red-400' : (windKt >= 12 ? 'text-yellow-400' : 'text-emerald-400');
-            const colorRachas = gustKt > 20 ? 'text-red-500' : 'text-slate-300';
+            const rain = num(wx.hourly.precipitation_probability?.[i]);
+            const uv = num(wx.hourly.uv_index?.[i], 1);
+            const colorViento = windKt !== null ? (windKt > 20 ? 'text-red-400' : (windKt >= 12 ? 'text-yellow-400' : 'text-emerald-400')) : 'text-slate-400';
+            const colorRachas = gustKt !== null && gustKt > 20 ? 'text-red-500' : 'text-slate-300';
             const fila = (label, valor, color, unidad = '') => `
                     <div class="flex justify-between items-center text-[10px] mb-1">
                         <span class="text-slate-400 font-bold uppercase tracking-wider">${label}</span>
@@ -1125,9 +1138,14 @@ export function volverPlanificadorPro() {
         evoBadge.classList.add('hidden');
         evoBadge.innerHTML = '';
     }
-    document.getElementById('proDashboardResumen').classList.replace('flex','hidden');
-    document.getElementById('proPlanificador').classList.remove('hidden');
-    document.getElementById('proPlanificador').classList.add('flex');
+    const dash = document.getElementById('proDashboardResumen');
+    if (dash) dash.classList.replace('flex','hidden');
+    const plan = document.getElementById('proPlanificador');
+    if (plan) {
+        plan.classList.remove('hidden');
+        plan.classList.add('flex');
+        plan.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
 }
 
 // Planificador de quedadas de club y visor deportivo modularizados a ./map/map.routes.js
@@ -1216,8 +1234,8 @@ export function renderizarRosaVectoresMapa(lat, lon, datosMeteo) {
         iconAnchor: [60, 60]
     });
 
-    if (mapRuntime.marcadorRosaVectores && map) {
-        currentMap.removeLayer(mapRuntime.marcadorRosaVectores);
+    if (mapRuntime.marcadorRosaVectores && currentMap) {
+        try { currentMap.removeLayer(mapRuntime.marcadorRosaVectores); } catch (_) {}
         mapRuntime.marcadorRosaVectores = null;
     }
 
@@ -1227,6 +1245,19 @@ export function renderizarRosaVectoresMapa(lat, lon, datosMeteo) {
         zIndexOffset: 250
     }).addTo(currentMap);
 
+    mapRuntime.activeSpotData = {
+        lat: latNum,
+        lon: lonNum,
+        windSpeedMs: vMs || 0,
+        windKt: vKt,
+        windGustKt: rKt,
+        windDir: dirVientoNum,
+        windBlowsToDeg: rotViento,
+        waveHeightM: waveM || 0,
+        wavePeriodS: valorNumericoMeteo(datosMeteo.wavePeriod, datosMeteo.wave_period) || 0,
+        waveDir: dirOla !== null ? Number(dirOla) : dirVientoNum,
+        waveBlowsToDeg: rotOla
+    };
     actualizarHudVectoresMapa(latNum, lonNum, datosMeteo);
 }
 
@@ -1234,7 +1265,7 @@ export function actualizarHudVectoresMapa(lat, lon, datosMeteo) {
     const hud = document.getElementById('mapWindWaveHud');
     if (!hud) return;
 
-    if (!datosMeteo) {
+    if (!datosMeteo || mapRuntime.radarActivo) {
         hud.classList.add('hidden');
         return;
     }
@@ -1278,7 +1309,8 @@ export function actualizarHudVectoresMapa(lat, lon, datosMeteo) {
 
     const elArrow = document.getElementById('hudWindArrow');
     if (elArrow) {
-        elArrow.style.transform = `rotate(${dirViento}deg)`;
+        const rotViento = (Number(dirViento) + 180) % 360;
+        elArrow.style.transform = `rotate(${rotViento}deg)`;
     }
 
     const elSpeed = document.getElementById('hudWindSpeed');
@@ -1306,6 +1338,25 @@ export function actualizarHudVectoresMapa(lat, lon, datosMeteo) {
     }
 
     hud.classList.remove('hidden');
+    if (typeof window !== 'undefined' && typeof window.deshabilitarPropagacionMapa === 'function') {
+        window.deshabilitarPropagacionMapa(hud);
+    }
+}
+
+/**
+ * Limpia la roseta táctica de vectores y oculta el HUD flotante de telemetría.
+ */
+export function limpiarRosaVectoresMapa() {
+    const currentMap = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);
+    if (mapRuntime.marcadorRosaVectores && currentMap) {
+        try { currentMap.removeLayer(mapRuntime.marcadorRosaVectores); } catch (_) {}
+        mapRuntime.marcadorRosaVectores = null;
+    }
+    mapRuntime.activeSpotData = null;
+    if (typeof document !== 'undefined') {
+        const hud = document.getElementById('mapWindWaveHud');
+        if (hud) hud.classList.add('hidden');
+    }
 }
 
 // ==============================================================================
@@ -1841,11 +1892,13 @@ if (typeof window !== 'undefined') {
     window.consultarBasico = consultarBasico;
     window.consultarPuntoProInstantaneo = consultarPuntoProInstantaneo;
     window.consultarRutaPro = consultarRutaPro;
+    window.formatearTiempo = formatearTiempo;
     window.renderizarDashboardPro = renderizarDashboardPro;
     window.cargarPrevisionHorariaExacta = cargarPrevisionHorariaExacta;
     window.volverPlanificadorPro = volverPlanificadorPro;
     window.renderizarRosaVectoresMapa = renderizarRosaVectoresMapa;
     window.actualizarHudVectoresMapa = actualizarHudVectoresMapa;
+    window.limpiarRosaVectoresMapa = limpiarRosaVectoresMapa;
     window.renderizarMejoresVentanas72h = renderizarMejoresVentanas72h;
     window.aplicarVentanaOptimaSpot = aplicarVentanaOptimaSpot;
     window.inicializarPildorasCalendario = inicializarPildorasCalendario;

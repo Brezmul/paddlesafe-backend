@@ -339,6 +339,81 @@ export function calcularComponenteVientoAuto(...args) {
     };
 }
 
+/**
+ * Calcula la incidencia del oleaje/swell respecto a la orientación de la costa.
+ * NOTA METEOROLÓGICA/OCEANOGRÁFICA:
+ * swellDirDeg / waveDirDeg representa de DÓNDE VIENEN las olas (hacia dónde viajan es (dir + 180) % 360).
+ * Mar abierto (seawardDeg) apunta perpendicularmente de la playa hacia el mar abierto.
+ * Si las olas proceden del rumbo marítimo (diff <= 50°), vienen directamente del mar hacia la orilla (frontal/rompiente).
+ * Si proceden de tierra (diff >= 130°), la costa se encuentra a sotavento protegida por tierra.
+ */
+export function calcularComponenteOleaje(dirOleajeDeg, seawardDeg) {
+    if (dirOleajeDeg === null || seawardDeg === null || !Number.isFinite(Number(dirOleajeDeg)) || !Number.isFinite(Number(seawardDeg))) {
+        return {
+            componente: 'desconocida',
+            anguloRelativo: null,
+            descripcion: 'Dirección de oleaje no disponible o no aplicable.'
+        };
+    }
+    const diff = diferenciaAngular(Number(dirOleajeDeg), Number(seawardDeg));
+    if (diff <= 50) {
+        return {
+            componente: 'frontal',
+            anguloRelativo: Math.round(diff),
+            descripcion: 'Oleaje frontal directo hacia la orilla (precaución en rompiente/shorebreak de entrada y salida).'
+        };
+    }
+    if (diff >= 130) {
+        return {
+            componente: 'abrigado',
+            anguloRelativo: Math.round(diff),
+            descripcion: 'Costa a sotavento del oleaje (zona protegida por relieve terrestre).'
+        };
+    }
+    return {
+        componente: 'lateral',
+        anguloRelativo: Math.round(diff),
+        descripcion: 'Oleaje lateral oblicuo a la costa (induce balanceo en la tabla y deriva litoral a lo largo de la playa).'
+    };
+}
+
+/**
+ * Calcula la incidencia de la corriente marina respecto a la costa.
+ * IMPORTANTE: En Open-Meteo y oceanografía, ocean_current_direction representa HACIA DÓNDE FLUYE la masa de agua.
+ * Mar abierto (seawardDeg) apunta de la playa hacia mar abierto.
+ * Si la corriente fluye hacia seawardDeg (diff <= 55°), arrastra hacia mar abierto (peligro de resaca / arrastre offshore).
+ * Si fluye en sentido opuesto a seawardDeg (diff >= 125°), la corriente empuja hacia tierra (onshore).
+ */
+export function calcularComponenteCorriente(dirCorrienteDeg, seawardDeg) {
+    if (dirCorrienteDeg === null || seawardDeg === null || !Number.isFinite(Number(dirCorrienteDeg)) || !Number.isFinite(Number(seawardDeg))) {
+        return {
+            componente: 'desconocida',
+            anguloRelativo: null,
+            descripcion: 'Dirección de corriente marina no disponible.'
+        };
+    }
+    const diff = diferenciaAngular(Number(dirCorrienteDeg), Number(seawardDeg));
+    if (diff <= 55) {
+        return {
+            componente: 'mar_adentro',
+            anguloRelativo: Math.round(diff),
+            descripcion: 'Corriente de arrastre hacia mar abierto (resaca). Riesgo crítico de alejamiento de la costa.'
+        };
+    }
+    if (diff >= 125) {
+        return {
+            componente: 'hacia_tierra',
+            anguloRelativo: Math.round(diff),
+            descripcion: 'Corriente hacia la orilla. Asiste el retorno a tierra.'
+        };
+    }
+    return {
+        componente: 'paralela',
+        anguloRelativo: Math.round(diff),
+        descripcion: 'Corriente paralela a la costa (deriva litoral horizontal).'
+    };
+}
+
 function empaquetarDeriva(res) {
     if (!res || typeof res !== 'object') return res;
     return Object.assign(res, {
@@ -357,33 +432,41 @@ export function calcularIndiceDerivaPaddleSafe({
     componente = 'side-shore',
     esCosta = true,
     driftMod = 1.0,
-    boardType = null
+    boardType = null,
+    corrienteKt = 0,
+    corrienteDirDeg = null,
+    seawardDeg = null
 }) {
+    const vReal = Number.isFinite(Number(vientoKt)) ? Math.max(0, Number(vientoKt)) : 0;
+    const rReal = Number.isFinite(Number(rachasKt)) ? Math.max(0, Number(rachasKt)) : vReal;
+    const oReal = (oleajeM !== null && Number.isFinite(Number(oleajeM))) ? Math.max(0, Number(oleajeM)) : 0;
+    const dMod = Number.isFinite(Number(driftMod)) && Number(driftMod) > 0 ? Number(driftMod) : 1.0;
+
     if (!esCosta) {
-        let scoreInterior = Math.min(60, Math.round((vientoKt * 2.5) + (rachasKt * 1.2)));
-        if (Number.isFinite(driftMod) && driftMod > 0) {
-            scoreInterior = Math.min(80, Math.round(scoreInterior * driftMod));
+        let scoreInterior = Math.min(60, Math.round((vReal * 2.5) + (rReal * 1.2)));
+        if (dMod > 0) {
+            scoreInterior = Math.min(80, Math.round(scoreInterior * dMod));
         }
         let nivelInterior = scoreInterior > 40 ? 'Moderado' : 'Bajo';
         return empaquetarDeriva({
             score: scoreInterior,
             nivel: nivelInterior,
-            descripcion: `Aguas interiores: deriva controlada por orillas (${nivelInterior.toLowerCase()}). Viento de ${vientoKt} kt.`
+            descripcion: `Aguas interiores: deriva controlada por orillas (${nivelInterior.toLowerCase()}). Viento de ${vReal} kt.`
         });
     }
 
     let score = 10;
-    if (vientoKt >= 20) score += 60;
-    else if (vientoKt >= 15) score += 45;
-    else if (vientoKt >= 10) score += 30;
-    else if (vientoKt >= 6) score += 15;
+    if (vReal >= 20) score += 60;
+    else if (vReal >= 15) score += 45;
+    else if (vReal >= 10) score += 30;
+    else if (vReal >= 6) score += 15;
 
-    const deltaRacha = Math.max(0, rachasKt - vientoKt);
+    const deltaRacha = Math.max(0, rReal - vReal);
     if (deltaRacha >= 8) score += 15;
     else if (deltaRacha >= 4) score += 8;
 
-    if (oleajeM >= 1.5) score += 20;
-    else if (oleajeM >= 0.8) score += 10;
+    if (oReal >= 1.5) score += 20;
+    else if (oReal >= 0.8) score += 10;
 
     if (componente === 'offshore') {
         score += 25;
@@ -393,9 +476,23 @@ export function calcularIndiceDerivaPaddleSafe({
         score += 10;
     }
 
+    // Impacto de corrientes marinas superficiales si están disponibles
+    let avisoCorriente = '';
+    const cKt = Number.isFinite(Number(corrienteKt)) ? Math.max(0, Number(corrienteKt)) : 0;
+    if (cKt >= 0.4 && corrienteDirDeg !== null && seawardDeg !== null) {
+        const compCorr = calcularComponenteCorriente(corrienteDirDeg, seawardDeg);
+        if (compCorr.componente === 'mar_adentro') {
+            score += Math.min(25, Math.round(cKt * 20));
+            avisoCorriente = ' Acentuado por corriente marina de arrastre mar adentro.';
+        } else if (compCorr.componente === 'hacia_tierra') {
+            score = Math.max(5, score - 10);
+            avisoCorriente = ' Corriente marina de retorno favorable a la orilla.';
+        }
+    }
+
     // Aplicar modificador de deriva según tipo de tabla
-    if (Number.isFinite(driftMod) && driftMod > 0 && driftMod !== 1.0) {
-        score = score * driftMod;
+    if (dMod !== 1.0) {
+        score = score * dMod;
     }
 
     score = Math.max(0, Math.min(100, Math.round(score)));
@@ -405,16 +502,19 @@ export function calcularIndiceDerivaPaddleSafe({
     else if (score >= 25) nivel = 'Moderado';
 
     let descripcion = componente === 'offshore'
-        ? `Riesgo ${nivel.toLowerCase()}: el viento offshore (${vientoKt} kt) aleja de la costa. Extrema la precaución.`
+        ? `Riesgo ${nivel.toLowerCase()}: el viento offshore (${vReal} kt) aleja de la costa. Extrema la precaución.`
         : componente === 'onshore'
             ? `Riesgo ${nivel.toLowerCase()}: viento onshore hacia tierra; retorno seguro a la orilla facilitado.`
-            : `Riesgo ${nivel.toLowerCase()}: viento lateral (${vientoKt} kt) desplazando paralelamente a costa.`;
+            : `Riesgo ${nivel.toLowerCase()}: viento lateral (${vReal} kt) desplazando paralelamente a costa.`;
 
-    if (driftMod > 1.05) {
+    if (dMod > 1.05) {
         descripcion += ' Acentuado por mayor francobordo de tabla hinchable.';
     }
+    if (avisoCorriente) {
+        descripcion += avisoCorriente;
+    }
 
-    return empaquetarDeriva({ score, nivel, descripcion, componente, driftMod });
+    return empaquetarDeriva({ score, nivel, descripcion, componente, driftMod: dMod });
 }
 
 export const CARDINALES_8 = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
@@ -531,5 +631,7 @@ export function generarPerfilTacticoSpot(spotNombre = '', lat = null, lon = null
 if (typeof window !== 'undefined') {
     window.generarPerfilTacticoSpot = generarPerfilTacticoSpot;
     window.anguloACardinal = anguloACardinal;
+    window.calcularComponenteOleaje = calcularComponenteOleaje;
+    window.calcularComponenteCorriente = calcularComponenteCorriente;
 }
 

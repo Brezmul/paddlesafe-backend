@@ -12,3 +12,4 @@ Paddlesafe_frontend/
 .env*
 
 test-results/
+.codex/

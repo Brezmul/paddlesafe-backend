@@ -21,6 +21,21 @@ export function obtenerColorEscalaViento(nudos) {
 }
 
 /**
+ * Escala cromática de partículas Windy para Stand Up Paddle (Canvas Engine):
+ * 0 a 8 kt (Calma): Verde/Cian (#10b981 / #06b6d4)
+ * 8 a 14 kt (Brisa): Amarillo/Ámbar (#eab308)
+ * 14 a 20+ kt (Riesgo): Naranja/Rojo (#f97316 / #ef4444)
+ */
+export function obtenerColorParticulaViento(nudos) {
+    const k = Number(nudos) || 0;
+    if (k < 4) return '#06b6d4'; // Cian suave
+    if (k < 8) return '#10b981'; // Verde óptimo SUP
+    if (k < 14) return '#eab308'; // Amarillo / Ámbar
+    if (k < 20) return '#f97316'; // Naranja
+    return '#ef4444'; // Rojo
+}
+
+/**
  * Escala cromática de oleaje (Swell & Sea)
  * Verde: 0-0.5m | Amarillo: 0.5-1m | Naranja: 1-1.5m | Rojo: >1.5m
  */
@@ -72,8 +87,8 @@ export function calcularDerivaCosteraPaddle(vientoKt, vientoDirDeg, olaM, swellD
     const uWind = vWindDrift * Math.sin(vientoHaciaRad);
     const vWind = vWindDrift * Math.cos(vientoHaciaRad);
 
-    // Componente de oleaje (arrastre de Stokes hacia la dirección del swell)
-    const swellHaciaRad = (sDir % 360) * Math.PI / 180;
+    // Componente de oleaje (arrastre de Stokes hacia la dirección a la que viajan las olas: dir + 180)
+    const swellHaciaRad = ((sDir + 180) % 360) * Math.PI / 180;
     const vSwellDrift = sM * 0.25; // ~0.25 kt por cada metro de ola
     const uSwell = vSwellDrift * Math.sin(swellHaciaRad);
     const vSwell = vSwellDrift * Math.cos(swellHaciaRad);
@@ -182,7 +197,7 @@ export function generarSvgFlechaViento(nudos, dirDeg) {
     const color = obtenerColorEscalaViento(nudos);
     return `
         <div class="relative flex flex-col items-center justify-center pointer-events-none select-none -translate-x-1/2 -translate-y-1/2" style="width: 44px; height: 44px;">
-            <div style="transform: rotate(${dirDeg}deg); transition: transform 0.2s ease;">
+            <div style="transform: rotate(${(Number(dirDeg) + 180) % 360}deg); transition: transform 0.2s ease;">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="12" cy="12" r="10" fill="rgba(15, 23, 42, 0.75)" stroke="${color}" stroke-width="1.5" />
                     <path d="M12 4L16 11H13V19H11V11H8L12 4Z" fill="${color}" />
@@ -202,7 +217,7 @@ export function generarSvgFlechaOleaje(alturaM, swellDirDeg) {
     const color = obtenerColorEscalaOleaje(alturaM);
     return `
         <div class="relative flex flex-col items-center justify-center pointer-events-none select-none -translate-x-1/2 -translate-y-1/2" style="width: 44px; height: 44px;">
-            <div style="transform: rotate(${swellDirDeg}deg); transition: transform 0.2s ease;">
+            <div style="transform: rotate(${(Number(swellDirDeg) + 180) % 360}deg); transition: transform 0.2s ease;">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="12" cy="12" r="10" fill="rgba(15, 23, 42, 0.75)" stroke="${color}" stroke-width="1.5" stroke-dasharray="2 2" />
                     <path d="M7 14C9 11 11 11 12 13C13 15 15 15 17 12L16 11" stroke="${color}" stroke-width="2" stroke-linecap="round" />
@@ -428,9 +443,9 @@ function renderizarStreamlinesLoop() {
     const w = canvas.width;
     const h = canvas.height;
 
-    // Desvanecimiento progresivo tipo estela de cometa (Windy-style)
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.09)';
+    // Desvanecimiento suave tipo estela de cometa Windy (destination-in con opacidad 0.93)
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.93)';
     ctx.fillRect(0, 0, w, h);
     ctx.globalCompositeOperation = 'source-over';
 
@@ -439,34 +454,46 @@ function renderizarStreamlinesLoop() {
         reiniciarParticulasStreamlines(w, h);
     }
 
-    // Calcular dirección y velocidad del flujo dominante
+    // Calcular dirección y velocidad del flujo dominante desde estado unificado
     const windDir = mapRuntime._radarCurrentWindDir ?? 45;
     const windKt = mapRuntime._radarCurrentWindKt ?? 6;
     const waveDir = mapRuntime._radarCurrentWaveDir ?? 60;
+    const waveM = mapRuntime._radarCurrentWaveM ?? 0.4;
+    const precipMm = mapRuntime._radarCurrentPrecipMm ?? 0;
 
     let flujoDeg = windDir;
-    let colorTrazo = obtenerColorEscalaViento(windKt);
+    let colorTrazo = obtenerColorParticulaViento(windKt);
 
-    if (mapRuntime.radarCapasActivas?.viento !== false) {
+    const capas = mapRuntime.radarCapasActivas || { viento: true, lluvia: true, oleaje: true, deriva: true };
+
+    if (capas.lluvia !== false && capas.viento === false && capas.oleaje === false && capas.deriva === false) {
+        // En modo lluvia exclusivo: solo dibujar si precipitación real > 0 mm/h
+        if (precipMm <= 0.05) {
+            mapRuntime._radarStreamlineFrame = requestAnimationFrame(renderizarStreamlinesLoop);
+            return;
+        }
         flujoDeg = windDir;
-        colorTrazo = obtenerColorEscalaViento(windKt);
-    } else if (mapRuntime.radarCapasActivas?.oleaje !== false) {
+        colorTrazo = '#38bdf8';
+    } else if (capas.viento !== false) {
+        flujoDeg = windDir;
+        colorTrazo = obtenerColorParticulaViento(windKt);
+    } else if (capas.oleaje !== false) {
         flujoDeg = waveDir;
-        colorTrazo = obtenerColorEscalaOleaje(mapRuntime._radarCurrentWaveM ?? 0.4);
-    } else if (mapRuntime.radarCapasActivas?.deriva !== false) {
+        colorTrazo = obtenerColorEscalaOleaje(waveM);
+    } else if (capas.deriva !== false) {
         flujoDeg = mapRuntime._radarCurrentDerivaDir ?? ((windDir + 180) % 360);
         colorTrazo = '#c084fc';
     }
 
-    // Ángulo en coordenadas de pantalla (el viento empuja hacia dir + 180)
+    // Ángulo en coordenadas de pantalla (el flujo empuja hacia dir + 180)
     const angleRad = ((flujoDeg + 180) % 360) * Math.PI / 180;
     const vx = Math.sin(angleRad);
-    const vy = -Math.cos(angleRad); // En pantalla el eje Y positivo va hacia abajo
+    const vy = -Math.cos(angleRad);
 
-    const factorVelocidad = Math.max(0.75, Math.min(2.4, windKt / 6.5));
+    const factorVelocidad = Math.max(0.4, Math.min(2.8, windKt * 0.18));
 
     ctx.strokeStyle = colorTrazo;
-    ctx.lineWidth = 1.35;
+    ctx.lineWidth = 1.6;
     ctx.lineCap = 'round';
     ctx.beginPath();
 
@@ -624,13 +651,36 @@ export function actualizarLeyendaEscalaRadar(tipo = 'viento') {
 export async function activarModoRadar() {
     mapRuntime.radarActivo = true;
 
-    // 1. Mostrar Cockpit flotante del Radar
+    // 0. Exclusividad mutua con otros modos de trazado
+    if (mapRuntime.modoTravesiaActivo && typeof window.toggleModoTravesia === 'function') {
+        window.toggleModoTravesia();
+    }
+    if (mapRuntime.modoRutaLibreActivo && typeof window.toggleRutaLibre === 'function') {
+        window.toggleRutaLibre();
+    }
+    if (mapRuntime.modoQuedadaClubActivo && typeof window.cancelarCreacionQuedadaClub === 'function') {
+        window.cancelarCreacionQuedadaClub();
+    }
+
+    // 1. Mostrar Cockpit compacto y Bottom Bar del Radar
     const cockpit = document.getElementById('radarCockpitPanel');
     if (cockpit) {
         cockpit.classList.remove('hidden');
         cockpit.classList.remove('radar-collapsed');
         const body = document.getElementById('radarCockpitBody');
         if (body) body.classList.remove('hidden');
+    }
+    const bottomBar = document.getElementById('radarBottomBar');
+    if (bottomBar) {
+        bottomBar.classList.remove('hidden');
+    }
+    const hud = document.getElementById('mapWindWaveHud');
+    if (hud) {
+        hud.classList.add('hidden');
+    }
+    const toolbar = document.getElementById('multipuntoToolbar');
+    if (toolbar) {
+        toolbar.classList.replace('flex', 'hidden');
     }
 
     const mapInstance = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);
@@ -698,9 +748,15 @@ export async function activarModoRadar() {
 export function desactivarModoRadar() {
     mapRuntime.radarActivo = false;
 
-    // 1. Ocultar Cockpit del Radar
+    // 1. Ocultar Cockpit y Bottom Bar del Radar
     const cockpit = document.getElementById('radarCockpitPanel');
     if (cockpit) cockpit.classList.add('hidden');
+    const bottomBar = document.getElementById('radarBottomBar');
+    if (bottomBar) bottomBar.classList.add('hidden');
+    if (mapRuntime.datosMeteoActuales || mapRuntime.activeSpotData) {
+        const hud = document.getElementById('mapWindWaveHud');
+        if (hud) hud.classList.remove('hidden');
+    }
 
     const mapInstance = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);
     if (!mapInstance) return;
@@ -814,61 +870,59 @@ export async function actualizarCapasRadar(forzarLat = null, forzarLon = null) {
     if (!mapInstance || typeof L === 'undefined') return;
 
     const center = mapInstance.getCenter();
-    const lat = Number(forzarLat || mapRuntime.latitudActual || center.lat);
-    const lon = Number(forzarLon || mapRuntime.longitudActual || center.lng);
+    const lat = Number(forzarLat !== null && forzarLat !== undefined ? forzarLat : (mapRuntime.latitudActual || center.lat));
+    const lon = Number(forzarLon !== null && forzarLon !== undefined ? forzarLon : (mapRuntime.longitudActual || center.lng));
 
-    // 1. Obtener pronóstico meteorológico y marino central
-    let forecast = mapRuntime.pronosticoDiaCompletoActual || mapRuntime.datosMeteoActuales;
-    if (!forecast) {
-        try {
-            const fechaStr = new Date().toISOString().slice(0, 10);
-            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation,weather_code&wind_speed_unit=ms&start_date=${fechaStr}&end_date=${fechaStr}`);
-            if (res.ok) {
-                const meteoData = await res.json();
-                let marineData = null;
-                try {
-                    const mRes = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&hourly=wave_height,wave_period,wave_direction,swell_wave_direction&start_date=${fechaStr}&end_date=${fechaStr}`);
-                    if (mRes.ok) marineData = await mRes.json();
-                } catch (_) {}
+    // 1. Obtener pronóstico meteorológico y marino real para estas coordenadas
+    let meteoData = null;
+    let marineData = null;
+    const fechaStr = new Date().toISOString().slice(0, 10);
 
-                forecast = {
-                    hourly: meteoData.hourly,
-                    marineHourly: marineData?.hourly || null
-                };
-            }
-        } catch (err) {
-            console.warn('[radar] Error obteniendo datos para radar:', err);
-        }
+    try {
+        const [meteoRes, marineRes] = await Promise.allSettled([
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation,weather_code,temperature_2m&current_weather=true&start_date=${fechaStr}&end_date=${fechaStr}`),
+            fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&hourly=wave_height,wave_period,wave_direction,swell_wave_direction&start_date=${fechaStr}&end_date=${fechaStr}`)
+        ]);
+        if (meteoRes.status === 'fulfilled' && meteoRes.value.ok) meteoData = await meteoRes.value.json();
+        if (marineRes.status === 'fulfilled' && marineRes.value.ok) marineData = await marineRes.value.json();
+    } catch (err) {
+        console.warn('[radar] Error obteniendo datos para radar:', err);
     }
 
     // 2. Extraer valores centrales para la hora actual
     const horaActual = new Date().getHours();
-    const idx = Math.min(horaActual, (forecast?.hourly?.time?.length || 1) - 1);
+    const idx = Math.min(horaActual, (meteoData?.hourly?.time?.length || 24) - 1);
 
-    const windSpeedMs = forecast?.hourly?.wind_speed_10m?.[idx] ?? 3.5;
+    let windSpeedMs = meteoData?.hourly?.wind_speed_10m?.[idx];
+    if (windSpeedMs === undefined || windSpeedMs === null) {
+        windSpeedMs = meteoData?.current_weather?.windspeed ? (meteoData.current_weather.windspeed / 3.6) :
+            (mapRuntime.datosMeteoActuales?.windSpeed ?? 2.5);
+    }
     const windKt = kmhANudos(windSpeedMs * 3.6);
-    const windDir = forecast?.hourly?.wind_direction_10m?.[idx] ?? 45;
-    const precipMm = forecast?.hourly?.precipitation?.[idx] ?? 0;
-    const weatherCode = forecast?.hourly?.weather_code?.[idx] ?? 0;
 
-    const waveHeight = forecast?.marineHourly?.wave_height?.[idx] ?? forecast?.hourly?.wave_height?.[idx] ?? 0.35;
-    const waveDir = forecast?.marineHourly?.swell_wave_direction?.[idx] ?? forecast?.marineHourly?.wave_direction?.[idx] ?? ((windDir + 15) % 360);
+    let windDir = meteoData?.hourly?.wind_direction_10m?.[idx];
+    if (windDir === undefined || windDir === null) {
+        windDir = meteoData?.current_weather?.winddirection ?? (mapRuntime.datosMeteoActuales?.windDirection ?? 45);
+    }
+
+    const windGustsMs = meteoData?.hourly?.wind_gusts_10m?.[idx] ?? windSpeedMs;
+    const windGustKt = kmhANudos(windGustsMs * 3.6);
+    const precipMm = meteoData?.hourly?.precipitation?.[idx] ?? 0;
+    const weatherCode = meteoData?.hourly?.weather_code?.[idx] ?? (meteoData?.current_weather?.weathercode ?? 0);
+    const tempC = meteoData?.hourly?.temperature_2m?.[idx] ?? (meteoData?.current_weather?.temperature ?? 20);
+
+    const waveHeight = marineData?.hourly?.wave_height?.[idx] ?? (mapRuntime.datosMeteoActuales?.waveHeight ?? 0.3);
+    const wavePeriod = marineData?.hourly?.wave_period?.[idx] ?? (mapRuntime.datosMeteoActuales?.wavePeriod ?? 4.0);
+    const waveDir = marineData?.hourly?.swell_wave_direction?.[idx] ?? marineData?.hourly?.wave_direction?.[idx] ?? windDir;
 
     // Orientación costera y sesgo de viento
     const infoCosta = resolverOrientacionCostera(lat, lon);
-    const vientoOffshore = infoCosta?.esCosta && Math.abs(((windDir - (infoCosta.seawardDeg || 0) + 540) % 360) - 180) < 45;
+    const seawardDeg = infoCosta?.seawardDeg || 0;
+    const vientoOffshore = infoCosta?.esCosta && Math.abs(((windDir - seawardDeg + 540) % 360) - 180) < 45;
 
     // Deriva costera PaddleSafe
     const tipoTabla = mapRuntime.equipoUsuario?.tipoTabla || 'inflat_allround';
     const deriva = calcularDerivaCosteraPaddle(windKt, windDir, waveHeight, waveDir, tipoTabla);
-
-    // Guardar telemetría en estado reactivo para Canvas Engine
-    mapRuntime._radarCurrentWindKt = windKt;
-    mapRuntime._radarCurrentWindDir = windDir;
-    mapRuntime._radarCurrentWaveM = waveHeight;
-    mapRuntime._radarCurrentWaveDir = waveDir;
-    mapRuntime._radarCurrentDerivaKt = deriva.velocidadKt;
-    mapRuntime._radarCurrentDerivaDir = deriva.direccionDeg;
 
     // 3. Valoración Rápida 10-Segundos
     const valoracion = calcularValoracionRapidaPaddleSafe({
@@ -880,7 +934,64 @@ export async function actualizarCapasRadar(forzarLat = null, forzarLon = null) {
         weatherCode
     });
 
-    // 4. Actualizar Inspector del Cockpit
+    // Guardar telemetría en Fuente Única de Verdad (activeSpotData)
+    mapRuntime.activeSpotData = {
+        lat,
+        lon,
+        windSpeedMs,
+        windKt,
+        windGustKt,
+        windDir,
+        windBlowsToDeg: (windDir + 180) % 360,
+        waveHeightM: waveHeight,
+        wavePeriodS: wavePeriod,
+        waveDir,
+        waveBlowsToDeg: (waveDir + 180) % 360,
+        precipMm,
+        weatherCode,
+        tempC,
+        vientoOffshore,
+        infoCosta,
+        deriva,
+        valoracion
+    };
+
+    mapRuntime.datosMeteoActuales = {
+        ...(mapRuntime.datosMeteoActuales || {}),
+        lat,
+        lon,
+        windSpeed: windSpeedMs,
+        wind_speed: windSpeedMs,
+        windGusts: windGustsMs,
+        wind_gusts: windGustsMs,
+        windDirection: windDir,
+        wind_direction: windDir,
+        waveHeight,
+        wave_height: waveHeight,
+        wavePeriod,
+        wave_period: wavePeriod,
+        waveDirection: waveDir,
+        wave_direction: waveDir,
+        precipitation: precipMm,
+        weatherCode,
+        weather_code: weatherCode,
+        temperature: tempC,
+        tempAire: tempC
+    };
+
+    mapRuntime.latitudActual = lat;
+    mapRuntime.longitudActual = lon;
+
+    // Guardar telemetría en estado reactivo para Canvas Engine
+    mapRuntime._radarCurrentWindKt = windKt;
+    mapRuntime._radarCurrentWindDir = windDir;
+    mapRuntime._radarCurrentWaveM = waveHeight;
+    mapRuntime._radarCurrentWaveDir = waveDir;
+    mapRuntime._radarCurrentDerivaKt = deriva.velocidadKt;
+    mapRuntime._radarCurrentDerivaDir = deriva.direccionDeg;
+    mapRuntime._radarCurrentPrecipMm = precipMm;
+
+    // 4. Actualizar Inspector del Cockpit y Bottom Bar
     const verdictBadge = document.getElementById('radarVerdictBadge');
     if (verdictBadge) {
         verdictBadge.textContent = valoracion.etiqueta;
@@ -913,68 +1024,20 @@ export async function actualizarCapasRadar(forzarLat = null, forzarLon = null) {
     const driftEl = document.getElementById('radarInspectorDrift');
     if (driftEl) driftEl.textContent = `${deriva.velocidadKt} kt (${deriva.direccionDeg}°) / ${deriva.velocidadMpm} m/min`;
 
+    // Sincronizar marcador de vectores sobre el mapa con datos reales
+    if (typeof window.renderizarRosaVectoresMapa === 'function') {
+        window.renderizarRosaVectoresMapa(lat, lon, mapRuntime.datosMeteoActuales);
+    }
+
     // 5. Renderizar Heatmap continuo en Canvas
     renderizarScalarHeatmap();
 
-    // 6. Renderizar Malla Táctica Inteligente (Smart Grid Overlays de Leaflet)
+    // 6. Limpiar capas vectoriales estáticas antiguas (eliminación de la cuadrícula 3x3 artificial)
     if (mapRuntime.radarWindGroup) mapRuntime.radarWindGroup.clearLayers();
     if (mapRuntime.radarWaveGroup) mapRuntime.radarWaveGroup.clearLayers();
     if (mapRuntime.radarDriftGroup) mapRuntime.radarDriftGroup.clearLayers();
 
-    // Distribución en cuadrícula 3x3 alrededor del centro visible
-    const bounds = mapInstance.getBounds();
-    const dLat = (bounds.getNorth() - bounds.getSouth()) / 4;
-    const dLon = (bounds.getEast() - bounds.getWest()) / 4;
-
-    const op = mapRuntime.radarOpacidad || 1.0;
-
-    for (let i = 1; i <= 3; i++) {
-        for (let j = 1; j <= 3; j++) {
-            const ptLat = bounds.getSouth() + dLat * i;
-            const ptLon = bounds.getWest() + dLon * j;
-
-            const localWindKt = Math.max(1, windKt + (i - 2) * 0.8);
-            const localWindDir = (windDir + (j - 2) * 5 + 360) % 360;
-            const localWaveM = Math.max(0.1, waveHeight + (i - 2) * 0.08);
-            const localWaveDir = (waveDir + (i - 2) * 4 + 360) % 360;
-            const localDeriva = calcularDerivaCosteraPaddle(localWindKt, localWindDir, localWaveM, localWaveDir, tipoTabla);
-
-            // A) Capa de Viento
-            if (mapRuntime.radarCapasActivas?.viento !== false && mapRuntime.radarWindGroup) {
-                const windIcon = L.divIcon({
-                    className: 'ps-radar-vector-marker',
-                    html: generarSvgFlechaViento(localWindKt, localWindDir),
-                    iconSize: [44, 44]
-                });
-                const windMarker = L.marker([ptLat, ptLon], { icon: windIcon, interactive: false });
-                mapRuntime.radarWindGroup.addLayer(windMarker);
-            }
-
-            // B) Capa de Oleaje
-            if (mapRuntime.radarCapasActivas?.oleaje !== false && mapRuntime.radarWaveGroup) {
-                const waveIcon = L.divIcon({
-                    className: 'ps-radar-vector-marker',
-                    html: generarSvgFlechaOleaje(localWaveM, localWaveDir),
-                    iconSize: [44, 44]
-                });
-                const waveMarker = L.marker([ptLat - dLat * 0.18, ptLon + dLon * 0.18], { icon: waveIcon, interactive: false });
-                mapRuntime.radarWaveGroup.addLayer(waveMarker);
-            }
-
-            // C) Capa de Deriva Costera PaddleSafe
-            if (mapRuntime.radarCapasActivas?.deriva !== false && mapRuntime.radarDriftGroup) {
-                const driftIcon = L.divIcon({
-                    className: 'ps-radar-vector-marker',
-                    html: generarSvgFlechaDeriva(localDeriva.velocidadKt, localDeriva.direccionDeg, localDeriva.colorRiesgo),
-                    iconSize: [48, 48]
-                });
-                const driftMarker = L.marker([ptLat + dLat * 0.15, ptLon - dLon * 0.15], { icon: driftIcon, interactive: false });
-                mapRuntime.radarDriftGroup.addLayer(driftMarker);
-            }
-        }
-    }
-
-    ajustarOpacidadRadar(op);
+    ajustarOpacidadRadar(mapRuntime.radarOpacidad || 1.0);
 }
 
 // Auto-registro global en window.* para Leaflet, bindings de eventos y compatibilidad E2E

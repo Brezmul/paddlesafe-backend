@@ -189,7 +189,7 @@ export function renderTarjetaRutaSocial(ruta, clubNombre = null) {
             : (typeof generarMiniSvgTrazadoRuta === 'function' ? generarMiniSvgTrazadoRuta(coords, '#38bdf8') : '');
 
         miniSvgHtml = `
-            <div class="relative w-full h-32 my-2.5 rounded-2xl overflow-hidden border border-slate-700/60 bg-slate-950/70 p-2 flex items-center justify-center shadow-inner group cursor-pointer" onclick="abrirRutaSocialEnMapa('${rutaId}')" title="Clic para cargar en Cabina">
+            <div class="relative w-full h-32 my-2.5 rounded-2xl overflow-hidden border border-slate-700/60 bg-slate-950/70 p-2 flex items-center justify-center shadow-inner group cursor-pointer" onclick="abrirRutaSocialEnMapa('${esc(rutaId)}')" title="Clic para cargar en Cabina">
                 ${svgCode}
                 <div class="absolute bottom-2 left-2 flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md px-2 py-0.5 rounded-full border border-sky-500/30 text-[9px] font-mono font-bold text-sky-400 shadow">
                     <span>📍</span><span>GPS TRACK</span>
@@ -254,42 +254,42 @@ export function renderTarjetaRutaSocial(ruta, clubNombre = null) {
             <div class="flex items-center justify-between flex-wrap gap-2 pt-2.5 mt-2 border-t border-slate-700/60">
                 <div class="flex items-center gap-1.5 flex-wrap">
                     ${tieneCoords ? `
-                        <button type="button" onclick="abrirRutaSocialEnMapa('${rutaId}')" class="px-3 py-1.5 bg-gradient-to-r from-sky-600 to-cyan-500 hover:from-sky-500 hover:to-cyan-400 text-white font-black text-[11px] rounded-xl shadow-md shadow-sky-900/30 flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer">
+                        <button type="button" onclick="abrirRutaSocialEnMapa('${esc(rutaId)}')" class="px-3 py-1.5 bg-gradient-to-r from-sky-600 to-cyan-500 hover:from-sky-500 hover:to-cyan-400 text-white font-black text-[11px] rounded-xl shadow-md shadow-sky-900/30 flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer">
                             <span>🗺️</span><span>Cargar en Cabina</span>
                         </button>
-                        <button type="button" onclick="abrirRutaSocialConReplay('${rutaId}')" class="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-slate-950 font-black text-[11px] rounded-xl shadow-md shadow-emerald-950/40 flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer" title="Ver animación Flyover 60 FPS" aria-label="Ver animación Flyover 60 FPS">
+                        <button type="button" onclick="abrirRutaSocialConReplay('${esc(rutaId)}')" class="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-slate-950 font-black text-[11px] rounded-xl shadow-md shadow-emerald-950/40 flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer" title="Ver animación Flyover 60 FPS" aria-label="Ver animación Flyover 60 FPS">
                             <span>▶️</span><span>Replay</span>
                         </button>
-                        <button type="button" onclick="descargarGpxRutaSocial('${rutaId}')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+                        <button type="button" onclick="descargarGpxRutaSocial('${esc(rutaId)}')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
                             <span>📲</span><span>GPX</span>
                         </button>
                     ` : ''}
-                    <button type="button" onclick="mostrarModalSplitsKm('${rutaId}')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+                    <button type="button" onclick="mostrarModalSplitsKm('${esc(rutaId)}')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
                         <span>📊</span><span>Splits</span>
                     </button>
                     ${esPropietario ? `
-                        <button type="button" onclick="compartirRutaEnMiClub('${rutaId}')" class="px-2.5 py-1.5 bg-indigo-900/70 hover:bg-indigo-800 text-indigo-300 border border-indigo-700/50 font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Compartir en el muro de mi club">
+                        <button type="button" onclick="compartirRutaEnMiClub('${esc(rutaId)}')" class="px-2.5 py-1.5 bg-indigo-900/70 hover:bg-indigo-800 text-indigo-300 border border-indigo-700/50 font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Compartir en el muro de mi club">
                             <span>📣</span><span>Club</span>
                         </button>
-                        <button type="button" onclick="eliminarRutaSocial('${rutaId}')" class="px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/50 font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Eliminar ruta">
+                        <button type="button" onclick="eliminarRutaSocial('${esc(rutaId)}')" class="px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/50 font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer" title="Eliminar ruta">
                             <span>🗑️</span><span>Eliminar</span>
                         </button>
                     ` : ''}
                 </div>
                 <div class="flex items-center gap-2">
-                    <button type="button" onclick="toggleLikeRutaSocial('${rutaId}')" id="btnLikeSocial-${rutaId}" class="px-2 py-1 text-slate-400 hover:text-red-400 font-bold text-xs rounded-lg flex items-center gap-1 transition-colors cursor-pointer" title="Me gusta">
-                        <span>❤️</span><span id="likeCountSocial-${rutaId}">0</span>
+                    <button type="button" onclick="toggleLikeRutaSocial('${esc(rutaId)}')" id="btnLikeSocial-${esc(rutaId)}" class="px-2 py-1 text-slate-400 hover:text-red-400 font-bold text-xs rounded-lg flex items-center gap-1 transition-colors cursor-pointer" title="Me gusta">
+                        <span>❤️</span><span id="likeCountSocial-${esc(rutaId)}">0</span>
                     </button>
-                    <button type="button" onclick="toggleComentariosRutaSocial('${rutaId}')" id="btnCommentSocial-${rutaId}" class="px-2 py-1 text-slate-400 hover:text-sky-400 font-bold text-xs rounded-lg flex items-center gap-1 transition-colors cursor-pointer" title="Comentarios">
-                        <span>💬</span><span id="commentCountSocial-${rutaId}">0</span>
+                    <button type="button" onclick="toggleComentariosRutaSocial('${esc(rutaId)}')" id="btnCommentSocial-${esc(rutaId)}" class="px-2 py-1 text-slate-400 hover:text-sky-400 font-bold text-xs rounded-lg flex items-center gap-1 transition-colors cursor-pointer" title="Comentarios">
+                        <span>💬</span><span id="commentCountSocial-${esc(rutaId)}">0</span>
                     </button>
                 </div>
             </div>
-            <div id="comentarios-seccion-${rutaId}" class="hidden pt-3 mt-2 border-t border-slate-700/60">
-                <div id="comentarios-lista-${rutaId}" class="space-y-2 mb-3 max-h-48 overflow-y-auto pr-1"></div>
+            <div id="comentarios-seccion-${esc(rutaId)}" class="hidden pt-3 mt-2 border-t border-slate-700/60">
+                <div id="comentarios-lista-${esc(rutaId)}" class="space-y-2 mb-3 max-h-48 overflow-y-auto pr-1"></div>
                 <div class="flex items-center gap-2">
-                    <input type="text" id="comentario-input-${rutaId}" placeholder="Escribe un comentario..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500" onkeydown="if(event.key==='Enter') agregarComentarioRuta('${rutaId}')">
-                    <button type="button" onclick="agregarComentarioRuta('${rutaId}')" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow active:scale-95 transition-all cursor-pointer">Enviar</button>
+                    <input type="text" id="comentario-input-${esc(rutaId)}" placeholder="Escribe un comentario..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500" onkeydown="if(event.key==='Enter') agregarComentarioRuta('${esc(rutaId)}')">
+                    <button type="button" onclick="agregarComentarioRuta('${esc(rutaId)}')" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow active:scale-95 transition-all cursor-pointer">Enviar</button>
                 </div>
             </div>
         `;
@@ -300,7 +300,7 @@ export function renderTarjetaRutaSocial(ruta, clubNombre = null) {
             <div class="flex items-center justify-between mb-1">
                 <div class="flex items-center gap-3 min-w-0">
                     <div class="relative shrink-0">
-                        <img src="${autorAvatar}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-11 h-11 rounded-full object-cover border-2 border-slate-700 shadow-sm" alt="Avatar">
+                        <img src="${esc(autorAvatar)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-11 h-11 rounded-full object-cover border-2 border-slate-700 shadow-sm" alt="Avatar">
                         <span data-user-presence-id="${esc(ruta.user_id || '')}" class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 bg-slate-500 transition-colors"></span>
                     </div>
                     <div class="min-w-0">
@@ -325,7 +325,7 @@ export function verPosterFinisherFullscreen(imgUrl, titulo = 'Póster Finisher',
     if (!lb) {
         lb = document.createElement('div');
         lb.id = 'posterFinisherLightbox';
-        lb.className = 'fixed inset-0 z-[130] bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 transition-opacity opacity-0';
+        lb.className = 'fixed inset-0 z-[130] ps-modal-backdrop bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 transition-opacity opacity-0';
         document.body.appendChild(lb);
     }
 
@@ -839,21 +839,21 @@ export const socialNotifications = {
             c.innerHTML = data.map(n => {
                 const icon = n.tipo === 'invitacion_club' ? '✉️' : (n.tipo === 'solicitud_club' || n.tipo === 'resolucion_club' ? '⚓' : n.tipo === 'mensaje_chat' ? '💬' : '🔔');
                 const estilo = n.leida ? 'bg-white dark:bg-slate-800 opacity-75 border-slate-200 dark:border-slate-700' : 'bg-sky-50 dark:bg-sky-900/20 shadow-sm border-sky-100 dark:border-sky-800/50';
-                const btnLeida = !n.leida ? `<button onclick="socialNotifications.marcarLeida('${n.id}')" class="text-[9px] bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-2 py-1 btn-marcar dark:text-white transition-colors">Leída</button>` : '';
+                const btnLeida = !n.leida ? `<button onclick="socialNotifications.marcarLeida('${esc(n.id)}')" class="text-[9px] bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-2 py-1 btn-marcar dark:text-white transition-colors">Leída</button>` : '';
                 
                 let accionesHTML = btnLeida;
                 if (n.tipo === 'invitacion_club' && !n.leida && n.data?.invitacion_id) {
                     accionesHTML = `
                         <div class="flex gap-2 items-center">
-                            <button onclick="if(window.Club?.procesarInvitacion) window.Club.procesarInvitacion('${esc(n.data.invitacion_id)}', 'aceptar'); socialNotifications.marcarLeida('${n.id}');" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold active:scale-95 cursor-pointer">Aceptar</button>
-                            <button onclick="if(window.Club?.procesarInvitacion) window.Club.procesarInvitacion('${esc(n.data.invitacion_id)}', 'rechazar'); socialNotifications.marcarLeida('${n.id}');" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold active:scale-95 cursor-pointer">Rechazar</button>
+                            <button onclick="if(window.Club?.procesarInvitacion) window.Club.procesarInvitacion('${esc(n.data.invitacion_id)}', 'aceptar'); socialNotifications.marcarLeida('${esc(n.id)}');" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold active:scale-95 cursor-pointer">Aceptar</button>
+                            <button onclick="if(window.Club?.procesarInvitacion) window.Club.procesarInvitacion('${esc(n.data.invitacion_id)}', 'rechazar'); socialNotifications.marcarLeida('${esc(n.id)}');" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold active:scale-95 cursor-pointer">Rechazar</button>
                             ${btnLeida}
                         </div>
                     `;
                 }
 
                 return `
-                    <div id="notif-${n.id}" class="flex gap-3 p-3 border rounded-xl mb-2 transition-colors ${estilo}">
+                    <div id="notif-${esc(n.id)}" class="flex gap-3 p-3 border rounded-xl mb-2 transition-colors ${estilo}">
                         <div class="text-2xl">${icon}</div>
                         <div class="flex-1">
                             <p class="text-xs font-bold text-marine dark:text-white leading-tight mb-1">${esc(n.contenido)}</p>
@@ -1153,7 +1153,7 @@ export async function cargarTabAmigosSPA() {
         const amigo = rel.usuario_id === appState.spaCurrentUser.id ? rel.perfiles_amigo : rel.perfiles;
         if (!amigo) return '';
         return `
-            <div role="button" tabindex="0" onclick="if(window.navigateSPA) window.navigateSPA('/user/${amigo.id}')" class="bg-white dark:bg-slate-800 p-4 border border-slate-200 dark:border-slate-700 rounded-[20px] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-water dark:hover:border-sky-500 cursor-pointer transition-all duration-300 flex items-center gap-4 group">
+            <div role="button" tabindex="0" onclick="if(window.navigateSPA) window.navigateSPA('/user/${esc(amigo.id)}')" class="bg-white dark:bg-slate-800 p-4 border border-slate-200 dark:border-slate-700 rounded-[20px] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-water dark:hover:border-sky-500 cursor-pointer transition-all duration-300 flex items-center gap-4 group">
                 <div class="relative shrink-0">
                     <img src="${esc(safeUrl(amigo.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-14 h-14 rounded-full object-cover border-4 border-slate-50 dark:border-slate-700 shadow-md group-hover:border-water dark:group-hover:border-sky-500 transition-colors duration-300">
                     <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 transition-colors duration-300" data-user-presence-id="${esc(amigo.id)}"></div>
@@ -1205,7 +1205,7 @@ export async function cambiarTabAmistades(tab) {
             const amigo = rel.usuario_id === appState.sesionActual.user.id ? rel.perfiles_amigo : rel.perfiles;
             if(!amigo) return '';
             return `
-                <div role="button" tabindex="0" onclick="cerrarPanelMisAmigos(); setTimeout(()=>{ if(window.navigateSPA) window.navigateSPA('/user/${amigo.id}') }, 350);" class="bg-white dark:bg-slate-800 p-4 border border-slate-200 dark:border-slate-700 rounded-[20px] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-water dark:hover:border-sky-500 cursor-pointer transition-all duration-300 flex items-center gap-4 group">
+                <div role="button" tabindex="0" onclick="cerrarPanelMisAmigos(); setTimeout(()=>{ if(window.navigateSPA) window.navigateSPA('/user/${esc(amigo.id)}') }, 350);" class="bg-white dark:bg-slate-800 p-4 border border-slate-200 dark:border-slate-700 rounded-[20px] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-water dark:hover:border-sky-500 cursor-pointer transition-all duration-300 flex items-center gap-4 group">
                     <div class="relative shrink-0">
                         <img src="${esc(safeUrl(amigo.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-14 h-14 rounded-full object-cover border-4 border-slate-50 dark:border-slate-700 shadow-md group-hover:border-water dark:group-hover:border-sky-500 transition-colors duration-300">
                         <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 transition-colors duration-300" data-user-presence-id="${esc(amigo.id)}"></div>
@@ -1242,8 +1242,8 @@ export async function cambiarTabAmistades(tab) {
                         </div>
                     </div>
                     <div class="flex gap-3 mt-1">
-                        <button onclick="responderSolicitudAmistad('${sol.id}', 'aceptar')" class="flex-1 h-11 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-colors shadow-md shadow-emerald-500/20 dark:shadow-none">Aceptar</button>
-                        <button onclick="responderSolicitudAmistad('${sol.id}', 'rechazar')" class="flex-1 h-11 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 font-black text-[10px] uppercase tracking-widest rounded-xl transition-colors">Rechazar</button>
+                        <button onclick="responderSolicitudAmistad('${esc(sol.id)}', 'aceptar')" class="flex-1 h-11 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-colors shadow-md shadow-emerald-500/20 dark:shadow-none">Aceptar</button>
+                        <button onclick="responderSolicitudAmistad('${esc(sol.id)}', 'rechazar')" class="flex-1 h-11 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 font-black text-[10px] uppercase tracking-widest rounded-xl transition-colors">Rechazar</button>
                     </div>
                 </div>`;
         }).join('');

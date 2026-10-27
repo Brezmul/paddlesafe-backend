@@ -1,20 +1,36 @@
 {
-  "name": "PaddleSafe",
+  "id": "paddlesafe-pwa",
+  "name": "PaddleSafe - Seguridad y Pronóstico Náutico SUP",
   "short_name": "PaddleSafe",
-  "start_url": "/",
+  "description": "Plataforma náutica táctica, predicción meteorológica marina en tiempo real, radares de deriva y comunidad para Paddle Surf.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#0f172a",
-  "orientation": "portrait-primary",
+  "background_color": "#041e30",
+  "theme_color": "#041e30",
+  "orientation": "any",
+  "categories": ["sports", "weather", "navigation"],
   "icons": [
     {
       "src": "/icons/PaddleSafe_192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icons/PaddleSafe_512x512.png",
       "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/PaddleSafe_144x144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/PaddleSafe_96x96.png",
+      "sizes": "96x96",
       "type": "image/png"
     }
   ]

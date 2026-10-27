@@ -8,6 +8,7 @@
  * Calcula el promedio vectorial de direcciones (en grados 0-360)
  */
 export function promedioVectorialDireccion(direccionesGrados = []) {
+    if (!Array.isArray(direccionesGrados)) return null;
     const validas = direccionesGrados.filter(d => d !== null && d !== undefined && Number.isFinite(Number(d)));
     if (!validas.length) return null;
 
@@ -21,15 +22,18 @@ export function promedioVectorialDireccion(direccionesGrados = []) {
     const avgRad = Math.atan2(sumaSin / validas.length, sumaCos / validas.length);
     let avgDeg = (avgRad * 180) / Math.PI;
     if (avgDeg < 0) avgDeg += 360;
-    return Math.round(avgDeg);
+    return Math.round(avgDeg) % 360;
 }
 
 /**
  * Calcula la diferencia angular mínima entre dos rumbos (0 a 180°)
  */
 export function diferenciaAngular(a, b) {
-    if (a === null || b === null || !Number.isFinite(Number(a)) || !Number.isFinite(Number(b))) return 0;
-    const diff = Math.abs(Number(a) - Number(b)) % 360;
+    if (a === null || b === null || a === undefined || b === undefined) return 0;
+    const nA = Number(a);
+    const nB = Number(b);
+    if (!Number.isFinite(nA) || !Number.isFinite(nB)) return 0;
+    const diff = Math.abs(nA - nB) % 360;
     return diff > 180 ? 360 - diff : diff;
 }
 
@@ -55,28 +59,35 @@ export function calcularConsensoModelos({
     fallbackVientoKt = null,
     fallbackDirDeg = null
 }) {
+    const cleanFallbackV = (fallbackVientoKt !== null && Number.isFinite(Number(fallbackVientoKt)))
+        ? Number(Number(fallbackVientoKt).toFixed(1))
+        : null;
+    const cleanFallbackDir = (fallbackDirDeg !== null && Number.isFinite(Number(fallbackDirDeg)))
+        ? Math.round(Number(fallbackDirDeg))
+        : null;
+
     const velocidades = [
         { model: 'ECMWF', val: ecmwfVientoKt },
         { model: 'GFS',   val: gfsVientoKt },
         { model: 'ICON',  val: iconVientoKt }
-    ].filter(m => m.val !== null && Number.isFinite(Number(m.val)))
+    ].filter(m => m.val !== null && m.val !== undefined && Number.isFinite(Number(m.val)))
      .map(m => ({ model: m.model, val: Number(Number(m.val).toFixed(1)) }));
 
     const direcciones = [
         { model: 'ECMWF', val: ecmwfDirDeg },
         { model: 'GFS',   val: gfsDirDeg },
         { model: 'ICON',  val: iconDirDeg }
-    ].filter(m => m.val !== null && Number.isFinite(Number(m.val)))
+    ].filter(m => m.val !== null && m.val !== undefined && Number.isFinite(Number(m.val)))
      .map(m => ({ model: m.model, val: Math.round(Number(m.val)) }));
 
-    // Si no hay modelos específicos, recurrir al valor único
+    // Si no hay modelos específicos suficientes, recurrir al valor único o fallback saneado
     if (velocidades.length < 2) {
         return {
             nivelConsenso: 'UNICO',
             confianzaConsenso: 85,
             spreadVelocidadKt: 0,
-            consensoVientoKt: velocidades[0]?.val ?? fallbackVientoKt ?? null,
-            consensoDirDeg: direcciones[0]?.val ?? fallbackDirDeg ?? null,
+            consensoVientoKt: velocidades[0]?.val ?? cleanFallbackV,
+            consensoDirDeg: direcciones[0]?.val ?? cleanFallbackDir,
             modelosDisponibles: velocidades.map(m => m.model),
             descripcion: 'Pronóstico basado en el mejor ensamble disponible.'
         };
@@ -114,7 +125,7 @@ export function calcularConsensoModelos({
         confianzaConsenso,
         spreadVelocidadKt: spreadV,
         consensoVientoKt: avgV,
-        consensoDirDeg: avgDir,
+        consensoDirDeg: avgDir ?? direcciones[0]?.val ?? cleanFallbackDir,
         modelosDisponibles: velocidades.map(m => m.model),
         valoresPorModelo: {
             ecmwf: ecmwfVientoKt,
@@ -124,4 +135,3 @@ export function calcularConsensoModelos({
         descripcion
     };
 }
-

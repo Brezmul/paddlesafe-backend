@@ -1,29 +1,78 @@
+# ==============================================================================
+# PADDLESAFE - CONFIGURACIÓN DE SERVIDOR APACHE (RAÍZ DEL PROYECTO)
+# ==============================================================================
+
 DirectoryIndex public_html/index.html public_html/index.php index.html index.php
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Seguridad: bloqueo total contra peticiones a backend, lib, sql o auditorías internas
+  # 1. Seguridad: bloqueo total contra peticiones a backend, lib, sql, node_modules o archivos de sistema
   RewriteRule ^(api|lib|sql|node_modules|\.git)(/|$) - [F,L]
-  RewriteRule \.(sql|env|log|md)$ - [F,L]
+  RewriteRule ^(vercel\.json|package(-lock)?\.json|forecast\.js|\.env.*|README\.md|AUDITORIA.*\.md)$ - [F,L]
+  RewriteRule \.(sql|env|log|md|sh|bash|jsonl)$ - [F,L]
+  RewriteRule (^|/)\. - [F,L]
 
-  # Si la petición ya incluye public_html/, no volver a reescribir
+  # 2. Si la petición ya incluye public_html/, no volver a reescribir
   RewriteRule ^public_html/ - [L]
 
-  # Si el recurso solicitado existe físicamente en public_html/, servirlo
+  # 3. Si el recurso solicitado existe físicamente en public_html/, servirlo
   RewriteCond %{DOCUMENT_ROOT}/public_html/$1 -f [OR]
   RewriteCond %{DOCUMENT_ROOT}/public_html/$1 -d
   RewriteRule ^(.*)$ public_html/$1 [L]
 
-  # Servir index.html de public_html/ en la raíz del sitio
+  # 4. Servir index.html de public_html/ en la raíz del sitio
   RewriteRule ^$ public_html/index.html [L]
 
-  # Fallback para rutas amigables SPA a public_html/index.html
+  # 5. Fallback para rutas amigables SPA a public_html/index.html
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . public_html/index.html [L]
 </IfModule>
 
+# Impedir listado de directorios
 Options -Indexes
+
+<IfModule mod_headers.c>
+  # 1. Cabeceras de Seguridad Unificadas (Hardening de Producción)
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://*.open-meteo.com https://api.open-meteo.com https://marine-api.open-meteo.com https://nominatim.openstreetmap.org https://*.cartocdn.com https://*.openstreetmap.org https://*.openseamap.org https://server.arcgisonline.com https://*.vercel.app; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'self';"
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Permissions-Policy "geolocation=(self)"
+
+  # 2. HTML, JSON y Service Worker: Cero caché para actualización inmediata y control de versiones PWA
+  <FilesMatch "^(index\.html|index\.php|version\.json|sw\.js|manifest\.json)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
+  # 3. Scripts JavaScript: Revalidación contra servidor para detectar nuevos módulos
+  <FilesMatch "\.(js)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+
+  # 4. Recursos estáticos inmutables (CSS, imágenes, iconos, tipografías): Caché largo plazo (1 año)
+  <FilesMatch "\.(css|png|jpe?g|gif|webp|svg|ico|woff2?|ttf|eot)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresDefault "access plus 1 month"
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType application/json "access plus 0 seconds"
+  ExpiresByType text/javascript "access plus 0 seconds"
+  ExpiresByType application/javascript "access plus 0 seconds"
+  ExpiresByType image/x-icon "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
 

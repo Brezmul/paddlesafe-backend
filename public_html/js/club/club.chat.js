@@ -3,13 +3,14 @@ import { esc, safeUrl, IMG_FALLBACK } from '../utils.js';
 
 let activeRealtimeChannel = null;
 let currentChatClubId = null;
+let activePollingInterval = null;
 
 export const ClubChat = {
     async render(container, clubId, isMember = true) {
         if (!container) return;
         currentChatClubId = clubId;
 
-        // Desuscribir canal previo si existía
+        // Desuscribir canal e intervalos previos si existían
         this.desuscribirRealtime();
 
         if (!isMember) {
@@ -85,7 +86,11 @@ export const ClubChat = {
             }
 
             const myId = appState.sesionActual?.user?.id;
-            list.innerHTML = msgs.map(m => this.renderBurbujaMensaje(m, myId)).join('');
+            list.innerHTML = '';
+            msgs.forEach(m => {
+                const el = this.renderBurbujaElement(m, myId);
+                if (el) list.appendChild(el);
+            });
             this.scrollBottom();
         } catch (err) {
             console.error('[club.chat] error cargarMensajes:', err);
@@ -93,34 +98,86 @@ export const ClubChat = {
         }
     },
 
-    renderBurbujaMensaje(m, myId) {
+    /**
+     * Construcción de nodo DOM para mensaje con neutralización estricta de XSS mediante textContent
+     */
+    renderBurbujaElement(m, myId) {
+        if (typeof document === 'undefined') return null;
+
         const esMio = m.user_id === myId;
-        const nombre = m.perfiles?.nombre || 'Paddler';
+        const nombre = String(m.perfiles?.nombre || 'Paddler');
         const avatar = safeUrl(m.perfiles?.avatar_url, IMG_FALLBACK);
         const fecha = m.created_at ? new Date(m.created_at) : new Date();
         const horaStr = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
+        const root = document.createElement('div');
+
         if (esMio) {
-            return `
-                <div class="flex flex-col items-end">
-                    <div class="max-w-[82%] bg-gradient-to-r from-marine to-sky-700 text-white rounded-2xl rounded-tr-xs p-3 shadow-sm text-xs leading-relaxed break-words">
-                        <p>${esc(m.mensaje)}</p>
-                    </div>
-                    <span class="text-[9px] font-bold text-slate-400 mt-1 mr-1">${horaStr}</span>
-                </div>`;
+            root.className = 'flex flex-col items-end';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'max-w-[82%] bg-gradient-to-r from-marine to-sky-700 text-white rounded-2xl rounded-tr-xs p-3 shadow-sm text-xs leading-relaxed break-words';
+
+            const p = document.createElement('p');
+            p.textContent = m.mensaje || '';
+            bubble.appendChild(p);
+
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'text-[9px] font-bold text-slate-400 mt-1 mr-1';
+            timeSpan.textContent = horaStr;
+
+            root.appendChild(bubble);
+            root.appendChild(timeSpan);
         } else {
-            return `
-                <div class="flex items-start gap-2.5 max-w-[85%]">
-                    <img src="${esc(avatar)}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5 border border-slate-200 dark:border-slate-700">
-                    <div class="flex flex-col">
-                        <span class="text-[10px] font-black text-water uppercase tracking-wider mb-0.5">${esc(nombre)}</span>
-                        <div class="bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-2xl rounded-tl-xs p-3 shadow-xs border border-slate-100 dark:border-slate-600 text-xs leading-relaxed break-words">
-                            <p>${esc(m.mensaje)}</p>
-                        </div>
-                        <span class="text-[9px] font-bold text-slate-400 mt-1 ml-1">${horaStr}</span>
-                    </div>
-                </div>`;
+            root.className = 'flex items-start gap-2.5 max-w-[85%]';
+
+            const img = document.createElement('img');
+            img.src = avatar;
+            img.onerror = () => { img.onerror = null; img.src = IMG_FALLBACK; };
+            img.className = 'w-8 h-8 rounded-full object-cover shrink-0 mt-0.5 border border-slate-200 dark:border-slate-700';
+            img.alt = nombre;
+
+            const col = document.createElement('div');
+            col.className = 'flex flex-col';
+
+            const authorSpan = document.createElement('span');
+            authorSpan.className = 'text-[10px] font-black text-water uppercase tracking-wider mb-0.5';
+            authorSpan.textContent = nombre;
+
+            const bubble = document.createElement('div');
+            bubble.className = 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-2xl rounded-tl-xs p-3 shadow-xs border border-slate-100 dark:border-slate-600 text-xs leading-relaxed break-words';
+
+            const p = document.createElement('p');
+            p.textContent = m.mensaje || '';
+            bubble.appendChild(p);
+
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'text-[9px] font-bold text-slate-400 mt-1 ml-1';
+            timeSpan.textContent = horaStr;
+
+            col.appendChild(authorSpan);
+            col.appendChild(bubble);
+            col.appendChild(timeSpan);
+
+            root.appendChild(img);
+            root.appendChild(col);
         }
+
+        return root;
+    },
+
+    renderBurbujaMensaje(m, myId) {
+        if (typeof document === 'undefined') {
+            const esMio = m.user_id === myId;
+            const nombre = esc(m.perfiles?.nombre || 'Paddler');
+            const fecha = m.created_at ? new Date(m.created_at) : new Date();
+            const horaStr = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            return esMio
+                ? `<div class="flex flex-col items-end"><div class="max-w-[82%] bg-gradient-to-r from-marine to-sky-700 text-white rounded-2xl p-3 text-xs break-words"><p>${esc(m.mensaje)}</p></div><span class="text-[9px] text-slate-400 mt-1">${horaStr}</span></div>`
+                : `<div class="flex items-start gap-2.5 max-w-[85%]"><div class="flex flex-col"><span class="text-[10px] font-black text-water">${nombre}</span><div class="bg-white dark:bg-slate-700 p-3 text-xs break-words"><p>${esc(m.mensaje)}</p></div><span class="text-[9px] text-slate-400 mt-1">${horaStr}</span></div></div>`;
+        }
+        const el = this.renderBurbujaElement(m, myId);
+        return el ? el.outerHTML : '';
     },
 
     async enviarMensaje(clubId) {
@@ -197,13 +254,12 @@ export const ClubChat = {
                     };
 
                     const myId = appState.sesionActual?.user?.id;
-                    const dummyEmpty = list.querySelector('.opacity-60');
+                    const dummyEmpty = list.querySelector('.opacity-60') || list.querySelector('.animate-pulse');
                     if (dummyEmpty) list.innerHTML = '';
 
-                    const temp = document.createElement('div');
-                    temp.innerHTML = this.renderBurbujaMensaje(msgCompleto, myId);
-                    if (temp.firstElementChild) {
-                        list.appendChild(temp.firstElementChild);
+                    const el = this.renderBurbujaElement(msgCompleto, myId);
+                    if (el) {
+                        list.appendChild(el);
                     }
                     this.scrollBottom();
                 })
@@ -214,6 +270,10 @@ export const ClubChat = {
     },
 
     desuscribirRealtime() {
+        if (activePollingInterval) {
+            clearInterval(activePollingInterval);
+            activePollingInterval = null;
+        }
         if (activeRealtimeChannel && supabaseClient) {
             try {
                 supabaseClient.removeChannel(activeRealtimeChannel);
@@ -231,3 +291,16 @@ export const ClubChat = {
     }
 };
 
+// Limpieza proactiva de canales al ocultar pestaña o cerrar ventana
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && activeRealtimeChannel) {
+            ClubChat.desuscribirRealtime();
+        }
+    });
+}
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('beforeunload', () => {
+        ClubChat.desuscribirRealtime();
+    });
+}

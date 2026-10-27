@@ -125,6 +125,9 @@ export const ClubPublic = {
     },
 
     async cambiarTab(tab) {
+        if (tab !== 'chat') {
+            ClubChat.desuscribirRealtime();
+        }
         const clubId = ClubState.publicId;
         const club = ClubState.currentClubData;
         if (!clubId) return;
@@ -199,7 +202,7 @@ export const ClubPublic = {
                                                     <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold ${badgeColor}">${badgeTexto}</span>
                                                 </div>
                                             </div>
-                                            <span class="text-xs font-bold text-amber-500">${m.puntos || 0} pts</span>
+                                            <span class="text-xs font-bold text-amber-500">${m.total_xp ?? m.puntos ?? 0} pts</span>
                                         </div>`;
                                 }).join('')}
                             </div>`;

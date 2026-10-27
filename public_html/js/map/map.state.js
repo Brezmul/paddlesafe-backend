@@ -1,4 +1,4 @@
-// ==============================================================================
+﻿// ==============================================================================
 // PADDLESAFE NEXT-GEN - MAP SHARED RUNTIME STATE (map.state.js)
 // Central mutable state store for map modules adhering to the Strangler Fig pattern.
 // Synchronizes with mapState and appState from config.js.
@@ -108,12 +108,14 @@ export const mapRuntime = {
     cacheMeteoQuedada: null,
 
     // Inteligencia de Spots y Meteorología
+    activeSpotData: null,
     datosMeteoActuales: null,
     pronosticoDiaCompletoActual: null,
     horaSeleccionadaTimeline: null,
     spotsGuardadosMemoria: [],
     spotActivoActual: null,
     marcadorRosaVectores: null,
+    posterPolyline: null,
     marcadorReporteSpot: null,
     reportesSpotActivo: [],
     cacheGeohashMeteo: new Map(),

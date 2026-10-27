@@ -1,9 +1,11 @@
 // ==============================================================================
-// js/gpxParser.js - PARSER GPX INDEPENDIENTE Y LIGERO (ZERO DEPENDENCIES)
+// js/gpxParser.js - PARSER GPX / TCX INDEPENDIENTE Y LIGERO (ZERO DEPENDENCIES)
 // Compatible con Navegadores (DOMParser) y Entornos Node.js / Serverless
 // ==============================================================================
 
 const EARTH_RADIUS_METERS = 6371000; // Radio medio de la Tierra en metros
+const SUP_MAX_REALISTIC_SPEED_KMH = 32.0; // Umbral máximo físico creíble para SUP / Paddle Surf (8.89 m/s)
+const SUP_DEFAULT_ESTIMATED_PACE_MS = 1.25; // 4.5 km/h = 1.25 m/s ritmo base medio en agua
 
 /**
  * Calcula la distancia ortodrómica en metros entre dos coordenadas (Fórmula de Haversine)
@@ -26,80 +28,211 @@ export function haversineDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Extrae los trackpoints [lat, lon, time] usando DOMParser en navegador
+ * Extrae los trackpoints [lat, lon, time, ele] usando DOMParser en navegador
  * o expresiones regulares optimizadas si se ejecuta en Node.js sin DOM.
+ * Soporta estándares GPX (<trkpt>, <rtept>, <wpt>) y Garmin TCX (<Trackpoint>).
  * @param {string} xmlString 
- * @returns {Array<{lat: number, lon: number, time: number|null}>}
+ * @returns {{points: Array<{lat: number, lon: number, time: number|null, ele: number}>, hasRealTimestamps: boolean}}
  */
 function extractTrackpoints(xmlString) {
+    if (!xmlString || typeof xmlString !== "string" || xmlString.trim().length === 0) {
+        throw new Error("El archivo está vacío o no es un archivo de texto válido.");
+    }
+
     const points = [];
 
     // 1. Entorno Navegador con DOMParser nativo
     if (typeof DOMParser !== "undefined") {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlString, "application/xml");
-        
-        if (xmlDoc.querySelector("parsererror")) {
-            throw new Error("El archivo no es un archivo GPX/XML válido o está corrupto.");
+
+        // Detección defensiva de errores XML en distintos motores de navegador
+        const parserErrorNode =
+            xmlDoc.querySelector("parsererror") ||
+            (xmlDoc.getElementsByTagName("parsererror").length > 0 ? xmlDoc.getElementsByTagName("parsererror")[0] : null) ||
+            (xmlDoc.documentElement && xmlDoc.documentElement.nodeName.toLowerCase() === "parsererror" ? xmlDoc.documentElement : null);
+
+        if (parserErrorNode) {
+            throw new Error("El archivo no es un archivo GPX/TCX/XML válido o está corrupto.");
         }
 
+        // A. Intentar extraer puntos GPX (trkpt -> rtept -> wpt)
         let nodes = xmlDoc.querySelectorAll("trkpt");
         if (!nodes || nodes.length === 0) {
-            nodes = xmlDoc.querySelectorAll("rtept"); // Soporte secundario para rutas
+            nodes = xmlDoc.querySelectorAll("rtept");
+        }
+        if (!nodes || nodes.length === 0) {
+            nodes = xmlDoc.querySelectorAll("wpt");
         }
 
-        for (let i = 0; i < nodes.length; i++) {
-            const node = nodes[i];
-            const lat = parseFloat(node.getAttribute("lat"));
-            const lon = parseFloat(node.getAttribute("lon"));
-            if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
+        if (nodes && nodes.length > 0) {
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+                const lat = parseFloat(node.getAttribute("lat"));
+                const lon = parseFloat(node.getAttribute("lon"));
+                if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
 
-            const timeEl = node.querySelector("time");
-            const time = timeEl ? new Date(timeEl.textContent.trim()).getTime() : null;
-            points.push({ lat, lon, time });
+                const timeEl = node.querySelector("time");
+                let time = null;
+                if (timeEl && timeEl.textContent && timeEl.textContent.trim()) {
+                    const parsedTime = new Date(timeEl.textContent.trim()).getTime();
+                    if (!Number.isNaN(parsedTime) && parsedTime > 0) time = parsedTime;
+                }
+
+                const eleEl = node.querySelector("ele");
+                const ele = (eleEl && eleEl.textContent && Number.isFinite(parseFloat(eleEl.textContent.trim())))
+                    ? parseFloat(eleEl.textContent.trim())
+                    : 0.0;
+
+                points.push({ lat, lon, time, ele });
+            }
+        } else {
+            // B. Intentar extraer puntos Garmin TCX (<Trackpoint>)
+            const tcxNodes = xmlDoc.querySelectorAll("Trackpoint");
+            if (tcxNodes && tcxNodes.length > 0) {
+                for (let i = 0; i < tcxNodes.length; i++) {
+                    const node = tcxNodes[i];
+                    const latEl = node.querySelector("LatitudeDegrees");
+                    const lonEl = node.querySelector("LongitudeDegrees");
+                    if (!latEl || !lonEl) continue;
+
+                    const lat = parseFloat(latEl.textContent.trim());
+                    const lon = parseFloat(lonEl.textContent.trim());
+                    if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
+
+                    const timeEl = node.querySelector("Time");
+                    let time = null;
+                    if (timeEl && timeEl.textContent && timeEl.textContent.trim()) {
+                        const parsedTime = new Date(timeEl.textContent.trim()).getTime();
+                        if (!Number.isNaN(parsedTime) && parsedTime > 0) time = parsedTime;
+                    }
+
+                    const eleEl = node.querySelector("AltitudeMeters");
+                    const ele = (eleEl && eleEl.textContent && Number.isFinite(parseFloat(eleEl.textContent.trim())))
+                        ? parseFloat(eleEl.textContent.trim())
+                        : 0.0;
+
+                    points.push({ lat, lon, time, ele });
+                }
+            }
         }
-        return points;
+
+        const hasRealTimestamps = points.filter(p => p.time !== null).length >= Math.max(2, Math.floor(points.length * 0.3));
+        return { points, hasRealTimestamps };
     }
 
-    // 2. Entorno Node.js / Serverless sin dependencias (Fast Regex Parser)
-    const trkptRegex = /<(?:trkpt|rtept)\s+[^>]*lat=["']([^"']+)["'][^>]*lon=["']([^"']+)["'][^>]*>([\s\S]*?)<\/(?:trkpt|rtept)>/gi;
-    const timeRegex = /<time>([^<]+)<\/time>/i;
+    // 2. Entorno Node.js / Serverless sin dependencias (Fast Regex Parser Defensivo)
+    // Comprobación de integridad mínima de etiquetas XML
+    const lowerXml = xmlString.toLowerCase();
+    const isGpx = lowerXml.includes('<gpx') || lowerXml.includes('<trk') || lowerXml.includes('<trkpt') || lowerXml.includes('<rtept');
+    const isTcx = lowerXml.includes('<trainingcenterdatabase') || lowerXml.includes('<trackpoint');
 
-    let match;
-    while ((match = trkptRegex.exec(xmlString)) !== null) {
-        const lat = parseFloat(match[1]);
-        const lon = parseFloat(match[2]);
-        const innerContent = match[3];
+    if (!isGpx && !isTcx) {
+        throw new Error("El archivo no es un archivo GPX/TCX/XML válido o está corrupto.");
+    }
 
-        if (Number.isFinite(lat) && Number.isFinite(lon)) {
-            const timeMatch = timeRegex.exec(innerContent);
-            const time = timeMatch ? new Date(timeMatch[1].trim()).getTime() : null;
-            points.push({ lat, lon, time });
+    if (isGpx) {
+        // Regex para capturar atributos lat/lon en cualquier orden (lat...lon o lon...lat)
+        const trkptRegex = /<(?:trkpt|rtept|wpt)\s+[^>]*?(?:lat=["']([^"']+)["'][^>]*?lon=["']([^"']+)["']|lon=["']([^"']+)["'][^>]*?lat=["']([^"']+)["'])[^>]*>([\s\S]*?)<\/(?:trkpt|rtept|wpt)>/gi;
+        const timeRegex = /<time>([^<]+)<\/time>/i;
+        const eleRegex = /<ele>([^<]+)<\/ele>/i;
+
+        let match;
+        while ((match = trkptRegex.exec(xmlString)) !== null) {
+            const lat = parseFloat(match[1] || match[4]);
+            const lon = parseFloat(match[2] || match[3]);
+            const innerContent = match[5] || '';
+
+            if (Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                const timeMatch = timeRegex.exec(innerContent);
+                let time = null;
+                if (timeMatch && timeMatch[1]) {
+                    const parsedTime = new Date(timeMatch[1].trim()).getTime();
+                    if (!Number.isNaN(parsedTime) && parsedTime > 0) time = parsedTime;
+                }
+
+                const eleMatch = eleRegex.exec(innerContent);
+                const ele = (eleMatch && eleMatch[1] && Number.isFinite(parseFloat(eleMatch[1].trim())))
+                    ? parseFloat(eleMatch[1].trim())
+                    : 0.0;
+
+                points.push({ lat, lon, time, ele });
+            }
         }
     }
 
-    return points;
+    if (points.length === 0 && isTcx) {
+        const tcxRegex = /<Trackpoint[\s\S]*?<\/Trackpoint>/gi;
+        const latRegex = /<LatitudeDegrees>([^<]+)<\/LatitudeDegrees>/i;
+        const lonRegex = /<LongitudeDegrees>([^<]+)<\/LongitudeDegrees>/i;
+        const timeRegex = /<Time>([^<]+)<\/Time>/i;
+        const eleRegex = /<AltitudeMeters>([^<]+)<\/AltitudeMeters>/i;
+
+        let tcxMatch;
+        while ((tcxMatch = tcxRegex.exec(xmlString)) !== null) {
+            const block = tcxMatch[0];
+            const latM = latRegex.exec(block);
+            const lonM = lonRegex.exec(block);
+            if (!latM || !lonM) continue;
+
+            const lat = parseFloat(latM[1].trim());
+            const lon = parseFloat(lonM[1].trim());
+            if (Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                const timeM = timeRegex.exec(block);
+                let time = null;
+                if (timeM && timeM[1]) {
+                    const parsedTime = new Date(timeM[1].trim()).getTime();
+                    if (!Number.isNaN(parsedTime) && parsedTime > 0) time = parsedTime;
+                }
+
+                const eleM = eleRegex.exec(block);
+                const ele = (eleM && eleM[1] && Number.isFinite(parseFloat(eleM[1].trim())))
+                    ? parseFloat(eleM[1].trim())
+                    : 0.0;
+
+                points.push({ lat, lon, time, ele });
+            }
+        }
+    }
+
+    const hasRealTimestamps = points.filter(p => p.time !== null).length >= Math.max(2, Math.floor(points.length * 0.3));
+    return { points, hasRealTimestamps };
 }
 
 /**
- * Parsea el contenido XML de un archivo .gpx y devuelve telemetría y splits
- * @param {string} gpxXmlContent - Contenido en texto del archivo .gpx
- * @returns {Object} Objeto con coordenadas, distancia, duración, velocidades y splits
+ * Parsea el contenido XML de un archivo .gpx o .tcx y devuelve telemetría, splits y desnivel
+ * con filtrado anti-glitch de GPS y reconstrucción suave de tiempos si faltan marcas de tiempo.
+ * @param {string} gpxXmlContent - Contenido en texto del archivo .gpx o .tcx
+ * @returns {Object} Objeto con coordenadas, distancia, duración, velocidades, splits y desnivel
  */
 export function parseGPX(gpxXmlContent) {
     if (!gpxXmlContent || typeof gpxXmlContent !== "string") {
         throw new Error("El contenido del archivo GPX está vacío o no es un string válido.");
     }
 
-    const rawPoints = extractTrackpoints(gpxXmlContent);
+    const { points: rawPoints, hasRealTimestamps } = extractTrackpoints(gpxXmlContent);
 
     if (rawPoints.length < 2) {
-        throw new Error("El archivo GPX no contiene suficientes puntos de navegación (mínimo 2).");
+        throw new Error("El archivo GPX/TCX no contiene suficientes puntos de navegación (mínimo 2).");
+    }
+
+    // Reconstruir marcas temporales sintéticas si el track carece de marcas <time>
+    if (!hasRealTimestamps) {
+        const baseTime = (rawPoints[0].time && !Number.isNaN(rawPoints[0].time)) ? rawPoints[0].time : (Date.now() - 3600000);
+        let accumulatedMetersEst = 0;
+        rawPoints[0].time = baseTime;
+        for (let i = 1; i < rawPoints.length; i++) {
+            const d = haversineDistance(rawPoints[i - 1].lat, rawPoints[i - 1].lon, rawPoints[i].lat, rawPoints[i].lon);
+            accumulatedMetersEst += d;
+            const deltaSec = Math.max(1, Math.round(d / SUP_DEFAULT_ESTIMATED_PACE_MS));
+            rawPoints[i].time = rawPoints[i - 1].time + (deltaSec * 1000);
+        }
     }
 
     const coordinates = [];
     let totalDistanceMeters = 0;
-    let speedSamplesKmh = [];
+    let totalElevationGainM = 0;
+    const speedSamplesKmh = [];
 
     // Tramos por kilómetro (Splits)
     const splits = [];
@@ -114,23 +247,46 @@ export function parseGPX(gpxXmlContent) {
         const prev = rawPoints[i - 1];
         const curr = rawPoints[i];
 
-        coordinates.push([Number(curr.lat.toFixed(6)), Number(curr.lon.toFixed(6))]);
-
         // Distancia incremental con Haversine
         const segmentDistMeters = haversineDistance(prev.lat, prev.lon, curr.lat, curr.lon);
+
+        // Desnivel positivo acumulado (filtrando ruido barométrico inferior a 0.8m o picos > 80m en 1 paso)
+        const dEle = curr.ele - prev.ele;
+        if (dEle > 0.8 && dEle < 80) {
+            totalElevationGainM += dEle;
+        }
+
+        // Filtrado anti-glitch de saltos de GPS inverosímiles (pérdida de señal / teleportación)
+        let deltaSeconds = 0;
+        let instantSpeedKmh = 0;
+        let esSaltoInvalido = false;
+
+        if (curr.time && prev.time) {
+            deltaSeconds = (curr.time - prev.time) / 1000;
+            if (deltaSeconds > 0 && deltaSeconds < 600) {
+                instantSpeedKmh = (segmentDistMeters / deltaSeconds) * 3.6;
+                // Si la velocidad calculada excede la velocidad máxima física posible en SUP (> 32 km/h)
+                // se trata de una pérdida de cobertura GPS con rebote satelital.
+                if (instantSpeedKmh > SUP_MAX_REALISTIC_SPEED_KMH) {
+                    esSaltoInvalido = true;
+                }
+            }
+        }
+
+        // Si es un salto irreal por pérdida de señal, no acumular la distancia ficticia del salto satelital
+        if (esSaltoInvalido) {
+            // Se conserva la coordenada por continuidad visual pero sin inflar distancia ni métricas
+            coordinates.push([Number(curr.lat.toFixed(6)), Number(curr.lon.toFixed(6))]);
+            continue;
+        }
+
+        coordinates.push([Number(curr.lat.toFixed(6)), Number(curr.lon.toFixed(6))]);
         totalDistanceMeters += segmentDistMeters;
         splitDistanceMeters += segmentDistMeters;
 
-        // Velocidad entre puntos
-        if (curr.time && prev.time) {
-            const deltaSeconds = (curr.time - prev.time) / 1000;
-            if (deltaSeconds > 0 && deltaSeconds < 300) {
-                const instantSpeedKmh = (segmentDistMeters / deltaSeconds) * 3.6;
-                // Descartar errores de satélite inverosímiles (> 85 km/h)
-                if (instantSpeedKmh < 85) {
-                    speedSamplesKmh.push(instantSpeedKmh);
-                }
-            }
+        // Registrar muestra de velocidad válida (ignorando micro-ruido estacionario < 0.5m)
+        if (deltaSeconds > 0 && segmentDistMeters >= 0.5 && instantSpeedKmh > 0.2 && instantSpeedKmh <= SUP_MAX_REALISTIC_SPEED_KMH) {
+            speedSamplesKmh.push(instantSpeedKmh);
         }
 
         // Registrar split al alcanzar cada kilómetro completo
@@ -150,7 +306,7 @@ export function parseGPX(gpxXmlContent) {
                 km: currentSplitKm,
                 distance_km: splitKm,
                 duration_seconds: splitDurationSec,
-                avg_speed_kmh: splitAvgSpeed
+                avg_speed_kmh: Math.min(splitAvgSpeed, SUP_MAX_REALISTIC_SPEED_KMH)
             });
 
             currentSplitKm++;
@@ -175,7 +331,7 @@ export function parseGPX(gpxXmlContent) {
             km: currentSplitKm,
             distance_km: splitKm,
             duration_seconds: splitDurationSec,
-            avg_speed_kmh: splitAvgSpeed
+            avg_speed_kmh: Math.min(splitAvgSpeed, SUP_MAX_REALISTIC_SPEED_KMH)
         });
     }
 
@@ -191,18 +347,19 @@ export function parseGPX(gpxXmlContent) {
     }
 
     // Velocidad media general
-    const avgSpeedKmh = totalDurationSeconds > 0
-        ? Number((totalDistanceKm / (totalDurationSeconds / 3600)).toFixed(2))
-        : (splits.length > 0 
-            ? Number((splits.reduce((acc, s) => acc + s.avg_speed_kmh, 0) / splits.length).toFixed(2)) 
-            : 0);
+    let avgSpeedKmh = 0;
+    if (totalDurationSeconds > 0 && totalDistanceKm > 0) {
+        avgSpeedKmh = Number((totalDistanceKm / (totalDurationSeconds / 3600)).toFixed(2));
+    } else if (splits.length > 0) {
+        avgSpeedKmh = Number((splits.reduce((acc, s) => acc + s.avg_speed_kmh, 0) / splits.length).toFixed(2));
+    }
 
-    // Velocidad máxima con filtrado de picos de ruido (percentil 98)
+    // Velocidad máxima con filtrado estricto de picos de ruido (percentil 98, acotada al límite físico de SUP)
     let maxSpeedKmh = avgSpeedKmh;
     if (speedSamplesKmh.length > 0) {
         speedSamplesKmh.sort((a, b) => a - b);
         const p98Index = Math.min(speedSamplesKmh.length - 1, Math.floor(speedSamplesKmh.length * 0.98));
-        maxSpeedKmh = Number(speedSamplesKmh[p98Index].toFixed(2));
+        maxSpeedKmh = Math.min(SUP_MAX_REALISTIC_SPEED_KMH, Number(speedSamplesKmh[p98Index].toFixed(2)));
     }
 
     return {
@@ -211,14 +368,17 @@ export function parseGPX(gpxXmlContent) {
         total_duration_seconds: totalDurationSeconds,
         avg_speed_kmh: avgSpeedKmh,
         max_speed_kmh: maxSpeedKmh,
+        total_elevation_gain_m: Number(totalElevationGainM.toFixed(1)),
+        hasRealTimestamps,
         splits,
         startTime,
         endTime,
-        // Aliases para compatibilidad con la tabla user_routes
+        // Aliases para compatibilidad con la tabla user_routes y vistas legadas
         distance_km: totalDistanceKm,
         duration_seconds: totalDurationSeconds,
         avg_speed: avgSpeedKmh,
         max_speed: maxSpeedKmh,
+        elevation_gain_m: Number(totalElevationGainM.toFixed(1)),
         route_coordinates: coordinates,
         splits_data: splits
     };
@@ -333,4 +493,3 @@ export function descargarGPX(coords = [], nombreArchivo = "ruta_paddlesafe.gpx")
 }
 
 export default parseGPX;
-

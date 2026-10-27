@@ -276,6 +276,10 @@ export function actualizarMapa(lat, lon) {
     mapRuntime.latitudActual = lat;
     mapRuntime.longitudActual = lon;
     const currentMap = mapRuntime.map || (typeof window !== 'undefined' ? window.map : null);
+    if (mapRuntime.marcadorRosaVectores && currentMap) {
+        try { currentMap.removeLayer(mapRuntime.marcadorRosaVectores); } catch (_) {}
+        mapRuntime.marcadorRosaVectores = null;
+    }
     if (currentMap && !mapRuntime.modoTravesiaActivo && !mapRuntime.modoRutaLibreActivo) {
         const ll = new L.LatLng(lat, lon);
         if (mapRuntime.marcador) {
@@ -295,6 +299,12 @@ export function actualizarMapa(lat, lon) {
  */
 export function inicializarMapa() {
     if (mapRuntime.map) return;
+    if (typeof L === 'undefined') {
+        if (typeof window !== 'undefined') {
+            window.addEventListener('load', () => inicializarMapa(), { once: true });
+        }
+        return;
+    }
     const initialLat = mapRuntime.latitudActual || 38.80;
     const initialLon = mapRuntime.longitudActual || 0.18;
 
@@ -388,6 +398,46 @@ export function inicializarMapa() {
         if (typeof window.verificarCheckpointPendiente === 'function') window.verificarCheckpointPendiente();
         if (typeof window.cargarSpotsGuardadosUsuario === 'function') window.cargarSpotsGuardadosUsuario();
     }, 500);
+
+    // Deshabilitar propagación táctil y de scroll hacia el mapa en todos los paneles flotantes móviles
+    const panelesFlotantes = [
+        'mapLayerSwitcher',
+        'mapWindWaveHud',
+        'multipuntoToolbar',
+        'radarCockpitPanel',
+        'radarBottomBar',
+        'panelQuedadaMap',
+        'liveTrackingPanel',
+        'routeReplayHud',
+        'leyendaMapa',
+        'mapTopPanelsWrapper'
+    ];
+    panelesFlotantes.forEach(id => deshabilitarPropagacionMapa(id));
+}
+
+/**
+ * Deshabilita la propagación de eventos táctiles, clics y scroll hacia el mapa de Leaflet
+ * para evitar movimientos involuntarios al interactuar con paneles flotantes o HUDs móviles.
+ * @param {HTMLElement|string} elementoOId 
+ */
+export function deshabilitarPropagacionMapa(elementoOId) {
+    if (typeof window === 'undefined') return;
+    const el = typeof elementoOId === 'string' ? document.getElementById(elementoOId) : elementoOId;
+    if (!el) return;
+
+    if (typeof L !== 'undefined' && L.DomEvent) {
+        try {
+            L.DomEvent.disableScrollPropagation(el);
+            L.DomEvent.disableClickPropagation(el);
+        } catch (_) {}
+    }
+
+    const stopPropagation = e => {
+        e.stopPropagation();
+    };
+
+    el.addEventListener('wheel', stopPropagation, { passive: true });
+    el.addEventListener('touchmove', stopPropagation, { passive: true });
 }
 
 /**
@@ -615,6 +665,12 @@ export function cambiarCapaBaseMapa(tipoCapa = 'nautico') {
         mapRuntime.capaOverlayTile = null;
     }
 
+    if (estilo !== 'oscuro') {
+        if (typeof window !== 'undefined' && typeof window.desactivarModoRadar === 'function') {
+            window.desactivarModoRadar();
+        }
+    }
+
     if (estilo === 'satelite') {
         mapRuntime.capaBaseTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 19,
@@ -686,6 +742,7 @@ if (typeof window !== 'undefined') {
     window.inicializarMapa = inicializarMapa;
     window.cambiarCapaBaseMapa = cambiarCapaBaseMapa;
     window.actualizarMapa = actualizarMapa;
+    window.deshabilitarPropagacionMapa = deshabilitarPropagacionMapa;
     window.buscarYCentrarMapa = buscarYCentrarMapa;
     window.obtenerUbicacion = obtenerUbicacion;
     window.recuperarEquipoUsuario = recuperarEquipoUsuario;

@@ -1,4 +1,4 @@
-// ==============================================================================
+﻿// ==============================================================================
 // PADDLESAFE NEXT-GEN - MAP AI & LOCAL HEURISTIC COACH (map.coach.js)
 // Specialized marine & sports intelligence coach routines for PaddleSafe map.
 // Extracted from map.js under Strangler Fig architecture.
@@ -750,7 +750,7 @@ export async function solicitarAnalisisIARutaDeportiva(rutaId) {
 
     const modal = document.createElement('div');
     modal.id = 'modalAiRouteCoach';
-    modal.className = 'fixed inset-0 z-[130] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn';
+    modal.className = 'fixed inset-0 z-[130] ps-modal-backdrop flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn';
     modal.innerHTML = `
         <div class="bg-slate-900 border border-emerald-500/40 rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl text-white flex flex-col gap-4">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3">

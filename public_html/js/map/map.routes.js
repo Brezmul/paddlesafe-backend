@@ -7,7 +7,7 @@
 
 import { supabaseClient, appState } from '../config.js';
 import { ClubState } from '../club/state.js';
-import { esc, kmhANudos, calcularSolYCrepusculo } from '../utils.js';
+import { esc, kmhANudos, calcularSolYCrepusculo, formatearTiempo } from '../utils.js';
 import { parseGPX, descargarGPX } from '../gpxParser.js';
 import { mapRuntime } from './map.state.js';
 import { solicitarPronostico, valorNumericoMeteo, crearFranjaForecast, obtenerMotorExperto } from './map.weather.js';
@@ -20,6 +20,9 @@ import { obtenerVelocidadCruceroUsuario, descargarZonaMapaOffline } from './map.
  * Activa / desactiva el modo de trazado multipunto libre.
  */
 export function toggleRutaLibre() {
+    if (mapRuntime.radarActivo && typeof window.desactivarModoRadar === 'function') {
+        window.desactivarModoRadar();
+    }
     if (mapRuntime.modoTravesiaActivo && typeof window.toggleModoTravesia === 'function') {
         window.toggleModoTravesia();
     }
@@ -42,10 +45,21 @@ export function toggleRutaLibre() {
         limpiarRuta();
         if (msg) msg.textContent = "📍 Toca el mapa para añadir puntos";
     } else {
+        // Al desactivar Multipunto, limpiar también el modo Quedada Club si estaba activo
+        if (mapRuntime.modoQuedadaClubActivo) {
+            mapRuntime.modoQuedadaClubActivo = false;
+            mapRuntime.clubParaEvento = null;
+            const panelQuedada = document.getElementById('panelQuedadaMap');
+            const formQuedada = document.getElementById('quedadaFormPanel');
+            if (panelQuedada) panelQuedada.classList.add('hidden');
+            if (formQuedada) formQuedada.classList.add('hidden');
+            const btnQ = document.getElementById('btnQuedadaClub');
+            if (btnQ) btnQ.innerHTML = "⛵ Quedada Club";
+        }
         if (b) {
             b.classList.replace('bg-red-500', 'bg-teal-600');
             b.classList.replace('hover:bg-red-400', 'hover:bg-teal-500');
-            b.innerHTML = "🔗 Multipunto";
+            b.innerHTML = "✍️ Multipunto";
         }
         const leyenda = document.getElementById('leyendaMapa');
         if (leyenda) leyenda.classList.replace('flex', 'hidden');
@@ -99,6 +113,10 @@ export function limpiarRuta() {
     if (mapRuntime.marcadorReporteSpot && currentMap) {
         try { currentMap.removeLayer(mapRuntime.marcadorReporteSpot); } catch (_) {}
         mapRuntime.marcadorReporteSpot = null;
+    }
+    if (!mapRuntime.isTracking && mapRuntime.livePolyline && currentMap) {
+        try { currentMap.removeLayer(mapRuntime.livePolyline); } catch (_) {}
+        mapRuntime.livePolyline = null;
     }
     const hudEl = document.getElementById('mapWindWaveHud');
     if (hudEl) hudEl.classList.add('hidden');
@@ -223,6 +241,8 @@ export function gestionarClicRutaLibre(l) {
     const toolbar = document.getElementById('multipuntoToolbar');
     if (toolbar) toolbar.classList.replace('hidden', 'flex');
     document.getElementById('mapWindWaveHud')?.classList.add('hidden');
+    document.getElementById('multipuntoToolbar')?.classList.replace('flex', 'hidden');
+    document.getElementById('radarBottomBar')?.classList.add('hidden');
 
     if (mapRuntime.marcadoresRuta.length > 1) {
         const btnLibre = document.getElementById('btnRutaLibre');
@@ -596,6 +616,9 @@ export function volverAlMapaQuedada() {
 }
 
 export async function iniciarCreacionQuedadaClub(clubIdPreseleccionado = null) {
+    if (mapRuntime.radarActivo && typeof window.desactivarModoRadar === 'function') {
+        window.desactivarModoRadar();
+    }
     if (!appState.sesionActual || appState.esInvitado) {
         alert("Debes iniciar sesión con tu cuenta para planificar y publicar quedadas.");
         if (window.abrirModalAuth) window.abrirModalAuth();
@@ -659,6 +682,10 @@ export async function iniciarCreacionQuedadaClub(clubIdPreseleccionado = null) {
         }
     }
 
+    // Si estaba activo el modo travesía A-B, cancelarlo primero
+    if (mapRuntime.modoTravesiaActivo && typeof window.toggleModoTravesia === 'function') {
+        window.toggleModoTravesia();
+    }
     // Limpiar trazado anterior y activar modo multipunto
     limpiarRuta();
     if (!mapRuntime.modoRutaLibreActivo) {
@@ -1230,15 +1257,15 @@ export async function importarRutaGPXPro(event) {
         const parsed = parseGPX(text);
         const coords = parsed?.coordinates || parsed?.points || [];
         if (parsed && Array.isArray(coords) && coords.length >= 2) {
-            const nombre = parsed.name || (file.name ? file.name.replace(/\.gpx$/i, '') : 'Ruta GPX Importada');
+            const nombre = parsed.name || (file.name ? file.name.replace(/\.(gpx|tcx)$/i, '') : 'Ruta GPX Importada');
             cargarRutaEnMapaGrande(coords, nombre);
             if (event.target) event.target.value = '';
         } else {
-            alert('⚠️ El archivo GPX no contiene suficientes trackpoints o waypoints para trazar la ruta.');
+            alert('⚠️ El archivo GPX/TCX no contiene suficientes trackpoints o waypoints para trazar la ruta.');
         }
     } catch (err) {
-        console.error('Error al importar GPX Pro:', err);
-        alert('❌ Error al procesar el archivo GPX: ' + (err?.message || 'Archivo corrupto'));
+        console.error('Error al importar GPX/TCX Pro:', err);
+        alert('❌ Error al procesar el archivo GPX/TCX: ' + (err?.message || 'Archivo corrupto'));
     }
 }
 
@@ -1263,6 +1290,12 @@ export function centrarTramoMapa(tramoIndex) {
                     line.setStyle({ weight: originalWeight, opacity: 0.9 });
                 }, 1500);
             }
+        }
+    }
+    if (typeof document !== 'undefined') {
+        const cardTramo = document.getElementById(`proTramoDetalle-${tramoIndex}`) || document.getElementById('proTramoDetalle') || document.getElementById('proDashTramosContainer');
+        if (cardTramo) {
+            cardTramo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }
 }
@@ -1686,7 +1719,12 @@ export function iniciarReplayRuta(coordenadas, metadata = {}) {
 
     // Configurar y mostrar el HUD
     const hud = document.getElementById('routeReplayHud');
-    if (hud) hud.classList.remove('hidden');
+    if (hud) {
+        hud.classList.remove('hidden');
+        if (typeof window !== 'undefined' && typeof window.deshabilitarPropagacionMapa === 'function') {
+            window.deshabilitarPropagacionMapa(hud);
+        }
+    }
     document.getElementById('mapWindWaveHud')?.classList.add('hidden');
 
     const titleEl = document.getElementById('replayRouteTitle');
@@ -1780,6 +1818,9 @@ export function detenerReplayRuta() {
 
     const hud = document.getElementById('routeReplayHud');
     if (hud) hud.classList.add('hidden');
+    if (mapRuntime.modoMultipuntoActivo) {
+        document.getElementById('multipuntoToolbar')?.classList.replace('hidden', 'flex');
+    }
 
     const scrubber = document.getElementById('replayScrubberInput');
     if (scrubber) scrubber.value = 0;

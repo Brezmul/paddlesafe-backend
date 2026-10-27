@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PaddleSafe - Sistema Unificado de Errores, Validación y Observabilidad Meteorológica
  * FASE 2 & FASE 3: Jerarquía de errores, validaciones defensivas y observabilidad estructurada.
  */

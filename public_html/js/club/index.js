@@ -38,6 +38,7 @@ const ClubFacade = {
         }
     },
     cerrarModal() {
+        ClubChat.desuscribirRealtime();
         const m = document.getElementById('clubsModal');
         if (m) {
             m.classList.add('opacity-0');
@@ -47,6 +48,9 @@ const ClubFacade = {
         }
     },
     cambiarTabClubs(tab) {
+        if (tab !== 'miclub') {
+            ClubChat.desuscribirRealtime();
+        }
         const tabs = {
             'miclub': document.getElementById('tabMiClub'),
             'buscar_club': document.getElementById('tabBuscarClub'),
@@ -180,6 +184,9 @@ const ClubFacade = {
         return this.onSelectActive(clubId);
     },
     async cambiarVistaInterna(vista) {
+        if (vista !== 'chat') {
+            ClubChat.desuscribirRealtime();
+        }
         const contenedor = document.querySelector('#clubsModal #vistaClubContent') || document.getElementById('vistaClubContent');
         if (!contenedor) return;
         const clubId = ClubState.activeId;
@@ -610,8 +617,16 @@ const ClubFacade = {
         ClubEvents.eliminarEvento(eventoId, clubId);
     },
     abrirRutaEnMapaGrande(coordsStr, nombre) {
-        if (window.cargarRutaEnMapaGrande) {
-            window.cargarRutaEnMapaGrande(coordsStr, nombre);
+        const fn = (typeof window !== 'undefined' && window.cargarRutaEnMapaGrande) || (typeof cargarRutaEnMapaGrande === 'function' ? cargarRutaEnMapaGrande : null);
+        if (fn) {
+            fn(coordsStr, nombre);
+        }
+    },
+    abrirRutaEvento(eventoId) {
+        const ev = ClubEvents._eventosCache && ClubEvents._eventosCache[eventoId];
+        const fn = (typeof window !== 'undefined' && window.cargarRutaEnMapaGrande) || (typeof cargarRutaEnMapaGrande === 'function' ? cargarRutaEnMapaGrande : null);
+        if (ev && ev.ruta_json && fn) {
+            fn(ev.ruta_json, ev.nombre || 'Ruta del evento');
         }
     },
 
@@ -657,11 +672,34 @@ const ClubFacade = {
         }
 
         try {
-            const { data, error } = await supabaseClient.rpc('procesar_invitacion_club', {
-                p_invitacion_id: invitacionId,
-                p_accion: accion
-            });
-            if (error) throw error;
+            let processed = false;
+            try {
+                const { error: rpcErr } = await supabaseClient.rpc('procesar_invitacion_club', {
+                    p_invitacion_id: invitacionId,
+                    p_accion: accion
+                });
+                if (!rpcErr) processed = true;
+            } catch (_) {}
+
+            if (!processed) {
+                // Fallback directo a tablas clubs_invitaciones y clubs_usuarios
+                const { data: inv } = await supabaseClient
+                    .from('clubs_invitaciones')
+                    .select('*')
+                    .eq('id', invitacionId)
+                    .maybeSingle();
+
+                if (inv) {
+                    if (accion === 'aceptar') {
+                        await supabaseClient.from('clubs_usuarios').insert([{
+                            club_id: inv.club_id,
+                            user_id: inv.user_id,
+                            rol: 'miembro'
+                        }]);
+                    }
+                    await supabaseClient.from('clubs_invitaciones').delete().eq('id', invitacionId);
+                }
+            }
 
             if (accion === 'aceptar') {
                 await ClubRender.renderTabMiClub();

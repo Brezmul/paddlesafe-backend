@@ -21,7 +21,7 @@
     <link rel="manifest" href="/manifest.json">
     
     <!-- Tailwind CSS (Compilado localmente para offline y rendimiento de producción) -->
-    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v74">
+    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v600">
 
     <!-- Leaflet CSS y JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -502,7 +502,7 @@
                 <div id="global-alert-container" class="w-full flex flex-col gap-2" aria-live="assertive"></div>
 
             <!-- BENTO WEATHER GRID: 4-COLUMN METRIC CARDS -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div id="basicCards" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <!-- METRIC 1: VIENTO -->
                 <div class="ps-bento-card p-3.5 flex flex-col items-center justify-between text-center relative overflow-hidden">
                     <div class="w-full flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-700/50 pb-1">
@@ -673,6 +673,10 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" id="btnPlayTimeline24h" onclick="window.reproducirTimeline24hSpot ? window.reproducirTimeline24hSpot() : null" class="h-8 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-slate-700/80 active:scale-95" title="Reproducir evolución 24h">
+                            <span>▶️</span>
+                        </button>
+                        <span id="timelineScrubberClock" class="font-mono text-xs text-sky-400 font-bold px-2 py-1 rounded-lg bg-slate-950/80 border border-slate-800">--:--</span>
                         <button type="button" id="btnTimelineAbrirPro" onclick="abrirSpotActualEnPlanificadorPro()" class="ps-chip text-emerald-300 border-emerald-500/40 bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95">
                             <span>🗺️</span> <span>Abrir en Planificador Pro</span>
                         </button>
@@ -866,14 +870,9 @@
                             </div>
 
                             <div id="mapContainer" class="h-[460px] lg:h-[640px] w-full relative z-0 bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-700/80">
-                                <input type="file" id="inputImportarGpxPro" aria-label="Importar archivo de travesía GPX" accept=".gpx" class="hidden" onchange="window.importarRutaGPXPro ? window.importarRutaGPXPro(event) : null">
+                                <input type="file" id="inputImportarGpxPro" aria-label="Importar archivo de travesía GPX o TCX" accept=".gpx,.tcx" class="hidden" onchange="window.importarRutaGPXPro ? window.importarRutaGPXPro(event) : null">
 
-                                <div id="leyendaMapa" class="absolute top-20 left-3 z-[400] bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl p-3 shadow-2xl text-[10px] sm:text-xs pointer-events-none hidden flex-col gap-1.5 w-[140px]">
-                                    <p class="font-black text-slate-300 border-b border-slate-700 pb-1 mb-1 uppercase tracking-widest text-center">Resistencia</p>
-                                    <div class="flex items-center gap-2"><span class="w-5 h-1 border-t-2 border-dashed border-emerald-500"></span><span class="text-white font-bold">A favor 🟢</span></div>
-                                    <div class="flex items-center gap-2"><span class="w-5 h-1 border-t-2 border-dashed border-yellow-500"></span><span class="text-white font-bold">Lateral 🟡</span></div>
-                                    <div class="flex items-center gap-2"><span class="w-5 h-1 border-t-2 border-dashed border-red-500"></span><span class="text-white font-bold">En contra 🔴</span></div>
-                                </div>
+
                                 
                                 <!-- BARRA SEGMENTADA MULTIPUNTO DESIGN SYSTEM 3.0 -->
                                 <div id="multipuntoToolbar" class="hidden absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 z-[400] ps-bento-card ps-map-dock p-1.5 gap-1.5 border border-slate-700/80 flex items-center shadow-2xl backdrop-blur-xl max-w-[95%] overflow-x-auto [&::-webkit-scrollbar]:hidden" style="scrollbar-width: none; -ms-overflow-style: none;">
@@ -913,27 +912,6 @@
                                     </div>
                                 </div>
 
-                                <div id="panelQuedadaMap" class="hidden absolute ps-floating-panel-top top-[105px] left-3 right-3 sm:left-3 sm:right-auto sm:w-[340px] z-[450] bg-slate-900/95 backdrop-blur-md border border-indigo-500/50 rounded-2xl p-3 shadow-2xl text-white">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <div class="min-w-0">
-                                            <h4 class="text-[11px] font-black uppercase tracking-wider text-water">⛵ Planificar quedada</h4>
-                                            <p id="quedadaIndicacionMapa" class="text-[10px] text-slate-300 mt-0.5">Toca el mapa para marcar el primer punto</p>
-                                        </div>
-                                        <button type="button" onclick="cancelarCreacionQuedadaClub()" aria-label="Cancelar quedada" class="shrink-0 w-10 h-10 text-slate-300 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer">✕</button>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-2 mt-2">
-                                        <div class="flex items-center gap-3 text-[10px] font-bold">
-                                            <span><span id="quedadaPuntosCount" class="text-water">0</span> <span id="quedadaPuntosLabel">puntos</span></span>
-                                            <span id="quedadaDistanciaKm" class="text-emerald-400">0.00 km</span>
-                                            <span id="quedadaTiempoMin" class="text-amber-400">0 min</span>
-                                        </div>
-                                        <button type="button" onclick="mostrarFormularioQuedada()" class="shrink-0 px-3 h-10 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wide rounded-xl transition-colors cursor-pointer">
-                                            Datos
-                                        </button>
-                                    </div>
-                                </div>
-
-                                
                                 <!-- FLOATING BASE LAYER SWITCHER (UI 5.0) -->
                                 <div id="mapLayerSwitcher" class="absolute top-3 right-3 z-[400] flex items-center p-1 bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-700/80 shadow-2xl text-[11px] font-bold">
                                     <button type="button" data-map-layer="nautico" onclick="window.cambiarCapaBaseMapa('nautico')" class="ps-map-layer-pill px-2.5 py-1 rounded-lg transition-all cursor-pointer bg-sky-500/30 text-sky-300 border border-sky-400 font-bold" title="CARTO Voyager HD + Balizamiento OpenSeaMap">
@@ -947,30 +925,60 @@
                                     </button>
                                 </div>
 
-                                <!-- ADVANCED RADAR COCKPIT CONTROL & TELEMETRY (PADDLESAFE RADAR ENGINE) -->
-                                <div id="radarCockpitPanel" class="hidden absolute ps-floating-panel-top top-[105px] left-3 right-3 sm:left-3 sm:right-auto sm:w-[350px] z-[410] bg-slate-900/95 backdrop-blur-xl border border-sky-500/50 rounded-2xl p-3 shadow-2xl text-white flex flex-col gap-2.5 transition-all animate-fadeIn">
-                                    <!-- Header with 10-Second Quick Verdict & Collapse Controls -->
-                                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-lg">📡</span>
-                                            <div>
-                                                <h4 class="text-xs font-black uppercase tracking-wider text-sky-300">Radar Marítimo Avanzado</h4>
-                                                <p id="radarVerdictSubtitle" class="text-[10px] text-slate-400 font-semibold truncate max-w-[190px]">Análisis meteorológico y de deriva SUP</p>
+                                <!-- CONTENEDOR ENVOLVENTE SUPERIOR (FLEXBOX COLUMN ANTI-SOLAPAMIENTO PC Y MÓVIL) -->
+                                <div id="mapTopPanelsWrapper" class="map-overlay-top map-top-panels-wrapper absolute top-[105px] left-3 right-3 sm:left-3 sm:right-auto sm:w-[350px] z-[1000] pointer-events-none flex flex-col gap-2 max-h-[calc(100%-120px)] overflow-y-auto [&::-webkit-scrollbar]:hidden" style="scrollbar-width: none; -ms-overflow-style: none;">
+                                    
+                                    <!-- 1. Leyenda Táctica del Mapa -->
+                                    <div id="leyendaMapa" class="absolute top-20 left-3 z-[400] bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl p-3 shadow-2xl text-[10px] sm:text-xs pointer-events-auto hidden flex-col gap-1.5 w-[140px]">
+                                        <p class="font-black text-slate-300 border-b border-slate-700 pb-1 mb-1 uppercase tracking-widest text-center">Resistencia</p>
+                                        <div class="flex items-center gap-2"><span class="w-5 h-1 border-t-2 border-dashed border-emerald-500"></span><span class="text-white font-bold">A favor 🟢</span></div>
+                                        <div class="flex items-center gap-2"><span class="w-5 h-1 border-t-2 border-dashed border-yellow-500"></span><span class="text-white font-bold">Lateral 🟡</span></div>
+                                        <div class="flex items-center gap-2"><span class="w-5 h-1 border-t-2 border-dashed border-red-500"></span><span class="text-white font-bold">En contra 🔴</span></div>
+                                    </div>
+
+                                    <!-- 2. Panel Flotante de Quedada / Multipunto -->
+                                    <div id="panelQuedadaMap" class="hidden absolute ps-floating-panel-top top-[105px] left-3 right-3 sm:left-3 sm:right-auto sm:w-[340px] z-[450] bg-slate-900/95 backdrop-blur-md border border-indigo-500/50 rounded-2xl p-3 shadow-2xl text-white pointer-events-auto">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <div class="min-w-0">
+                                                <h4 class="text-[11px] font-black uppercase tracking-wider text-water">⛵ Planificar quedada</h4>
+                                                <p id="quedadaIndicacionMapa" class="text-[10px] text-slate-300 mt-0.5">Toca el mapa para marcar el primer punto</p>
                                             </div>
+                                            <button type="button" onclick="cancelarCreacionQuedadaClub()" aria-label="Cancelar quedada" class="shrink-0 w-10 h-10 text-slate-300 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer">✕</button>
                                         </div>
-                                        <div class="flex items-center gap-1.5">
-                                            <span id="radarVerdictBadge" class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">🟢 Excelente</span>
-                                            <button type="button" id="btnCollapseRadarCockpit" onclick="window.toggleColapsoRadarCockpit()" class="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white font-bold cursor-pointer text-xs transition-colors" aria-label="Minimizar o expandir panel de radar" title="Colapsar panel radar" aria-expanded="true">
-                                                <svg id="iconCollapseRadarCockpit" class="w-3.5 h-3.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                                        <div class="flex items-center justify-between gap-2 mt-2">
+                                            <div class="flex items-center gap-3 text-[10px] font-bold">
+                                                <span><span id="quedadaPuntosCount" class="text-water">0</span> <span id="quedadaPuntosLabel">puntos</span></span>
+                                                <span id="quedadaDistanciaKm" class="text-emerald-400">0.00 km</span>
+                                                <span id="quedadaTiempoMin" class="text-amber-400">0 min</span>
+                                            </div>
+                                            <button type="button" onclick="mostrarFormularioQuedada()" class="shrink-0 px-3 h-10 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wide rounded-xl transition-colors cursor-pointer">
+                                                Datos
                                             </button>
-                                            <button type="button" onclick="document.getElementById('radarCockpitPanel')?.classList.add('hidden')" class="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white font-bold cursor-pointer text-xs transition-colors" title="Minimizar panel radar" aria-label="Cerrar panel radar">✕</button>
                                         </div>
                                     </div>
 
-                                    <!-- Collapsible Cockpit Body -->
-                                    <div id="radarCockpitBody" class="flex flex-col gap-2.5 transition-all">
+                                    <!-- 3. Radar Marítimo Cockpit (Compact Top Pill Bar Estilo Windy) -->
+                                    <div id="radarCockpitPanel" class="hidden absolute ps-floating-panel-top top-[105px] left-3 right-3 sm:left-3 sm:right-auto sm:w-[350px] z-[410] bg-slate-900/95 backdrop-blur-xl border border-sky-500/50 rounded-2xl p-2.5 shadow-2xl text-white flex flex-col gap-2 transition-all animate-fadeIn pointer-events-auto">
+                                        <!-- Header with Quick Verdict & Collapse Controls -->
+                                        <div class="flex items-center justify-between gap-1.5 border-b border-slate-800 pb-1.5">
+                                            <div class="flex items-center gap-1.5 min-w-0">
+                                                <span class="text-sm shrink-0">📡</span>
+                                                <div>
+                                                    <h4 class="text-xs font-black uppercase tracking-wider text-sky-300 truncate">Radar Marítimo Avanzado</h4>
+                                                    <p id="radarVerdictSubtitle" class="text-[9px] text-slate-400 font-semibold truncate max-w-[170px]">Análisis meteorológico y de deriva SUP</p>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-1 shrink-0">
+                                                <span id="radarVerdictBadge" class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">🟢 Excelente</span>
+                                                <button type="button" id="btnCollapseRadarCockpit" onclick="window.toggleColapsoRadarCockpit()" class="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white font-bold cursor-pointer text-xs transition-colors" aria-label="Minimizar o expandir panel de radar" title="Colapsar panel radar" aria-expanded="true">
+                                                    <svg id="iconCollapseRadarCockpit" class="w-3.5 h-3.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                                                </button>
+                                                <button type="button" onclick="if (typeof window.desactivarModoRadar === 'function') { window.desactivarModoRadar(); } else { document.getElementById('radarCockpitPanel')?.classList.add('hidden'); }" class="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white font-bold cursor-pointer text-xs transition-colors" title="Minimizar panel radar" aria-label="Cerrar panel radar">✕</button>
+                                            </div>
+                                        </div>
+
                                         <!-- Layer Toggles Bar (Viento, Lluvia, Oleaje, Deriva) -->
-                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                        <div id="radarCockpitBody" class="flex items-center gap-1.5 flex-wrap">
                                             <button type="button" id="btnRadarLayerWind" onclick="window.toggleCapaRadar('viento')" class="ps-chip ps-quick-pill text-[10px] font-bold text-sky-200 bg-sky-500/20 border-sky-400/50 active:scale-95 cursor-pointer ps-chip-active active" title="Capa de viento y vectores de intensidad">
                                                 <span>💨</span> <span>Viento</span>
                                             </button>
@@ -984,53 +992,40 @@
                                                 <span>🧭</span> <span>Deriva</span>
                                             </button>
                                         </div>
-
-                                        <!-- Active telemetry inspector for clicked / active coordinate -->
-                                        <div id="radarPointInspector" class="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-1.5 text-[11px]">
-                                            <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold border-b border-slate-800/80 pb-1">
-                                                <span id="radarInspectorCoords">📍 Punto: --, --</span>
-                                                <span id="radarInspectorBias" class="text-amber-300">Offshore / Onshore</span>
-                                            </div>
-                                            <div class="grid grid-cols-2 gap-2">
-                                                <div>
-                                                    <span class="text-[9px] uppercase font-bold text-slate-400 block">💨 Viento:</span>
-                                                    <span id="radarInspectorWind" class="font-bold text-white">-- kt</span>
-                                                </div>
-                                                <div>
-                                                    <span class="text-[9px] uppercase font-bold text-slate-400 block">🌊 Mar / Swell:</span>
-                                                    <span id="radarInspectorWave" class="font-bold text-white">-- m</span>
-                                                </div>
-                                                <div>
-                                                    <span class="text-[9px] uppercase font-bold text-slate-400 block">🌧️ Precipitación:</span>
-                                                    <span id="radarInspectorRain" class="font-bold text-white">0.0 mm/h (0%)</span>
-                                                </div>
-                                                <div>
-                                                    <span class="text-[9px] uppercase font-bold text-purple-300 block">🧭 Deriva Neta:</span>
-                                                    <span id="radarInspectorDrift" class="font-bold text-purple-200">-- kt (--)</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Dynamic Continuous Color Scale Legend -->
-                                        <div id="radarColorScaleLegend" class="flex flex-col gap-1 pt-1.5 border-t border-slate-800/80 text-[10px]">
-                                            <!-- Dynamically populated by window.actualizarLeyendaEscalaRadar -->
-                                        </div>
-
-                                        <!-- Opacity slider & controls footer -->
-                                        <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800">
-                                            <div class="flex items-center gap-1.5">
-                                                <span>Opacidad:</span>
-                                                <button type="button" onclick="window.ajustarOpacidadRadar(0.5)" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">50%</button>
-                                                <button type="button" onclick="window.ajustarOpacidadRadar(0.75)" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">75%</button>
-                                                <button type="button" onclick="window.ajustarOpacidadRadar(1.0)" class="px-1.5 py-0.5 rounded bg-sky-900/60 text-sky-300 font-bold cursor-pointer">100%</button>
-                                            </div>
-                                            <button type="button" onclick="window.actualizarCapasRadar()" class="text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 cursor-pointer">
-                                                <span>🔄</span> <span>Actualizar</span>
-                                            </button>
-                                        </div>
                                     </div>
                                 </div>
-                                <div id="mapWindWaveHud" class="hidden absolute ps-map-telemetry-hud bottom-6 right-3 sm:bottom-6 sm:right-4 z-[400] bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 shadow-2xl text-white pointer-events-auto flex flex-col gap-1 min-w-[140px] max-w-[200px] transition-all">
+
+                                <!-- 4. RADAR BOTTOM BAR (HORIZONTAL TRANSLUCENT DOCK ESTILO WINDY) -->
+                                <div id="radarBottomBar" class="hidden absolute bottom-3 left-3 right-3 sm:left-4 sm:right-auto sm:max-w-[720px] z-[1010] bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2 sm:p-2.5 shadow-2xl text-white pointer-events-auto flex flex-col sm:flex-row items-center gap-2.5 transition-all animate-fadeIn">
+                                    <!-- Active Point Telemetry Section -->
+                                    <div id="radarPointInspector" class="flex items-center gap-2.5 text-[10px] shrink-0 flex-wrap sm:flex-nowrap border-b sm:border-b-0 sm:border-r border-slate-800 pb-1 sm:pb-0 sm:pr-2.5">
+                                        <div class="flex items-center gap-1 font-mono text-slate-300">
+                                            <span id="radarInspectorCoords">📍 Punto: --, --</span>
+                                            <span id="radarInspectorBias" class="text-amber-300 font-bold ml-1">Offshore</span>
+                                        </div>
+                                        <div class="flex items-center gap-2 font-mono">
+                                            <span class="text-sky-300 font-bold">💨 <span id="radarInspectorWind">-- kt</span></span>
+                                            <span class="text-teal-300 font-bold">🌊 <span id="radarInspectorWave">-- m</span></span>
+                                            <span class="text-blue-300">🌧️ <span id="radarInspectorRain">0 mm/h</span></span>
+                                            <span class="text-purple-300 font-bold">🧭 <span id="radarInspectorDrift">-- kt</span></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Dynamic Continuous Color Scale Legend -->
+                                    <div id="radarColorScaleLegend" class="flex-1 min-w-[190px] w-full text-[9px]">
+                                        <!-- Dynamically populated by window.actualizarLeyendaEscalaRadar -->
+                                    </div>
+
+                                    <!-- Opacity & Controls -->
+                                    <div class="flex items-center gap-1.5 text-[9px] text-slate-400 shrink-0">
+                                        <span class="hidden sm:inline">Opac:</span>
+                                        <button type="button" onclick="window.ajustarOpacidadRadar(0.5)" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">50%</button>
+                                        <button type="button" onclick="window.ajustarOpacidadRadar(0.75)" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">75%</button>
+                                        <button type="button" onclick="window.ajustarOpacidadRadar(1.0)" class="px-1.5 py-0.5 rounded bg-sky-900/60 text-sky-300 font-bold cursor-pointer">100%</button>
+                                        <button type="button" onclick="window.actualizarCapasRadar()" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 font-bold cursor-pointer" title="Actualizar datos">🔄</button>
+                                    </div>
+                                </div>
+                                <div id="mapWindWaveHud" class="hidden absolute ps-map-telemetry-hud bottom-[74px] sm:bottom-6 right-3 sm:right-4 z-[400] bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 shadow-2xl text-white pointer-events-auto flex flex-col gap-1 min-w-[140px] max-w-[200px] transition-all">
                                     <div class="flex items-center justify-between border-b border-slate-700/60 pb-1 text-[10px] font-bold text-slate-300">
                                         <span class="flex items-center gap-1">🧭 <span id="hudPointName" class="truncate max-w-[85px]">Spot</span></span>
                                         <div class="flex items-center gap-1">
@@ -1198,6 +1193,20 @@
 
                         <!-- DASHBOARD PREMIUM -->
                         <div id="proDashboardResumen" class="bg-slate-900 rounded-2xl p-1 shadow-2xl border border-slate-700 hidden flex-col w-full">
+                            <!-- PANEL DE ACCIÓN RÁPIDA: MODIFICAR RUTA O SALIDA (REUBICADO INMEDIATAMENTE BAJO EL MAPA) -->
+                            <div id="panelModificarRuta" class="p-3.5 sm:p-4 w-full bg-slate-900 border-b border-slate-800 rounded-t-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <span class="text-lg sm:text-xl shrink-0">🧭</span>
+                                    <div class="truncate">
+                                        <h4 class="text-xs sm:text-sm font-black text-white uppercase tracking-wider block truncate">Análisis Pro de Travesía</h4>
+                                        <p class="text-[10px] text-slate-400 font-medium block truncate">Condiciones tácticas de tu ruta calculada</p>
+                                    </div>
+                                </div>
+                                <button type="button" id="btnVolverPlanificador" onclick="volverPlanificadorPro()" class="w-full sm:w-auto h-11 px-5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs uppercase tracking-widest active:scale-95 transition-colors border border-slate-700 cursor-pointer flex items-center justify-center gap-2 shrink-0 shadow-sm">
+                                    <span>🔄</span> <span>Modificar Ruta o Salida</span>
+                                </button>
+                            </div>
+
                             
                             <!-- CONTENEDOR SUPERIOR DE ALERTAS OFICIALES AEMET / 112 CV -->
                             <div id="proAlertTopContainer" class="w-full flex flex-col gap-2 p-4 pb-0 empty:hidden" aria-live="assertive"></div>
@@ -1328,7 +1337,7 @@
                                 </div>
                             </div>
 
-                            <div class="p-5 w-full bg-slate-900 rounded-b-xl">
+                            <div id="proTramoDetalle" class="p-5 w-full bg-slate-900 rounded-b-xl">
                                 <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-800 pb-1" id="proTituloTramos">Análisis por Tramos</h4>
                                 <div id="proDashTramosContainer" class="flex flex-col gap-2 w-full mb-4"></div>
                                 <button type="button" onclick="volverPlanificadorPro()" class="w-full h-11 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs uppercase tracking-widest active:scale-95 transition-colors border border-slate-700 cursor-pointer">🔄 Modificar Ruta o Salida</button>
@@ -1514,7 +1523,7 @@
                 <button type="button" aria-label="Cerrar perfil" onclick="goBackSPA()" class="absolute top-4 left-4 ps-modal-close-btn" title="Volver">
                     <svg class="w-5 h-5 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
                 </button>
-                <img id="spaAvatar" alt="Avatar del deportista" src="" class="w-20 h-20 rounded-full mx-auto mb-2 object-cover border-4 border-white dark:border-slate-800 shadow-md">
+                <img id="spaAvatar" alt="Avatar del deportista" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%230284c7'/%3E%3Ctext x='50' y='62' font-size='38' text-anchor='middle' fill='white'%3E%F0%9F%8F%84%3C/text%3E%3C/svg%3E" class="w-20 h-20 rounded-full mx-auto mb-2 object-cover border-4 border-white dark:border-slate-800 shadow-md">
                 <h2 id="modalUserName" class="text-xl sm:text-2xl font-black text-marine dark:text-white mt-1">Cargando...</h2>
                 <p id="spaUserLevel" class="text-[10px] font-bold text-water uppercase tracking-widest mt-0.5 mb-2">Nivel --</p>
                 <div id="spaBtnContainer" class="flex justify-center items-center gap-2 mt-1 mb-3 empty:hidden"></div>
@@ -1661,7 +1670,7 @@
     </div>
 
     <!-- LIGHTBOX POSTER FINISHER FULLSCREEN -->
-    <div id="posterFinisherLightbox" class="fixed inset-0 z-[130] hidden bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+    <div id="posterFinisherLightbox" class="fixed inset-0 z-[130] hidden ps-modal-backdrop bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div id="posterFinisherContent" class="relative max-w-xl w-full flex flex-col items-center gap-3"></div>
     </div>
 
@@ -2068,6 +2077,7 @@
                 const data = await response.json();
                 if (typeof data.hash !== 'string' || !data.hash) throw new Error('version.json no contiene un hash válido.');
                 appVersion = data.hash;
+                window.__APP_VERSION__ = data.version || '6.0.0';
                 
                 // 2. Comprobar versión instalada
                 const currentHash = localStorage.getItem('paddlesafe_version');
@@ -2104,9 +2114,55 @@
                         mostrarErrorCargaApp();
                         return;
                     }
-                    const destUrl = new URL(window.location.href);
-                    destUrl.searchParams.set('force_update', Date.now().toString());
-                    window.location.replace(destUrl.toString());
+                    window.aplicarActualizacionPwa();
+                };
+
+                // Notificación suave de actualización PWA sin romper la sesión activa
+                window.mostrarNotificacionActualizacionPwa = function(nuevaVersion = 'v6.00') {
+                    if (document.getElementById('pwaUpdateToast')) return;
+                    const enGrabacion = Boolean(window.appState?.trackerActivo || document.getElementById('liveTrackingPanel')?.classList.contains('hidden') === false);
+                    if (enGrabacion) {
+                        return;
+                    }
+                    const toast = document.createElement('div');
+                    toast.id = 'pwaUpdateToast';
+                    toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[9999] bg-slate-900/95 text-white border border-sky-500/50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-md animate-in fade-in slide-in-from-top-4 transition-all duration-300 max-w-[92vw] sm:max-w-md';
+                    toast.innerHTML = `
+                        <span class="text-xl shrink-0">✨</span>
+                        <div class="flex-1 min-w-0 text-left">
+                            <p class="text-xs font-black text-sky-400 uppercase tracking-wider">Actualización Disponible</p>
+                            <p class="text-[11px] text-slate-300 leading-tight truncate">Nueva versión de PaddleSafe (${nuevaVersion}) lista.</p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button type="button" id="btnPwaUpdateAceptar" class="px-3 py-1.5 bg-gradient-to-r from-sky-500 to-water hover:from-sky-400 hover:to-cyan-400 text-white font-bold text-xs rounded-xl shadow active:scale-95 transition-transform cursor-pointer">Actualizar</button>
+                            <button type="button" id="btnPwaUpdateDescartar" class="text-slate-400 hover:text-white p-1 text-sm cursor-pointer" title="Descartar">✕</button>
+                        </div>
+                    `;
+                    document.body.appendChild(toast);
+                    document.getElementById('btnPwaUpdateAceptar')?.addEventListener('click', () => window.aplicarActualizacionPwa());
+                    document.getElementById('btnPwaUpdateDescartar')?.addEventListener('click', () => toast.remove());
+                };
+
+                window.aplicarActualizacionPwa = function(nuevoHash) {
+                    window._pwaUserRequestedReload = true;
+                    const toast = document.getElementById('pwaUpdateToast');
+                    if (toast) {
+                        toast.innerHTML = '<span class="text-xs font-bold text-sky-300 animate-pulse">Aplicando actualización de PaddleSafe...</span>';
+                    }
+                    if (nuevoHash) {
+                        localStorage.setItem('paddlesafe_version', nuevoHash);
+                    }
+                    if (navigator.serviceWorker) {
+                        navigator.serviceWorker.getRegistration().then(reg => {
+                            if (reg && reg.waiting) {
+                                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                            } else {
+                                window.location.reload();
+                            }
+                        }).catch(() => window.location.reload());
+                    } else {
+                        window.location.reload();
+                    }
                 };
 
                 // 4. Registrar el Service Worker
@@ -2116,38 +2172,38 @@
                             if (typeof reg.update === 'function') {
                                 reg.update().catch(() => {});
                             }
-                            // Escuchar cuando el SW detecta una nueva versión byte a byte
                             reg.onupdatefound = () => {
                                 const installingWorker = reg.installing;
                                 if (!installingWorker) return;
                                 installingWorker.onstatechange = () => {
                                     if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                        // Nueva versión detectada por el navegador. Forzamos chequeo de version.json
-                                        fetch(`/version.json?t=${new Date().getTime()}`, { cache: "no-store" })
+                                        fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' })
                                             .then(r => r.json())
-                                            .then(async newData => {
+                                            .then(newData => {
                                                 if (newData.hash && newData.hash !== localStorage.getItem('paddlesafe_version')) {
-                                                    if ('caches' in window) {
-                                                        const cacheKeys = await caches.keys();
-                                                        await Promise.all(cacheKeys
-                                                            .filter(key => key.startsWith('paddlesafe-'))
-                                                            .map(key => caches.delete(key)));
-                                                    }
-                                                    localStorage.removeItem('paddlesafe_version');
-                                                    const destUrl = new URL(window.location.href);
-                                                    destUrl.searchParams.set('v', newData.hash);
-                                                    window.location.replace(destUrl.toString());
+                                                    window.mostrarNotificacionActualizacionPwa(newData.version || newData.hash);
                                                 }
-                                            });
+                                            })
+                                            .catch(() => window.mostrarNotificacionActualizacionPwa());
                                     }
                                 };
                             };
                         });
                     });
 
+                    // Notificación suave ante activación de Service Worker
+                    navigator.serviceWorker.addEventListener('message', event => {
+                        if (event.data && (event.data.type === 'SW_ACTIVATED' || event.data.type === 'SW_UPDATE_AVAILABLE')) {
+                            const cur = localStorage.getItem('paddlesafe_version');
+                            if (!cur || cur !== event.data.version) {
+                                window.mostrarNotificacionActualizacionPwa(event.data.version);
+                            }
+                        }
+                    });
+
                     let refreshing = false;
                     navigator.serviceWorker.addEventListener('controllerchange', () => {
-                        if (!refreshing) {
+                        if (window._pwaUserRequestedReload && !refreshing) {
                             refreshing = true;
                             window.location.reload();
                         }
