@@ -41,7 +41,7 @@ it('version.json contiene version y hash válidos', () => {
     const data = JSON.parse(fs.readFileSync(vJsonPath, 'utf8'));
     assert.ok(data.version, 'version.json debe tener campo version');
     assert.ok(data.hash, 'version.json debe tener campo hash');
-    assert.equal(data.hash, 'paddlesafe-v604', 'El hash debe coincidir con paddlesafe-v604');
+    assert.equal(data.hash, 'paddlesafe-v605', 'El hash debe coincidir con paddlesafe-v604');
 });
 
 it('sw.js define VERSION alineado exactamente con version.json', () => {
@@ -51,7 +51,7 @@ it('sw.js define VERSION alineado exactamente con version.json', () => {
 
     const vMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
     assert.ok(vMatch, 'sw.js debe definir const VERSION');
-    assert.equal(vMatch[1], 'paddlesafe-v604', 'VERSION en sw.js debe ser paddlesafe-v604');
+    assert.equal(vMatch[1], 'paddlesafe-v605', 'VERSION en sw.js debe ser paddlesafe-v604');
 });
 
 it('manifest.json es válido y referencia iconos existentes con purpose maskable', () => {

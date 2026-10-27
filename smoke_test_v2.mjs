@@ -124,7 +124,7 @@ const swContent = fs.readFileSync(swPath, 'utf8');
 const versionMatch = swContent.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
 const expectedSwVersion = versionMatch ? versionMatch[1] : null;
 
-assert(expectedSwVersion === 'paddlesafe-v604', `sw.js version must be paddlesafe-v604, got: ${expectedSwVersion}`);
+assert(expectedSwVersion === 'paddlesafe-v605', `sw.js version must be paddlesafe-v604, got: ${expectedSwVersion}`);
 
 if (fs.existsSync(versionJsonPath)) {
     let vJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
@@ -1613,7 +1613,7 @@ const coachJsUpdated = fs.readFileSync(coachJsPath, 'utf8');
 assert(coachJsUpdated.includes('cond.sinDatos'), 'coach.js must handle missing weather data');
 
 assert(!indexHtml.includes('https://cdn.tailwindcss.com'), 'index.html must not load duplicate CDN tailwind script');
-assert(indexHtml.includes('tailwind.min.css?v=paddlesafe-v604'), 'index.html must link tailwind.min.css?v=paddlesafe-v604');
+assert(indexHtml.includes('tailwind.min.css?v=paddlesafe-v605'), 'index.html must link tailwind.min.css?v=paddlesafe-v605');
 assert(indexHtml.includes('reg.update()'), 'index.html must call reg.update() on SW registration');
 
 // Runtime validation of circular mean

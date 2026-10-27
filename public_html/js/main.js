@@ -1548,3 +1548,6 @@ if (typeof window !== 'undefined') {
         autoInitDesktopMap();
     }
 }
+
+export function irInicioApp() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+window.irInicioApp = irInicioApp;
