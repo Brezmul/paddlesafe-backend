@@ -715,6 +715,9 @@ export async function consultarRutaPro() {
 
 export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, lat, lon, fechaD) {
     mapRuntime.datosMeteoActuales = dx;
+    const timeParts = (horaSalida || '10:00').split(':');
+    const hhInicio = parseInt(timeParts[0], 10) || 0;
+    const mmInicio = parseInt(timeParts[1], 10) || 0;
     const wkVal = valorNumericoMeteo(dx.windSpeed, dx.wind_speed);
     const windKmh = wkVal === null ? null : wkVal * 3.6;
     const windKnots = kmhANudos(windKmh);
@@ -774,9 +777,7 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
         const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; let rutArray = [...coords];
         if ((mapRuntime.modoTravesiaActivo || coords.length === 2) && coords.length === 2) rutArray.push(coords[0]);
         
-        const timeParts = horaSalida.split(':');
-        const hhInicio = parseInt(timeParts[0], 10) || 0;
-        const mmInicio = parseInt(timeParts[1], 10) || 0;
+        
         let minutosTranscurridos = 0;
 
         for(let i = 0; i < rutArray.length - 1; i++) {
@@ -934,10 +935,7 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
 
     // Guardia astronómica de ocaso para la ruta
     const solar = calcularSolYCrepusculo(lat, lon, fechaD);
-    const salidaParts = (horaSalida || '10:00').split(':');
-    const hhInicioSalida = parseInt(salidaParts[0], 10) || 0;
-    const mmInicioSalida = parseInt(salidaParts[1], 10) || 0;
-    const inicioMin = hhInicioSalida * 60 + mmInicioSalida;
+    const inicioMin = hhInicio * 60 + mmInicio;
     const duracionMin = esRutaTrazada ? Math.round(tt) : 60;
     const retornoMin = inicioMin + duracionMin;
     const hayRiesgoOcaso = esRutaTrazada && (retornoMin >= (solar.sunsetMin - 30));

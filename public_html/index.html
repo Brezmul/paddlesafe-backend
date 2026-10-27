@@ -21,7 +21,7 @@
     <link rel="manifest" href="/manifest.json">
     
     <!-- Tailwind CSS (Compilado localmente para offline y rendimiento de producción) -->
-    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v602">
+    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v603">
 
     <!-- Leaflet CSS y JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -2134,7 +2134,7 @@
                 };
 
                 // Notificación suave de actualización PWA sin romper la sesión activa
-                window.mostrarNotificacionActualizacionPwa = function(nuevaVersion = 'v6.02') {
+                window.mostrarNotificacionActualizacionPwa = function(nuevaVersion = 'v6.03') {
                     if (document.getElementById('pwaUpdateToast')) return;
                     const enGrabacion = Boolean(window.appState?.trackerActivo || document.getElementById('liveTrackingPanel')?.classList.contains('hidden') === false);
                     if (enGrabacion) {

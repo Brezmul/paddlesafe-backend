@@ -26,6 +26,22 @@ export function toggleRutaLibre() {
     if (mapRuntime.modoTravesiaActivo && typeof window.toggleModoTravesia === 'function') {
         window.toggleModoTravesia();
     }
+
+    const bTerminar = document.getElementById('btnRutaLibre');
+    if (mapRuntime.modoRutaLibreActivo && mapRuntime.marcadoresRuta.length >= 2 && bTerminar && bTerminar.innerHTML.includes('Terminar Trazado')) {
+        const panelPro = document.getElementById("panelPro");
+        if (panelPro && panelPro.style.gridTemplateRows === "0fr") {
+            panelPro.style.gridTemplateRows = "1fr";
+        }
+        bTerminar.innerHTML = "✍️ Nueva Ruta";
+        bTerminar.classList.replace('bg-red-500', 'bg-teal-600');
+        bTerminar.classList.replace('hover:bg-red-400', 'hover:bg-teal-500');
+        if (typeof window.consultarRutaPro === 'function') {
+            window.consultarRutaPro();
+        }
+        return;
+    }
+
     mapRuntime.modoRutaLibreActivo = !mapRuntime.modoRutaLibreActivo;
     const b = document.getElementById('btnRutaLibre');
     const msg = document.getElementById('mapMsg');
@@ -272,8 +288,6 @@ export function gestionarClicRutaLibre(l) {
         const btnLibre = document.getElementById('btnRutaLibre');
         if (btnLibre) btnLibre.innerHTML = "✅ Terminar Trazado";
         renderPreviewRuta();
-        const msg = document.getElementById('mapMsg');
-        if (msg) msg.textContent = "Añade más puntos o calcula la ruta abajo.";
     }
     if (mapRuntime.modoQuedadaClubActivo) {
         actualizarMetricasQuedada();
