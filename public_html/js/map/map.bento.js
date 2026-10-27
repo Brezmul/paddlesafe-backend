@@ -687,7 +687,7 @@ export async function consultarRutaPro() {
         let dt = 0;
         const coords = mapRuntime.marcadoresRuta.map(m => m.getLatLng());
         let rutArray = [...coords];
-        if (mapRuntime.modoTravesiaActivo && coords.length === 2) rutArray.push(coords[0]);
+        if ((mapRuntime.modoTravesiaActivo || coords.length === 2) && coords.length === 2) rutArray.push(coords[0]);
         for(let i = 0; i < rutArray.length - 1; i++) {
             dt += rutArray[i].distanceTo(rutArray[i+1]);
         }
@@ -772,7 +772,7 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
         
         const dirVientoGeneral = valorNumericoMeteo(dx.windDirection, dx.wind_direction);
         const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; let rutArray = [...coords];
-        if (mapRuntime.modoTravesiaActivo && coords.length === 2) rutArray.push(coords[0]);
+        if ((mapRuntime.modoTravesiaActivo || coords.length === 2) && coords.length === 2) rutArray.push(coords[0]);
         
         const timeParts = horaSalida.split(':');
         const hhInicio = parseInt(timeParts[0], 10) || 0;
@@ -781,7 +781,7 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
 
         for(let i = 0; i < rutArray.length - 1; i++) {
             const dSeg = rutArray[i].distanceTo(rutArray[i+1]); dt += dSeg;
-            const nombreTramo = (mapRuntime.modoTravesiaActivo && rutArray.length === 3) ? (i === 0 ? "IDA 🟢" : "VUELTA 🔴") : `TRAMO ${letras[i]||i} ➔ ${letras[i+1]||(i+1)}`;
+            const nombreTramo = (rutArray.length === 3) ? (i === 0 ? "IDA 🟢" : "VUELTA 🔴") : `TRAMO ${letras[i]||i} ➔ ${letras[i+1]||(i+1)}`;
             
             const lat1 = rutArray[i].lat * Math.PI / 180, lon1 = rutArray[i].lng * Math.PI / 180;
             const lat2 = rutArray[i+1].lat * Math.PI / 180, lon2 = rutArray[i+1].lng * Math.PI / 180;
@@ -881,7 +881,8 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
         }
         
         document.getElementById('proDashTramosContainer').innerHTML = arrayHtmlTramos.join('');
-        document.getElementById('proTituloTramos').textContent = "Análisis por Tramos";
+        const esIdaVuelta = (rutArray.length === 3) || (rutArray.length >= 3 && rutArray[0].distanceTo(rutArray[rutArray.length - 1]) < 25);
+        document.getElementById('proTituloTramos').textContent = esIdaVuelta ? "Análisis de Tramos (Ida y Vuelta)" : "Análisis por Tramos";
         document.getElementById('proDistanciaTotal').textContent = `${(dt/1000).toFixed(2)} km`;
         document.getElementById('proTiempoTotal').textContent = formatearTiempo(tt);
         
@@ -1066,6 +1067,10 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
 
     document.getElementById('proPlanificador').classList.replace('flex','hidden');
     document.getElementById('proDashboardResumen').classList.remove('hidden'); document.getElementById('proDashboardResumen').classList.add('flex');
+    const dashResumen = document.getElementById('proDashboardResumen');
+    if (dashResumen) {
+        dashResumen.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
     const isoLlamada = `${fechaD}T${horaSalida}:00`;
     cargarPrevisionHorariaExacta(lat, lon, isoLlamada, tt > 0 ? tt : 120);
     solicitarCoachIAPro(dx, userLvl, dt, tt, lat, lon, fechaD, horaSalida, tramosParaCoach, motor);

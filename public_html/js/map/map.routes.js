@@ -101,6 +101,11 @@ export function limpiarRuta() {
         });
         mapRuntime.etiquetasDistancia.length = 0;
     }
+    const pillMetricas = document.getElementById('multipuntoMetricasRuta');
+    if (pillMetricas) {
+        pillMetricas.classList.add('hidden');
+        pillMetricas.classList.remove('flex');
+    }
     const contMulti = document.getElementById('proDashTramosContainer');
     if (contMulti) contMulti.innerHTML = "";
     const ploc = document.getElementById('proLocation');
@@ -169,14 +174,26 @@ export function gestionarClicRuta(l) {
         const p1 = marcadores[0].getLatLng();
         const p2 = marcadores[1].getLatLng();
         const dist = (p1.distanceTo(p2) / 1000).toFixed(2);
+        const distTotalIdaVuelta = (Number(dist) * 2).toFixed(2);
+        const vCrucero = typeof obtenerVelocidadCruceroUsuario === 'function' ? obtenerVelocidadCruceroUsuario() : 4.5;
+        const tiempoEstimadoMin = Math.round((Number(distTotalIdaVuelta) / vCrucero) * 60);
+
         const midLat = (p1.lat + p2.lat) / 2;
         const midLng = (p1.lng + p2.lng) / 2;
         const etiq = L.marker([midLat, midLng], {
-            icon: L.divIcon({ className: 'dist-label-map', html: `${dist} km`, iconSize: [null, null] })
+            icon: L.divIcon({ className: 'dist-label-map', html: `Ida: ${dist} km · Total: ${distTotalIdaVuelta} km`, iconSize: [null, null] })
         }).addTo(currentMap);
         mapRuntime.etiquetasDistancia.push(etiq);
         currentMap.fitBounds(mapRuntime.lineaRuta.getBounds(), { padding: [50, 50] });
-        if (msg) msg.textContent = "✅ Ruta marcada. Calcula abajo.";
+        if (msg) msg.textContent = `🔄 Ida y Vuelta: ${distTotalIdaVuelta} km · Tiempo est.: ${formatearTiempo(tiempoEstimadoMin)} · Calculando condiciones...`;
+
+        const panelPro = document.getElementById("panelPro");
+        if (panelPro && panelPro.style.gridTemplateRows === "0fr") {
+            panelPro.style.gridTemplateRows = "1fr";
+        }
+        if (typeof window.consultarRutaPro === 'function') {
+            window.consultarRutaPro();
+        }
     } else {
         // Permite corregir el Punto B sin borrar el Punto A
         currentMap.removeLayer(marcadores[1]);
@@ -201,17 +218,25 @@ export function gestionarClicRuta(l) {
         const p1 = marcadores[0].getLatLng();
         const p2 = marcadores[1].getLatLng();
         const dist = (p1.distanceTo(p2) / 1000).toFixed(2);
+        const distTotalIdaVuelta = (Number(dist) * 2).toFixed(2);
+        const vCrucero = typeof obtenerVelocidadCruceroUsuario === 'function' ? obtenerVelocidadCruceroUsuario() : 4.5;
+        const tiempoEstimadoMin = Math.round((Number(distTotalIdaVuelta) / vCrucero) * 60);
+
         const midLat = (p1.lat + p2.lat) / 2;
         const midLng = (p1.lng + p2.lng) / 2;
 
         const etiq = L.marker([midLat, midLng], {
-            icon: L.divIcon({ className: 'dist-label-map', html: `${dist} km`, iconSize: [null, null] })
+            icon: L.divIcon({ className: 'dist-label-map', html: `Ida: ${dist} km · Total: ${distTotalIdaVuelta} km`, iconSize: [null, null] })
         }).addTo(currentMap);
         mapRuntime.etiquetasDistancia.push(etiq);
         currentMap.fitBounds(mapRuntime.lineaRuta.getBounds(), { padding: [50, 50] });
+        if (msg) msg.textContent = `🔄 Ida y Vuelta: ${distTotalIdaVuelta} km · Tiempo est.: ${formatearTiempo(tiempoEstimadoMin)} · Calculando condiciones...`;
 
         const panelPro = document.getElementById("panelPro");
-        if (panelPro && panelPro.style.gridTemplateRows !== "0fr" && typeof window.consultarRutaPro === 'function') {
+        if (panelPro && panelPro.style.gridTemplateRows === "0fr") {
+            panelPro.style.gridTemplateRows = "1fr";
+        }
+        if (typeof window.consultarRutaPro === 'function') {
             window.consultarRutaPro();
         }
     }
@@ -241,7 +266,6 @@ export function gestionarClicRutaLibre(l) {
     const toolbar = document.getElementById('multipuntoToolbar');
     if (toolbar) toolbar.classList.replace('hidden', 'flex');
     document.getElementById('mapWindWaveHud')?.classList.add('hidden');
-    document.getElementById('multipuntoToolbar')?.classList.replace('flex', 'hidden');
     document.getElementById('radarBottomBar')?.classList.add('hidden');
 
     if (mapRuntime.marcadoresRuta.length > 1) {
@@ -338,7 +362,10 @@ export function cerrarIdaYVueltaMultipunto() {
         actualizarMetricasQuedada();
     } else {
         const panelPro = document.getElementById("panelPro");
-        if (panelPro && panelPro.style.gridTemplateRows !== "0fr" && typeof window.consultarRutaPro === 'function') {
+        if (panelPro && panelPro.style.gridTemplateRows === "0fr") {
+            panelPro.style.gridTemplateRows = "1fr";
+        }
+        if (typeof window.consultarRutaPro === 'function') {
             window.consultarRutaPro();
         }
     }
@@ -358,17 +385,52 @@ export function renderPreviewRuta() {
     mapRuntime.etiquetasDistancia.forEach(l => currentMap.removeLayer(l));
     mapRuntime.etiquetasDistancia.length = 0;
 
+    let distTotalMetros = 0;
     const c = mapRuntime.marcadoresRuta.map(m => m.getLatLng());
     for (let i = 0; i < c.length - 1; i++) {
-        const pl = L.polyline([c[i], c[i + 1]], { color: '#64748b', weight: 3, dashArray: '5,5' }).addTo(currentMap);
+        const d = c[i].distanceTo(c[i + 1]);
+        distTotalMetros += d;
+        const pl = L.polyline([c[i], c[i + 1]], { color: '#0ea5e9', weight: 4, dashArray: '5,5' }).addTo(currentMap);
         mapRuntime.lineasMultiPunto.push(pl);
-        const dist = (c[i].distanceTo(c[i + 1]) / 1000).toFixed(2);
+        const dist = (d / 1000).toFixed(2);
         const midLat = (c[i].lat + c[i + 1].lat) / 2;
         const midLng = (c[i].lng + c[i + 1].lng) / 2;
         const etiq = L.marker([midLat, midLng], {
             icon: L.divIcon({ className: 'dist-label-map', html: `${dist} km`, iconSize: [null, null] })
         }).addTo(currentMap);
         mapRuntime.etiquetasDistancia.push(etiq);
+    }
+
+    if (c.length >= 2) {
+        const totalKm = (distTotalMetros / 1000).toFixed(2);
+        const vCrucero = typeof obtenerVelocidadCruceroUsuario === 'function' ? obtenerVelocidadCruceroUsuario() : 4.5;
+        const tiempoMin = Math.round(((distTotalMetros / 1000) / vCrucero) * 60);
+
+        const esIdaYVueltaCerrada = c.length > 2 && c[0].distanceTo(c[c.length - 1]) < 25;
+        const msg = document.getElementById('mapMsg');
+        if (msg) {
+            if (esIdaYVueltaCerrada) {
+                msg.textContent = `🔄 Ruta Ida y Vuelta: ${totalKm} km · Tiempo est.: ${formatearTiempo(tiempoMin)}`;
+            } else {
+                msg.textContent = `📍 Trazado: ${totalKm} km (${c.length} pts) · Pulsa 'Ida y Vuelta' para cerrar el retorno`;
+            }
+        }
+
+        const pillMetricas = document.getElementById('multipuntoMetricasRuta');
+        const spanDist = document.getElementById('multipuntoDistTotal');
+        const spanTiempo = document.getElementById('multipuntoTiempoTotal');
+        if (pillMetricas && spanDist && spanTiempo) {
+            spanDist.textContent = `${totalKm} km`;
+            spanTiempo.textContent = formatearTiempo(tiempoMin);
+            pillMetricas.classList.remove('hidden');
+            pillMetricas.classList.add('flex');
+        }
+    } else {
+        const pillMetricas = document.getElementById('multipuntoMetricasRuta');
+        if (pillMetricas) {
+            pillMetricas.classList.add('hidden');
+            pillMetricas.classList.remove('flex');
+        }
     }
 }
 
@@ -1680,6 +1742,9 @@ export function iniciarReplayRuta(coordenadas, metadata = {}) {
         baseDurationSec: Math.max(15, Math.min(90, totalDistKm * 8)) // Duración visual de animación (15s a 90s a 1x)
     };
 
+    document.getElementById('multipuntoToolbar')?.classList.replace('flex', 'hidden');
+    document.getElementById('mapWindWaveHud')?.classList.add('hidden');
+    document.getElementById('radarBottomBar')?.classList.add('hidden');
     mapRuntime.replayProgress = 0;
     mapRuntime.replayIsPlaying = false;
     mapRuntime.replaySpeed = 1;
