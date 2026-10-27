@@ -4,6 +4,10 @@
  */
 
 import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const baseDir = 'C:/Users/Usuario/Desktop/WEBS/PaddleSafe';
 import { formatearTiempo } from '../../public_html/js/utils.js';
 import {
     BaseAppError,
@@ -279,6 +283,15 @@ it('logForecastService registra llamadas con error en formato estructurado', () 
 // --------------------------------------------------
 // 6. FORMATEO DE TIEMPO Y DURACIÓN DE RUTAS (formatearTiempo)
 // --------------------------------------------------
+console.log('\n[GRUPO 7] Integridad de Ámbito en Dashboard Pro (hhInicio)');
+
+it('renderizarDashboardPro define hhInicio a nivel de función sin ReferenceError', () => {
+    const bentoContent = fs.readFileSync(path.join(baseDir, 'public_html/js/map/map.bento.js'), 'utf8');
+    assert.ok(bentoContent.includes('const hhInicio = parseInt(timeParts[0], 10) || 0;'), 'hhInicio debe declararse al inicio de renderizarDashboardPro');
+    assert.ok(bentoContent.includes('const mmInicio = parseInt(timeParts[1], 10) || 0;'), 'mmInicio debe declararse al inicio de renderizarDashboardPro');
+    assert.ok(!bentoContent.includes('const hhInicioSalida ='), 'hhInicioSalida redundante eliminado a favor de hhInicio en ámbito');
+});
+
 console.log('\n[GRUPO 6] Formateo de Tiempo y Duración de Rutas (formatearTiempo)');
 
 it('formatearTiempo: minutos simples (< 60 min)', () => {
