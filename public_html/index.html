@@ -21,7 +21,7 @@
     <link rel="manifest" href="/manifest.json">
     
     <!-- Tailwind CSS (Compilado localmente para offline y rendimiento de producción) -->
-    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v74">
+    <link rel="stylesheet" href="/css/tailwind.min.css?v=paddlesafe-v600">
 
     <!-- Leaflet CSS y JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -2077,6 +2077,7 @@
                 const data = await response.json();
                 if (typeof data.hash !== 'string' || !data.hash) throw new Error('version.json no contiene un hash válido.');
                 appVersion = data.hash;
+                window.__APP_VERSION__ = data.version || '6.0.0';
                 
                 // 2. Comprobar versión instalada
                 const currentHash = localStorage.getItem('paddlesafe_version');
@@ -2117,7 +2118,7 @@
                 };
 
                 // Notificación suave de actualización PWA sin romper la sesión activa
-                window.mostrarNotificacionActualizacionPwa = function(nuevaVersion = 'v5.74') {
+                window.mostrarNotificacionActualizacionPwa = function(nuevaVersion = 'v6.00') {
                     if (document.getElementById('pwaUpdateToast')) return;
                     const enGrabacion = Boolean(window.appState?.trackerActivo || document.getElementById('liveTrackingPanel')?.classList.contains('hidden') === false);
                     if (enGrabacion) {

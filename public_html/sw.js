@@ -14,7 +14,7 @@
 //  5. Limpieza automática en 'activate' de todas las cachés anteriores a VERSION.
 // ==============================================================================
 
-const VERSION       = 'paddlesafe-v74';
+const VERSION       = 'paddlesafe-v600';
 const SHELL         = `${VERSION}-shell`;       // HTML + JS propio de la app
 const STATIC        = `${VERSION}-static`;      // Iconos, CSS, tipografías, manifest
 const IMGS          = `${VERSION}-img`;         // Avatares, fotos de ruta inmutables

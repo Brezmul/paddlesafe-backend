@@ -1,6 +1,6 @@
 {
   "name": "paddlesafe",
-  "version": "1.0.0",
+  "version": "6.0.0",
   "description": "PaddleSafe - Plataforma Náutica Táctica, Pronóstico Marino y Comunidad SUP",
   "main": "public_html/js/main.js",
   "type": "module",
