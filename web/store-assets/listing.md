@@ -7,7 +7,7 @@ Política de privacidad (obligatoria en la ficha):
 - https://www.sup.evolucionesdigitales.es/privacidad.html
 - https://paddlesafe-backend.vercel.app/privacidad.html
 
-Antes de enviar la revisión hay que sustituir el TODO de esa página por el correo real del responsable. En el código no hay ninguno.
+Contacto de la política: Brezmul@gmail.com.
 
 ## Descripción breve
 

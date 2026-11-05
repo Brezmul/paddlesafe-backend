@@ -27,7 +27,15 @@ android {
     signingConfigs {
         release {
             if (keystorePropertiesFile.exists()) {
-                storeFile file(keystoreProperties['storeFile'])
+                // storeFile relativo se resuelve junto a keystore.properties (web/),
+                // no junto al módulo app. Así storeFile=paddlesafe-release.keystore
+                // apunta a web/paddlesafe-release.keystore.
+                def storePath = keystoreProperties['storeFile']
+                def store = new File(storePath)
+                if (!store.isAbsolute()) {
+                    store = new File(keystorePropertiesFile.parentFile, storePath)
+                }
+                storeFile store
                 storePassword keystoreProperties['storePassword']
                 keyAlias keystoreProperties['keyAlias']
                 keyPassword keystoreProperties['keyPassword']

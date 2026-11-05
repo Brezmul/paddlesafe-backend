@@ -71,7 +71,7 @@ El build deja archivos estáticos en `web/dist/` (rutas con `./`, válidas en Ho
 2. Haz una copia de la carpeta actual (`public_html`) antes de sustituir nada.
 3. Sube **el contenido** de `web/dist/` (no la carpeta `dist` en sí) al directorio público.
 4. No subas `web/.env`: las variables ya van dentro del JavaScript del build. Por eso el build tiene que hacerse con el `.env` correcto.
-5. La política de privacidad del sitio actual ya está en el repositorio como `public_html/privacidad.html`. Al subir esa carpeta (o solo ese archivo) queda en `https://www.sup.evolucionesdigitales.es/privacidad.html`. El mismo texto está en la raíz del repo para Vercel: `https://paddlesafe-backend.vercel.app/privacidad.html` cuando el merge a `main` se despliegue. En la app, la ruta es `/#/privacidad`. El correo del responsable sigue en un TODO: no hay ninguno en el código.
+5. La política de privacidad del sitio actual ya está en el repositorio como `public_html/privacidad.html`. Al subir esa carpeta (o solo ese archivo) queda en `https://www.sup.evolucionesdigitales.es/privacidad.html`. El mismo texto está en la raíz del repo para Vercel: `https://paddlesafe-backend.vercel.app/privacidad.html` cuando el merge a `main` se despliegue. En la app, la ruta es `/#/privacidad`. El contacto de la política es Brezmul@gmail.com.
 
 La app usa rutas con almohadilla (`/#/clubes`), así que Hostinger no necesita reglas de reescritura. El sitio antiguo sigue funcionando hasta que hagas esta subida: este repositorio no la hace solo.
 
@@ -137,7 +137,7 @@ La primera vez, si no existe `web/android`:
 npx cap add android
 ```
 
-`android/app/build.gradle` lee `web/keystore.properties` (ruta `../keystore.properties` desde el proyecto Android) solo si el archivo existe, y entonces firma `bundleRelease`. Si no existe, el AAB sale sin firmar y Play lo rechaza. El archivo y cualquier `.keystore` o `.jks` están en `.gitignore`. Este repositorio no crea ni guarda la clave: la genera tu equipo, fuera de git.
+`android/app/build.gradle` lee `web/keystore.properties` solo si el archivo existe, y entonces firma `bundleRelease`. Un `storeFile` relativo (por ejemplo `paddlesafe-release.keystore`) se resuelve en `web/`, junto al properties, no dentro de `android/app`. Si el properties no existe, el AAB sale sin firmar y Play lo rechaza. El archivo y cualquier `.keystore` o `.jks` están en `.gitignore`. Este repositorio no crea ni guarda la clave.
 
 ```bash
 cp keystore.properties.example keystore.properties
@@ -146,7 +146,7 @@ cp keystore.properties.example keystore.properties
 Contenido de `keystore.properties`:
 
 ```
-storeFile=/ruta/absoluta/paddlesafe-upload.keystore
+storeFile=paddlesafe-release.keystore
 storePassword=LA_CONTRASEÑA
 keyAlias=paddlesafe
 keyPassword=LA_CONTRASEÑA
@@ -176,7 +176,7 @@ También puedes abrir `web/android` en Android Studio y usar **Build → Generat
    - Descripción breve: Pronóstico, seguridad y clubes de paddle surf.
    - Descripción completa: explica el veredicto, el mapa, los clubes y que el parte es orientativo y no sustituye a AEMET ni al 112.
    - Icono 512×512, gráfico de función 1024×500 y capturas de teléfono (mínimo 2). Hazlas con el emulador o con un móvil; no se generan solas.
-4. **Política de privacidad** (obligatoria): la URL pública, por ejemplo `https://www.sup.evolucionesdigitales.es/privacidad.html`. Tiene que estar en línea antes de enviar la revisión. El texto también está en la app, en `/#/privacidad`. Revisa el correo de contacto del documento y cámbialo si no es el buzón real.
+4. **Política de privacidad** (obligatoria): `https://www.sup.evolucionesdigitales.es/privacidad.html` o `https://paddlesafe-backend.vercel.app/privacidad.html`. Tiene que estar en línea antes de enviar la revisión. El texto también está en la app, en `/#/privacidad`. El contacto publicado es Brezmul@gmail.com.
 5. **Seguridad de los datos**: declara correo de cuenta, nombre, fotos que sube el usuario, ubicación aproximada/precisa (solo con la app en uso) y contenido del usuario. Indica que Supabase es el encargado del tratamiento. No marques “ubicación en segundo plano”: esta versión no la usa.
 6. Clasificación de contenido, público objetivo (no va dirigida a niños) y anuncio de anuncios: la app no lleva publicidad.
 7. Permisos: `INTERNET` y `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION`. Si más adelante activas GPS con la pantalla apagada tendrás que declararlo aparte y justificarlo; ahora no está.
@@ -195,7 +195,7 @@ Play puede tardar varios días y pedir cambios de textos o capturas. Eso no se r
 - Sustituir en Hostinger el sitio actual solo cuando hayas probado `npm run preview`. Conserva una copia de `public_html`.
 - Confirmar el correo de la política de privacidad y publicarla en una URL https.
 - Crear la cuenta de Play Console, el keystore y las capturas.
-- Sustituir el TODO de la política de privacidad por el correo real del responsable. Los iconos de `web/resources` y `web/store-assets` ya son los de la ficha; cámbialos solo si quieres otro diseño.
+- Colocar `paddlesafe-release.keystore` en `web/`, al lado de `keystore.properties` (`storeFile=paddlesafe-release.keystore`). Los iconos de `web/resources` y `web/store-assets` ya son los de la ficha; cámbialos solo si quieres otro diseño.
 - Los tres elementos abiertos en GitHub al preparar este cambio son PRs automáticos de Dependabot (`actions/checkout`, `actions/setup-node` y `actions/upload-artifact` de la versión 4 a la 7). No describen fallos de la app y no se han mezclado aquí para no tocar la integración continua de la API.
 
 ## 5. Límites honestos
