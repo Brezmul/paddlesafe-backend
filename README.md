@@ -1,3 +1,9 @@
+# PaddleSafe
+
+La aplicación web en React (Vite + TypeScript), la PWA y el proyecto Android (Capacitor) están en [`web/`](web/README.md). Esa guía, en español, explica cómo ejecutarla en local, cómo publicar la versión web sin tocar el despliegue actual y cómo generar el Android App Bundle para Google Play.
+
+La carpeta `public_html/` sigue siendo el frontend que hoy sirve [www.sup.evolucionesdigitales.es](https://www.sup.evolucionesdigitales.es). La API serverless de Vercel no cambia: sigue entrando por `api/backend.js`.
+
 # PaddleSafe Backend
 
 Backend serverless para análisis de seguridad, condiciones marinas, spots y rutas SUP.

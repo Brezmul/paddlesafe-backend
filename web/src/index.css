@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  --ps-bg: #041e30;
+  --ps-ink: #e8f4ff;
+}
+
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ps-bg);
+  color: var(--ps-ink);
+  font-family: "Segoe UI", "Avenir Next", "Nunito Sans", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, a, input, select, textarea {
+  touch-action: manipulation;
+}
+
+.leaflet-container {
+  background: #0b2942;
+  font-family: inherit;
+}
+
+.ps-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}

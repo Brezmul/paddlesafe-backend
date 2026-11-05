@@ -13,6 +13,10 @@
     {
       "source": "/api/:action",
       "destination": "/api/backend.js?action=:action"
+    },
+    {
+      "source": "/privacidad",
+      "destination": "/privacidad.html"
     }
   ],
   "headers": [

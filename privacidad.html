@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Política de privacidad · PaddleSafe</title>
+    <meta name="description" content="Política de privacidad de PaddleSafe: cuenta, perfil, ubicación, rutas, clubes y chat." />
+    <style>
+      :root { color-scheme: light; }
+      body { margin: 0; font-family: "Segoe UI", "Avenir Next", sans-serif; background: #f4f7fb; color: #102033; line-height: 1.55; }
+      main { max-width: 44rem; margin: 0 auto; padding: 1.5rem 1.15rem 3rem; }
+      h1 { font-size: 1.8rem; line-height: 1.2; margin-bottom: 0.4rem; }
+      h2 { font-size: 1.15rem; margin: 1.6rem 0 0.4rem; }
+      p, li { font-size: 1rem; }
+      .todo { background: #fff6d8; border: 1px solid #e2c15a; border-radius: 12px; padding: 0.9rem 1rem; }
+      a { color: #0b6b8a; }
+      code { font-size: 0.92em; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Política de privacidad de PaddleSafe</h1>
+      <p>Última actualización: 5 de noviembre de 2026. Esta política explica qué datos trata la aplicación y el sitio de PaddleSafe, para qué, durante cuánto tiempo y qué derechos tienes según el Reglamento (UE) 2016/679 (RGPD) y la Ley Orgánica 3/2018 (LOPDGDD).</p>
+
+      <h2>1. Responsable del tratamiento</h2>
+      <p>El responsable es quien opera PaddleSafe, asociado al sitio evolucionesdigitales.es. Para privacidad y para ejercer tus derechos escribe a <a href="mailto:Brezmul@gmail.com">Brezmul@gmail.com</a>.</p>
+
+      <h2>2. Qué datos tratamos</h2>
+      <p>Solo se tratan los datos que la propia app usa. No hay un registro distinto al de estas funciones.</p>
+      <ul>
+        <li><strong>Cuenta.</strong> Correo electrónico e identificador de usuario en Supabase Auth. La contraseña la gestiona Supabase: la app no la almacena. El enlace de recuperación se envía a ese correo.</li>
+        <li><strong>Perfil</strong> (tabla <code>perfiles</code>): nombre, foto de perfil, título, nivel, puntos, XP, kilómetros, insignias, si el perfil es privado, tipo de tabla, ritmo de crucero y nombre del equipo.</li>
+        <li><strong>Foto.</strong> Si eliges una imagen de perfil o un logo de club, el archivo se sube al bucket de Storage <code>paddlesafe</code>.</li>
+        <li><strong>Ubicación.</strong> Coordenadas cuando pulsas el GPS, centras el radar, marcas un punto en el mapa o inicias una sesión en vivo. En Android el permiso es de ubicación precisa y solo con la app en uso: esta versión no pide ubicación en segundo plano. Esas coordenadas pueden guardarse si creas un spot, un reporte, una bitácora, una ruta o un check-in de seguridad.</li>
+        <li><strong>Spots y notas</strong> (<code>user_spots</code>): nombre, latitud, longitud, orientación hacia el mar, notas tácticas, acceso o parking y peligros locales.</li>
+        <li><strong>Reportes y bitácora</strong> (<code>spot_reports</code>, <code>spot_logbook</code>): etiqueta del estado del mar, comentario, sesgo del viento, oleaje, valoración, notas y fecha.</li>
+        <li><strong>Rutas</strong> (<code>rutas</code> y, si la cuenta lo permite, <code>user_routes</code>): distancia, duración, recorrido GPS, texto de la ubicación y puntos. Una ruta pendiente sin red se guarda en el dispositivo y, al entrar, solo se sincroniza si pertenece a esa cuenta o a la sesión de invitado de ese aparato.</li>
+        <li><strong>Check-in de seguridad</strong> (<code>safety_checkins</code>): estado, hora prevista de regreso y última posición. El teléfono de emergencia se queda en el almacenamiento local del dispositivo y no se envía al servidor.</li>
+        <li><strong>Clubes:</strong> nombre, descripción, logo, sede y nivel; tu rol; solicitudes de ingreso; mensajes de chat; quedadas (nombre, texto, fecha y recorrido si lo hay); retos y participación; rutas compartidas con el club.</li>
+        <li><strong>Social:</strong> me gusta, comentarios, solicitudes de amistad y su estado, y avisos (título, texto y si están leídos).</li>
+        <li><strong>Presencia.</strong> Con la sesión abierta, la app puede publicar en un canal de Supabase el identificador y un estado (en línea o ausente) para mostrar actividad.</li>
+        <li><strong>Datos en el dispositivo:</strong> modo invitado, nivel de palista elegido, spots y bitácora en caché, y teselas o pronósticos que guarda la PWA. No salen del aparato salvo la sincronización descrita.</li>
+        <li><strong>Datos técnicos de las peticiones:</strong> dirección IP y registros que generan Supabase, Vercel, Open-Meteo, RainViewer y los servidores de teselas de OpenStreetMap al responder. La sesión de Supabase se guarda en el almacenamiento del navegador. No hay cookies de publicidad ni de seguimiento de terceros con fines comerciales.</li>
+      </ul>
+
+      <h2>3. Para qué y con qué base</h2>
+      <ul>
+        <li>Crear la cuenta, el perfil, las rutas, los clubes, el chat y los avisos: ejecución del servicio que pides (artículo 6.1.b del RGPD).</li>
+        <li>Usar tu ubicación para el pronóstico, el mapa, la ruta o el check-in: el permiso del sistema y la petición concreta que haces (artículos 6.1.a y 6.1.b). Puedes retirar el permiso en los ajustes del teléfono o del navegador; sin él no funcionan el GPS ni la sesión en vivo.</li>
+        <li>Mostrar rankings de perfiles que no están marcados como privados, y el muro de rutas: interés legítimo de una comunidad deportiva (artículo 6.1.f). Puedes marcar el perfil como privado para salir de los rankings públicos.</li>
+        <li>Mantener la seguridad del servicio y evitar abusos: interés legítimo (artículo 6.1.f).</li>
+      </ul>
+      <p>El veredicto de seguridad y el texto del coach son una ayuda meteorológica. No son una decisión automatizada que produzca efectos jurídicos ni te impida ejercer un derecho (el artículo 22 del RGPD no se aplica a esa información). No sustituyen un aviso de AEMET, de Protección Civil ni del 112.</p>
+
+      <h2>4. Quién recibe los datos</h2>
+      <p>No vendemos datos ni los cedemos para publicidad.</p>
+      <ul>
+        <li><strong>Supabase</strong> aloja la cuenta, la base de datos, los archivos y el canal en tiempo real. Es el encargado de ese tratamiento.</li>
+        <li><strong>Vercel</strong> ejecuta la función ya publicada de PaddleSafe (coach y consulta de avisos). Recibe coordenadas, nivel de palista y condiciones del parte, no la contraseña.</li>
+        <li><strong>Open-Meteo</strong> recibe las coordenadas y, si buscas un lugar, el texto de la búsqueda, para devolver el pronóstico marino y la geocodificación.</li>
+        <li><strong>RainViewer</strong> sirve las teselas del radar de lluvia.</li>
+        <li><strong>OpenStreetMap</strong> sirve las teselas del mapa.</li>
+        <li><strong>Hostinger</strong> puede alojar el sitio estático (el HTML, el JavaScript y esta página). No recibe el contenido de tu cuenta por el mero hecho de descargar la página.</li>
+      </ul>
+      <p>Dentro de la app, otros usuarios pueden ver lo que publicas según la función: un perfil no privado, una ruta en el muro, un mensaje en el chat del club, un comentario o un reporte de spot reciente. Los perfiles marcados como privados no entran en el ranking público.</p>
+
+      <h2>5. Transferencias fuera del Espacio Económico Europeo</h2>
+      <p>Supabase, Vercel y los servicios de mapas pueden tratar datos fuera del Espacio Económico Europeo, según dónde esté el proyecto o el servidor que responda. El código no fija un país. Cuando hay transferencia, la garantía es la que ofrezca ese proveedor (en particular las cláusulas contractuales tipo de la Comisión Europea, si las aplica). Puedes pedir el detalle en <a href="mailto:Brezmul@gmail.com">Brezmul@gmail.com</a>.</p>
+
+      <h2>6. Cuánto tiempo se conservan</h2>
+      <ul>
+        <li>La cuenta, el perfil, las rutas, los clubes y el chat: mientras no los borres o no se cierre la cuenta.</li>
+        <li>Los reportes de un spot: la base solo permite leer en público los de las últimas horas (en el esquema, unas seis horas).</li>
+        <li>El check-in: hasta que lo cierras o pides que se borre.</li>
+        <li>Lo guardado solo en el dispositivo: hasta que borras los datos del navegador o desinstalas la app.</li>
+        <li>Las copias de seguridad del encargado: el plazo que aplique ese proveedor. Si lo necesitas, escríbenos a <a href="mailto:Brezmul@gmail.com">Brezmul@gmail.com</a>.</li>
+      </ul>
+
+      <h2>7. Tus derechos</h2>
+      <p>Puedes pedir acceso, rectificación, supresión, limitación, portabilidad y oposición, y retirar el consentimiento de la ubicación sin que afecte a lo ya hecho con él. En la app puedes cambiar el nombre, la foto y la privacidad del perfil, y borrar tus rutas. El resto de solicitudes, y el cierre completo de la cuenta, se atienden en <a href="mailto:Brezmul@gmail.com">Brezmul@gmail.com</a>. También puedes reclamar ante la Agencia Española de Protección de Datos (<a href="https://www.aepd.es">www.aepd.es</a>).</p>
+
+      <h2>8. Menores</h2>
+      <p>PaddleSafe no está dirigida a menores de 14 años, edad a partir de la cual el artículo 7 de la LOPDGDD permite consentir por sí el tratamiento digital en España. No pedimos a sabiendas datos de quien no llegue a esa edad. Si un padre o tutor cree que hemos recibido datos de un menor, puede escribir a <a href="mailto:Brezmul@gmail.com">Brezmul@gmail.com</a> para borrarlos.</p>
+
+      <h2>9. Seguridad</h2>
+      <p>El tráfico va por HTTPS. En el cliente solo se usa la clave anónima o publishable de Supabase, nunca la clave de servicio. El acceso a las filas depende de las políticas de la base (cada persona sobre sus datos, y lo público solo donde la función lo exige). Ninguna de estas medidas elimina por completo el riesgo de un incidente.</p>
+
+      <h2>10. Cambios</h2>
+      <p>Si esta política cambia de forma relevante, se actualizará la fecha de esta página. La versión vigente es la publicada en <a href="https://www.sup.evolucionesdigitales.es/privacidad.html">www.sup.evolucionesdigitales.es/privacidad.html</a> y en <a href="https://paddlesafe-backend.vercel.app/privacidad.html">paddlesafe-backend.vercel.app/privacidad.html</a>.</p>
+    </main>
+  </body>
+</html>
