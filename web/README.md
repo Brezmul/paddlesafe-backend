@@ -119,9 +119,10 @@ keytool -genkeypair -v \
 
 Requisitos en el ordenador donde compiles (esta máquina de desarrollo puede no tenerlos; ver más abajo):
 
-- JDK 17 o 21
-- Android SDK, plataformas Android 35 y Build-Tools
+- JDK 21 (Capacitor 8 y el plugin de Gradle 8.13 compilan con Java 21; Java 17 no basta para el código nativo de esta versión)
+- Android SDK Platform 36 y Build-Tools 36.0.0
 - Variable `ANDROID_HOME` apuntando al SDK
+- El `targetSdk` es 36 (Android 16). Capacitor 7 solo admite el 35, así que el proyecto usa Capacitor 8.6.0, Gradle 8.14.3 y Android Gradle Plugin 8.13.0. El mínimo pasa a Android 7.0 (API 24).
 
 ```bash
 cd web
