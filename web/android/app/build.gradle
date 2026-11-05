@@ -1,5 +1,7 @@
 apply plugin: 'com.android.application'
 
+// Firma de release: web/keystore.properties (junto a esta carpeta android/).
+// El archivo está en .gitignore. No se genera ni se versiona ningún keystore aquí.
 def keystorePropertiesFile = rootProject.file("../keystore.properties")
 def keystoreProperties = new Properties()
 if (keystorePropertiesFile.exists()) {

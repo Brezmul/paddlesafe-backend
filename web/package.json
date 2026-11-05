@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
-    "icons": "node scripts/make-icons.mjs",
+    "icons": "echo 'Icono y splash de origen: resources/ y assets/. Android: npm run assets:android'",
+    "assets:android": "capacitor-assets generate --android --assetPath assets --iconBackgroundColor '#041e30' --iconBackgroundColorDark '#041e30' --splashBackgroundColor '#041e30' --splashBackgroundColorDark '#041e30'",
     "cap:sync": "npm run build && npx cap sync android",
     "android:debug": "npm run cap:sync && cd android && ./gradlew assembleDebug",
     "android:bundle": "npm run cap:sync && cd android && ./gradlew bundleRelease"
@@ -29,12 +30,14 @@
     "react-router-dom": "^7.9.5"
   },
   "devDependencies": {
+    "@capacitor/assets": "^4.0.0",
     "@capacitor/cli": "^7.4.3",
     "@tailwindcss/vite": "^4.1.16",
     "@types/leaflet": "^1.9.21",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "^5.1.0",
+    "playwright": "^1.65.0",
     "tailwindcss": "^4.1.16",
     "typescript": "^5.9.3",
     "vite": "^7.2.2",

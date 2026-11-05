@@ -71,7 +71,7 @@ El build deja archivos estáticos en `web/dist/` (rutas con `./`, válidas en Ho
 2. Haz una copia de la carpeta actual (`public_html`) antes de sustituir nada.
 3. Sube **el contenido** de `web/dist/` (no la carpeta `dist` en sí) al directorio público.
 4. No subas `web/.env`: las variables ya van dentro del JavaScript del build. Por eso el build tiene que hacerse con el `.env` correcto.
-5. La política de privacidad queda en `https://www.sup.evolucionesdigitales.es/privacidad.html`.
+5. La política de privacidad del sitio actual ya está en el repositorio como `public_html/privacidad.html`. Al subir esa carpeta (o solo ese archivo) queda en `https://www.sup.evolucionesdigitales.es/privacidad.html`. El mismo texto está en la raíz del repo para Vercel: `https://paddlesafe-backend.vercel.app/privacidad.html` cuando el merge a `main` se despliegue. En la app, la ruta es `/#/privacidad`. El correo del responsable sigue en un TODO: no hay ninguno en el código.
 
 La app usa rutas con almohadilla (`/#/clubes`), así que Hostinger no necesita reglas de reescritura. El sitio antiguo sigue funcionando hasta que hagas esta subida: este repositorio no la hace solo.
 
@@ -84,7 +84,7 @@ La API (`api/backend.js`) sigue siendo el despliegue actual del repositorio. Par
 
 Comando de build del proyecto web: `npm run build`. Directorio de salida: `dist`. En Environment Variables del proyecto web pon las tres `VITE_*` de arriba (Production y Preview). No hace falta clave de OpenCage, StormGlass ni Gemini: el coach responde con el motor propio si no hay clave de pago.
 
-`vercel.json` de la raíz no se ha tocado.
+La API sigue en `api/backend.js`. El archivo `privacidad.html` de la raíz del repositorio es estático: Vercel lo publica en `/privacidad.html` sin pasar por la función.
 
 ## 3. Google Play (pasos que tienes que hacer tú)
 
@@ -93,7 +93,7 @@ Google cobra **una cuota única de registro** de la cuenta de desarrollador (25 
 Identificador de la app: `es.evolucionesdigitales.paddlesafe`.  
 Nombre visible: PaddleSafe.  
 Proyecto nativo: `web/android` (Capacitor 7).  
-Iconos y splash de relleno: `web/resources/icon.png`, `web/resources/splash.png` y `web/public/icons/`. Cámbialos por el icono definitivo antes de enviar la ficha; si no, Play mostrará el dibujo provisional.
+Icono y splash de origen: `web/resources/icon.png` (1024) y `web/resources/splash.png` (2732). Las densidades Android (icono adaptable y splash) las genera `@capacitor/assets` con `npm run assets:android`. Para la ficha: `web/store-assets/play-icon-512.png`, `web/store-assets/feature-graphic-1024x500.png`, las capturas en `web/store-assets/screenshots/` y los textos en `web/store-assets/listing.md`.
 
 ### 3.1. Cuenta de desarrollador
 
@@ -137,7 +137,7 @@ La primera vez, si no existe `web/android`:
 npx cap add android
 ```
 
-Copia el ejemplo de firma y edítalo con rutas y contraseñas reales. Ese archivo no se sube a git:
+`android/app/build.gradle` lee `web/keystore.properties` (ruta `../keystore.properties` desde el proyecto Android) solo si el archivo existe, y entonces firma `bundleRelease`. Si no existe, el AAB sale sin firmar y Play lo rechaza. El archivo y cualquier `.keystore` o `.jks` están en `.gitignore`. Este repositorio no crea ni guarda la clave: la genera tu equipo, fuera de git.
 
 ```bash
 cp keystore.properties.example keystore.properties
@@ -195,7 +195,7 @@ Play puede tardar varios días y pedir cambios de textos o capturas. Eso no se r
 - Sustituir en Hostinger el sitio actual solo cuando hayas probado `npm run preview`. Conserva una copia de `public_html`.
 - Confirmar el correo de la política de privacidad y publicarla en una URL https.
 - Crear la cuenta de Play Console, el keystore y las capturas.
-- Cambiar los iconos provisionales de `web/resources` antes de la ficha definitiva.
+- Sustituir el TODO de la política de privacidad por el correo real del responsable. Los iconos de `web/resources` y `web/store-assets` ya son los de la ficha; cámbialos solo si quieres otro diseño.
 - Los tres elementos abiertos en GitHub al preparar este cambio son PRs automáticos de Dependabot (`actions/checkout`, `actions/setup-node` y `actions/upload-artifact` de la versión 4 a la 7). No describen fallos de la app y no se han mezclado aquí para no tocar la integración continua de la API.
 
 ## 5. Límites honestos
