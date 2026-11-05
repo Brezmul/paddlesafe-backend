@@ -1236,7 +1236,7 @@ export function evaluarAlertasGlobales(d) {
     return alerta;
 }
 
-export function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
+export function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio', extras = {}) {
     const vientoMs = valorNumericoMeteo(dx.windSpeed, dx.wind_speed);
     const rachasMs = valorNumericoMeteo(dx.windGusts, dx.wind_gusts);
     const vientoKmh = vientoMs === null ? null : vientoMs * 3.6;
@@ -1284,8 +1284,10 @@ export function obtenerMotorExperto(dx, nivelUsuario = 'Intermedio') {
         lightningProb,
         coordenadas: coords,
         nombreSpot: dx.location || dx.nombreSpot || '',
-        deporte: dx.deporte || 'paddle_surf',
+        deporte: extras.deporte || dx.deporte || 'paddle_surf',
         nivelUsuario,
+        boardType: extras.boardType || null,
+        equipoUsuario: extras.equipoUsuario || null,
         modelosPronostico: dx.consenso || null,
         horasDiurnas: dx.horasDiurnas || null,
         fechaConsulta: alerta.fechaConsulta,

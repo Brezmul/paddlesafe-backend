@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PaddleSafe</string>
+    <string name="title_activity_main">PaddleSafe</string>
+    <string name="package_name">es.evolucionesdigitales.paddlesafe</string>
+    <string name="custom_url_scheme">es.evolucionesdigitales.paddlesafe</string>
+</resources>

@@ -9,6 +9,15 @@ hostinger_public_html_ready.zip
 paddlesafe-backend-main/
 /Paddlesafe_frontend/
 .env*
+!.env.example
+!**/.env.example
+web/dist/
+web/android/.gradle/
+web/android/app/build/
+web/android/local.properties
+web/android/capacitor-cordova-android-plugins/build/
+*.keystore
+*.jks
 test-results/
 .lighthouseci/
 .codex/
