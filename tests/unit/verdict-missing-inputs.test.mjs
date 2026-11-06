@@ -54,6 +54,7 @@ assert.equal(entrepenas.score, 98);
 assert.equal(entrepenas.entorno, 'embalse_interior');
 assert.equal(entrepenas.oleajeAplica, false);
 assert.equal(String(entrepenas.justificacion).includes('aguas interiores'), true);
+assert.notEqual(entrepenas.beginnerIndex?.nivel, 'Sin Datos');
 assert.equal(String(entrepenas.justificacion).includes('0.0 m'), false);
 
 const calaCeroReal = evaluar({ ...COSTA, vientoKt: 0, rachasKt: 1, oleajeM: 0, periodoOla: 6 });
@@ -62,6 +63,7 @@ assert.equal(calaCeroReal.vientoNudos, 0);
 assert.equal(calaCeroReal.detallesTecnicos.oleajeM, 0);
 assert.equal(String(calaCeroReal.justificacion).includes('0 kt'), true);
 assert.equal(String(calaCeroReal.justificacion).includes('0.0 m'), true);
+assert.notEqual(calaCeroReal.beginnerIndex?.nivel, 'Sin Datos');
 
 const calaCompletaSuave = evaluar({ ...COSTA, vientoKt: 4, rachasKt: 5, oleajeM: 0.2, periodoOla: 7 });
 assert.equal(calaCompletaSuave.estado, 'Favorable');
@@ -166,6 +168,8 @@ assert.equal(avisoSinSeries.alertaOficialActiva, true);
 assert.equal(/viento suave \(0 kt\)|Viento de 0 kt/i.test(String(avisoSinSeries.justificacion)), false);
 assert.equal(String(avisoSinSeries.justificacion).includes('no cuenta como 0 kt'), true);
 assert.equal(/sesión viable/i.test(String(avisoSinSeries.justificacion)), false);
+assert.equal(avisoSinSeries.beginnerIndex?.nivel, 'Sin Datos');
+assert.equal(avisoSinSeries.deporte?.recomendable, false);
 
 const rachaPeligrosa = evaluar({ ...COSTA, vientoKt: null, rachasKt: 22, oleajeM: null });
 assert.equal(rachaPeligrosa.estado, 'No recomendado');
@@ -173,6 +177,8 @@ assert.equal(rachaPeligrosa.vientoNudos, null);
 assert.equal(String(rachaPeligrosa.justificacion).includes('Rachas medidas de 22 kt'), true);
 assert.equal(String(rachaPeligrosa.justificacion).includes('no cuenta como 0 kt'), true);
 assert.equal(/sesión viable/i.test(String(rachaPeligrosa.justificacion)), false);
+assert.equal(rachaPeligrosa.beginnerIndex?.nivel, 'Sin Datos');
+assert.notEqual(rachaPeligrosa.beginnerIndex?.nivel, 'Muy Fácil');
 
 const precaucionSinOleaje = evaluar({ ...COSTA, vientoKt: 12, oleajeM: null });
 assert.equal(precaucionSinOleaje.estado, 'Precaución');

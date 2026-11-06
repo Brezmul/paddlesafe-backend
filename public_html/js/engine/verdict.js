@@ -905,10 +905,10 @@ export function generarVeredictoNextGen(params = {}) {
         justificacion,
         mensaje: justificacion,
         explicacionNautica: justificacion,
-        deporte: datosInsuficientes
+        deporte: (datosInsuficientes || faltaViento || faltaOleajeCostero)
             ? { deporte: deporteKey, recomendable: false, estado: 'Sin datos', motivo: justificacion }
             : evalDeporte,
-        beginnerIndex: datosInsuficientes
+        beginnerIndex: (datosInsuficientes || faltaViento || faltaOleajeCostero)
             ? { nivel: 'Sin Datos', score: 0, motivo: justificacion }
             : beginner,
         deriva,
