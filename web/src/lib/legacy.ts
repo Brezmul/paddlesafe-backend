@@ -50,7 +50,10 @@ export type Motor = {
   scoreSeguridad?: number;
   respuestaDirecta?: string;
   justificacion?: string;
-  vientoNudos?: number;
+  vientoNudos?: number | null;
+  oleajeAplica?: boolean;
+  vientoConocido?: boolean;
+  oleajeConocido?: boolean;
   factoresCriticos?: string[];
   analysisConfidence?: number;
   tipoMar?: string | null;

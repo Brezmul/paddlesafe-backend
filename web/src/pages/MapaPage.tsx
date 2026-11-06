@@ -27,6 +27,7 @@ import {
   type SpotGuardado
 } from '@/lib/db';
 import { guardarNivel, leerNivel, leerTelefonoEmergencia, guardarTelefonoEmergencia } from '@/lib/prefs';
+import { medicionNumerica, prepararEntradaCoach } from '@/lib/medicion';
 import { dejarDeSeguir, leerPosicion, seguirPosicion } from '@/lib/gps';
 import { supabase } from '@/lib/supabase';
 
@@ -219,17 +220,20 @@ export function MapaPage() {
 
   async function coachAhora() {
     if (!motor) return;
+    const entrada = prepararEntradaCoach(motor);
+    if (!entrada.consultar) {
+      setCoach(entrada.motivo);
+      return;
+    }
     setCargando(true);
     try {
-      const vientoKt = motor.detallesTecnicos?.vientoKt ?? motor.vientoNudos ?? 0;
-      const rachasKt = motor.detallesTecnicos?.rachasKt ?? vientoKt;
       const data = await pedirCoach({
         nivel,
-        vientoKmh: Number(vientoKt) * 1.852,
-        rachasKmh: Number(rachasKt) * 1.852,
-        direccion: Number(pronostico?.windDirection || 0),
-        oleaje: Number(motor.detallesTecnicos?.oleajeM || 0),
-        periodo: Number(motor.detallesTecnicos?.periodoOlaS || 0),
+        vientoKmh: entrada.vientoKt * 1.852,
+        rachasKmh: entrada.rachasKt * 1.852,
+        direccion: medicionNumerica(pronostico?.windDirection) ?? 0,
+        oleaje: entrada.oleajeM,
+        periodo: entrada.periodoS,
         tempAire: motor.detallesTecnicos?.tempAireC ?? 'N/D',
         tempAgua: motor.detallesTecnicos?.tempAguaC ?? 'N/D',
         lat,
@@ -657,13 +661,13 @@ function Veredicto({ motor, pronostico, horas, horaIdx, onHora }: {
       </div>
       <p className="text-sm leading-relaxed text-slate-200">{motor.justificacion}</p>
       <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-        <Dato etiqueta="Viento" valor={`${tec.vientoKt ?? '—'} kt ${cardinal(pronostico?.windDirection)}`} />
-        <Dato etiqueta="Rachas" valor={`${tec.rachasKt ?? '—'} kt`} />
-        <Dato etiqueta="Oleaje" valor={tec.oleajeM != null ? `${Number(tec.oleajeM).toFixed(1)} m` : '—'} />
+        <Dato etiqueta="Viento" valor={tec.vientoKt == null ? 'Sin dato' : `${tec.vientoKt} kt ${cardinal(pronostico?.windDirection)}`} />
+        <Dato etiqueta="Rachas" valor={tec.rachasKt == null ? 'Sin dato' : `${tec.rachasKt} kt`} />
+        <Dato etiqueta="Oleaje" valor={tec.oleajeM != null ? `${Number(tec.oleajeM).toFixed(1)} m` : (motor.oleajeAplica === false ? 'No aplica' : 'Sin dato')} />
         <Dato etiqueta="Agua / aire" valor={`${tec.tempAguaC ?? '—'}° / ${tec.tempAireC ?? '—'}°`} />
       </div>
       {motor.componenteCostera?.componente && <p className="text-sm text-slate-300">Componente: {motor.componenteCostera.componente}. Deriva: {motor.riesgoDeriva?.nivel || '—'}.</p>}
-      {ventanas?.textoResumen && <Aviso>{ventanas.textoResumen}</Aviso>}
+      {ventanas?.textoResumen && motor.vientoConocido !== false && (motor.oleajeAplica !== true || motor.oleajeConocido !== false) && <Aviso>{ventanas.textoResumen}</Aviso>}
       {ventanas?.evolucionAviso && <Aviso tipo="error">{ventanas.evolucionAviso}</Aviso>}
       {(motor.factoresCriticos || []).length > 0 && (
         <ul className="list-disc space-y-1 pl-5 text-sm text-amber-100">
