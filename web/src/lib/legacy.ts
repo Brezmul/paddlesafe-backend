@@ -1,8 +1,10 @@
-import { solicitarPronostico, obtenerMotorExperto } from '../../../public_html/js/map/map.weather.js';
+import { solicitarPronostico, obtenerMotorExperto, textoParteGuardado } from '../../../public_html/js/map/map.weather.js';
+export { textoParteGuardado };
 import { calcularEquipamientoTermicoDetallado } from '../../../public_html/js/utils.js';
 import { parseGPX, generarGPX } from '../../../public_html/js/gpxParser.js';
 import { env } from './env';
 import { magnitudNoNegativa, medicionNumerica } from './medicion';
+import { marcaSnapshotDe, type MarcaSnapshot, type ParteVisible } from './consultaLugar';
 
 export type Nivel = 'Principiante' | 'Intermedio' | 'Avanzado' | 'Competicion';
 
@@ -42,6 +44,13 @@ export type Pronostico = {
   coordinates?: { latitude: number; longitude: number };
   source?: string;
   date?: string;
+  _desdeSnapshot?: boolean;
+  _snapshotTs?: number | null;
+  _snapshotLocation?: string | null;
+  _snapshotLat?: number | null;
+  _snapshotLon?: number | null;
+  _snapshotConsulta?: string | null;
+  _snapshotObservado?: string | null;
 };
 
 export type Motor = {
@@ -91,7 +100,9 @@ export async function evaluarLugar(opts: {
     timeRange: '(08:00 - 20:00)',
     userLevel: opts.nivel
   }) as { datos?: Pronostico } & Pronostico;
-  const pronostico = (crudo?.datos && typeof crudo.datos === 'object' ? crudo.datos : crudo) as Pronostico;
+  const base = (crudo?.datos && typeof crudo.datos === 'object' ? crudo.datos : crudo) as Pronostico;
+  const marca = marcaSnapshotDe(crudo) || marcaSnapshotDe(base);
+  const pronostico = (marca ? { ...base, ...marca } : base) as ParteVisible;
   const motor = obtenerMotorExperto(pronostico, opts.nivel, {
     boardType: opts.boardType || null,
     deporte: 'paddle_surf'
@@ -120,7 +131,9 @@ export function evaluarHora(base: Pronostico, hora: HoraMarina, nivel: Nivel, bo
     wavePeriod: ausente(hora.periodoOlaS) ? base.wavePeriod : magnitudNoNegativa(hora.periodoOlaS),
     tempAire: numeroORespaldo(hora.tempC, base.tempAire)
   };
-  return obtenerMotorExperto(dx, nivel, { boardType: boardType || null, deporte: 'paddle_surf' }) as Motor;
+  const motor = obtenerMotorExperto(dx, nivel, { boardType: boardType || null, deporte: 'paddle_surf' }) as Motor;
+  const marca: MarcaSnapshot | null = marcaSnapshotDe(base);
+  return marca ? { ...motor, ...marca } : motor;
 }
 
 export function equipoTermico(params: {

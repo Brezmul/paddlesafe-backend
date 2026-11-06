@@ -10,6 +10,7 @@ import {
   equipoTermico,
   leerGpx,
   pedirCoach,
+  textoParteGuardado,
   xmlGpx,
   type HoraMarina,
   type Motor,
@@ -28,6 +29,7 @@ import {
 } from '@/lib/db';
 import { guardarNivel, leerNivel, leerTelefonoEmergencia, guardarTelefonoEmergencia } from '@/lib/prefs';
 import { medicionNumerica, prepararEntradaCoach } from '@/lib/medicion';
+import { aplicarExito, aplicarFallo, aplicarHora, crearEstadoConsulta, iniciarEvaluacion } from '@/lib/consultaLugar';
 import { dejarDeSeguir, leerPosicion, seguirPosicion } from '@/lib/gps';
 import { supabase } from '@/lib/supabase';
 
@@ -64,6 +66,7 @@ export function MapaPage() {
   const [recorrido, setRecorrido] = useState<Array<[number, number]>>([]);
   const [inicioMs, setInicioMs] = useState<number | null>(null);
   const watchId = useRef<string | null>(null);
+  const parteRef = useRef(crearEstadoConsulta());
   const [telefono, setTelefono] = useState(leerTelefonoEmergencia());
   const [checkinId, setCheckinId] = useState<string | null>(null);
   const [termicaAbierta, setTermicaAbierta] = useState(false);
@@ -109,13 +112,21 @@ export function MapaPage() {
   }
 
   async function evaluar(enLat = lat, enLon = lon, enNombre = nombre) {
+    const iniciado = iniciarEvaluacion(parteRef.current);
+    parteRef.current = iniciado.estado;
+    setPronostico(null);
+    setMotor(null);
+    setHoraIdx(0);
     setCargando(true);
     setError(null);
     setCoach(null);
     try {
       const resultado = await evaluarLugar({ lat: enLat, lon: enLon, nombre: enNombre, nivel, boardType: tabla });
-      setPronostico(resultado.pronostico);
-      setMotor(resultado.motor);
+      const next = aplicarExito(parteRef.current, iniciado.id, resultado.pronostico, resultado.motor);
+      parteRef.current = next;
+      if (next.generacion !== iniciado.id) return;
+      setPronostico(next.pronostico);
+      setMotor(next.motor);
       setHoraIdx(0);
       const spot = spots.find((s) => s.nombre === enNombre);
       if (spot) {
@@ -126,17 +137,25 @@ export function MapaPage() {
         });
       }
     } catch (err) {
-      setError(textoError(err));
+      const next = aplicarFallo(parteRef.current, iniciado.id, textoError(err));
+      parteRef.current = next;
+      if (next.generacion !== iniciado.id) return;
+      setPronostico(null);
+      setMotor(null);
+      setError(next.error);
     } finally {
-      setCargando(false);
+      if (parteRef.current.generacion === iniciado.id) setCargando(false);
     }
   }
 
   function elegirHora(indice: number) {
+    const actual = parteRef.current.pronostico;
+    const hora = actual?.horasDiurnas?.[indice];
+    if (!actual || !hora) return;
+    const motorHora = evaluarHora(actual, hora, nivel, tabla);
+    parteRef.current = aplicarHora(parteRef.current, indice, motorHora);
     setHoraIdx(indice);
-    const hora = horas[indice];
-    if (!pronostico || !hora) return;
-    setMotor(evaluarHora(pronostico, hora, nivel, tabla));
+    setMotor(motorHora);
   }
 
   async function favorito() {
@@ -220,6 +239,10 @@ export function MapaPage() {
 
   async function coachAhora() {
     if (!motor) return;
+    if (pronostico?._desdeSnapshot) {
+      setCoach('El coach no se consulta con un parte guardado: no es una medición actual.');
+      return;
+    }
     const entrada = prepararEntradaCoach(motor);
     if (!entrada.consultar) {
       setCoach(entrada.motivo);
@@ -650,8 +673,10 @@ function Veredicto({ motor, pronostico, horas, horaIdx, onHora }: {
 }) {
   const tec = motor.detallesTecnicos || {};
   const ventanas = pronostico?.ventanasOptimas;
+  const parteGuardado = textoParteGuardado(pronostico, { horaParte: horas[horaIdx]?.hora || null });
   return (
     <Tarjeta className="space-y-3">
+      {parteGuardado && <Aviso>{parteGuardado}</Aviso>}
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Veredicto</p>
