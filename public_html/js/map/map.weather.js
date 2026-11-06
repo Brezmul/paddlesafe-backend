@@ -212,25 +212,141 @@ export function crearFranjaForecast(horaSalida, duracionMinutos = 120) {
     return `Salida (${String(horaInicio).padStart(2, '0')}:00 - ${String(horaFin).padStart(2, '0')}:00)`;
 }
 
-// Caché geográfica inteligente por geohash/cuadrante (~2 km) con TTL de 15 min
+// Caché geográfica inteligente por geohash/cuadrante (~2 km) con TTL de 15 min.
+// Solo guarda una respuesta que acaba de llegar. No es el parte sin conexión.
 export const CACHE_TTL_METEO_MS = 15 * 60 * 1000;
 
-// Resiliencia Offline: Snapshot del último pronóstico meteorológico válido
+// Parte sin conexión. Radio ya existente: 15 km. Por encima es otro sitio.
+// Edad: el fallo con coordenadas ya rechazaba lo que pasara de 1 h. Las 12 h
+// anteriores solo se alcanzaban cuando no se miraba el lugar, así que no se usan.
 export const SNAPSHOT_KEY = 'paddlesafe_last_forecast_snapshot';
-export const SNAPSHOT_MAX_AGE_MS = 12 * 60 * 60 * 1000; // 12 horas
+export const SNAPSHOT_RADIO_KM = 15;
+export const SNAPSHOT_MAX_AGE_MS = 60 * 60 * 1000;
+
+function numeroIdentidad(valor) {
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : null;
+    if (typeof valor === 'string') {
+        const texto = valor.trim();
+        if (!/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(texto)) return null;
+        const n = Number(texto);
+        return Number.isFinite(n) ? n : null;
+    }
+    return null;
+}
+
+function coordenadasIdentidad(lat, lon) {
+    const la = numeroIdentidad(lat);
+    const lo = numeroIdentidad(lon);
+    if (la === null || lo === null) return null;
+    if (la < -90 || la > 90 || lo < -180 || lo > 180) return null;
+    return { lat: la, lon: lo };
+}
+
+function instanteIdentidad(valor) {
+    if (typeof valor === 'number' && Number.isFinite(valor)) return valor;
+    if (typeof valor === 'string') {
+        const texto = valor.trim();
+        if (/^[+-]?\d+$/.test(texto)) {
+            const n = Number(texto);
+            return Number.isFinite(n) ? n : null;
+        }
+        const parsed = Date.parse(texto);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+}
+
+function lecturaTemporal(data) {
+    const datos = data?.datos && typeof data.datos === 'object' && !Array.isArray(data.datos) ? data.datos : data;
+    const consulta = typeof datos?.date === 'string' && datos.date.trim()
+        ? datos.date.trim()
+        : (typeof datos?.fechaConsulta === 'string' && datos.fechaConsulta.trim() ? datos.fechaConsulta.trim() : null);
+    const bruto = datos?.observadoEn ?? datos?.observationTime ?? datos?.current?.time ?? null;
+    const observado = bruto === null || bruto === undefined || String(bruto).trim() === '' ? null : String(bruto).trim();
+    return { consulta, observado };
+}
+
+function almacenSnapshot() {
+    try {
+        if (typeof localStorage === 'undefined' || !localStorage) return null;
+        return localStorage;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Decide si un parte guardado puede mostrarse para un destino.
+ * Sin coordenadas comprobables en origen y destino, o sin instante real, no vale.
+ * Un instante futuro no rejuvenece el parte. No escribe en el almacenamiento.
+ */
+export function juzgarForecastSnapshot(snapshot, destinoLat, destinoLon, ahora = Date.now()) {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+        return { ok: false, motivo: 'incompleto' };
+    }
+    if (!snapshot.data || typeof snapshot.data !== 'object' || Array.isArray(snapshot.data)) {
+        return { ok: false, motivo: 'incompleto' };
+    }
+    const ts = instanteIdentidad(snapshot.ts);
+    if (ts === null) return { ok: false, motivo: 'instante_ilegible' };
+    if (!Number.isFinite(ahora)) return { ok: false, motivo: 'reloj' };
+    if (ts > ahora) return { ok: false, motivo: 'instante_futuro' };
+    const edadMs = ahora - ts;
+    if (edadMs > SNAPSHOT_MAX_AGE_MS) return { ok: false, motivo: 'caducado' };
+    const destino = coordenadasIdentidad(destinoLat, destinoLon);
+    if (!destino) return { ok: false, motivo: 'destino_sin_identidad' };
+    const origen = coordenadasIdentidad(snapshot.lat, snapshot.lon);
+    if (!origen) return { ok: false, motivo: 'origen_sin_identidad' };
+    const distKm = calcularDistanciaHaversineKm(origen.lat, origen.lon, destino.lat, destino.lon);
+    if (!Number.isFinite(distKm) || distKm > SNAPSHOT_RADIO_KM) {
+        return { ok: false, motivo: 'otra_ubicacion', distKm };
+    }
+    const temporal = lecturaTemporal(snapshot.data);
+    const location = typeof snapshot.location === 'string' && snapshot.location.trim() ? snapshot.location.trim() : null;
+    return {
+        ok: true,
+        distKm,
+        edadMs,
+        snapshot: {
+            ...snapshot,
+            ts,
+            lat: origen.lat,
+            lon: origen.lon,
+            location,
+            consulta: snapshot.consulta ?? temporal.consulta,
+            observado: snapshot.observado ?? temporal.observado
+        }
+    };
+}
 
 export function guardarForecastSnapshot(nombreUbicacion, lat, lon, data) {
     try {
+        const coords = coordenadasIdentidad(lat, lon);
+        const almacen = almacenSnapshot();
+        if (!coords || !almacen || !data || typeof data !== 'object') return false;
+        const regrabado = data._desdeSnapshot === true || data.datos?._desdeSnapshot === true;
+        const tsPrevio = instanteIdentidad(data._snapshotTs ?? data.datos?._snapshotTs);
+        if (regrabado && tsPrevio === null) return false;
+        const ts = regrabado ? tsPrevio : Date.now();
+        const origen = regrabado
+            ? coordenadasIdentidad(data._snapshotLat ?? data.datos?._snapshotLat, data._snapshotLon ?? data.datos?._snapshotLon)
+            : null;
+        const punto = origen || coords;
+        const temporal = lecturaTemporal(data);
         const snapshot = {
-            ts: Date.now(),
-            location: String(nombreUbicacion || 'Costa'),
-            lat: Number(lat),
-            lon: Number(lon),
+            ts,
+            location: String((regrabado && (data._snapshotLocation || data.datos?._snapshotLocation)) || nombreUbicacion || 'Costa'),
+            lat: punto.lat,
+            lon: punto.lon,
+            consulta: data._snapshotConsulta ?? data.datos?._snapshotConsulta ?? temporal.consulta,
+            observado: data._snapshotObservado ?? data.datos?._snapshotObservado ?? temporal.observado,
             data
         };
-        localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
+        almacen.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
+        return true;
     } catch (e) {
         console.warn('[snapshot] No se pudo guardar snapshot meteorológico:', e);
+        return false;
     }
 }
 
@@ -265,21 +381,75 @@ export function calcularMediaCircularGrados(angulos) {
     return Math.round(meanDeg) % 360;
 }
 
-export function recuperarForecastSnapshot(targetLat = null, targetLon = null) {
+export function recuperarForecastSnapshot(targetLat = null, targetLon = null, ahora = Date.now()) {
     try {
-        const raw = localStorage.getItem(SNAPSHOT_KEY);
+        const almacen = almacenSnapshot();
+        if (!almacen) return null;
+        const raw = almacen.getItem(SNAPSHOT_KEY);
         if (!raw) return null;
-        const snapshot = JSON.parse(raw);
-        if (!snapshot || !snapshot.ts || !snapshot.data) return null;
-        if (Date.now() - snapshot.ts > SNAPSHOT_MAX_AGE_MS) return null;
-        if (targetLat != null && targetLon != null && snapshot.lat != null && snapshot.lon != null) {
-            const distKm = calcularDistanciaHaversineKm(Number(snapshot.lat), Number(snapshot.lon), Number(targetLat), Number(targetLon));
-            if (distKm > 15) return null;
-        }
-        return snapshot;
+        const juicio = juzgarForecastSnapshot(JSON.parse(raw), targetLat, targetLon, ahora);
+        return juicio.ok ? juicio.snapshot : null;
     } catch (e) {
         return null;
     }
+}
+
+function fechaLocalISO(ms) {
+    const d = new Date(ms);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+export function parteSirveAFecha(snapshot, fechaPedida, ahora = Date.now()) {
+    const guardada = String(snapshot?.consulta || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(guardada)) return false;
+    const pedidaBruta = String(fechaPedida || '').slice(0, 10);
+    const pedida = /^\d{4}-\d{2}-\d{2}$/.test(pedidaBruta) ? pedidaBruta : fechaLocalISO(ahora);
+    return guardada === pedida;
+}
+
+function marcasSnapshot(snapshot) {
+    return {
+        _desdeSnapshot: true,
+        _snapshotTs: snapshot.ts,
+        _snapshotLocation: snapshot.location || null,
+        _snapshotLat: snapshot.lat,
+        _snapshotLon: snapshot.lon,
+        _snapshotConsulta: snapshot.consulta ?? null,
+        _snapshotObservado: snapshot.observado ?? null
+    };
+}
+
+/**
+ * Texto visible del parte guardado. La hora usa la zona local del dispositivo:
+ * no se fija Europe/Madrid. La hora meteorológica elegida no sustituye el guardado.
+ */
+export function textoParteGuardado(fuente, opciones = {}) {
+    if (!fuente || fuente._desdeSnapshot !== true) return null;
+    const ts = instanteIdentidad(fuente._snapshotTs);
+    if (ts === null) return null;
+    const ahora = Number.isFinite(opciones.ahora) ? opciones.ahora : Date.now();
+    const cuando = new Intl.DateTimeFormat('es-ES', {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(new Date(ts));
+    const minutos = Math.max(0, Math.round((ahora - ts) / 60000));
+    const antiguedad = minutos < 1 ? 'hace menos de 1 min' : `hace ${minutos} min`;
+    const lugar = fuente._snapshotLocation || 'lugar sin nombre';
+    const lat = numeroIdentidad(fuente._snapshotLat);
+    const lon = numeroIdentidad(fuente._snapshotLon);
+    const coords = lat !== null && lon !== null ? ` (${lat.toFixed(4)}, ${lon.toFixed(4)})` : '';
+    const partes = [
+        'Parte guardado, no es una medición actual.',
+        `Guardado el ${cuando} (${antiguedad}) para ${lugar}${coords}.`
+    ];
+    if (fuente._snapshotConsulta) partes.push(`Consulta del ${fuente._snapshotConsulta}.`);
+    if (fuente._snapshotObservado) partes.push(`Observación: ${fuente._snapshotObservado}.`);
+    if (opciones.horaParte) partes.push(`Hora del parte seleccionada: ${opciones.horaParte}. No cambia la hora de guardado.`);
+    partes.push('La consulta en vivo ha fallado. Los avisos oficiales de este parte pueden no estar al día.');
+    return partes.join(' ');
 }
 
 /**
@@ -477,9 +647,9 @@ export async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, 
             const gustsMs = dataHora?.windGustsMs;
             const dirDeg = dataHora?.windDirection ?? 0;
             const tempC = dataHora?.temperature ?? null;
-            const waveM = esEmbalse ? 0 : getMarineVal('wave_height', t);
-            const periodS = esEmbalse ? 0 : getMarineVal('wave_period', t);
-            const swellM = esEmbalse ? 0 : getMarineVal('swell_wave_height', t);
+            const waveM = esEmbalse ? null : getMarineVal('wave_height', t);
+            const periodS = esEmbalse ? null : getMarineVal('wave_period', t);
+            const swellM = esEmbalse ? null : getMarineVal('swell_wave_height', t);
             const waveDirDeg = esEmbalse ? 0 : getMarineVal('wave_direction', t);
             const compH = calcularComponenteVientoAuto(lat, lon, dirDeg, payload.location);
             horasDiurnas.push({
@@ -488,9 +658,9 @@ export async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, 
                 rachasKt: gustsMs != null ? kmhANudos(gustsMs * 3.6) : null,
                 dirDeg: dirDeg,
                 tempC: tempC,
-                oleajeM: waveM ?? 0,
-                periodoOlaS: periodS ?? 0,
-                swellM: swellM ?? 0,
+                oleajeM: waveM,
+                periodoOlaS: periodS,
+                swellM: swellM,
                 waveDirDeg: waveDirDeg ?? 0,
                 componenteCostera: compH?.componente || 'Cruzado',
                 lluviaMm: dataHora?.precipitation ?? 0,
@@ -832,15 +1002,16 @@ export async function solicitarPronostico(payload) {
         return resultadoPronostico;
     } catch (err) {
         const durationMs = Date.now() - startTime;
-        const snapshot = recuperarForecastSnapshot();
-        if (snapshot && snapshot.data && (!lat || !lon || (Date.now() - snapshot.ts < 3600000))) {
-            console.warn('[pronóstico] Red no disponible / fallo en petición. Recuperando último snapshot meteorológico offline:', err?.message || err);
+        const fechaPedida = payload?.date || payload?.fecha || payload?.selected_date;
+        const snapshot = recuperarForecastSnapshot(lat, lon);
+        if (snapshot && snapshot.data && parteSirveAFecha(snapshot, fechaPedida)) {
+            console.warn('[pronóstico] Consulta en vivo fallida. Se usa el parte guardado del mismo lugar:', err?.message || err);
             const resSnapshot = JSON.parse(JSON.stringify(snapshot.data));
-            resSnapshot._desdeSnapshot = true;
-            resSnapshot._snapshotTs = snapshot.ts;
-            resSnapshot._snapshotLocation = snapshot.location;
-            resSnapshot.lat = lat || snapshot.data.lat;
-            resSnapshot.lon = lon || snapshot.data.lon;
+            const marcas = marcasSnapshot(snapshot);
+            Object.assign(resSnapshot, marcas);
+            if (resSnapshot.datos && typeof resSnapshot.datos === 'object' && !Array.isArray(resSnapshot.datos)) {
+                Object.assign(resSnapshot.datos, marcas);
+            }
             return resSnapshot;
         }
         throw clasificarErrorMeteo(err, null, null, payload?.location, lat, lon, durationMs);

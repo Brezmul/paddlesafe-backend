@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { repoRoot } from '../repo-root.mjs';
 
 console.log('\n======================================================');
 console.log('SUITE UNITARIA: PWA, CACHÉ METEOROLÓGICO Y .HTACCESS');
@@ -28,7 +29,7 @@ function it(name, fn) {
     }
 }
 
-const baseDir = 'C:/Users/Usuario/Desktop/WEBS/PaddleSafe';
+const baseDir = repoRoot;
 
 // ==============================================================================
 // GRUPO 1: SINCRONIZACIÓN DE VERSIONES (SW.JS Y VERSION.JSON)

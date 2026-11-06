@@ -45,13 +45,16 @@ Variables:
 | `VITE_SUPABASE_ANON_KEY` | Clave publishable o anon del mismo proyecto |
 | `VITE_BACKEND_API_URL` | Por defecto `https://paddlesafe-backend.vercel.app/api/backend` |
 
-Comprueba el tipo y el build:
+Comprueba el tipo, las pruebas de la pantalla y el build:
 
 ```bash
+npm test
 npm run typecheck
 npm run build
 npm run preview
 ```
+
+`npm test` usa Vitest y jsdom. Renderiza `MapaPage` con el motor real, sustituye el mapa de Leaflet y deja Supabase en nulo. La red meteorológica es un doble: no hace falta internet ni credenciales. Cubre un dato ausente frente a un cero medido, costa e interior, un viento peligroso y un aviso, el parte guardado (lugar, fecha y hora al cambiar de franja) y que un fallo o una respuesta tardía no dejen el veredicto del sitio anterior. No mide cobertura ni sustituye una prueba en el teléfono.
 
 En Supabase → Authentication → URL configuration, añade como sitio y como redirect:
 
@@ -119,9 +122,10 @@ keytool -genkeypair -v \
 
 Requisitos en el ordenador donde compiles (esta máquina de desarrollo puede no tenerlos; ver más abajo):
 
-- JDK 17 o 21
-- Android SDK, plataformas Android 35 y Build-Tools
+- JDK 21 (Capacitor 8 y el plugin de Gradle 8.13 compilan con Java 21; Java 17 no basta para el código nativo de esta versión)
+- Android SDK Platform 36 y Build-Tools 36.0.0
 - Variable `ANDROID_HOME` apuntando al SDK
+- El `targetSdk` es 36 (Android 16). Capacitor 7 solo admite el 35, así que el proyecto usa Capacitor 8.6.0, Gradle 8.14.3 y Android Gradle Plugin 8.13.0. El mínimo pasa a Android 7.0 (API 24).
 
 ```bash
 cd web
@@ -202,5 +206,16 @@ Play puede tardar varios días y pedir cambios de textos o capturas. Eso no se r
 
 - El veredicto es una ayuda. Con tormenta, aviso naranja/rojo o duda, no se entra al agua.
 - El radar de partículas del frontend antiguo pasa a ser una rejilla de viento, la capa de RainViewer y el cálculo de deriva del mismo motor. El criterio de seguridad no se ha reescrito: se importa el código que ya estaba en producción.
-- El seguimiento GPS con la pantalla apagada no forma parte de esta versión (en el plan gratuito y sin un servicio de ubicación de pago es poco fiable y Play lo revisa aparte).
+- El seguimiento GPS solo existe en primer plano. Bloquear la pantalla o cambiar de app pausa el tramo; no se pide ubicación en segundo plano ni un servicio permanente. En Capacitor Geolocation 8 el `timeout` también corta `watchPosition`, así que el seguimiento usa un intervalo de 4 s y un timeout de 2 min, distinto de la lectura puntual (12 s).
+
+### Comprobación Android que sigue pendiente en un teléfono real
+
+Un emulador no sustituye la revisión de Play ni un móvil con Android 10 o superior. Cuando haya un teléfono:
+
+1. Instalar el APK debug (`web/android`, `./gradlew assembleDebug`) y abrir el mapa, el radar, clubes, social y perfil. Cubre un cierre al arrancar o una barra que tape la navegación.
+2. Conceder ubicación precisa, luego solo aproximada, denegarla y revocarla con la sesión en vivo abierta. Cubre un bucle de permisos o un recorrido que siga grabando sin permiso.
+3. Apagar los servicios de ubicación y volver a pulsar «Mi GPS». Cubre el mensaje de servicios apagados.
+4. Empezar una sesión, andar unos metros, bloquear la pantalla un minuto y volver. El tramo bloqueado no debe aparecer como recorrido continuo. Cubre la promesa falsa de registro en segundo plano.
+5. Girar el móvil y abrir el teclado en el buscador y en la bitácora. Cubre botones ocultos por las barras del sistema o el teclado.
+6. Repetir la sesión con la app un rato en segundo plano y comprobar que no se sube nada a Supabase si no hay sesión iniciada. Cubre filtraciones de posiciones de prueba.
 - La caché de mapa guarda un puñado de teselas alrededor del punto, no la costa entera.

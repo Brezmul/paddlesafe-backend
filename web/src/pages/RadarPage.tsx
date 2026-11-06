@@ -8,8 +8,9 @@ import { leerPosicion } from '@/lib/gps';
 import { evaluarLugar, type Motor } from '@/lib/legacy';
 import { leerNivel } from '@/lib/prefs';
 import { textoError } from '@/lib/db';
+import { medicionNumerica, magnitudNoNegativa } from '@/lib/medicion';
 
-type Flecha = { lat: number; lon: number; kt: number; dir: number };
+type Flecha = { lat: number; lon: number; kt: number | null; dir: number | null };
 
 function iconoViento(dir: number, kt: number) {
   const color = kt >= 18 ? '#fb7185' : kt >= 12 ? '#fbbf24' : '#7dd3fc';
@@ -68,8 +69,8 @@ export function RadarPage() {
       setFlechas(lista.map((item: { latitude: number; longitude: number; current?: { wind_speed_10m?: number; wind_direction_10m?: number } }, i: number) => ({
         lat: item.latitude ?? puntos[i].lat,
         lon: item.longitude ?? puntos[i].lon,
-        kt: Number(item.current?.wind_speed_10m || 0),
-        dir: Number(item.current?.wind_direction_10m || 0)
+        kt: magnitudNoNegativa(item.current?.wind_speed_10m),
+        dir: medicionNumerica(item.current?.wind_direction_10m)
       })));
       const evaluado = await evaluarLugar({ lat, lon, nombre: 'Radar', nivel: leerNivel() });
       setMotor(evaluado.motor);
@@ -90,8 +91,8 @@ export function RadarPage() {
         {lluvia && lluviaUrl && (
           <TileLayer url={lluviaUrl} opacity={0.55} attribution="RainViewer" />
         )}
-        {viento && flechas.map((f) => (
-          <Marker key={`${f.lat}-${f.lon}`} position={[f.lat, f.lon]} icon={iconoViento(f.dir, f.kt)} />
+        {viento && flechas.filter((f) => f.kt != null && f.dir != null).map((f) => (
+          <Marker key={`${f.lat}-${f.lon}`} position={[f.lat, f.lon]} icon={iconoViento(f.dir as number, f.kt as number)} />
         ))}
         {oleaje && ola != null && (
           <CircleMarker center={[lat, lon]} radius={18 + Number(ola) * 14} pathOptions={{ color: '#2dd4bf', weight: 2, fillOpacity: 0.15 }} />
@@ -123,7 +124,7 @@ export function RadarPage() {
       <Tarjeta>
         <h2 className="font-black">Lectura en el punto</h2>
         <p className="mt-1 text-sm text-slate-300">
-          Viento {motor?.detallesTecnicos?.vientoKt ?? '—'} kt {cardinal(flechas[4]?.dir)}. Oleaje {ola != null ? `${Number(ola).toFixed(1)} m` : '—'}.
+          Viento {motor?.detallesTecnicos?.vientoKt == null ? 'sin dato' : `${motor.detallesTecnicos.vientoKt} kt`} {cardinal(flechas[4]?.dir)}. Oleaje {ola != null ? `${Number(ola).toFixed(1)} m` : 'sin dato'}.
           Deriva {motor?.riesgoDeriva?.nivel || '—'}{motor?.riesgoDeriva?.descripcion ? `: ${motor.riesgoDeriva.descripcion}` : ''}.
         </p>
         <p className="mt-2 text-sm">Veredicto del punto: <strong>{motor?.icono} {motor?.estado || 'pulsa actualizar'}</strong></p>

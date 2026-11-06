@@ -10,6 +10,7 @@ import {
   equipoTermico,
   leerGpx,
   pedirCoach,
+  textoParteGuardado,
   xmlGpx,
   type HoraMarina,
   type Motor,
@@ -27,7 +28,9 @@ import {
   type SpotGuardado
 } from '@/lib/db';
 import { guardarNivel, leerNivel, leerTelefonoEmergencia, guardarTelefonoEmergencia } from '@/lib/prefs';
-import { dejarDeSeguir, leerPosicion, seguirPosicion } from '@/lib/gps';
+import { medicionNumerica, prepararEntradaCoach } from '@/lib/medicion';
+import { aplicarExito, aplicarFallo, aplicarHora, crearEstadoConsulta, iniciarEvaluacion } from '@/lib/consultaLugar';
+import { leerPosicion, observarPrimerPlano, seguirPosicion, type Seguimiento } from '@/lib/gps';
 import { supabase } from '@/lib/supabase';
 
 type Modo = 'spot' | 'ruta' | 'vivo';
@@ -62,7 +65,9 @@ export function MapaPage() {
   const [sesionViva, setSesionViva] = useState(false);
   const [recorrido, setRecorrido] = useState<Array<[number, number]>>([]);
   const [inicioMs, setInicioMs] = useState<number | null>(null);
-  const watchId = useRef<string | null>(null);
+  const seguimientoRef = useRef<Seguimiento | null>(null);
+  const sesionVivaRef = useRef(false);
+  const parteRef = useRef(crearEstadoConsulta());
   const [telefono, setTelefono] = useState(leerTelefonoEmergencia());
   const [checkinId, setCheckinId] = useState<string | null>(null);
   const [termicaAbierta, setTermicaAbierta] = useState(false);
@@ -75,6 +80,39 @@ export function MapaPage() {
   useEffect(() => {
     cargarSpots(userId).then(setSpots).catch(() => setSpots([]));
   }, [userId]);
+
+  useEffect(() => {
+    sesionVivaRef.current = sesionViva;
+  }, [sesionViva]);
+
+  useEffect(() => {
+    let vivo = true;
+    let quitar = () => undefined as void;
+    const pausado = { valor: false };
+    void observarPrimerPlano(
+      () => {
+        if (!sesionVivaRef.current) return;
+        pausado.valor = true;
+        void seguimientoRef.current?.parar();
+        seguimientoRef.current = null;
+        setMensaje('La sesión solo se registra con la app en primer plano. El tramo con la pantalla bloqueada o en otra app no se guarda.');
+      },
+      () => {
+        if (!sesionVivaRef.current || !pausado.valor) return;
+        pausado.valor = false;
+        void engancharSeguimiento();
+      }
+    ).then((cerrar) => {
+      if (vivo) quitar = cerrar;
+      else cerrar();
+    });
+    return () => {
+      vivo = false;
+      quitar();
+      void seguimientoRef.current?.parar();
+      seguimientoRef.current = null;
+    };
+  }, []);
 
   const horas = pronostico?.horasDiurnas || [];
   const kmRuta = useMemo(() => distanciaKm(puntos), [puntos]);
@@ -102,19 +140,31 @@ export function MapaPage() {
     try {
       const pos = await leerPosicion();
       irA(pos.lat, pos.lon, 'Mi posición');
-    } catch {
-      setError('No se ha podido leer el GPS. Revisa el permiso de ubicación.');
+      if (pos.aproximada) {
+        const metros = pos.accuracy == null ? '' : ` (${Math.round(pos.accuracy)} m)`;
+        setMensaje(`Ubicación aproximada${metros}. No es un punto GPS fino.`);
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'No se ha podido leer el GPS. Revisa el permiso de ubicación.');
     }
   }
 
   async function evaluar(enLat = lat, enLon = lon, enNombre = nombre) {
+    const iniciado = iniciarEvaluacion(parteRef.current);
+    parteRef.current = iniciado.estado;
+    setPronostico(null);
+    setMotor(null);
+    setHoraIdx(0);
     setCargando(true);
     setError(null);
     setCoach(null);
     try {
       const resultado = await evaluarLugar({ lat: enLat, lon: enLon, nombre: enNombre, nivel, boardType: tabla });
-      setPronostico(resultado.pronostico);
-      setMotor(resultado.motor);
+      const next = aplicarExito(parteRef.current, iniciado.id, resultado.pronostico, resultado.motor);
+      parteRef.current = next;
+      if (next.generacion !== iniciado.id) return;
+      setPronostico(next.pronostico);
+      setMotor(next.motor);
       setHoraIdx(0);
       const spot = spots.find((s) => s.nombre === enNombre);
       if (spot) {
@@ -125,17 +175,25 @@ export function MapaPage() {
         });
       }
     } catch (err) {
-      setError(textoError(err));
+      const next = aplicarFallo(parteRef.current, iniciado.id, textoError(err));
+      parteRef.current = next;
+      if (next.generacion !== iniciado.id) return;
+      setPronostico(null);
+      setMotor(null);
+      setError(next.error);
     } finally {
-      setCargando(false);
+      if (parteRef.current.generacion === iniciado.id) setCargando(false);
     }
   }
 
   function elegirHora(indice: number) {
+    const actual = parteRef.current.pronostico;
+    const hora = actual?.horasDiurnas?.[indice];
+    if (!actual || !hora) return;
+    const motorHora = evaluarHora(actual, hora, nivel, tabla);
+    parteRef.current = aplicarHora(parteRef.current, indice, motorHora);
     setHoraIdx(indice);
-    const hora = horas[indice];
-    if (!pronostico || !hora) return;
-    setMotor(evaluarHora(pronostico, hora, nivel, tabla));
+    setMotor(motorHora);
   }
 
   async function favorito() {
@@ -219,17 +277,24 @@ export function MapaPage() {
 
   async function coachAhora() {
     if (!motor) return;
+    if (pronostico?._desdeSnapshot) {
+      setCoach('El coach no se consulta con un parte guardado: no es una medición actual.');
+      return;
+    }
+    const entrada = prepararEntradaCoach(motor);
+    if (!entrada.consultar) {
+      setCoach(entrada.motivo);
+      return;
+    }
     setCargando(true);
     try {
-      const vientoKt = motor.detallesTecnicos?.vientoKt ?? motor.vientoNudos ?? 0;
-      const rachasKt = motor.detallesTecnicos?.rachasKt ?? vientoKt;
       const data = await pedirCoach({
         nivel,
-        vientoKmh: Number(vientoKt) * 1.852,
-        rachasKmh: Number(rachasKt) * 1.852,
-        direccion: Number(pronostico?.windDirection || 0),
-        oleaje: Number(motor.detallesTecnicos?.oleajeM || 0),
-        periodo: Number(motor.detallesTecnicos?.periodoOlaS || 0),
+        vientoKmh: entrada.vientoKt * 1.852,
+        rachasKmh: entrada.rachasKt * 1.852,
+        direccion: medicionNumerica(pronostico?.windDirection) ?? 0,
+        oleaje: entrada.oleajeM,
+        periodo: entrada.periodoS,
         tempAire: motor.detallesTecnicos?.tempAireC ?? 'N/D',
         tempAgua: motor.detallesTecnicos?.tempAguaC ?? 'N/D',
         lat,
@@ -323,36 +388,53 @@ export function MapaPage() {
     }
   }
 
-  async function empezarVivo() {
-    setError(null);
-    try {
-      await leerPosicion();
-    } catch {
-      setError('No se ha podido leer el GPS. Revisa el permiso de ubicación.');
-      return;
-    }
-    setRecorrido([]);
-    setInicioMs(Date.now());
-    setSesionViva(true);
-    setModo('vivo');
-    watchId.current = await seguirPosicion(
-      (latitud, longitud) => {
-        const punto: [number, number] = [Number(latitud.toFixed(6)), Number(longitud.toFixed(6))];
+  async function engancharSeguimiento() {
+    const seguimiento = await seguirPosicion(
+      (posicion) => {
+        const punto: [number, number] = [Number(posicion.lat.toFixed(6)), Number(posicion.lon.toFixed(6))];
         setLat(punto[0]);
         setLon(punto[1]);
+        if (posicion.aproximada) {
+          const metros = posicion.accuracy == null ? '' : ` (${Math.round(posicion.accuracy)} m)`;
+          setMensaje(`Ubicación aproximada${metros}. No es un punto GPS fino.`);
+        }
         setRecorrido((lista) => {
           const ultimo = lista[lista.length - 1];
           if (ultimo && distanciaKm([ultimo, punto]) < 0.008) return lista;
           return [...lista, punto];
         });
       },
-      () => setError('Se ha perdido la señal GPS.')
+      (aviso) => setError(aviso.mensaje)
     );
+    seguimientoRef.current = seguimiento;
+  }
+
+  async function empezarVivo() {
+    setError(null);
+    let posicion;
+    try {
+      posicion = await leerPosicion();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'No se ha podido leer el GPS. Revisa el permiso de ubicación.');
+      return;
+    }
+    setRecorrido([]);
+    setInicioMs(Date.now());
+    setSesionViva(true);
+    sesionVivaRef.current = true;
+    setModo('vivo');
+    if (posicion.aproximada) {
+      const metros = posicion.accuracy == null ? '' : ` (${Math.round(posicion.accuracy)} m)`;
+      setMensaje(`Ubicación aproximada${metros}. No es un punto GPS fino.`);
+    }
+    irA(posicion.lat, posicion.lon, 'Mi posición');
+    await engancharSeguimiento();
   }
 
   async function terminarVivo() {
-    if (watchId.current) await dejarDeSeguir(watchId.current);
-    watchId.current = null;
+    sesionVivaRef.current = false;
+    await seguimientoRef.current?.parar();
+    seguimientoRef.current = null;
     setSesionViva(false);
     const minutos = inicioMs ? Math.max(1, (Date.now() - inicioMs) / 60000) : 1;
     await guardarRuta(recorrido, minutos, `Travesía en vivo · ${nombre}`);
@@ -630,7 +712,7 @@ export function MapaPage() {
             <Boton variante="suave" onClick={abrirCheckin}>Check-in de seguridad</Boton>
             <Boton variante="suave" onClick={dibujarPoster} disabled={recorrido.length < 2 && puntos.length < 2}>Póster</Boton>
           </div>
-          <Aviso>Mantén la pantalla encendida si el sistema suspende el GPS en segundo plano. En Android, el seguimiento continuo en segundo plano exige un permiso extra que debes declarar en Play Console.</Aviso>
+          <Aviso>El recorrido solo se registra con esta pantalla en primer plano. Bloquear el móvil o cambiar de app pausa el tramo: no es un registro en segundo plano y no pide permiso de ubicación permanente.</Aviso>
         </Tarjeta>
       )}
     </div>
@@ -646,8 +728,10 @@ function Veredicto({ motor, pronostico, horas, horaIdx, onHora }: {
 }) {
   const tec = motor.detallesTecnicos || {};
   const ventanas = pronostico?.ventanasOptimas;
+  const parteGuardado = textoParteGuardado(pronostico, { horaParte: horas[horaIdx]?.hora || null });
   return (
     <Tarjeta className="space-y-3">
+      {parteGuardado && <Aviso>{parteGuardado}</Aviso>}
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Veredicto</p>
@@ -657,13 +741,13 @@ function Veredicto({ motor, pronostico, horas, horaIdx, onHora }: {
       </div>
       <p className="text-sm leading-relaxed text-slate-200">{motor.justificacion}</p>
       <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-        <Dato etiqueta="Viento" valor={`${tec.vientoKt ?? '—'} kt ${cardinal(pronostico?.windDirection)}`} />
-        <Dato etiqueta="Rachas" valor={`${tec.rachasKt ?? '—'} kt`} />
-        <Dato etiqueta="Oleaje" valor={tec.oleajeM != null ? `${Number(tec.oleajeM).toFixed(1)} m` : '—'} />
+        <Dato etiqueta="Viento" valor={tec.vientoKt == null ? 'Sin dato' : `${tec.vientoKt} kt ${cardinal(pronostico?.windDirection)}`} />
+        <Dato etiqueta="Rachas" valor={tec.rachasKt == null ? 'Sin dato' : `${tec.rachasKt} kt`} />
+        <Dato etiqueta="Oleaje" valor={motor.oleajeAplica === false ? 'No aplica' : (tec.oleajeM != null ? `${Number(tec.oleajeM).toFixed(1)} m` : 'Sin dato')} />
         <Dato etiqueta="Agua / aire" valor={`${tec.tempAguaC ?? '—'}° / ${tec.tempAireC ?? '—'}°`} />
       </div>
       {motor.componenteCostera?.componente && <p className="text-sm text-slate-300">Componente: {motor.componenteCostera.componente}. Deriva: {motor.riesgoDeriva?.nivel || '—'}.</p>}
-      {ventanas?.textoResumen && <Aviso>{ventanas.textoResumen}</Aviso>}
+      {ventanas?.textoResumen && motor.vientoConocido !== false && (motor.oleajeAplica !== true || motor.oleajeConocido !== false) && <Aviso>{ventanas.textoResumen}</Aviso>}
       {ventanas?.evolucionAviso && <Aviso tipo="error">{ventanas.evolucionAviso}</Aviso>}
       {(motor.factoresCriticos || []).length > 0 && (
         <ul className="list-disc space-y-1 pl-5 text-sm text-amber-100">

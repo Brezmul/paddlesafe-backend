@@ -6,8 +6,7 @@
 import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
-
-const baseDir = 'C:/Users/Usuario/Desktop/WEBS/PaddleSafe';
+import { repoRoot as baseDir } from '../repo-root.mjs';
 import { formatearTiempo } from '../../public_html/js/utils.js';
 import {
     BaseAppError,
