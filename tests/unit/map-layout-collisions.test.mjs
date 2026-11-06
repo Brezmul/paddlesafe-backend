@@ -2,8 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-
-const BASE_DIR = 'C:/Users/Usuario/Desktop/WEBS/PaddleSafe';
+import { repoRoot as BASE_DIR } from '../repo-root.mjs';
 
 describe('SUITE DE UI/UX: LAYOUT DEL MAPA Y PREVENCIÓN DE SOLAPAMIENTOS', () => {
 

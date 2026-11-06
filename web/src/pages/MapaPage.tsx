@@ -688,7 +688,7 @@ function Veredicto({ motor, pronostico, horas, horaIdx, onHora }: {
       <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
         <Dato etiqueta="Viento" valor={tec.vientoKt == null ? 'Sin dato' : `${tec.vientoKt} kt ${cardinal(pronostico?.windDirection)}`} />
         <Dato etiqueta="Rachas" valor={tec.rachasKt == null ? 'Sin dato' : `${tec.rachasKt} kt`} />
-        <Dato etiqueta="Oleaje" valor={tec.oleajeM != null ? `${Number(tec.oleajeM).toFixed(1)} m` : (motor.oleajeAplica === false ? 'No aplica' : 'Sin dato')} />
+        <Dato etiqueta="Oleaje" valor={motor.oleajeAplica === false ? 'No aplica' : (tec.oleajeM != null ? `${Number(tec.oleajeM).toFixed(1)} m` : 'Sin dato')} />
         <Dato etiqueta="Agua / aire" valor={`${tec.tempAguaC ?? '—'}° / ${tec.tempAireC ?? '—'}°`} />
       </div>
       {motor.componenteCostera?.componente && <p className="text-sm text-slate-300">Componente: {motor.componenteCostera.componente}. Deriva: {motor.riesgoDeriva?.nivel || '—'}.</p>}

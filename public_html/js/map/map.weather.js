@@ -647,9 +647,9 @@ export async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, 
             const gustsMs = dataHora?.windGustsMs;
             const dirDeg = dataHora?.windDirection ?? 0;
             const tempC = dataHora?.temperature ?? null;
-            const waveM = esEmbalse ? 0 : getMarineVal('wave_height', t);
-            const periodS = esEmbalse ? 0 : getMarineVal('wave_period', t);
-            const swellM = esEmbalse ? 0 : getMarineVal('swell_wave_height', t);
+            const waveM = esEmbalse ? null : getMarineVal('wave_height', t);
+            const periodS = esEmbalse ? null : getMarineVal('wave_period', t);
+            const swellM = esEmbalse ? null : getMarineVal('swell_wave_height', t);
             const waveDirDeg = esEmbalse ? 0 : getMarineVal('wave_direction', t);
             const compH = calcularComponenteVientoAuto(lat, lon, dirDeg, payload.location);
             horasDiurnas.push({
@@ -658,9 +658,9 @@ export async function solicitarPronosticoOpenMeteo(payload, resolvedLat = null, 
                 rachasKt: gustsMs != null ? kmhANudos(gustsMs * 3.6) : null,
                 dirDeg: dirDeg,
                 tempC: tempC,
-                oleajeM: waveM ?? 0,
-                periodoOlaS: periodS ?? 0,
-                swellM: swellM ?? 0,
+                oleajeM: waveM,
+                periodoOlaS: periodS,
+                swellM: swellM,
                 waveDirDeg: waveDirDeg ?? 0,
                 componenteCostera: compH?.componente || 'Cruzado',
                 lluviaMm: dataHora?.precipitation ?? 0,

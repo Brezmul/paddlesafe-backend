@@ -35,6 +35,13 @@ jobs:
       - name: 5. Execute Core Smoke & Architecture Validation Tests (756 Assertions)
         run: node smoke_test_v2.mjs
 
+      - name: 5b. Portable unit tests, including verdict and saved-forecast suites
+        run: node tests/run-unit.mjs
+
+      - name: 5c. React app tests and typecheck
+        working-directory: web
+        run: npm ci && npm test && npm run typecheck
+
       - name: 6. Install Playwright Chromium with system dependencies
         run: npx playwright install --with-deps chromium
 

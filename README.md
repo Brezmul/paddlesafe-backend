@@ -2,6 +2,18 @@
 
 La aplicación web en React (Vite + TypeScript), la PWA y el proyecto Android (Capacitor) están en [`web/`](web/README.md). Esa guía, en español, explica cómo ejecutarla en local, cómo publicar la versión web sin tocar el despliegue actual y cómo generar el Android App Bundle para Google Play.
 
+## Pruebas
+
+Hace falta Node.js 22, el mismo runtime de la integración continua. Las suites no llaman a Supabase ni a un pronóstico en vivo.
+
+```bash
+npm test
+```
+
+Eso ejecuta el humo de arquitectura (`smoke_test_v2.mjs`) y todas las suites de `tests/unit/`, resueltas desde la raíz del repositorio. `npm run test:unit` lanza solo esas suites. `npm run test:app` renderiza la pantalla del mapa en React con la red y Supabase sustituidos.
+
+No cubren un teléfono, la firma del paquete Android ni un corte físico de red. El e2e de Playwright sigue apuntando al HTML de `public_html/`, no a la app React.
+
 La carpeta `public_html/` sigue siendo el frontend que hoy sirve [www.sup.evolucionesdigitales.es](https://www.sup.evolucionesdigitales.es). La API serverless de Vercel no cambia: sigue entrando por `api/backend.js`.
 
 # PaddleSafe Backend

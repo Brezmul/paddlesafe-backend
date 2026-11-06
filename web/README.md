@@ -45,13 +45,16 @@ Variables:
 | `VITE_SUPABASE_ANON_KEY` | Clave publishable o anon del mismo proyecto |
 | `VITE_BACKEND_API_URL` | Por defecto `https://paddlesafe-backend.vercel.app/api/backend` |
 
-Comprueba el tipo y el build:
+Comprueba el tipo, las pruebas de la pantalla y el build:
 
 ```bash
+npm test
 npm run typecheck
 npm run build
 npm run preview
 ```
+
+`npm test` usa Vitest y jsdom. Renderiza `MapaPage` con el motor real, sustituye el mapa de Leaflet y deja Supabase en nulo. La red meteorológica es un doble: no hace falta internet ni credenciales. Cubre un dato ausente frente a un cero medido, costa e interior, un viento peligroso y un aviso, el parte guardado (lugar, fecha y hora al cambiar de franja) y que un fallo o una respuesta tardía no dejen el veredicto del sitio anterior. No mide cobertura ni sustituye una prueba en el teléfono.
 
 En Supabase → Authentication → URL configuration, añade como sitio y como redirect:
 
