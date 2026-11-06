@@ -30,7 +30,7 @@ import {
 import { guardarNivel, leerNivel, leerTelefonoEmergencia, guardarTelefonoEmergencia } from '@/lib/prefs';
 import { medicionNumerica, prepararEntradaCoach } from '@/lib/medicion';
 import { aplicarExito, aplicarFallo, aplicarHora, crearEstadoConsulta, iniciarEvaluacion } from '@/lib/consultaLugar';
-import { dejarDeSeguir, leerPosicion, seguirPosicion } from '@/lib/gps';
+import { leerPosicion, observarPrimerPlano, seguirPosicion, type Seguimiento } from '@/lib/gps';
 import { supabase } from '@/lib/supabase';
 
 type Modo = 'spot' | 'ruta' | 'vivo';
@@ -65,7 +65,8 @@ export function MapaPage() {
   const [sesionViva, setSesionViva] = useState(false);
   const [recorrido, setRecorrido] = useState<Array<[number, number]>>([]);
   const [inicioMs, setInicioMs] = useState<number | null>(null);
-  const watchId = useRef<string | null>(null);
+  const seguimientoRef = useRef<Seguimiento | null>(null);
+  const sesionVivaRef = useRef(false);
   const parteRef = useRef(crearEstadoConsulta());
   const [telefono, setTelefono] = useState(leerTelefonoEmergencia());
   const [checkinId, setCheckinId] = useState<string | null>(null);
@@ -79,6 +80,39 @@ export function MapaPage() {
   useEffect(() => {
     cargarSpots(userId).then(setSpots).catch(() => setSpots([]));
   }, [userId]);
+
+  useEffect(() => {
+    sesionVivaRef.current = sesionViva;
+  }, [sesionViva]);
+
+  useEffect(() => {
+    let vivo = true;
+    let quitar = () => undefined as void;
+    const pausado = { valor: false };
+    void observarPrimerPlano(
+      () => {
+        if (!sesionVivaRef.current) return;
+        pausado.valor = true;
+        void seguimientoRef.current?.parar();
+        seguimientoRef.current = null;
+        setMensaje('La sesión solo se registra con la app en primer plano. El tramo con la pantalla bloqueada o en otra app no se guarda.');
+      },
+      () => {
+        if (!sesionVivaRef.current || !pausado.valor) return;
+        pausado.valor = false;
+        void engancharSeguimiento();
+      }
+    ).then((cerrar) => {
+      if (vivo) quitar = cerrar;
+      else cerrar();
+    });
+    return () => {
+      vivo = false;
+      quitar();
+      void seguimientoRef.current?.parar();
+      seguimientoRef.current = null;
+    };
+  }, []);
 
   const horas = pronostico?.horasDiurnas || [];
   const kmRuta = useMemo(() => distanciaKm(puntos), [puntos]);
@@ -106,8 +140,12 @@ export function MapaPage() {
     try {
       const pos = await leerPosicion();
       irA(pos.lat, pos.lon, 'Mi posición');
-    } catch {
-      setError('No se ha podido leer el GPS. Revisa el permiso de ubicación.');
+      if (pos.aproximada) {
+        const metros = pos.accuracy == null ? '' : ` (${Math.round(pos.accuracy)} m)`;
+        setMensaje(`Ubicación aproximada${metros}. No es un punto GPS fino.`);
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'No se ha podido leer el GPS. Revisa el permiso de ubicación.');
     }
   }
 
@@ -350,36 +388,53 @@ export function MapaPage() {
     }
   }
 
-  async function empezarVivo() {
-    setError(null);
-    try {
-      await leerPosicion();
-    } catch {
-      setError('No se ha podido leer el GPS. Revisa el permiso de ubicación.');
-      return;
-    }
-    setRecorrido([]);
-    setInicioMs(Date.now());
-    setSesionViva(true);
-    setModo('vivo');
-    watchId.current = await seguirPosicion(
-      (latitud, longitud) => {
-        const punto: [number, number] = [Number(latitud.toFixed(6)), Number(longitud.toFixed(6))];
+  async function engancharSeguimiento() {
+    const seguimiento = await seguirPosicion(
+      (posicion) => {
+        const punto: [number, number] = [Number(posicion.lat.toFixed(6)), Number(posicion.lon.toFixed(6))];
         setLat(punto[0]);
         setLon(punto[1]);
+        if (posicion.aproximada) {
+          const metros = posicion.accuracy == null ? '' : ` (${Math.round(posicion.accuracy)} m)`;
+          setMensaje(`Ubicación aproximada${metros}. No es un punto GPS fino.`);
+        }
         setRecorrido((lista) => {
           const ultimo = lista[lista.length - 1];
           if (ultimo && distanciaKm([ultimo, punto]) < 0.008) return lista;
           return [...lista, punto];
         });
       },
-      () => setError('Se ha perdido la señal GPS.')
+      (aviso) => setError(aviso.mensaje)
     );
+    seguimientoRef.current = seguimiento;
+  }
+
+  async function empezarVivo() {
+    setError(null);
+    let posicion;
+    try {
+      posicion = await leerPosicion();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'No se ha podido leer el GPS. Revisa el permiso de ubicación.');
+      return;
+    }
+    setRecorrido([]);
+    setInicioMs(Date.now());
+    setSesionViva(true);
+    sesionVivaRef.current = true;
+    setModo('vivo');
+    if (posicion.aproximada) {
+      const metros = posicion.accuracy == null ? '' : ` (${Math.round(posicion.accuracy)} m)`;
+      setMensaje(`Ubicación aproximada${metros}. No es un punto GPS fino.`);
+    }
+    irA(posicion.lat, posicion.lon, 'Mi posición');
+    await engancharSeguimiento();
   }
 
   async function terminarVivo() {
-    if (watchId.current) await dejarDeSeguir(watchId.current);
-    watchId.current = null;
+    sesionVivaRef.current = false;
+    await seguimientoRef.current?.parar();
+    seguimientoRef.current = null;
     setSesionViva(false);
     const minutos = inicioMs ? Math.max(1, (Date.now() - inicioMs) / 60000) : 1;
     await guardarRuta(recorrido, minutos, `Travesía en vivo · ${nombre}`);
@@ -657,7 +712,7 @@ export function MapaPage() {
             <Boton variante="suave" onClick={abrirCheckin}>Check-in de seguridad</Boton>
             <Boton variante="suave" onClick={dibujarPoster} disabled={recorrido.length < 2 && puntos.length < 2}>Póster</Boton>
           </div>
-          <Aviso>Mantén la pantalla encendida si el sistema suspende el GPS en segundo plano. En Android, el seguimiento continuo en segundo plano exige un permiso extra que debes declarar en Play Console.</Aviso>
+          <Aviso>El recorrido solo se registra con esta pantalla en primer plano. Bloquear el móvil o cambiar de app pausa el tramo: no es un registro en segundo plano y no pide permiso de ubicación permanente.</Aviso>
         </Tarjeta>
       )}
     </div>

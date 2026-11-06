@@ -206,5 +206,16 @@ Play puede tardar varios días y pedir cambios de textos o capturas. Eso no se r
 
 - El veredicto es una ayuda. Con tormenta, aviso naranja/rojo o duda, no se entra al agua.
 - El radar de partículas del frontend antiguo pasa a ser una rejilla de viento, la capa de RainViewer y el cálculo de deriva del mismo motor. El criterio de seguridad no se ha reescrito: se importa el código que ya estaba en producción.
-- El seguimiento GPS con la pantalla apagada no forma parte de esta versión (en el plan gratuito y sin un servicio de ubicación de pago es poco fiable y Play lo revisa aparte).
+- El seguimiento GPS solo existe en primer plano. Bloquear la pantalla o cambiar de app pausa el tramo; no se pide ubicación en segundo plano ni un servicio permanente. En Capacitor Geolocation 8 el `timeout` también corta `watchPosition`, así que el seguimiento usa un intervalo de 4 s y un timeout de 2 min, distinto de la lectura puntual (12 s).
+
+### Comprobación Android que sigue pendiente en un teléfono real
+
+Un emulador no sustituye la revisión de Play ni un móvil con Android 10 o superior. Cuando haya un teléfono:
+
+1. Instalar el APK debug (`web/android`, `./gradlew assembleDebug`) y abrir el mapa, el radar, clubes, social y perfil. Cubre un cierre al arrancar o una barra que tape la navegación.
+2. Conceder ubicación precisa, luego solo aproximada, denegarla y revocarla con la sesión en vivo abierta. Cubre un bucle de permisos o un recorrido que siga grabando sin permiso.
+3. Apagar los servicios de ubicación y volver a pulsar «Mi GPS». Cubre el mensaje de servicios apagados.
+4. Empezar una sesión, andar unos metros, bloquear la pantalla un minuto y volver. El tramo bloqueado no debe aparecer como recorrido continuo. Cubre la promesa falsa de registro en segundo plano.
+5. Girar el móvil y abrir el teclado en el buscador y en la bitácora. Cubre botones ocultos por las barras del sistema o el teclado.
+6. Repetir la sesión con la app un rato en segundo plano y comprobar que no se sube nada a Supabase si no hay sesión iniciada. Cubre filtraciones de posiciones de prueba.
 - La caché de mapa guarda un puñado de teselas alrededor del punto, no la costa entera.

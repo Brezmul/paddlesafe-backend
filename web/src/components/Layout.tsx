@@ -20,6 +20,16 @@ export function Layout() {
   const [abiertos, setAbiertos] = useState(false);
 
   useEffect(() => {
+    const alEnfocar = (evento: FocusEvent) => {
+      const objetivo = evento.target;
+      if (!(objetivo instanceof HTMLInputElement || objetivo instanceof HTMLTextAreaElement || objetivo instanceof HTMLSelectElement)) return;
+      window.setTimeout(() => objetivo.scrollIntoView({ block: 'center', inline: 'nearest' }), 280);
+    };
+    document.addEventListener('focusin', alEnfocar);
+    return () => document.removeEventListener('focusin', alEnfocar);
+  }, []);
+
+  useEffect(() => {
     if (!supabase || !session?.user) {
       setAvisos([]);
       return;
