@@ -2,6 +2,7 @@ import { solicitarPronostico, obtenerMotorExperto } from '../../../public_html/j
 import { calcularEquipamientoTermicoDetallado } from '../../../public_html/js/utils.js';
 import { parseGPX, generarGPX } from '../../../public_html/js/gpxParser.js';
 import { env } from './env';
+import { magnitudNoNegativa, medicionNumerica } from './medicion';
 
 export type Nivel = 'Principiante' | 'Intermedio' | 'Avanzado' | 'Competicion';
 
@@ -99,16 +100,25 @@ export async function evaluarLugar(opts: {
 }
 
 export function evaluarHora(base: Pronostico, hora: HoraMarina, nivel: Nivel, boardType?: string | null): Motor {
-  const nudosAMs = (kt: number | null | undefined) =>
-    kt === null || kt === undefined || !Number.isFinite(Number(kt)) ? base.windSpeed : Number(kt) * 0.514444;
+  const ausente = (valor: unknown) => valor === null || valor === undefined || (typeof valor === 'string' && valor.trim() === '');
+  const nudosAMs = (kt: unknown, respaldo: number | null | undefined) => {
+    if (ausente(kt)) return respaldo;
+    const n = magnitudNoNegativa(kt);
+    return n === null ? null : n * 0.514444;
+  };
+  const numeroORespaldo = (valor: unknown, respaldo: number | null | undefined) => {
+    if (ausente(valor)) return respaldo;
+    return medicionNumerica(valor);
+  };
+  const oleaje = ausente(hora.oleajeM) ? base.waveHeight : magnitudNoNegativa(hora.oleajeM);
   const dx = {
     ...base,
-    windSpeed: nudosAMs(hora.vientoKt),
-    windGusts: nudosAMs(hora.rachasKt),
-    windDirection: hora.dirDeg ?? base.windDirection,
-    waveHeight: hora.oleajeM ?? base.waveHeight,
-    wavePeriod: hora.periodoOlaS ?? base.wavePeriod,
-    tempAire: hora.tempC ?? base.tempAire
+    windSpeed: nudosAMs(hora.vientoKt, base.windSpeed),
+    windGusts: nudosAMs(hora.rachasKt, base.windGusts),
+    windDirection: numeroORespaldo(hora.dirDeg, base.windDirection),
+    waveHeight: oleaje,
+    wavePeriod: ausente(hora.periodoOlaS) ? base.wavePeriod : magnitudNoNegativa(hora.periodoOlaS),
+    tempAire: numeroORespaldo(hora.tempC, base.tempAire)
   };
   return obtenerMotorExperto(dx, nivel, { boardType: boardType || null, deporte: 'paddle_surf' }) as Motor;
 }

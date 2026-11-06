@@ -97,9 +97,60 @@ export const ICONOS_SEGURIDAD = {
 };
 
 /**
+ * Número finito o cadena numérica. false, true, arrays y objetos no son 0.
+ * El cero numérico y la cadena "0" sí lo son. No recorta el rango: un ángulo o
+ * una temperatura negativos siguen siendo válidos aquí.
+ */
+export function medicionNumerica(valor) {
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : null;
+    if (typeof valor === 'string') {
+        const texto = valor.trim();
+        if (!/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(texto)) return null;
+        const n = Number(texto);
+        return Number.isFinite(n) ? n : null;
+    }
+    return null;
+}
+
+/** Magnitud física (viento u oleaje): negativa o ilegible no es calma. */
+export function magnitudNoNegativa(valor) {
+    const n = medicionNumerica(valor);
+    return n === null || n < 0 ? null : n;
+}
+
+/**
+ * Viento de una hora en nudos.
+ * vientoKt ya está en nudos; viento_kmh está en km/h; wind_speed_10m, en este
+ * proyecto, es el campo de Open-Meteo en m/s. Un 0 medido se conserva. Si no
+ * hay ninguna lectura legítima, el resultado es null, no 0.
+ */
+export function lecturaVientoHora(hora) {
+    if (!hora || typeof hora !== 'object' || Array.isArray(hora)) return { v: null, r: null };
+    let v = magnitudNoNegativa(hora.vientoKt);
+    if (v === null) {
+        const kmh = magnitudNoNegativa(hora.viento_kmh);
+        if (kmh !== null) v = kmh / 1.852;
+    }
+    if (v === null) {
+        const ms = magnitudNoNegativa(hora.wind_speed_10m);
+        if (ms !== null) v = ms * 3.6 / 1.852;
+    }
+    let r = magnitudNoNegativa(hora.rachasKt);
+    if (r === null) {
+        const kmh = magnitudNoNegativa(hora.rachas_kmh);
+        if (kmh !== null) r = kmh / 1.852;
+    }
+    if (r === null) {
+        const ms = magnitudNoNegativa(hora.wind_gusts_10m);
+        if (ms !== null) r = ms * 3.6 / 1.852;
+    }
+    return { v, r };
+}
+
+/**
  * Análisis de Evolución Próxima (+3h) para detectar subidas térmicas o roladas bruscas
  */
-export function analizarEvolucionProxima(params = {}, vReal = 0, rReal = 0, dirVientoDeg = null, seawardDeg = null) {
+export function analizarEvolucionProxima(params = {}, vReal = null, rReal = null, dirVientoDeg = null, seawardDeg = null) {
     const isArrayParams = Array.isArray(params);
     const hourly = isArrayParams ? null : (params.hourly || params.dx?.hourly || null);
     const horasDiurnas = isArrayParams
@@ -121,18 +172,10 @@ export function analizarEvolucionProxima(params = {}, vReal = 0, rReal = 0, dirV
             return hNum === hActualNum;
         });
         const startIdx = idxActual >= 0 ? idxActual : 0;
-        const medicion = (valor) => {
-            if (valor === null || valor === undefined) return null;
-            if (typeof valor === 'string' && valor.trim() === '') return null;
-            const n = Number(typeof valor === 'string' ? valor.trim() : valor);
-            return Number.isFinite(n) ? n : null;
-        };
-        if ((vReal === null || vReal === undefined) && horasDiurnas[startIdx]) {
-            const slotV = medicion(horasDiurnas[startIdx].vientoKt);
-            if (slotV !== null) {
-                vReal = slotV;
-                rReal = medicion(horasDiurnas[startIdx].rachasKt) ?? vReal;
-            }
+        const lectura = lecturaVientoHora(horasDiurnas[startIdx]);
+        if ((vReal === null || vReal === undefined) && lectura.v !== null) {
+            vReal = lectura.v;
+            rReal = lectura.r ?? vReal;
         }
         if (vReal === null || vReal === undefined || !Number.isFinite(Number(vReal))) {
             return null;
@@ -141,9 +184,10 @@ export function analizarEvolucionProxima(params = {}, vReal = 0, rReal = 0, dirV
         for (let offset = 1; offset <= 3; offset++) {
             const target = horasDiurnas[startIdx + offset];
             if (!target) continue;
-            const vFuturo = medicion(target.vientoKt);
+            const futuro = lecturaVientoHora(target);
+            const vFuturo = futuro.v;
             if (vFuturo === null) continue;
-            const rFuturo = medicion(target.rachasKt) ?? vFuturo;
+            const rFuturo = futuro.r ?? vFuturo;
             const dirFutura = Number(target.dirDeg ?? target.dirViento ?? target.wind_direction_10m ?? dirVientoDeg);
             const compFutura = seawardDeg !== null ? calcularComponenteVientoAuto(dirFutura, seawardDeg) : null;
             const esOffshoreFutura = compFutura?.componente === 'offshore';
@@ -182,11 +226,12 @@ export function analizarEvolucionProxima(params = {}, vReal = 0, rReal = 0, dirV
 
             const timeStr = hourly.time[tIdx];
             const horaPaso = new Date(timeStr.includes('Z') ? timeStr : timeStr + 'Z').toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-            
-            const rawV = Number(hourly.wind_speed_10m?.[tIdx] ?? hourly.windspeed_10m?.[tIdx] ?? 0);
-            const rawR = Number(hourly.wind_gusts_10m?.[tIdx] ?? hourly.windgusts_10m?.[tIdx] ?? rawV);
-            const vFuturo = rawV > 35 ? rawV / 1.852 : (rawV > 0 && rawV <= 25 ? rawV * 3.6 / 1.852 : rawV / 1.852);
-            const rFuturo = rawR > 35 ? rawR / 1.852 : (rawR > 0 && rawR <= 25 ? rawR * 3.6 / 1.852 : rawR / 1.852);
+            const aNudosHeuristica = (raw) => raw > 35 ? raw / 1.852 : (raw > 0 && raw <= 25 ? raw * 3.6 / 1.852 : raw / 1.852);
+            const rawV = magnitudNoNegativa(hourly.wind_speed_10m?.[tIdx] ?? hourly.windspeed_10m?.[tIdx]);
+            if (rawV === null) continue;
+            const rawR = magnitudNoNegativa(hourly.wind_gusts_10m?.[tIdx] ?? hourly.windgusts_10m?.[tIdx]) ?? rawV;
+            const vFuturo = aNudosHeuristica(rawV);
+            const rFuturo = aNudosHeuristica(rawR);
             const dirFutura = Number(hourly.wind_direction_10m?.[tIdx] ?? hourly.winddirection_10m?.[tIdx] ?? dirVientoDeg);
             const compFutura = seawardDeg !== null ? calcularComponenteVientoAuto(dirFutura, seawardDeg) : null;
             const esOffshoreFutura = compFutura?.componente === 'offshore';
@@ -226,32 +271,23 @@ export function generarVeredictoNextGen(params = {}) {
     const userLevel = params.userLevel || params.nivelUsuario || params.nivel_usuario || 'Intermedio';
     const deporteKey = params.deporteKey || params.deporte || 'paddle_surf';
 
-    const numOrNull = (v) => {
-        if (v === null || v === undefined) return null;
-        if (typeof v === 'string' && v.trim() === '') return null;
-        const n = typeof v === 'string' ? Number(v.trim()) : Number(v);
-        return Number.isFinite(n) ? n : null;
+    const numOrNull = medicionNumerica;
+    const aNudos = (kmh) => {
+        const n = magnitudNoNegativa(kmh);
+        return n === null ? null : Number((n / 1.852).toFixed(1));
     };
 
     // Conversión segura km/h a nudos si no vienen directamente en nudos
-    let vientoKt = params.vientoKt ?? params.viento_kt ?? null;
-    if (vientoKt === null && params.vientoKmh !== null && params.vientoKmh !== undefined) {
-        vientoKt = Number((params.vientoKmh / 1.852).toFixed(1));
-    } else if (vientoKt === null && params.viento_kmh !== null && params.viento_kmh !== undefined) {
-        vientoKt = Number((params.viento_kmh / 1.852).toFixed(1));
-    }
-    vientoKt = numOrNull(vientoKt);
+    let vientoKt = magnitudNoNegativa(params.vientoKt ?? params.viento_kt ?? null);
+    if (vientoKt === null) vientoKt = aNudos(params.vientoKmh);
+    if (vientoKt === null) vientoKt = aNudos(params.viento_kmh);
 
-    let rachasKt = params.rachasKt ?? params.rachas_kt ?? null;
-    if (rachasKt === null && params.rachasKmh !== null && params.rachasKmh !== undefined) {
-        rachasKt = Number((params.rachasKmh / 1.852).toFixed(1));
-    } else if (rachasKt === null && params.rachas_kmh !== null && params.rachas_kmh !== undefined) {
-        rachasKt = Number((params.rachas_kmh / 1.852).toFixed(1));
-    }
-    rachasKt = numOrNull(rachasKt);
+    let rachasKt = magnitudNoNegativa(params.rachasKt ?? params.rachas_kt ?? null);
+    if (rachasKt === null) rachasKt = aNudos(params.rachasKmh);
+    if (rachasKt === null) rachasKt = aNudos(params.rachas_kmh);
 
     const dirVientoDeg = numOrNull(params.dirVientoDeg ?? params.dir_viento_deg ?? params.direccionViento ?? null);
-    const oleajeM = numOrNull(params.oleajeM ?? params.olaM ?? params.altura_ola_m ?? null);
+    const oleajeM = magnitudNoNegativa(params.oleajeM ?? params.olaM ?? params.altura_ola_m ?? null);
     const periodoOlaS = numOrNull(params.periodoOlaS ?? params.periodoOla ?? params.periodo_ola_s ?? params.wavePeriod ?? params.wave_period ?? null);
     const swellM = numOrNull(params.swellM ?? params.swell_height ?? null);
     const swellPeriodoS = numOrNull(params.swellPeriodoS ?? params.periodoSwell ?? params.swell_period ?? null);
@@ -550,10 +586,16 @@ export function generarVeredictoNextGen(params = {}) {
         return resultadoEmergencia;
     }
 
-    // Comprobar si faltan datos meteorológicos esenciales (Viento y Oleaje)
-    const sinViento = vientoKt === null || isNaN(Number(vientoKt));
-    const sinOleaje = oleajeM === null || isNaN(Number(oleajeM));
-    if (sinViento && sinOleaje) {
+    // Sin viento medio ni oleaje solo se corta aquí si tampoco hay racha ni aviso
+    // que ya dispare un umbral existente (10 kt de precaución, aviso activo).
+    const sinViento = vientoKt === null;
+    const sinOleaje = oleajeM === null;
+    const avisoOficialAhora = Boolean(
+        (alertaOficial?.esVigente === true && alertaOficial?.estadoTemporal === 'ACTIVA_AHORA')
+        || alertasArray.some(a => a?.esVigente === true && a?.estadoTemporal === 'ACTIVA_AHORA')
+    );
+    const rachaConUmbral = rachasKt !== null && rachasKt >= 10;
+    if (sinViento && sinOleaje && !avisoOficialAhora && !rachaConUmbral) {
         const confEstado = ESTADOS_VEREDICTO.SIN_DATOS || {
             titulo: 'Sin datos meteorológicos',
             icono: '❓',
@@ -664,12 +706,16 @@ export function generarVeredictoNextGen(params = {}) {
     const oReal = oleajeConocido ? oleajeM : null;
     const rReal = rachasKt !== null ? rachasKt : vReal;
 
+    // Si falta el viento medio, la racha medida usa los mismos cortes (10/15/20 kt).
+    const vientoReferencia = vientoConocido ? vReal : (rachasKt !== null ? rachasKt : null);
+    const referenciaConocida = vientoReferencia !== null;
+
     let score = 95;
-    if (vientoConocido) {
-        if (vReal >= 20) score -= 60;
-        else if (vReal >= 15) score -= 40;
-        else if (vReal >= 11) score -= 20;
-        else if (vReal <= 6 && (!oleajeAplica || (oleajeConocido && oReal <= 0.3))) score = 98;
+    if (referenciaConocida) {
+        if (vientoReferencia >= 20) score -= 60;
+        else if (vientoReferencia >= 15) score -= 40;
+        else if (vientoReferencia >= 11) score -= 20;
+        else if (vientoConocido && vReal <= 6 && (!oleajeAplica || (oleajeConocido && oReal <= 0.3))) score = 98;
     }
 
     if (vientoConocido && rReal !== null) {
@@ -780,13 +826,13 @@ export function generarVeredictoNextGen(params = {}) {
     let estadoKey = 'FAVORABLE';
     let respuestaDirecta = '🟢 Salida Recomendada';
 
-    if (score < 30 || (vientoConocido && vReal >= 20) || (oleajeConocido && oReal >= 1.8) || (alertaActivaJornada && ['NARANJA', 'ROJA'].includes(alertaOficial.nivel))) {
+    if (score < 30 || (referenciaConocida && vientoReferencia >= 20) || (oleajeConocido && oReal >= 1.8) || (alertaActivaJornada && ['NARANJA', 'ROJA'].includes(String(alertaOficial?.nivel || '').toUpperCase()))) {
         estadoKey = 'NO_RECOMENDADO';
         respuestaDirecta = '🔴 No recomendado';
-    } else if (score < 55 || (vientoConocido && vReal >= 15) || (oleajeConocido && oReal >= 1.0) || (userLevel === 'Principiante' && ((vientoConocido && vReal >= 10) || (oleajeConocido && oReal >= 0.5)))) {
+    } else if (score < 55 || (referenciaConocida && vientoReferencia >= 15) || (oleajeConocido && oReal >= 1.0) || (userLevel === 'Principiante' && ((referenciaConocida && vientoReferencia >= 10) || (oleajeConocido && oReal >= 0.5)))) {
         estadoKey = 'EXIGENTE';
         respuestaDirecta = '🟠 Condiciones exigentes';
-    } else if (score < 75 || (vientoConocido && vReal >= 10) || (oleajeConocido && oReal >= 0.5) || (vientoConocido && compViento.componente === 'offshore') || alertaActivaJornada) {
+    } else if (score < 75 || (referenciaConocida && vientoReferencia >= 10) || (oleajeConocido && oReal >= 0.5) || (vientoConocido && compViento.componente === 'offshore') || alertaActivaJornada) {
         estadoKey = 'PRECAUCION';
         respuestaDirecta = '🟡 Precaución';
     }
@@ -802,6 +848,7 @@ export function generarVeredictoNextGen(params = {}) {
         faltaOleajeCostero ? 'El oleaje costero no está medido y no se da el mar por calmo.' : ''
     ].filter(Boolean).join(' ');
 
+    const rachaSolo = !vientoConocido && rachasKt !== null ? `Rachas medidas de ${rachasKt} kt. ` : '';
     let justificacion = '';
     if ((faltaViento || faltaOleajeCostero) && estadoKey === 'FAVORABLE') {
         estadoKey = 'SIN_DATOS';
@@ -815,19 +862,20 @@ export function generarVeredictoNextGen(params = {}) {
             ? `Viento suave (${vReal} kt) en aguas interiores. Condiciones óptimas para remar con fluidez y mínimo esfuerzo.`
             : `Viento suave (${vReal} kt) y mar calmo (${oReal.toFixed(1)} m). Condiciones óptimas para remar con fluidez y mínimo esfuerzo.`;
     } else if (estadoKey === 'PRECAUCION') {
+        const matiz = (faltaViento || faltaOleajeCostero) ? '' : ' Sesión viable gestionando el ritmo.';
         justificacion = vientoConocido && compViento.componente === 'offshore'
             ? `Viento de ${textoViento} con componente hacia mar abierto (offshore). Conviene remar en paralelo a la orilla y vigilar referencias fijas en tierra.`
             : !infoCosta.esCosta
-                ? `Viento de ${textoViento} en aguas interiores. Sesión viable gestionando el ritmo cerca de la orilla.`
-                : `Viento de ${textoViento}${textoOla ? ` y ligera ondulación (${textoOla})` : ''}. Sesión viable gestionando el ritmo.`;
+                ? `${rachaSolo}Viento de ${textoViento} en aguas interiores.${matiz}`
+                : `${rachaSolo}Viento de ${textoViento}${textoOla ? ` y ligera ondulación (${textoOla})` : ''}.${matiz}`;
     } else if (estadoKey === 'EXIGENTE') {
         justificacion = !infoCosta.esCosta
-            ? `Viento activo de ${textoViento} en aguas interiores. Requiere experiencia previa, equilibrio reactivo y buena condición física.`
-            : `Viento activo de ${textoViento}${textoOla ? ` y oleaje de ${textoOla}` : ''}. Requiere experiencia previa, equilibrio reactivo y buena condición física.`;
+            ? `${rachaSolo}Viento activo de ${textoViento} en aguas interiores. Requiere experiencia previa, equilibrio reactivo y buena condición física.`
+            : `${rachaSolo}Viento activo de ${textoViento}${textoOla ? ` y oleaje de ${textoOla}` : ''}. Requiere experiencia previa, equilibrio reactivo y buena condición física.`;
     } else {
         justificacion = !infoCosta.esCosta
-            ? `Condiciones adversas (viento de ${textoViento} en aguas interiores). Alto riesgo de caída y agotamiento muscular.`
-            : `Condiciones adversas (viento de ${textoViento}${textoOla ? ` y olas de ${textoOla}` : ''}). Alto riesgo de caída, deriva mar adentro y agotamiento muscular.`;
+            ? `${rachaSolo}Condiciones adversas (viento de ${textoViento} en aguas interiores). Alto riesgo de caída y agotamiento muscular.`
+            : `${rachaSolo}Condiciones adversas (viento de ${textoViento}${textoOla ? ` y olas de ${textoOla}` : ''}). Alto riesgo de caída, deriva mar adentro y agotamiento muscular.`;
     }
 
     if ((faltaViento || faltaOleajeCostero) && estadoKey !== 'SIN_DATOS') {

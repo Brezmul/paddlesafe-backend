@@ -8,14 +8,9 @@ import { leerPosicion } from '@/lib/gps';
 import { evaluarLugar, type Motor } from '@/lib/legacy';
 import { leerNivel } from '@/lib/prefs';
 import { textoError } from '@/lib/db';
+import { medicionNumerica, magnitudNoNegativa } from '@/lib/medicion';
 
 type Flecha = { lat: number; lon: number; kt: number | null; dir: number | null };
-
-function numeroMedido(valor: unknown): number | null {
-  if (valor === null || valor === undefined || valor === '') return null;
-  const n = Number(valor);
-  return Number.isFinite(n) ? n : null;
-}
 
 function iconoViento(dir: number, kt: number) {
   const color = kt >= 18 ? '#fb7185' : kt >= 12 ? '#fbbf24' : '#7dd3fc';
@@ -74,8 +69,8 @@ export function RadarPage() {
       setFlechas(lista.map((item: { latitude: number; longitude: number; current?: { wind_speed_10m?: number; wind_direction_10m?: number } }, i: number) => ({
         lat: item.latitude ?? puntos[i].lat,
         lon: item.longitude ?? puntos[i].lon,
-        kt: numeroMedido(item.current?.wind_speed_10m),
-        dir: numeroMedido(item.current?.wind_direction_10m)
+        kt: magnitudNoNegativa(item.current?.wind_speed_10m),
+        dir: medicionNumerica(item.current?.wind_direction_10m)
       })));
       const evaluado = await evaluarLugar({ lat, lon, nombre: 'Radar', nivel: leerNivel() });
       setMotor(evaluado.motor);
