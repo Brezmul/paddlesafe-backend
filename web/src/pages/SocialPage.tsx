@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useAcceso } from '@/context/AccesoContext';
 import { Candado } from '@/components/Candado';
+import { MenuModeracion } from '@/components/MenuModeracion';
 import { Aviso, Boton, inputCls, Tarjeta } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { formatoTiempo } from '@/lib/geo';
+import { desdeSupabase, filtrarBloqueados, guardarBloqueo, guardarDenuncia, type MotivoDenuncia } from '@/lib/moderacion';
 
 type Ruta = {
   id: string;
@@ -16,7 +18,7 @@ type Ruta = {
   imagen_url?: string | null;
   autor?: string;
 };
-type Comentario = { id: string; comentario?: string | null; contenido?: string | null; texto?: string | null; autor_nombre?: string | null };
+type Comentario = { id: string; user_id?: string | null; comentario?: string | null; contenido?: string | null; texto?: string | null; autor_nombre?: string | null };
 type Rank = { id?: string; nombre?: string | null; avatar_url?: string | null; puntos_periodo?: number | null; club_id?: string; logo_url?: string | null; miembros?: number | null };
 type Amigo = { id: string; nombre: string; pendiente?: boolean; amistadId?: string };
 
@@ -37,6 +39,7 @@ export function SocialPage() {
   const [likes, setLikes] = useState<Record<string, number>>({});
   const [mios, setMios] = useState<Record<string, boolean>>({});
   const [abierto, setAbierto] = useState<string | null>(null);
+  const [bloqueados, setBloqueados] = useState<string[]>([]);
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
   const [borrador, setBorrador] = useState('');
   const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number][0]>('diario');
@@ -46,6 +49,13 @@ export function SocialPage() {
   const [solicitudes, setSolicitudes] = useState<Amigo[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [misClubes, setMisClubes] = useState<Array<{ id: string; nombre: string }>>([]);
+
+  useEffect(() => {
+    if (!supabase || !session?.user) return;
+    supabase.from('user_blocks').select('blocked_id').eq('blocker_id', session.user.id).then(({ data }) => {
+      setBloqueados((data || []).map((fila: { blocked_id: string }) => fila.blocked_id));
+    });
+  }, [session]);
 
   async function cargarMuro() {
     if (!supabase) return;
@@ -219,6 +229,28 @@ export function SocialPage() {
     else await cargarAmigos();
   }
 
+  const visibles = filtrarBloqueados(rutas.map((ruta) => ({ ...ruta, userId: ruta.user_id })), bloqueados);
+  const comentariosVisibles = filtrarBloqueados(comentarios.map((c) => ({ ...c, userId: c.user_id })), bloqueados);
+
+  async function denunciar(autorId: string, objetivoId: string, contexto: 'muro' | 'comentario', motivo: MotivoDenuncia) {
+    if (!supabase || !session?.user) return 'Entra para denunciar.';
+    const resultado = await guardarDenuncia(desdeSupabase(supabase), {
+      reporterId: session.user.id,
+      reportedUserId: autorId,
+      contexto,
+      objetivoId,
+      motivo
+    });
+    return resultado.mensaje;
+  }
+
+  async function bloquear(autorId: string) {
+    if (!supabase || !session?.user) return 'Entra para bloquear.';
+    const resultado = await guardarBloqueo(desdeSupabase(supabase), session.user.id, autorId);
+    if (resultado.ok) setBloqueados((lista) => [...lista, autorId]);
+    return resultado.mensaje;
+  }
+
   if (!acceso.puede('social')) return <div className="space-y-3"><Candado funcion="social" /></div>;
 
   return (
@@ -237,7 +269,7 @@ export function SocialPage() {
             ))}
           </div>
           {rutas.length === 0 && <p className="text-sm text-slate-400">No hay rutas en este filtro.</p>}
-          {rutas.map((ruta) => (
+          {visibles.map((ruta) => (
             <Tarjeta key={ruta.id} className="space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -251,6 +283,7 @@ export function SocialPage() {
                 <Boton variante="suave" onClick={() => like(ruta.id)}>{mios[ruta.id] ? 'Te gusta' : 'Me gusta'} · {likes[ruta.id] || 0}</Boton>
                 <Boton variante="suave" onClick={() => abrirComentarios(ruta.id)}>Comentar</Boton>
                 {session?.user.id === ruta.user_id && <Boton variante="peligro" onClick={() => borrarRuta(ruta.id)}>Eliminar</Boton>}
+                <MenuModeracion autorId={ruta.user_id} yo={session?.user.id || null} contexto="muro" objetivoId={ruta.id} onDenunciar={(motivo) => denunciar(ruta.user_id, ruta.id, 'muro', motivo)} onBloquear={() => bloquear(ruta.user_id)} />
               </div>
               {misClubes.length > 0 && session?.user.id === ruta.user_id && (
                 <select className={inputCls} defaultValue="" onChange={(e) => { if (e.target.value) compartirClub(ruta.id, e.target.value); e.target.value = ''; }}>
@@ -260,8 +293,11 @@ export function SocialPage() {
               )}
               {abierto === ruta.id && (
                 <div className="space-y-2">
-                  {comentarios.map((c) => (
-                    <p key={c.id} className="rounded-2xl bg-white/5 px-3 py-2 text-sm"><span className="font-bold">{c.autor_nombre || 'Paddler'}: </span>{c.comentario || c.contenido || c.texto}</p>
+                  {comentariosVisibles.map((c) => (
+                    <div key={c.id} className="rounded-2xl bg-white/5 px-3 py-2 text-sm">
+                      <span className="font-bold">{c.autor_nombre || 'Paddler'}: </span>{c.comentario || c.contenido || c.texto}
+                      {c.user_id && <MenuModeracion autorId={c.user_id} yo={session?.user.id || null} contexto="comentario" objetivoId={c.id} onDenunciar={(motivo) => denunciar(c.user_id || '', c.id, 'comentario', motivo)} onBloquear={() => bloquear(c.user_id || '')} />}
+                    </div>
                   ))}
                   <div className="flex gap-2">
                     <input className={inputCls} value={borrador} onChange={(e) => setBorrador(e.target.value)} placeholder="Comentario" />

@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useAcceso } from '@/context/AccesoContext';
 import { Candado } from '@/components/Candado';
+import { MenuModeracion } from '@/components/MenuModeracion';
 import { Aviso, Boton, Campo, inputCls, Tarjeta } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { textoError } from '@/lib/db';
+import { desdeSupabase, filtrarBloqueados, guardarBloqueo, guardarDenuncia, type MotivoDenuncia } from '@/lib/moderacion';
 
 type Club = { id: string; nombre: string; descripcion?: string | null; logo_url?: string | null; ubicacion?: string | null; nivel?: number | null };
 type Mensaje = { id: string; mensaje?: string | null; user_id?: string | null; created_at?: string | null; autor?: string };
@@ -30,6 +32,14 @@ export function ClubesPage() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [rol, setRol] = useState<string | null>(null);
+  const [bloqueados, setBloqueados] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!supabase || !session?.user) return;
+    supabase.from('user_blocks').select('blocked_id').eq('blocker_id', session.user.id).then(({ data }) => {
+      setBloqueados((data || []).map((fila: { blocked_id: string }) => fila.blocked_id));
+    });
+  }, [session]);
 
   async function cargarMios() {
     if (!supabase || !session) return;
@@ -302,10 +312,20 @@ export function ClubesPage() {
         <Tarjeta>
           <h2 className="mb-2 font-black">Chat del club</h2>
           <ul className="mb-2 max-h-64 space-y-2 overflow-auto">
-            {mensajes.map((m) => (
+            {filtrarBloqueados(mensajes.map((m) => ({ ...m, userId: m.user_id })), bloqueados).map((m) => (
               <li key={m.id} className="rounded-2xl bg-white/5 px-3 py-2 text-sm">
                 <span className="font-bold">{m.autor}</span>
                 <p>{m.mensaje}</p>
+                {m.user_id && (
+                  <MenuModeracion
+                    autorId={m.user_id}
+                    yo={session?.user.id || null}
+                    contexto="club_chat"
+                    objetivoId={m.id}
+                    onDenunciar={(motivo) => denunciarChat(m.user_id || '', m.id, motivo)}
+                    onBloquear={() => bloquearChat(m.user_id || '')}
+                  />
+                )}
               </li>
             ))}
             {mensajes.length === 0 && <li className="text-sm text-slate-400">Todavía no hay mensajes.</li>}
@@ -361,6 +381,25 @@ export function ClubesPage() {
         </Tarjeta>
       </div>
     );
+  }
+
+  async function denunciarChat(autorId: string, objetivoId: string, motivo: MotivoDenuncia) {
+    if (!supabase || !session?.user) return 'Entra para denunciar.';
+    const resultado = await guardarDenuncia(desdeSupabase(supabase), {
+      reporterId: session.user.id,
+      reportedUserId: autorId,
+      contexto: 'club_chat',
+      objetivoId,
+      motivo
+    });
+    return resultado.mensaje;
+  }
+
+  async function bloquearChat(autorId: string) {
+    if (!supabase || !session?.user) return 'Entra para bloquear.';
+    const resultado = await guardarBloqueo(desdeSupabase(supabase), session.user.id, autorId);
+    if (resultado.ok) setBloqueados((lista) => [...lista, autorId]);
+    return resultado.mensaje;
   }
 
   if (!acceso.puede('clubes')) return <div className="space-y-3"><Candado funcion="clubes" /></div>;

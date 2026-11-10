@@ -67,3 +67,10 @@ Riesgo si se aplican políticas que exijan Premium en clubes o rutas sin el `upd
 El candado de la interfaz se puede saltar modificando la app. Las escrituras de clubes y del muro solo quedan cerradas de verdad cuando una política de fila compruebe `premium_derechos.estado = 'activo'` o `perfiles.acceso_previo`. Esa política no está en este cambio: aplicarla sin el marcado previo dejaría fuera a la comunidad actual.
 
 Biblioteca de cobro en Android: Play Billing 8.0.0, permiso `com.android.vending.BILLING`, plugin `PlayBilling` dentro de la app. Reconoce las compras en estado `PURCHASED` que aún no lo estaban.
+
+## Cuenta y denuncias
+
+Eliminar la cuenta está en Perfil, con dos confirmaciones, y en la página pública `eliminar-cuenta.html`. La función `eliminar-cuenta` está en el repositorio y no está desplegada. Borrar la cuenta no cancela Premium en Google Play.
+
+Denunciar y bloquear escribe en `reports` y `user_blocks` (`sql/reports_y_bloqueos.sql`, sin aplicar). Las denuncias quedan en estado pendiente y las revisa el titular de PaddleSafe en Supabase. Bloquear solo oculta el contenido a quien bloquea.
+
