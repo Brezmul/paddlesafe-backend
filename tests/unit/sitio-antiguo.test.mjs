@@ -12,6 +12,7 @@ import { obtenerColorParticulaViento } from '../../public_html/js/map/map.radar.
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const indice = fs.readFileSync(path.join(raiz, 'public_html/index.html'), 'utf8');
 const precarga = fs.readFileSync(path.join(raiz, 'public_html/sw.js'), 'utf8');
+const radar = fs.readFileSync(path.join(raiz, 'public_html/js/map/map.radar.js'), 'utf8');
 
 assert(indice.includes('id="proDashWind"'), 'el panel táctico antiguo sigue en index.html');
 assert(indice.includes('id="radarCockpitPanel"'), 'el radar antiguo sigue en index.html');
@@ -19,6 +20,7 @@ assert(indice.includes('leaflet@1.9.4'), 'el mapa antiguo sigue cargando Leaflet
 assert(precarga.includes('/js/map/map.bento.js'), 'la caché sigue sirviendo map.bento.js');
 assert(precarga.includes('/js/map/map.routes.js'), 'la caché sigue sirviendo map.routes.js');
 assert(precarga.includes('/js/map/map.radar.js'), 'la caché sigue sirviendo map.radar.js');
+assert(radar.includes('maxNativeZoom: 7'), 'el radar antiguo ya no pide a RainViewer un zoom superior a 7');
 
 assert.equal(typeof renderizarDashboardPro, 'function');
 assert.equal(typeof togglePlayPauseReplayRuta, 'function');

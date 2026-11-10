@@ -36,17 +36,25 @@ button, a, input, select, textarea {
 }
 
 .ps-contenido {
-  padding-bottom: calc(5.2rem + var(--safe-area-inset-bottom, 0px));
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-bottom: 0.75rem;
+  overscroll-behavior: contain;
 }
 
 .ps-barra {
-  padding-bottom: var(--safe-area-inset-bottom, 0px);
+  padding-bottom: max(0px, var(--safe-area-inset-bottom, 0px));
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
   .ps-marco {
-    height: 38vh !important;
-    min-height: 160px !important;
+    height: 14vh !important;
+    min-height: 56px !important;
+    max-height: 84px !important;
+  }
+  nav a {
+    min-height: 44px;
   }
 }
 

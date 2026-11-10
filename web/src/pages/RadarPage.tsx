@@ -9,6 +9,7 @@ import { leerPosicion } from '@/lib/gps';
 import { evaluarLugar, type Motor } from '@/lib/legacy';
 import { leerNivel } from '@/lib/prefs';
 import { textoError } from '@/lib/db';
+import { ZOOM_MAX_LLUVIA, ZOOM_NATIVO_LLUVIA } from '@/lib/lluvia';
 import { medicionNumerica, magnitudNoNegativa } from '@/lib/medicion';
 
 type Flecha = { lat: number; lon: number; kt: number | null; dir: number | null };
@@ -92,7 +93,13 @@ export function RadarPage() {
     <div className="space-y-3">
       <SpotMap lat={lat} lon={lon} focusToken={foco} marca={[lat, lon]} altura="h-[52vh] min-h-[300px]" onMapClick={(a, b) => { setLat(a); setLon(b); setFoco((n) => n + 1); }}>
         {lluvia && lluviaUrl && (
-          <TileLayer url={lluviaUrl} opacity={0.55} attribution="RainViewer" />
+          <TileLayer
+            url={lluviaUrl}
+            opacity={0.55}
+            attribution="RainViewer"
+            maxNativeZoom={ZOOM_NATIVO_LLUVIA}
+            maxZoom={ZOOM_MAX_LLUVIA}
+          />
         )}
         {viento && flechas.filter((f) => f.kt != null && f.dir != null).map((f) => (
           <Marker key={`${f.lat}-${f.lon}`} position={[f.lat, f.lon]} icon={iconoViento(f.dir as number, f.kt as number)} />
@@ -133,7 +140,7 @@ export function RadarPage() {
           Deriva {motor?.riesgoDeriva?.nivel || '—'}{motor?.riesgoDeriva?.descripcion ? `: ${motor.riesgoDeriva.descripcion}` : ''}.
         </p>
         <p className="mt-2 text-sm">Veredicto del punto: <strong>{motor?.icono} {motor?.estado || 'pulsa actualizar'}</strong></p>
-        <p className="mt-2 text-[11px] text-slate-500">La lluvia es el último radar de RainViewer. Las flechas salen de Open-Meteo (la punta indica hacia dónde sopla el viento). Las partículas usan ese mismo vector, como máximo 120, y se paran si la app no está delante. La deriva es la estimación costera de PaddleSafe, no una boya oficial.</p>
+        <p className="mt-2 text-xs leading-relaxed text-slate-300">La lluvia es el último radar de RainViewer. A partir del zoom 7 se amplía esa tesela: el servicio no tiene niveles más cercanos. Las flechas salen de Open-Meteo (la punta indica hacia dónde sopla el viento). Las partículas usan ese mismo vector, como máximo 120, y se paran si la app no está delante. La deriva es la estimación costera de PaddleSafe, no una boya oficial.</p>
         {particulas && !centro && !cargando && <p className="mt-2 text-sm text-slate-300">Partículas: sin dato de viento en la rejilla. No se dibuja un flujo inventado.</p>}
       </Tarjeta>
     </div>

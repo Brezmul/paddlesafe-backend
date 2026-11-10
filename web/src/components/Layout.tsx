@@ -57,9 +57,9 @@ export function Layout() {
   }
 
   return (
-    <div className="min-h-dvh bg-[#041e30] text-slate-100">
-      <header className="sticky top-0 z-[500] border-b border-white/10 bg-[#06263c]/95 backdrop-blur">
-        <div className="ps-cabecera mx-auto flex max-w-5xl items-center gap-3 px-3 py-2.5">
+    <div className="flex h-dvh flex-col bg-[#041e30] text-slate-100">
+      <header className="z-[500] shrink-0 border-b border-white/10 bg-[#06263c]/95 backdrop-blur">
+        <div className="ps-cabecera mx-auto flex max-w-5xl items-center gap-3 px-3 pb-2.5">
           <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 text-left">
             <span className="grid h-9 w-9 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 to-emerald-400 text-lg text-slate-950">🌊</span>
             <span>
@@ -117,7 +117,7 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-[500] border-t border-white/10 bg-[#06263c]/95 backdrop-blur">
+      <nav className="z-[500] shrink-0 border-t border-white/10 bg-[#06263c]/95 backdrop-blur">
         <ul className="ps-barra mx-auto grid max-w-5xl grid-cols-5">
           {enlaces.map((item) => (
             <li key={item.to}>
