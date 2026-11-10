@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Aviso, Boton, Tarjeta } from '@/components/ui';
 import { useAcceso } from '@/context/AccesoContext';
 import { textoPeriodo } from '@/lib/acceso';
+import { esFicha } from '@/lib/ficha';
 import { comprarPlan, esAndroid, restaurarPlay, urlGestionSuscripcion } from '@/lib/play';
 
 const GRATIS = ['Mapa y búsqueda de spot', 'Mi GPS', 'Veredicto de seguridad del momento', 'Avisos de peligro', 'Radar básico (viento, lluvia, oleaje y deriva)'];
@@ -11,7 +12,7 @@ export function PremiumPage() {
   const { premium, origen, play, fijarPlay } = useAcceso();
   const [ocupado, setOcupado] = useState(false);
   const [nota, setNota] = useState<string | null>(null);
-  const android = esAndroid();
+  const android = esAndroid() || esFicha();
 
   async function comprar(oferta: string) {
     setOcupado(true);
@@ -74,7 +75,7 @@ export function PremiumPage() {
           <Tarjeta key={plan.oferta} className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-lg font-black">{plan.precio}</p>
-              <p className="text-sm text-slate-300">{textoPeriodo(plan.periodo)} · {plan.idBase}</p>
+              <p className="text-sm text-slate-300">{textoPeriodo(plan.periodo)}</p>
             </div>
             <Boton disabled={ocupado || premium} onClick={() => comprar(plan.oferta)}>{premium ? 'Ya activo' : 'Suscribirme'}</Boton>
           </Tarjeta>

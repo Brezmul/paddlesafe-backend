@@ -6,6 +6,7 @@ import { MenuModeracion } from '@/components/MenuModeracion';
 import { Aviso, Boton, inputCls, Tarjeta } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { formatoTiempo } from '@/lib/geo';
+import { demoMuro, esFicha } from '@/lib/ficha';
 import { desdeSupabase, filtrarBloqueados, guardarBloqueo, guardarDenuncia, type MotivoDenuncia } from '@/lib/moderacion';
 
 type Ruta = {
@@ -35,12 +36,13 @@ export function SocialPage() {
   const { session, perfil } = useAuth();
   const [tab, setTab] = useState<'muro' | 'ranking' | 'amigos'>('muro');
   const [filtro, setFiltro] = useState<'global' | 'amigos' | 'clubes'>('global');
-  const [rutas, setRutas] = useState<Ruta[]>([]);
-  const [likes, setLikes] = useState<Record<string, number>>({});
+  const muro = esFicha() ? demoMuro() : null;
+  const [rutas, setRutas] = useState<Ruta[]>(muro?.rutas ?? []);
+  const [likes, setLikes] = useState<Record<string, number>>(muro?.likes ?? {});
   const [mios, setMios] = useState<Record<string, boolean>>({});
-  const [abierto, setAbierto] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState<string | null>(muro ? muro.rutas[0].id : null);
   const [bloqueados, setBloqueados] = useState<string[]>([]);
-  const [comentarios, setComentarios] = useState<Comentario[]>([]);
+  const [comentarios, setComentarios] = useState<Comentario[]>(muro?.comentarios ?? []);
   const [borrador, setBorrador] = useState('');
   const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number][0]>('diario');
   const [ranking, setRanking] = useState<Rank[]>([]);
@@ -58,7 +60,7 @@ export function SocialPage() {
   }, [session]);
 
   async function cargarMuro() {
-    if (!supabase) return;
+    if (esFicha() || !supabase) return;
     setError(null);
     const { data, error: err } = await supabase
       .from('rutas')

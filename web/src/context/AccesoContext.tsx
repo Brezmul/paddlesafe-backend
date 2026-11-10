@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { decidirPremium, puedeUsar, type Funcion, type OrigenPremium } from '@/lib/acceso';
+import { esFicha, PLAY_FICHA } from '@/lib/ficha';
 import { esAndroid, prepararPlay, type EstadoPlay, estadoSinPlay } from '@/lib/play';
 import { supabase } from '@/lib/supabase';
 
@@ -82,23 +83,27 @@ export function AccesoProvider({ children }: { children: ReactNode }) {
     }).catch(() => undefined);
   }, [play.activo, play.producto, play.token, session]);
 
-  const decision = decidirPremium({
-    playActivo: esAndroid() && play.activo,
-    derecho,
-    accesoPrevio,
-    sesion: Boolean(session),
-    tablaAusente
-  });
+  const ficha = esFicha();
+  const decision = ficha
+    ? { premium: true, origen: 'play' as const }
+    : decidirPremium({
+      playActivo: esAndroid() && play.activo,
+      derecho,
+      accesoPrevio,
+      sesion: Boolean(session),
+      tablaAusente
+    });
+  const playVisible = ficha ? PLAY_FICHA : play;
 
   const valor = useMemo<AccesoValor>(() => ({
-    listo,
+    listo: ficha || listo,
     premium: decision.premium,
     origen: decision.origen,
-    play,
+    play: playVisible,
     puede: (funcion) => puedeUsar(funcion, decision.premium),
     recargarPlay,
     fijarPlay: setPlay
-  }), [decision.origen, decision.premium, listo, play, recargarPlay]);
+  }), [decision.origen, decision.premium, ficha, listo, playVisible, recargarPlay]);
 
   return <AccesoContext.Provider value={valor}>{children}</AccesoContext.Provider>;
 }

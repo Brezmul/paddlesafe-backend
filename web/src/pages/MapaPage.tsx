@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Candado } from '@/components/Candado';
+import { Candado, OfertaMapa } from '@/components/Candado';
 import { PanelTactico } from '@/components/PanelTactico';
 import { PlanificadorTramos } from '@/components/PlanificadorTramos';
 import { ReproductorRuta } from '@/components/ReproductorRuta';
@@ -36,6 +36,7 @@ import { medicionNumerica, magnitudNoNegativa, prepararEntradaCoach } from '@/li
 import { planificarTramos, type LecturaHora } from '@/lib/tramos';
 import { aplicarExito, aplicarFallo, aplicarHora, crearEstadoConsulta, iniciarEvaluacion } from '@/lib/consultaLugar';
 import { leerPosicion, observarPrimerPlano, seguirPosicion, type Seguimiento } from '@/lib/gps';
+import { demoCosta, esFicha, vistaFicha } from '@/lib/ficha';
 import { supabase } from '@/lib/supabase';
 
 type Modo = 'spot' | 'ruta' | 'vivo';
@@ -44,22 +45,24 @@ const INICIO: [number, number] = [38.8, 0.18];
 
 export function MapaPage() {
   const { userId, guest, perfil, session } = useAuth();
-  const [modo, setModo] = useState<Modo>('spot');
-  const [lat, setLat] = useState(INICIO[0]);
-  const [lon, setLon] = useState(INICIO[1]);
-  const [nombre, setNombre] = useState('Jávea');
+  const ficha = esFicha();
+  const vista = vistaFicha();
+  const [modo, setModo] = useState<Modo>(vista === 'replay' ? 'ruta' : 'spot');
+  const [lat, setLat] = useState(ficha ? demoCosta().lat : INICIO[0]);
+  const [lon, setLon] = useState(ficha ? demoCosta().lon : INICIO[1]);
+  const [nombre, setNombre] = useState(ficha ? demoCosta().nombre : 'Jávea');
   const [consulta, setConsulta] = useState('');
   const [lugares, setLugares] = useState<Lugar[]>([]);
   const [foco, setFoco] = useState(0);
   const [nivel, setNivel] = useState<Nivel>(leerNivel());
-  const [pronostico, setPronostico] = useState<Pronostico | null>(null);
-  const [motor, setMotor] = useState<Motor | null>(null);
+  const [pronostico, setPronostico] = useState<Pronostico | null>(ficha ? demoCosta().pronostico : null);
+  const [motor, setMotor] = useState<Motor | null>(ficha ? demoCosta().motor : null);
   const [horaIdx, setHoraIdx] = useState(0);
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [spots, setSpots] = useState<SpotGuardado[]>([]);
-  const [puntos, setPuntos] = useState<Array<[number, number]>>([]);
+  const [puntos, setPuntos] = useState<Array<[number, number]>>(vista === 'replay' ? demoCosta().puntos : []);
   const [comparacion, setComparacion] = useState<Array<{ nombre: string; estado: string; score: number }>>([]);
   const [coach, setCoach] = useState<string | null>(null);
   const [reporte, setReporte] = useState('mar_plato');
@@ -556,9 +559,10 @@ export function MapaPage() {
         estela={estela}
         marcaReplay={marcaReplay}
         onMapClick={alPulsarMapa}
+        altura={ficha && vista !== 'replay' ? 'h-[168px] min-h-[168px]' : undefined}
       />
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-2" data-captura={ficha ? 'modos' : undefined}>
         {([['spot', 'Evaluar'], ['ruta', 'Ruta'], ['vivo', 'En vivo']] as Array<[Modo, string]>).map(([id, label]) => (
           <button key={id} type="button" onClick={() => setModo(id)} className={`min-h-11 rounded-2xl text-sm font-black ${modo === id ? 'bg-emerald-400 text-slate-950' : 'bg-white/5 text-slate-200'}`}>
             {label}
@@ -566,7 +570,7 @@ export function MapaPage() {
         ))}
       </div>
 
-      <Tarjeta className="space-y-3">
+      <Tarjeta className="space-y-3" data-captura={ficha ? 'buscar' : undefined}>
         <div className="flex gap-2">
           <input className={inputCls} value={consulta} placeholder="Buscar playa, cala o pueblo" onChange={(e) => setConsulta(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') buscar(); }} />
           <Boton onClick={buscar}>Buscar</Boton>
@@ -600,39 +604,40 @@ export function MapaPage() {
       </Tarjeta>
 
       {(modo === 'spot' || modo === 'ruta') && (
-        <Candado funcion="tactico">
+        <Candado funcion="tactico" oculto>
+          <div data-captura={ficha ? 'panel' : undefined}>
           <PanelTactico
             motor={motor}
             pronostico={pronostico}
             lat={lat}
             lon={lon}
             horaSalida={horaSalida}
-            minutosRuta={modo === 'ruta' ? plan.minutos : null}
-            kmRuta={modo === 'ruta' ? plan.km : null}
+            minutosRuta={modo === 'ruta' ? plan.minutos : (ficha ? 75 : null)}
+            kmRuta={modo === 'ruta' ? plan.km : (ficha ? 6.4 : null)}
             cruceroKmh={crucero}
             cargando={cargando}
           />
+          </div>
         </Candado>
       )}
 
       {modo === 'spot' && (
         <>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-captura={ficha ? 'acciones' : undefined}>
             <Boton onClick={() => evaluar()} disabled={cargando}>{cargando ? 'Consultando…' : 'Evaluar spot'}</Boton>
-          </div>
-          <Candado funcion="favoritos">
-            <div className="flex flex-wrap gap-2">
+            <Candado funcion="favoritos" oculto>
               <Boton variante="suave" onClick={favorito}>Guardar spot</Boton>
               <Boton variante="suave" onClick={comparar} disabled={spots.length < 2 || cargando}>Comparar favoritos</Boton>
-            </div>
-          </Candado>
-          <Candado funcion="neopreno">
-            <Boton variante="suave" onClick={() => setTermicaAbierta((v) => !v)}>Neopreno</Boton>
-          </Candado>
-          <Candado funcion="coach">
-            <Boton variante="suave" onClick={coachAhora} disabled={!motor || cargando}>Coach</Boton>
-          </Candado>
+            </Candado>
+            <Candado funcion="neopreno" oculto>
+              <Boton variante="suave" onClick={() => setTermicaAbierta((v) => !v)}>Neopreno</Boton>
+            </Candado>
+            <Candado funcion="coach" oculto>
+              <Boton variante="suave" onClick={coachAhora} disabled={!motor || cargando}>Coach</Boton>
+            </Candado>
+          </div>
           {motor && <Veredicto motor={motor} pronostico={pronostico} horas={horas} horaIdx={horaIdx} onHora={elegirHora} />}
+          <OfertaMapa />
           {coach && <Tarjeta><p className="whitespace-pre-wrap text-sm leading-relaxed">{coach}</p><p className="mt-2 text-[11px] text-slate-500">El coach usa el motor gratuito del servidor. No sustituye tu criterio ni un aviso oficial.</p></Tarjeta>}
           {termica && (
             <Tarjeta className="space-y-2">
@@ -669,7 +674,7 @@ export function MapaPage() {
               </ul>
             </Tarjeta>
           )}
-          <Candado funcion="favoritos">
+          <Candado funcion="favoritos" oculto>
           <Tarjeta className="space-y-2">
             <h2 className="font-black">Spots guardados</h2>
             {spots.length === 0 && <p className="text-sm text-slate-400">Todavía no hay favoritos. Puedes cargar un pack de calas.</p>}
@@ -710,7 +715,7 @@ export function MapaPage() {
             }}>Guardar notas</Boton>
           </Tarjeta>
           </Candado>
-          <Candado funcion="reporte">
+          <Candado funcion="reporte" oculto>
           <Tarjeta className="space-y-2">
             <h2 className="font-black">Reporte en el agua</h2>
             <select className={inputCls} value={reporte} onChange={(e) => setReporte(e.target.value)}>
@@ -724,7 +729,7 @@ export function MapaPage() {
             <Boton variante="suave" onClick={enviarReporte}>Publicar reporte</Boton>
           </Tarjeta>
           </Candado>
-          <Candado funcion="bitacora">
+          <Candado funcion="bitacora" oculto>
           <Tarjeta className="space-y-2">
             <h2 className="font-black">Bitácora</h2>
             <Campo etiqueta="Sensación (1-5)">
@@ -738,7 +743,9 @@ export function MapaPage() {
       )}
 
       {modo === 'ruta' && (
-        <Candado funcion="tramos">
+        <>
+        <OfertaMapa />
+        <Candado funcion="tramos" oculto>
         <Tarjeta className="space-y-2">
           <h2 className="font-black">Planificador</h2>
           <p className="text-sm text-slate-300">Toca el mapa para añadir puntos. Ritmo de crucero: {crucero} km/h (se cambia en Perfil).</p>
@@ -759,10 +766,11 @@ export function MapaPage() {
         </Tarjeta>
         <PlanificadorTramos plan={plan} horaSalida={horaSalida} onHora={setHoraSalida} />
         </Candado>
+        </>
       )}
 
       {(modo === 'ruta' || modo === 'vivo') && (modo === 'vivo' ? recorrido : puntos).length >= 2 && (
-        <Candado funcion="reproduccion">
+        <Candado funcion="reproduccion" oculto>
         <ReproductorRuta
           puntos={modo === 'vivo' ? recorrido : puntos}
           onMarco={(latP, lonP, trazo) => {
@@ -787,7 +795,8 @@ export function MapaPage() {
           </div>
           <Aviso>El teléfono y el check-in siguen disponibles sin Premium. El registro del recorrido es una función de pago.</Aviso>
         </Tarjeta>
-        <Candado funcion="vivo">
+        <OfertaMapa />
+        <Candado funcion="vivo" oculto>
           <Tarjeta className="space-y-2">
             <div className="flex flex-wrap gap-2">
               {!sesionViva && <Boton onClick={empezarVivo}>Empezar GPS</Boton>}
@@ -823,15 +832,15 @@ function Veredicto({ motor, pronostico, horas, horaIdx, onHora }: {
         </div>
         <p className="text-right text-3xl font-black text-emerald-300">{motor.score ?? '—'}</p>
       </div>
-      <p className="text-sm leading-relaxed text-slate-200">{motor.justificacion}</p>
-      <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+      <p className="text-sm leading-relaxed text-slate-200" data-captura="veredicto-texto">{motor.justificacion}</p>
+      <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4" data-captura="veredicto-texto">
         <Dato etiqueta="Viento" valor={tec.vientoKt == null ? 'Sin dato' : `${tec.vientoKt} kt ${cardinal(pronostico?.windDirection)}`} />
         <Dato etiqueta="Rachas" valor={tec.rachasKt == null ? 'Sin dato' : `${tec.rachasKt} kt`} />
         <Dato etiqueta="Oleaje" valor={motor.oleajeAplica === false ? 'No aplica' : (tec.oleajeM != null ? `${Number(tec.oleajeM).toFixed(1)} m` : 'Sin dato')} />
         <Dato etiqueta="Agua / aire" valor={`${tec.tempAguaC ?? '—'}° / ${tec.tempAireC ?? '—'}°`} />
       </div>
-      {motor.componenteCostera?.componente && <p className="text-sm text-slate-300">Componente: {motor.componenteCostera.componente}. Deriva: {motor.riesgoDeriva?.nivel || '—'}.</p>}
-      {ventanas?.textoResumen && motor.vientoConocido !== false && (motor.oleajeAplica !== true || motor.oleajeConocido !== false) && <Aviso>{ventanas.textoResumen}</Aviso>}
+      {motor.componenteCostera?.componente && <p className="text-sm text-slate-300" data-captura="veredicto-texto">Componente: {motor.componenteCostera.componente}. Deriva: {motor.riesgoDeriva?.nivel || '—'}.</p>}
+      {ventanas?.textoResumen && motor.vientoConocido !== false && (motor.oleajeAplica !== true || motor.oleajeConocido !== false) && <div data-captura="veredicto-texto"><Aviso>{ventanas.textoResumen}</Aviso></div>}
       {ventanas?.evolucionAviso && <Aviso tipo="error">{ventanas.evolucionAviso}</Aviso>}
       {(motor.factoresCriticos || []).length > 0 && (
         <ul className="list-disc space-y-1 pl-5 text-sm text-amber-100">
@@ -839,8 +848,8 @@ function Veredicto({ motor, pronostico, horas, horaIdx, onHora }: {
         </ul>
       )}
       {horas.length > 0 && (
-        <Candado funcion="jornada">
-          <div>
+        <Candado funcion="jornada" oculto>
+          <div data-captura="jornada">
             <p className="mb-2 text-xs font-bold uppercase text-slate-400">Jornada</p>
             <input className="w-full" type="range" min={0} max={horas.length - 1} value={Math.min(horaIdx, horas.length - 1)} onChange={(e) => onHora(Number(e.target.value))} />
             <div className="mt-2 flex gap-2 overflow-auto ps-scroll">
@@ -855,7 +864,7 @@ function Veredicto({ motor, pronostico, horas, horaIdx, onHora }: {
           </div>
         </Candado>
       )}
-      <p className="text-[11px] leading-relaxed text-slate-500">Orientación basada en Open-Meteo y el motor de PaddleSafe. Confianza del análisis: {motor.analysisConfidence ?? '—'}%. No sustituye avisos de AEMET, Protección Civil o 112.</p>
+      <p className="text-[11px] leading-relaxed text-slate-500" data-captura="veredicto-texto">Orientación basada en Open-Meteo y el motor de PaddleSafe. Confianza del análisis: {motor.analysisConfidence ?? '—'}%. No sustituye avisos de AEMET, Protección Civil o 112.</p>
     </Tarjeta>
   );
 }

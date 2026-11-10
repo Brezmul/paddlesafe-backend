@@ -11,6 +11,7 @@ import { leerPosicion } from '@/lib/gps';
 import { evaluarLugar, type Motor } from '@/lib/legacy';
 import { leerNivel } from '@/lib/prefs';
 import { textoError } from '@/lib/db';
+import { demoRadar, esFicha } from '@/lib/ficha';
 import { ZOOM_MAX_LLUVIA, ZOOM_NATIVO_LLUVIA } from '@/lib/lluvia';
 import { medicionNumerica, magnitudNoNegativa } from '@/lib/medicion';
 
@@ -28,17 +29,18 @@ function iconoViento(dir: number, kt: number) {
 
 export function RadarPage() {
   const { puede } = useAcceso();
-  const [lat, setLat] = useState(38.8);
-  const [lon, setLon] = useState(0.18);
+  const demo = esFicha() ? demoRadar() : null;
+  const [lat, setLat] = useState(demo?.lat ?? 38.8);
+  const [lon, setLon] = useState(demo?.lon ?? 0.18);
   const [foco, setFoco] = useState(0);
   const [viento, setViento] = useState(true);
   const [lluvia, setLluvia] = useState(true);
   const [oleaje, setOleaje] = useState(true);
   const [deriva, setDeriva] = useState(true);
   const [particulas, setParticulas] = useState(true);
-  const [flechas, setFlechas] = useState<Flecha[]>([]);
+  const [flechas, setFlechas] = useState<Flecha[]>(demo?.flechas ?? []);
   const [lluviaUrl, setLluviaUrl] = useState<string | null>(null);
-  const [motor, setMotor] = useState<Motor | null>(null);
+  const [motor, setMotor] = useState<Motor | null>(demo?.motor ?? null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 
@@ -87,14 +89,14 @@ export function RadarPage() {
     }
   }
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { if (!esFicha()) cargar(); }, []);
 
   const ola = motor?.detallesTecnicos?.oleajeM;
   const centro = flechas.find((f) => f.kt != null && f.dir != null) ?? null;
 
   return (
     <div className="space-y-3">
-      <SpotMap lat={lat} lon={lon} focusToken={foco} marca={[lat, lon]} altura="h-[52vh] min-h-[300px]" onMapClick={(a, b) => { setLat(a); setLon(b); setFoco((n) => n + 1); }}>
+      <SpotMap lat={lat} lon={lon} focusToken={foco} marca={[lat, lon]} altura={esFicha() ? 'h-[280px] min-h-[280px]' : 'h-[52vh] min-h-[300px]'} onMapClick={(a, b) => { setLat(a); setLon(b); setFoco((n) => n + 1); }}>
         {lluvia && lluviaUrl && (
           <TileLayer
             url={lluviaUrl}
