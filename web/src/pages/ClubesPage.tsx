@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useAcceso } from '@/context/AccesoContext';
 import { Candado } from '@/components/Candado';
@@ -288,7 +289,16 @@ export function ClubesPage() {
   }
 
   if (!session && !ficha) {
-    return <Aviso>Entra o crea una cuenta en Perfil para usar clubes, chat y quedadas. Puedes evaluar el mar sin cuenta.</Aviso>;
+    return (
+      <Tarjeta className="space-y-3">
+        <h1 className="text-xl font-black">Clubes</h1>
+        <p className="text-sm leading-relaxed text-slate-200">Entra con tu cuenta para el chat y las quedadas. Si ya tenías cuenta antes del Premium, se abre al entrar. Crear una cuenta nueva es Premium. El mapa y el veredicto siguen sin cuenta.</p>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/perfil" className="inline-flex min-h-11 items-center rounded-2xl bg-sky-400 px-4 font-black text-slate-950">Entrar</Link>
+          <Link to="/premium" className="inline-flex min-h-11 items-center font-black text-sky-300">Ver Premium</Link>
+        </div>
+      </Tarjeta>
+    );
   }
 
   if (activo) {

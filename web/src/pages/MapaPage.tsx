@@ -572,7 +572,7 @@ export function MapaPage() {
 
       <Tarjeta className="space-y-3" data-captura={ficha ? 'buscar' : undefined}>
         <div className="flex gap-2">
-          <input className={inputCls} value={consulta} placeholder="Buscar playa, cala o pueblo" onChange={(e) => setConsulta(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') buscar(); }} />
+          <input className={inputCls} value={consulta} placeholder="Buscar playa, cala o pueblo" aria-label="Buscar playa, cala o pueblo" onChange={(e) => setConsulta(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') buscar(); }} />
           <Boton onClick={buscar}>Buscar</Boton>
         </div>
         {lugares.length > 0 && (

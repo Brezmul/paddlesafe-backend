@@ -106,7 +106,7 @@ export function PerfilPage() {
             ) : (
               <button type="button" className="min-h-11 font-bold text-sky-300" onClick={() => setModo(modo === 'entrar' ? 'crear' : 'entrar')}>{modo === 'entrar' ? 'No tengo cuenta' : 'Ya tengo cuenta'}</button>
             )}
-            <button type="button" className="font-bold text-sky-300" onClick={() => setModo('recuperar')}>Olvidé la contraseña</button>
+            <button type="button" className="inline-flex min-h-11 items-center font-bold text-sky-300" onClick={() => setModo('recuperar')}>Olvidé la contraseña</button>
           </div>
           {!auth.guest && <Boton variante="suave" onClick={auth.enterGuest}>Seguir como invitado</Boton>}
           {auth.guest && <p className="text-sm text-slate-300">Estás en modo invitado. El pronóstico y las rutas locales funcionan; clubes y el muro piden cuenta.</p>}

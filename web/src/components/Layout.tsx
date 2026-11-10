@@ -88,6 +88,7 @@ export function Layout() {
               type="button"
               onClick={() => navigate('/perfil')}
               className="flex h-11 max-w-[10rem] items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/70 px-2.5 text-xs font-bold"
+              aria-label="Abrir perfil"
             >
               {perfil?.avatar_url ? (
                 <img src={perfil.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />
