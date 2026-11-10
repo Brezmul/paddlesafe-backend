@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useAcceso } from '@/context/AccesoContext';
 import { Aviso, Boton, Campo, inputCls, Tarjeta } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { textoError } from '@/lib/db';
@@ -16,6 +17,7 @@ const TABLAS = [
 
 export function PerfilPage() {
   const auth = useAuth();
+  const acceso = useAcceso();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
@@ -95,7 +97,11 @@ export function PerfilPage() {
           {modo !== 'recuperar' && <Campo etiqueta="Contraseña"><input className={inputCls} type="password" autoComplete={modo === 'crear' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} /></Campo>}
           <Boton onClick={enviarAuth}>{modo === 'entrar' ? 'Entrar' : modo === 'crear' ? 'Crear cuenta' : 'Enviar enlace'}</Boton>
           <div className="flex flex-wrap gap-2 text-sm">
-            <button type="button" className="font-bold text-sky-300" onClick={() => setModo(modo === 'entrar' ? 'crear' : 'entrar')}>{modo === 'entrar' ? 'No tengo cuenta' : 'Ya tengo cuenta'}</button>
+            {modo === 'entrar' && !acceso.puede('cuenta') ? (
+              <Link to="/premium" className="inline-flex min-h-11 items-center font-bold text-sky-300">Crear cuenta es Premium</Link>
+            ) : (
+              <button type="button" className="min-h-11 font-bold text-sky-300" onClick={() => setModo(modo === 'entrar' ? 'crear' : 'entrar')}>{modo === 'entrar' ? 'No tengo cuenta' : 'Ya tengo cuenta'}</button>
+            )}
             <button type="button" className="font-bold text-sky-300" onClick={() => setModo('recuperar')}>Olvidé la contraseña</button>
           </div>
           {!auth.guest && <Boton variante="suave" onClick={auth.enterGuest}>Seguir como invitado</Boton>}

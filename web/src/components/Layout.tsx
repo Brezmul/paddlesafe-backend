@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useAcceso } from '@/context/AccesoContext';
 import { supabase } from '@/lib/supabase';
 
 const enlaces = [
@@ -15,6 +16,7 @@ type Aviso = { id: string; titulo?: string | null; contenido?: string | null; le
 
 export function Layout() {
   const auth = useAuth();
+  const acceso = useAcceso();
   const { ready, session, guest, nombreVisible, perfil } = auth;
   const navigate = useNavigate();
   const [avisos, setAvisos] = useState<Aviso[]>([]);
@@ -31,7 +33,7 @@ export function Layout() {
   }, []);
 
   useEffect(() => {
-    if (!supabase || !session?.user) {
+    if (!supabase || !session?.user || !acceso.puede('notificaciones')) {
       setAvisos([]);
       return;
     }
@@ -42,7 +44,7 @@ export function Layout() {
       .order('created_at', { ascending: false })
       .limit(20)
       .then(({ data }) => setAvisos((data || []) as Aviso[]));
-  }, [session, abiertos]);
+  }, [session, abiertos, acceso.premium]);
 
   const sinLeer = avisos.filter((a) => !a.leida).length;
 
@@ -68,6 +70,11 @@ export function Layout() {
             </span>
           </button>
           <div className="ml-auto flex items-center gap-2">
+            {!acceso.premium && (
+              <button type="button" onClick={() => navigate('/premium')} className="inline-flex min-h-11 items-center rounded-2xl bg-sky-400 px-3 text-xs font-black text-slate-950">
+                Premium
+              </button>
+            )}
             <button
               type="button"
               className="relative grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-slate-900/70"
@@ -98,8 +105,10 @@ export function Layout() {
                 <p className="text-sm font-black">Avisos</p>
                 {session && <button type="button" className="text-xs font-bold text-sky-300" onClick={marcarLeidas}>Marcar leídos</button>}
               </div>
-              {!session && <p className="text-sm text-slate-400">{guest ? 'Los invitados no reciben avisos de cuenta.' : 'Entra para ver tus avisos.'}</p>}
-              {session && avisos.length === 0 && <p className="text-sm text-slate-400">No hay avisos.</p>}
+              {!acceso.puede('notificaciones') && <p className="text-sm text-slate-300">Los avisos de la cuenta son Premium. El veredicto y las alertas de peligro siguen en el mapa.</p>}
+              {acceso.puede('notificaciones') && !session && <p className="text-sm text-slate-400">{guest ? 'Los invitados no reciben avisos de cuenta.' : 'Entra para ver tus avisos.'}</p>}
+              {acceso.puede('notificaciones') && session && avisos.length === 0 && <p className="text-sm text-slate-400">No hay avisos.</p>}
+              {acceso.puede('notificaciones') && (
               <ul className="max-h-56 space-y-2 overflow-auto">
                 {avisos.map((a) => (
                   <li key={a.id} className="rounded-xl bg-white/5 px-3 py-2 text-sm">
@@ -108,6 +117,7 @@ export function Layout() {
                   </li>
                 ))}
               </ul>
+              )}
             </div>
           </div>
         )}

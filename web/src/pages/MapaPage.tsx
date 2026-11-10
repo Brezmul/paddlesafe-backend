@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { Candado } from '@/components/Candado';
 import { PanelTactico } from '@/components/PanelTactico';
 import { PlanificadorTramos } from '@/components/PlanificadorTramos';
 import { ReproductorRuta } from '@/components/ReproductorRuta';
@@ -599,28 +600,38 @@ export function MapaPage() {
       </Tarjeta>
 
       {(modo === 'spot' || modo === 'ruta') && (
-        <PanelTactico
-          motor={motor}
-          pronostico={pronostico}
-          lat={lat}
-          lon={lon}
-          horaSalida={horaSalida}
-          minutosRuta={modo === 'ruta' ? plan.minutos : null}
-          kmRuta={modo === 'ruta' ? plan.km : null}
-          cruceroKmh={crucero}
-          cargando={cargando}
-        />
+        <Candado funcion="tactico">
+          <PanelTactico
+            motor={motor}
+            pronostico={pronostico}
+            lat={lat}
+            lon={lon}
+            horaSalida={horaSalida}
+            minutosRuta={modo === 'ruta' ? plan.minutos : null}
+            kmRuta={modo === 'ruta' ? plan.km : null}
+            cruceroKmh={crucero}
+            cargando={cargando}
+          />
+        </Candado>
       )}
 
       {modo === 'spot' && (
         <>
           <div className="flex flex-wrap gap-2">
             <Boton onClick={() => evaluar()} disabled={cargando}>{cargando ? 'Consultando…' : 'Evaluar spot'}</Boton>
-            <Boton variante="suave" onClick={favorito}>Guardar spot</Boton>
-            <Boton variante="suave" onClick={comparar} disabled={spots.length < 2 || cargando}>Comparar favoritos</Boton>
-            <Boton variante="suave" onClick={() => setTermicaAbierta((v) => !v)}>Neopreno</Boton>
-            <Boton variante="suave" onClick={coachAhora} disabled={!motor || cargando}>Coach</Boton>
           </div>
+          <Candado funcion="favoritos">
+            <div className="flex flex-wrap gap-2">
+              <Boton variante="suave" onClick={favorito}>Guardar spot</Boton>
+              <Boton variante="suave" onClick={comparar} disabled={spots.length < 2 || cargando}>Comparar favoritos</Boton>
+            </div>
+          </Candado>
+          <Candado funcion="neopreno">
+            <Boton variante="suave" onClick={() => setTermicaAbierta((v) => !v)}>Neopreno</Boton>
+          </Candado>
+          <Candado funcion="coach">
+            <Boton variante="suave" onClick={coachAhora} disabled={!motor || cargando}>Coach</Boton>
+          </Candado>
           {motor && <Veredicto motor={motor} pronostico={pronostico} horas={horas} horaIdx={horaIdx} onHora={elegirHora} />}
           {coach && <Tarjeta><p className="whitespace-pre-wrap text-sm leading-relaxed">{coach}</p><p className="mt-2 text-[11px] text-slate-500">El coach usa el motor gratuito del servidor. No sustituye tu criterio ni un aviso oficial.</p></Tarjeta>}
           {termica && (
@@ -658,6 +669,7 @@ export function MapaPage() {
               </ul>
             </Tarjeta>
           )}
+          <Candado funcion="favoritos">
           <Tarjeta className="space-y-2">
             <h2 className="font-black">Spots guardados</h2>
             {spots.length === 0 && <p className="text-sm text-slate-400">Todavía no hay favoritos. Puedes cargar un pack de calas.</p>}
@@ -697,6 +709,8 @@ export function MapaPage() {
               setMensaje('Notas guardadas.');
             }}>Guardar notas</Boton>
           </Tarjeta>
+          </Candado>
+          <Candado funcion="reporte">
           <Tarjeta className="space-y-2">
             <h2 className="font-black">Reporte en el agua</h2>
             <select className={inputCls} value={reporte} onChange={(e) => setReporte(e.target.value)}>
@@ -709,6 +723,8 @@ export function MapaPage() {
             <input className={inputCls} placeholder="Comentario breve" value={comentario} onChange={(e) => setComentario(e.target.value)} />
             <Boton variante="suave" onClick={enviarReporte}>Publicar reporte</Boton>
           </Tarjeta>
+          </Candado>
+          <Candado funcion="bitacora">
           <Tarjeta className="space-y-2">
             <h2 className="font-black">Bitácora</h2>
             <Campo etiqueta="Sensación (1-5)">
@@ -717,10 +733,12 @@ export function MapaPage() {
             <textarea className={inputCls} rows={2} placeholder="Qué has notado respecto al parte" value={bitacora} onChange={(e) => setBitacora(e.target.value)} />
             <Boton variante="suave" onClick={guardarBitacora}>Guardar en bitácora</Boton>
           </Tarjeta>
+          </Candado>
         </>
       )}
 
       {modo === 'ruta' && (
+        <Candado funcion="tramos">
         <Tarjeta className="space-y-2">
           <h2 className="font-black">Planificador</h2>
           <p className="text-sm text-slate-300">Toca el mapa para añadir puntos. Ritmo de crucero: {crucero} km/h (se cambia en Perfil).</p>
@@ -739,13 +757,12 @@ export function MapaPage() {
           </div>
           <Aviso>El tiempo es una estimación con tu ritmo de crucero, no un ETA garantizado. Evalúa el lugar para rellenar el viento de cada hora.</Aviso>
         </Tarjeta>
-      )}
-
-      {modo === 'ruta' && (
         <PlanificadorTramos plan={plan} horaSalida={horaSalida} onHora={setHoraSalida} />
+        </Candado>
       )}
 
       {(modo === 'ruta' || modo === 'vivo') && (modo === 'vivo' ? recorrido : puntos).length >= 2 && (
+        <Candado funcion="reproduccion">
         <ReproductorRuta
           puntos={modo === 'vivo' ? recorrido : puntos}
           onMarco={(latP, lonP, trazo) => {
@@ -753,9 +770,11 @@ export function MapaPage() {
             setEstela(trazo);
           }}
         />
+        </Candado>
       )}
 
       {modo === 'vivo' && (
+        <>
         <Tarjeta className="space-y-2">
           <h2 className="font-black">Sesión en vivo</h2>
           <p className="text-2xl font-black">{distanciaKm(recorrido).toFixed(2)} km · {recorrido.length} puntos</p>
@@ -764,13 +783,21 @@ export function MapaPage() {
           </Campo>
           {telefono && <a className="inline-flex min-h-11 items-center font-black text-rose-300" href={`tel:${telefono}`}>Llamar al contacto</a>}
           <div className="flex flex-wrap gap-2">
-            {!sesionViva && <Boton onClick={empezarVivo}>Empezar GPS</Boton>}
-            {sesionViva && <Boton variante="peligro" onClick={terminarVivo}>Terminar y guardar</Boton>}
             <Boton variante="suave" onClick={abrirCheckin}>Check-in de seguridad</Boton>
-            <Boton variante="suave" onClick={dibujarPoster} disabled={recorrido.length < 2 && puntos.length < 2}>Póster</Boton>
           </div>
-          <Aviso>El recorrido solo se registra con esta pantalla en primer plano. Bloquear el móvil o cambiar de app pausa el tramo: no es un registro en segundo plano y no pide permiso de ubicación permanente.</Aviso>
+          <Aviso>El teléfono y el check-in siguen disponibles sin Premium. El registro del recorrido es una función de pago.</Aviso>
         </Tarjeta>
+        <Candado funcion="vivo">
+          <Tarjeta className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              {!sesionViva && <Boton onClick={empezarVivo}>Empezar GPS</Boton>}
+              {sesionViva && <Boton variante="peligro" onClick={terminarVivo}>Terminar y guardar</Boton>}
+              <Boton variante="suave" onClick={dibujarPoster} disabled={recorrido.length < 2 && puntos.length < 2}>Póster</Boton>
+            </div>
+            <Aviso>El recorrido solo se registra con esta pantalla en primer plano. Bloquear el móvil o cambiar de app pausa el tramo: no es un registro en segundo plano y no pide permiso de ubicación permanente.</Aviso>
+          </Tarjeta>
+        </Candado>
+        </>
       )}
     </div>
   );
@@ -812,19 +839,21 @@ function Veredicto({ motor, pronostico, horas, horaIdx, onHora }: {
         </ul>
       )}
       {horas.length > 0 && (
-        <div>
-          <p className="mb-2 text-xs font-bold uppercase text-slate-400">Jornada</p>
-          <input className="w-full" type="range" min={0} max={horas.length - 1} value={Math.min(horaIdx, horas.length - 1)} onChange={(e) => onHora(Number(e.target.value))} />
-          <div className="mt-2 flex gap-2 overflow-auto ps-scroll">
-            {horas.map((hora, indice) => (
-              <button key={`${hora.hora}-${indice}`} type="button" onClick={() => onHora(indice)} className={`min-w-16 rounded-2xl px-2 py-2 text-center text-[11px] font-bold ${indice === horaIdx ? 'bg-sky-400 text-slate-950' : 'bg-white/5'}`}>
-                <span className="block">{hora.hora}</span>
-                <span className="block">{hora.vientoKt ?? '—'} kt</span>
-                <span className="block">{hora.oleajeM != null ? `${Number(hora.oleajeM).toFixed(1)} m` : ''}</span>
-              </button>
-            ))}
+        <Candado funcion="jornada">
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase text-slate-400">Jornada</p>
+            <input className="w-full" type="range" min={0} max={horas.length - 1} value={Math.min(horaIdx, horas.length - 1)} onChange={(e) => onHora(Number(e.target.value))} />
+            <div className="mt-2 flex gap-2 overflow-auto ps-scroll">
+              {horas.map((hora, indice) => (
+                <button key={`${hora.hora}-${indice}`} type="button" onClick={() => onHora(indice)} className={`min-w-16 rounded-2xl px-2 py-2 text-center text-[11px] font-bold ${indice === horaIdx ? 'bg-sky-400 text-slate-950' : 'bg-white/5'}`}>
+                  <span className="block">{hora.hora}</span>
+                  <span className="block">{hora.vientoKt ?? '—'} kt</span>
+                  <span className="block">{hora.oleajeM != null ? `${Number(hora.oleajeM).toFixed(1)} m` : ''}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        </Candado>
       )}
       <p className="text-[11px] leading-relaxed text-slate-500">Orientación basada en Open-Meteo y el motor de PaddleSafe. Confianza del análisis: {motor.analysisConfidence ?? '—'}%. No sustituye avisos de AEMET, Protección Civil o 112.</p>
     </Tarjeta>

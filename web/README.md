@@ -217,6 +217,8 @@ Las cuatro están en la app React y el sitio de `public_html` conserva sus funci
 
 Las áreas seguras usan `env()` y, si el plugin SystemBars llega a escribirlas, las variables `--safe-area-inset-*`. El tema Android deja los iconos de la barra claros sobre el fondo `#041E30`. `SystemBars.style` queda en `DARK` para el mismo fin. Si la inyección de CSS del plugin falla al arrancar, el `env()` del WebView sigue aplicando el hueco.
 
+El sitio de `public_html` no cobra ni cierra funciones. El reparto gratis/Premium de la app React está en [docs/premium.md](../docs/premium.md).
+
 ## 5. Límites honestos
 
 - El veredicto es una ayuda. Con tormenta, aviso naranja/rojo o duda, no se entra al agua.

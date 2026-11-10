@@ -17,6 +17,7 @@ const radar = fs.readFileSync(path.join(raiz, 'public_html/js/map/map.radar.js')
 assert(indice.includes('id="proDashWind"'), 'el panel táctico antiguo sigue en index.html');
 assert(indice.includes('id="radarCockpitPanel"'), 'el radar antiguo sigue en index.html');
 assert(indice.includes('leaflet@1.9.4'), 'el mapa antiguo sigue cargando Leaflet');
+assert(!indice.includes('PlayBilling'), 'el sitio antiguo no depende del cobro de Play');
 assert(precarga.includes('/js/map/map.bento.js'), 'la caché sigue sirviendo map.bento.js');
 assert(precarga.includes('/js/map/map.routes.js'), 'la caché sigue sirviendo map.routes.js');
 assert(precarga.includes('/js/map/map.radar.js'), 'la caché sigue sirviendo map.radar.js');

@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '@/context/AuthContext';
+import { AccesoProvider } from '@/context/AccesoContext';
 import { PerfilPage } from './PerfilPage';
 
 vi.mock('@/lib/supabase', () => ({ supabase: null }));
@@ -15,7 +16,9 @@ describe('perfil tras el enlace de recuperación', () => {
     render(
       <MemoryRouter>
         <AuthProvider>
-          <PerfilPage />
+          <AccesoProvider>
+            <PerfilPage />
+          </AccesoProvider>
         </AuthProvider>
       </MemoryRouter>
     );

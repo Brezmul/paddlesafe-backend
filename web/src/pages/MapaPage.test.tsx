@@ -1,10 +1,24 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mapRuntime } from '../../../public_html/js/map/map.state.js';
 import { AuthProvider } from '@/context/AuthContext';
+import { AccesoProvider } from '@/context/AccesoContext';
 import { MapaPage } from './MapaPage';
 
 vi.mock('@/lib/supabase', () => ({ supabase: null }));
+vi.mock('@/context/AccesoContext', () => ({
+  AccesoProvider: ({ children }: { children?: React.ReactNode }) => children,
+  useAcceso: () => ({
+    listo: true,
+    premium: true,
+    origen: 'previo',
+    play: { disponible: false, conectado: false, activo: false, pendiente: false, token: null, producto: null, planes: [], error: null },
+    puede: () => true,
+    recargarPlay: async () => undefined,
+    fijarPlay: () => undefined
+  })
+}));
 vi.mock('@/components/SpotMap', () => ({
   SpotMap: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>
 }));
@@ -95,7 +109,7 @@ function pagina() {
     { id: 'javea', nombre: 'Cala de Jávea', lat: 38.8, lon: 0.18 },
     { id: 'entrepenas', nombre: 'Embalse de Entrepeñas', lat: 40.55, lon: -2.7 }
   ]));
-  render(<AuthProvider><MapaPage /></AuthProvider>);
+  render(<MemoryRouter><AuthProvider><AccesoProvider><MapaPage /></AccesoProvider></AuthProvider></MemoryRouter>);
 }
 
 beforeEach(() => {

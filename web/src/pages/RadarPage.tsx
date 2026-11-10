@@ -3,6 +3,8 @@ import { CircleMarker, Marker, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import { SpotMap } from '@/components/SpotMap';
 import { CampoParticulas } from '@/components/CampoParticulas';
+import { Candado } from '@/components/Candado';
+import { useAcceso } from '@/context/AccesoContext';
 import { Aviso, Boton, Tarjeta } from '@/components/ui';
 import { cardinal } from '@/lib/geo';
 import { leerPosicion } from '@/lib/gps';
@@ -25,6 +27,7 @@ function iconoViento(dir: number, kt: number) {
 }
 
 export function RadarPage() {
+  const { puede } = useAcceso();
   const [lat, setLat] = useState(38.8);
   const [lon, setLon] = useState(0.18);
   const [foco, setFoco] = useState(0);
@@ -110,7 +113,7 @@ export function RadarPage() {
         {deriva && motor?.riesgoDeriva && (
           <CircleMarker center={[lat + 0.03, lon + 0.03]} radius={12} pathOptions={{ color: '#c084fc', fillColor: '#c084fc', fillOpacity: 0.45 }} />
         )}
-        {particulas && <CampoParticulas vientoKt={centro?.kt ?? null} dirDeg={centro?.dir ?? null} />}
+        {particulas && puede('particulas') && <CampoParticulas vientoKt={centro?.kt ?? null} dirDeg={centro?.dir ?? null} />}
       </SpotMap>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <Capa activo={viento} onClick={() => setViento((v) => !v)} texto="Viento" />
@@ -119,6 +122,7 @@ export function RadarPage() {
         <Capa activo={deriva} onClick={() => setDeriva((v) => !v)} texto="Deriva" />
         <Capa activo={particulas} onClick={() => setParticulas((v) => !v)} texto="Partículas" />
       </div>
+      {particulas && !puede('particulas') && <Candado funcion="particulas" />}
       <div className="flex gap-2">
         <Boton onClick={cargar} disabled={cargando}>{cargando ? 'Actualizando…' : 'Actualizar radar'}</Boton>
         <Boton variante="suave" onClick={async () => {

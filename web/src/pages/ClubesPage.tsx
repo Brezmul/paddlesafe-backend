@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useAcceso } from '@/context/AccesoContext';
+import { Candado } from '@/components/Candado';
 import { Aviso, Boton, Campo, inputCls, Tarjeta } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { textoError } from '@/lib/db';
@@ -11,6 +13,7 @@ type Reto = { id: string; titulo?: string | null; descripcion?: string | null; m
 type Miembro = { user_id?: string; nombre?: string | null; rol?: string | null };
 
 export function ClubesPage() {
+  const acceso = useAcceso();
   const { session, perfil } = useAuth();
   const [tab, setTab] = useState<'mios' | 'buscar' | 'paddlers'>('mios');
   const [mios, setMios] = useState<Club[]>([]);
@@ -359,6 +362,8 @@ export function ClubesPage() {
       </div>
     );
   }
+
+  if (!acceso.puede('clubes')) return <div className="space-y-3"><Candado funcion="clubes" /></div>;
 
   return (
     <div className="space-y-3">

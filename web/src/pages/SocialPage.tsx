@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useAcceso } from '@/context/AccesoContext';
+import { Candado } from '@/components/Candado';
 import { Aviso, Boton, inputCls, Tarjeta } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { formatoTiempo } from '@/lib/geo';
@@ -27,6 +29,7 @@ const PERIODOS = [
 ] as const;
 
 export function SocialPage() {
+  const acceso = useAcceso();
   const { session, perfil } = useAuth();
   const [tab, setTab] = useState<'muro' | 'ranking' | 'amigos'>('muro');
   const [filtro, setFiltro] = useState<'global' | 'amigos' | 'clubes'>('global');
@@ -215,6 +218,8 @@ export function SocialPage() {
     if (err) setError(err.message);
     else await cargarAmigos();
   }
+
+  if (!acceso.puede('social')) return <div className="space-y-3"><Candado funcion="social" /></div>;
 
   return (
     <div className="space-y-3">
