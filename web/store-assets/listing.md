@@ -7,7 +7,7 @@ Política de privacidad (obligatoria en la ficha):
 - https://www.sup.evolucionesdigitales.es/privacidad.html
 - https://paddlesafe-backend.vercel.app/privacidad.html
 
-Contacto de la política: Brezmul@gmail.com.
+Contacto de la política: info@evolucionesdigitales.es. Responsable: Mateo Carrión Bas. Edad mínima: 18 años.
 
 ## Descripción breve
 

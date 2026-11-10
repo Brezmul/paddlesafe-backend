@@ -95,6 +95,7 @@ export function PerfilPage() {
       {!auth.session && !auth.recuperacionPendiente && (
         <Tarjeta className="space-y-3">
           <h1 className="text-xl font-black">{modo === 'crear' ? 'Crear cuenta' : modo === 'recuperar' ? 'Recuperar contraseña' : 'Entrar'}</h1>
+          {modo === 'crear' && <Aviso>PaddleSafe es para mayores de 18 años. Al crear la cuenta confirmas que tienes esa edad.</Aviso>}
           {modo === 'crear' && <Campo etiqueta="Nombre"><input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} /></Campo>}
           <Campo etiqueta="Correo"><input className={inputCls} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Campo>
           {modo !== 'recuperar' && <Campo etiqueta="Contraseña"><input className={inputCls} type="password" autoComplete={modo === 'crear' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} /></Campo>}

@@ -76,7 +76,7 @@ El build deja archivos estáticos en `web/dist/` (rutas con `./`, válidas en Ho
 2. Haz una copia de la carpeta actual (`public_html`) antes de sustituir nada.
 3. Sube **el contenido** de `web/dist/` (no la carpeta `dist` en sí) al directorio público.
 4. No subas `web/.env`: las variables ya van dentro del JavaScript del build. Por eso el build tiene que hacerse con el `.env` correcto.
-5. La política de privacidad del sitio actual ya está en el repositorio como `public_html/privacidad.html`. Al subir esa carpeta (o solo ese archivo) queda en `https://www.sup.evolucionesdigitales.es/privacidad.html`. El mismo texto está en la raíz del repo para Vercel: `https://paddlesafe-backend.vercel.app/privacidad.html` cuando el merge a `main` se despliegue. En la app, la ruta es `/#/privacidad`. El contacto de la política es Brezmul@gmail.com.
+5. La política de privacidad del sitio actual ya está en el repositorio como `public_html/privacidad.html`. Al subir esa carpeta (o solo ese archivo) queda en `https://www.sup.evolucionesdigitales.es/privacidad.html`. El mismo texto está en la raíz del repo para Vercel: `https://paddlesafe-backend.vercel.app/privacidad.html` cuando el merge a `main` se despliegue. En la app, la ruta es `/#/privacidad`. El responsable es Mateo Carrión Bas y el contacto es info@evolucionesdigitales.es.
 
 La app usa rutas con almohadilla (`/#/clubes`), así que Hostinger no necesita reglas de reescritura. El sitio antiguo sigue funcionando hasta que hagas esta subida: este repositorio no la hace solo.
 
@@ -182,7 +182,7 @@ También puedes abrir `web/android` en Android Studio y usar **Build → Generat
    - Descripción breve: Pronóstico, seguridad y clubes de paddle surf.
    - Descripción completa: explica el veredicto, el mapa, los clubes y que el parte es orientativo y no sustituye a AEMET ni al 112.
    - Icono 512×512, gráfico de función 1024×500 y capturas de teléfono (mínimo 2). Hazlas con el emulador o con un móvil; no se generan solas.
-4. **Política de privacidad** (obligatoria): `https://www.sup.evolucionesdigitales.es/privacidad.html` o `https://paddlesafe-backend.vercel.app/privacidad.html`. Tiene que estar en línea antes de enviar la revisión. El texto también está en la app, en `/#/privacidad`. El contacto publicado es Brezmul@gmail.com.
+4. **Política de privacidad** (obligatoria): `https://www.sup.evolucionesdigitales.es/privacidad.html` o `https://paddlesafe-backend.vercel.app/privacidad.html`. Tiene que estar en línea antes de enviar la revisión. El texto también está en la app, en `/#/privacidad`. El contacto publicado es info@evolucionesdigitales.es. La edad mínima de uso es 18 años.
 5. **Seguridad de los datos**: declara correo de cuenta, nombre, fotos que sube el usuario, ubicación aproximada/precisa (solo con la app en uso) y contenido del usuario. Indica que Supabase es el encargado del tratamiento. No marques “ubicación en segundo plano”: esta versión no la usa.
 6. Clasificación de contenido, público objetivo (no va dirigida a niños) y anuncio de anuncios: la app no lleva publicidad.
 7. Permisos: `INTERNET` y `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION`. Si más adelante activas GPS con la pantalla apagada tendrás que declararlo aparte y justificarlo; ahora no está.
