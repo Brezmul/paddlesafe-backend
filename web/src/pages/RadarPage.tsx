@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CircleMarker, Marker, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import { SpotMap } from '@/components/SpotMap';
+import { CampoParticulas } from '@/components/CampoParticulas';
 import { Aviso, Boton, Tarjeta } from '@/components/ui';
 import { cardinal } from '@/lib/geo';
 import { leerPosicion } from '@/lib/gps';
@@ -30,6 +31,7 @@ export function RadarPage() {
   const [lluvia, setLluvia] = useState(true);
   const [oleaje, setOleaje] = useState(true);
   const [deriva, setDeriva] = useState(true);
+  const [particulas, setParticulas] = useState(true);
   const [flechas, setFlechas] = useState<Flecha[]>([]);
   const [lluviaUrl, setLluviaUrl] = useState<string | null>(null);
   const [motor, setMotor] = useState<Motor | null>(null);
@@ -84,6 +86,7 @@ export function RadarPage() {
   useEffect(() => { cargar(); }, []);
 
   const ola = motor?.detallesTecnicos?.oleajeM;
+  const centro = flechas.find((f) => f.kt != null && f.dir != null) ?? null;
 
   return (
     <div className="space-y-3">
@@ -100,12 +103,14 @@ export function RadarPage() {
         {deriva && motor?.riesgoDeriva && (
           <CircleMarker center={[lat + 0.03, lon + 0.03]} radius={12} pathOptions={{ color: '#c084fc', fillColor: '#c084fc', fillOpacity: 0.45 }} />
         )}
+        {particulas && <CampoParticulas vientoKt={centro?.kt ?? null} dirDeg={centro?.dir ?? null} />}
       </SpotMap>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <Capa activo={viento} onClick={() => setViento((v) => !v)} texto="Viento" />
         <Capa activo={lluvia} onClick={() => setLluvia((v) => !v)} texto="Lluvia" />
         <Capa activo={oleaje} onClick={() => setOleaje((v) => !v)} texto="Oleaje" />
         <Capa activo={deriva} onClick={() => setDeriva((v) => !v)} texto="Deriva" />
+        <Capa activo={particulas} onClick={() => setParticulas((v) => !v)} texto="Partículas" />
       </div>
       <div className="flex gap-2">
         <Boton onClick={cargar} disabled={cargando}>{cargando ? 'Actualizando…' : 'Actualizar radar'}</Boton>
@@ -128,7 +133,8 @@ export function RadarPage() {
           Deriva {motor?.riesgoDeriva?.nivel || '—'}{motor?.riesgoDeriva?.descripcion ? `: ${motor.riesgoDeriva.descripcion}` : ''}.
         </p>
         <p className="mt-2 text-sm">Veredicto del punto: <strong>{motor?.icono} {motor?.estado || 'pulsa actualizar'}</strong></p>
-        <p className="mt-2 text-[11px] text-slate-500">La lluvia es el último radar de RainViewer. Las flechas salen de Open-Meteo (la punta indica hacia dónde sopla el viento). La deriva es la estimación costera de PaddleSafe, no una boya oficial.</p>
+        <p className="mt-2 text-[11px] text-slate-500">La lluvia es el último radar de RainViewer. Las flechas salen de Open-Meteo (la punta indica hacia dónde sopla el viento). Las partículas usan ese mismo vector, como máximo 120, y se paran si la app no está delante. La deriva es la estimación costera de PaddleSafe, no una boya oficial.</p>
+        {particulas && !centro && !cargando && <p className="mt-2 text-sm text-slate-300">Partículas: sin dato de viento en la rejilla. No se dibuja un flujo inventado.</p>}
       </Tarjeta>
     </div>
   );
