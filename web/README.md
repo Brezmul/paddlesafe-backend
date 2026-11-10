@@ -210,7 +210,7 @@ Revisión del código de `public_html/js/map/`, sin reescribir la interfaz.
 
 - **Panel táctico** (`renderizarDashboardPro` en `map.bento.js`, archivo de unas 2000 líneas). Mete en un solo panel el viento, los tramos, el coach, las ventanas y la biométrica. La app React ya muestra veredicto, jornada y ruta, pero no ese panel completo. Montarlo sería copiar esa pantalla, no un ajuste pequeño.
 - **Planificador por tramos**. En la app React, `planificarTramos` avisa si el viento medido sube 4 kt o más y deja la hora ausente en «sin dato». La función antigua `calcularMeteoProgresivaPorTramo` sigue en el sitio de `public_html` y todavía pone 5 kt si falta la hora: no se ha tocado para no cambiar esa web.
-- **Repetición de ruta** (`togglePlayPauseReplayRuta` y el bucle `replayLoop` en `map.routes.js`). Anima un marcador de Leaflet a 60 fps sobre la polilínea, con controles de reproducción. Hace falta el mapa imperativo del sitio antiguo; el mapa React no tiene ese reproductor.
+- **Repetición de ruta**. En la app React, la barra y el botón mueven un punto a lo largo del trazado con `requestAnimationFrame`. Se pausa si la app pasa a segundo plano y no arranca sola si el sistema pide menos movimiento. El bucle del sitio antiguo sigue en `map.routes.js`.
 - **Radar de partículas** (`map.radar.js`, unas 1000 líneas). Dibuja un campo de partículas de viento encima del mapa. La app React tiene rejilla de flechas, lluvia, oleaje y deriva, no ese campo.
 
 Ninguna de las cuatro se ha portado en este cambio. El siguiente paso, si se quiere una, es el aviso por tramos después de quitar el 5 kt inventado y probarlo con horas reales y con horas ausentes.

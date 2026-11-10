@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { PlanificadorTramos } from '@/components/PlanificadorTramos';
+import { ReproductorRuta } from '@/components/ReproductorRuta';
 import { SpotMap } from '@/components/SpotMap';
 import { Aviso, Boton, Campo, inputCls, Tarjeta } from '@/components/ui';
 import { PACKS_SPOTS } from '@/data/packs';
@@ -72,6 +73,8 @@ export function MapaPage() {
   const parteRef = useRef(crearEstadoConsulta());
   const [telefono, setTelefono] = useState(leerTelefonoEmergencia());
   const [horaSalida, setHoraSalida] = useState('10:00');
+  const [estela, setEstela] = useState<Array<[number, number]>>([]);
+  const [marcaReplay, setMarcaReplay] = useState<[number, number] | null>(null);
   const [checkinId, setCheckinId] = useState<string | null>(null);
   const [termicaAbierta, setTermicaAbierta] = useState(false);
   const [intensidad, setIntensidad] = useState<'paseo' | 'travesia' | 'race'>('paseo');
@@ -548,6 +551,8 @@ export function MapaPage() {
         marca={[lat, lon]}
         puntos={modo === 'ruta' ? puntos : []}
         recorrido={modo === 'vivo' ? recorrido : modo === 'ruta' ? puntos : []}
+        estela={estela}
+        marcaReplay={marcaReplay}
         onMapClick={alPulsarMapa}
       />
 
@@ -723,6 +728,16 @@ export function MapaPage() {
 
       {modo === 'ruta' && (
         <PlanificadorTramos plan={plan} horaSalida={horaSalida} onHora={setHoraSalida} />
+      )}
+
+      {(modo === 'ruta' || modo === 'vivo') && (modo === 'vivo' ? recorrido : puntos).length >= 2 && (
+        <ReproductorRuta
+          puntos={modo === 'vivo' ? recorrido : puntos}
+          onMarco={(latP, lonP, trazo) => {
+            setMarcaReplay([latP, lonP]);
+            setEstela(trazo);
+          }}
+        />
       )}
 
       {modo === 'vivo' && (
