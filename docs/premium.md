@@ -61,7 +61,7 @@ El botón «Gestionar o cancelar en Play» abre:
 
 ## Qué tiene que hacer Lumi en Supabase (no está aplicado)
 
-1. Revisar `sql/premium_derechos.sql`. El `update` marca `acceso_previo` solo en perfiles creados antes del 11 de noviembre de 2026. Hay que lanzarlo una vez. Una fecha distinta se cambia antes de ejecutarlo.
+1. Revisar `sql/premium_derechos.sql`. El `update` marca `acceso_previo` solo en perfiles con `creado_en` anterior al 11 de noviembre de 2026. La tabla `perfiles` no tiene `created_at`. Hay que lanzarlo una vez. Una fecha distinta se cambia antes de ejecutarlo.
 2. Crear el secreto `GOOGLE_PLAY_SERVICE_ACCOUNT` con el JSON de la cuenta de servicio. No va en el repositorio.
 3. Desplegar `supabase/functions/verificar-premium`. Usa `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` y el secreto anterior.
 4. Opcional: tema de Pub/Sub de notificaciones en tiempo real del desarrollador (RTDN) apuntando a `supabase/functions/rtdn-premium`. Esa función solo acusa recibo; el cambio de estado debe volver a leer el token.

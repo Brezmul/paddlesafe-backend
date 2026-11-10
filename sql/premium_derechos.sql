@@ -1,6 +1,6 @@
--- Propuesta. No está aplicada al Supabase real.
--- Si se ejecuta, marca como acceso previo a quien YA tiene perfil en ese momento,
+-- Marca como acceso previo a quien YA tiene perfil en ese momento,
 -- para no dejar fuera a los usuarios de la web. Las cuentas creadas después no lo heredan.
+-- La fecha del perfil está en creado_en. La tabla no tiene created_at.
 
 alter table public.perfiles
   add column if not exists acceso_previo boolean not null default false;
@@ -11,7 +11,7 @@ alter table public.perfiles
 update public.perfiles
 set acceso_previo = true
 where acceso_previo = false
-  and created_at < timestamptz '2026-11-11 00:00:00+00';
+  and creado_en < timestamptz '2026-11-11 00:00:00+00';
 
 comment on column public.perfiles.acceso_previo is
   'Cuenta que ya existía antes del freemium. Mantiene el acceso sin suscripción de Play hasta que se decida lo contrario.';

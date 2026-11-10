@@ -22,9 +22,11 @@ const TABLAS: Array<[string, string]> = [
   ['reports', 'reporter_id'],
   ['user_blocks', 'blocker_id'],
   ['user_blocks', 'blocked_id'],
-  ['club_showcase', 'user_id'],
   ['perfiles', 'id']
 ];
+
+// club_showcase es la vitrina del club (club_id y contenido). No tiene columna
+// de usuario: user_id no existe y borrarla por club vaciaría la vitrina ajena.
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ ok: false, error: 'Método no permitido' }, 405);
