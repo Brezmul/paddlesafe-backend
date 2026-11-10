@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Aviso, Boton, Tarjeta } from '@/components/ui';
 import { useAcceso } from '@/context/AccesoContext';
 import { textoPeriodo } from '@/lib/acceso';
+import { ahorroAnual } from '@/lib/ahorro';
 import { esFicha } from '@/lib/ficha';
 import { comprarPlan, esAndroid, restaurarPlay, urlGestionSuscripcion } from '@/lib/play';
 
@@ -13,6 +14,7 @@ export function PremiumPage() {
   const [ocupado, setOcupado] = useState(false);
   const [nota, setNota] = useState<string | null>(null);
   const android = esAndroid() || esFicha();
+  const ahorro = ahorroAnual(play.planes);
 
   async function comprar(oferta: string) {
     setOcupado(true);
@@ -72,12 +74,21 @@ export function PremiumPage() {
       {nota && <Aviso tipo="ok">{nota}</Aviso>}
       <div className="space-y-2">
         {play.planes.map((plan) => (
-          <Tarjeta key={plan.oferta} className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-lg font-black">{plan.precio}</p>
-              <p className="text-sm text-slate-300">{textoPeriodo(plan.periodo)}</p>
+          <Tarjeta key={plan.oferta} className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-lg font-black">{plan.precio}</p>
+                <p className="text-sm text-slate-300">{textoPeriodo(plan.periodo)}</p>
+                {plan.periodo === 'P1Y' && ahorro && <p className="text-sm text-slate-300">equivale a {ahorro.alMes}/mes</p>}
+              </div>
+              <Boton disabled={ocupado || premium} onClick={() => comprar(plan.oferta)}>{premium ? 'Ya activo' : 'Suscribirme'}</Boton>
             </div>
-            <Boton disabled={ocupado || premium} onClick={() => comprar(plan.oferta)}>{premium ? 'Ya activo' : 'Suscribirme'}</Boton>
+            {plan.periodo === 'P1Y' && ahorro && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex min-h-8 items-center rounded-full bg-emerald-400 px-3 text-xs font-black text-slate-950">Ahorra {ahorro.porcentaje} %</span>
+                <span className="text-sm font-bold text-emerald-200">{ahorro.menosAlAno} menos al año</span>
+              </div>
+            )}
           </Tarjeta>
         ))}
       </div>

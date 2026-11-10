@@ -67,6 +67,44 @@ describe('pantalla Premium', () => {
     expect(screen.getByRole('button', { name: 'Restaurar compras' }).hasAttribute('disabled')).toBe(true);
   });
 
+  it('muestra el ahorro del anual cuando Play manda los dos precios en micros', async () => {
+    play.prepararPlay.mockResolvedValue({
+      disponible: true,
+      conectado: true,
+      activo: false,
+      pendiente: false,
+      token: null,
+      producto: 'premium',
+      planes: [
+        { idBase: 'mensual', oferta: 'oferta-mes', precio: '4,99 €', periodo: 'P1M', micros: 4_990_000, moneda: 'EUR' },
+        { idBase: 'anual', oferta: 'oferta-ano', precio: '39,99 €', periodo: 'P1Y', micros: 39_990_000, moneda: 'EUR' }
+      ],
+      error: null
+    });
+    render(
+      <MemoryRouter>
+        <AccesoProvider>
+          <PremiumPage />
+        </AccesoProvider>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Ahorra 33 %')).toBeTruthy();
+    expect(screen.getByText(/menos al año/)).toBeTruthy();
+    expect(screen.getByText(/equivale a/)).toBeTruthy();
+  });
+
+  it('no pone insignia si falta el precio mensual', async () => {
+    render(
+      <MemoryRouter>
+        <AccesoProvider>
+          <PremiumPage />
+        </AccesoProvider>
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('3,99 €')).toBeTruthy();
+    expect(screen.queryByText(/Ahorra/)).toBeNull();
+  });
+
   it('al suscribirse usa el token de oferta que mandó Play', async () => {
     play.comprarPlan.mockResolvedValue({
       disponible: true, conectado: true, activo: true, pendiente: false, token: 'tok', producto: 'premium', planes: [], error: null

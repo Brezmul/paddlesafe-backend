@@ -45,7 +45,11 @@ Si la tabla `premium_derechos` o la columna `acceso_previo` aún no existen y ha
 
 1. Perfil de pagos activo en Google Play Console.
 2. Suscripción con id de producto `premium` (o el valor de `VITE_PLAY_PRODUCT_ID` si se cambia).
-3. Dos planes base, por ejemplo `mensual` (`P1M`) y `anual` (`P1Y`), con precio puesto en Play. La app muestra el texto que Play devuelve.
+3. Dos planes base en la suscripción `premium`, con estos precios:
+   - mensual, periodo `P1M`, **4,99 €**
+   - anual, periodo `P1Y`, **39,99 €**
+
+   La app no escribe el precio: muestra el texto de Play y, en la tarjeta anual, el ahorro frente a doce meses. Lo calcula con `priceAmountMicros` y la moneda de cada plan. Con esos importes sale «Ahorra 33 %» y «19,89 € menos al año» (12 × 4,99 = 59,88; 59,88 − 39,99 = 19,89; el 33,2 % se redondea hacia abajo). Si falta el mensual o un importe, no hay insignia.
 4. Licencias de prueba: cuentas de Gmail en Play Console → Configuración → Pruebas de licencias. Esas cuentas pueden comprar sin cargo real.
 5. La app firmada de release tiene que estar en una pista (interna vale) para que Billing responda. Un APK debug no completa el flujo de compra.
 6. API de Google Play Android Developer habilitada en Google Cloud, en el mismo proyecto que la cuenta de servicio.

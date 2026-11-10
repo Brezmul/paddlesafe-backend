@@ -104,11 +104,13 @@ await shot('06-repeticion.png');
 await ir('/premium');
 await page.getByText('4,99 €').waitFor();
 await page.getByText('39,99 €').waitFor();
-await page.getByText('4,99 €').evaluate((el) => {
+await page.getByText('Ahorra 33 %').waitFor();
+await page.getByText('Ahorra 33 %').evaluate((el) => {
   const main = el.closest('main');
   if (!main) return;
-  const top = el.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop;
-  main.scrollTop = Math.max(0, top - 220);
+  const tarjeta = el.closest('section') || el;
+  const top = tarjeta.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop;
+  main.scrollTop = Math.max(0, top - 280);
 });
 await page.waitForTimeout(250);
 await shot('07-premium.png');

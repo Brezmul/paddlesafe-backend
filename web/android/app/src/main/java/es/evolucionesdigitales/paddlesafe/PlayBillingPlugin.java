@@ -109,12 +109,14 @@ public class PlayBillingPlugin extends Plugin {
                     for (ProductDetails.SubscriptionOfferDetails oferta : ofertas) {
                         List<ProductDetails.PricingPhase> fases = oferta.getPricingPhases().getPricingPhaseList();
                         if (fases == null || fases.isEmpty()) continue;
-                        ProductDetails.PricingPhase fase = fases.get(0);
+                        ProductDetails.PricingPhase fase = fases.get(fases.size() - 1);
                         JSObject plan = new JSObject();
                         plan.put("idBase", oferta.getBasePlanId());
                         plan.put("oferta", oferta.getOfferToken());
                         plan.put("precio", fase.getFormattedPrice());
                         plan.put("periodo", fase.getBillingPeriod());
+                        plan.put("micros", fase.getPriceAmountMicros());
+                        plan.put("moneda", fase.getPriceCurrencyCode());
                         planes.put(plan);
                     }
                 }

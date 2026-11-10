@@ -27,8 +27,8 @@ export const PLAY_FICHA: EstadoPlay = {
   token: null,
   producto: 'premium',
   planes: [
-    { idBase: 'premium', oferta: 'mensual', precio: '4,99 €', periodo: 'P1M' },
-    { idBase: 'premium', oferta: 'anual', precio: '39,99 €', periodo: 'P1Y' }
+    { idBase: 'mensual', oferta: 'mensual', precio: '4,99 €', periodo: 'P1M', micros: 4_990_000, moneda: 'EUR' },
+    { idBase: 'anual', oferta: 'anual', precio: '39,99 €', periodo: 'P1Y', micros: 39_990_000, moneda: 'EUR' }
   ],
   error: null
 };

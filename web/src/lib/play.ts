@@ -9,6 +9,10 @@ export type PlanPlay = {
   oferta: string;
   precio: string;
   periodo: string;
+  /** priceAmountMicros de la fase recurrente. Vacío si Play no lo manda. */
+  micros?: number | null;
+  /** priceCurrencyCode de esa fase. */
+  moneda?: string | null;
 };
 
 export type EstadoPlay = {
