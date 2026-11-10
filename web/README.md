@@ -208,12 +208,12 @@ Play puede tardar varios días y pedir cambios de textos o capturas. Eso no se r
 
 Revisión del código de `public_html/js/map/`, sin reescribir la interfaz.
 
-- **Panel táctico** (`renderizarDashboardPro` en `map.bento.js`, archivo de unas 2000 líneas). Mete en un solo panel el viento, los tramos, el coach, las ventanas y la biométrica. La app React ya muestra veredicto, jornada y ruta, pero no ese panel completo. Montarlo sería copiar esa pantalla, no un ajuste pequeño.
+- **Panel táctico**. En la app React, la ficha muestra viento, rachas, oleaje, ventana, deriva, ocaso y esfuerzo. Lo que no ha llegado se lee «sin dato»; el esfuerzo no se calcula sustituyendo el viento o el oleaje por cero. `renderizarDashboardPro` sigue sirviendo al sitio antiguo.
 - **Planificador por tramos**. En la app React, `planificarTramos` avisa si el viento medido sube 4 kt o más y deja la hora ausente en «sin dato». La función antigua `calcularMeteoProgresivaPorTramo` sigue en el sitio de `public_html` y todavía pone 5 kt si falta la hora: no se ha tocado para no cambiar esa web.
 - **Repetición de ruta**. En la app React, la barra y el botón mueven un punto a lo largo del trazado con `requestAnimationFrame`. Se pausa si la app pasa a segundo plano y no arranca sola si el sistema pide menos movimiento. El bucle del sitio antiguo sigue en `map.routes.js`.
 - **Radar de partículas**. En la app React, un lienzo sobre el mapa mueve como máximo 120 partículas con el viento medido de la rejilla. Sin ese dato no hay flujo. Se pausan en segundo plano y, si se pide menos movimiento, queda un fotograma quieto. El motor de 750 partículas del sitio antiguo sigue en `map.radar.js`.
 
-Ninguna de las cuatro se ha portado en este cambio. El siguiente paso, si se quiere una, es el aviso por tramos después de quitar el 5 kt inventado y probarlo con horas reales y con horas ausentes.
+Las cuatro están en la app React y el sitio de `public_html` conserva sus funciones. El aviso por tramos de la web antigua sigue usando 5 kt si falta la hora; la app no.
 
 ## 5. Límites honestos
 

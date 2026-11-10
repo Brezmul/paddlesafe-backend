@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { PanelTactico } from '@/components/PanelTactico';
 import { PlanificadorTramos } from '@/components/PlanificadorTramos';
 import { ReproductorRuta } from '@/components/ReproductorRuta';
 import { SpotMap } from '@/components/SpotMap';
@@ -596,6 +597,20 @@ export function MapaPage() {
         {error && <Aviso tipo="error">{error}</Aviso>}
         {mensaje && <Aviso tipo="ok">{mensaje}</Aviso>}
       </Tarjeta>
+
+      {(modo === 'spot' || modo === 'ruta') && (
+        <PanelTactico
+          motor={motor}
+          pronostico={pronostico}
+          lat={lat}
+          lon={lon}
+          horaSalida={horaSalida}
+          minutosRuta={modo === 'ruta' ? plan.minutos : null}
+          kmRuta={modo === 'ruta' ? plan.km : null}
+          cruceroKmh={crucero}
+          cargando={cargando}
+        />
+      )}
 
       {modo === 'spot' && (
         <>
