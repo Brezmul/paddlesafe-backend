@@ -204,6 +204,17 @@ Play puede tardar varios días y pedir cambios de textos o capturas. Eso no se r
 - Colocar `paddlesafe-release.keystore` en `web/`, al lado de `keystore.properties` (`storeFile=paddlesafe-release.keystore`). Los iconos de `web/resources` y `web/store-assets` ya son los de la ficha; cámbialos solo si quieres otro diseño.
 - Los tres elementos abiertos en GitHub al preparar este cambio son PRs automáticos de Dependabot (`actions/checkout`, `actions/setup-node` y `actions/upload-artifact` de la versión 4 a la 7). No describen fallos de la app y no se han mezclado aquí para no tocar la integración continua de la API.
 
+## 4.1 Funciones del sitio antiguo que no se han portado
+
+Revisión del código de `public_html/js/map/`, sin reescribir la interfaz.
+
+- **Panel táctico** (`renderizarDashboardPro` en `map.bento.js`, archivo de unas 2000 líneas). Mete en un solo panel el viento, los tramos, el coach, las ventanas y la biométrica. La app React ya muestra veredicto, jornada y ruta, pero no ese panel completo. Montarlo sería copiar esa pantalla, no un ajuste pequeño.
+- **Planificador por tramos** (`calcularMeteoProgresivaPorTramo` en `map.routes.js`). Avisa si el viento sube 4 kt o más a la hora estimada de cada tramo. Si no hay hora en el pronóstico, el viento de salida queda en 5 kt. Mostrarlo así repetiría el fallo de tratar un dato ausente como una medición. No se ha conectado.
+- **Repetición de ruta** (`togglePlayPauseReplayRuta` y el bucle `replayLoop` en `map.routes.js`). Anima un marcador de Leaflet a 60 fps sobre la polilínea, con controles de reproducción. Hace falta el mapa imperativo del sitio antiguo; el mapa React no tiene ese reproductor.
+- **Radar de partículas** (`map.radar.js`, unas 1000 líneas). Dibuja un campo de partículas de viento encima del mapa. La app React tiene rejilla de flechas, lluvia, oleaje y deriva, no ese campo.
+
+Ninguna de las cuatro se ha portado en este cambio. El siguiente paso, si se quiere una, es el aviso por tramos después de quitar el 5 kt inventado y probarlo con horas reales y con horas ausentes.
+
 ## 5. Límites honestos
 
 - El veredicto es una ayuda. Con tormenta, aviso naranja/rojo o duda, no se entra al agua.
