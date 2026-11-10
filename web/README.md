@@ -64,6 +64,8 @@ En Supabase → Authentication → URL configuration, añade como sitio y como r
 
 Sin esas URLs, el enlace de “olvidé la contraseña” no vuelve a la app.
 
+El enlace de recuperación no puede usar `#/perfil`: Supabase (flujo implícito de este cliente) coloca el token en el fragmento y HashRouter también. La app pide como `redirectTo` solo el origen y la ruta reales, por ejemplo `https://localhost/` dentro de Android y `https://www.sup.evolucionesdigitales.es/` o `https://paddlesafe-backend.vercel.app/` en la web. Esas cadenas, tal cual, tienen que estar en Supabase → Authentication → URL configuration → Redirect URLs. No se ha cambiado el proyecto real. Abrir el correo dentro de la app instalada exigiría un intent-filter; un App Link verificado además necesita publicar `assetlinks.json` en el dominio. No está hecho: el enlace se abre en el navegador y, si la URL está permitida, la web muestra el formulario. Un esquema propio (`paddlesafe://`) no necesita assetlinks, pero otra app puede registrarlo; queda como decisión aparte.
+
 ## 2. Publicar la versión web
 
 El build deja archivos estáticos en `web/dist/` (rutas con `./`, válidas en Hostinger y dentro de la app).

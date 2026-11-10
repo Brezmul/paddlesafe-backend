@@ -14,7 +14,8 @@ const enlaces = [
 type Aviso = { id: string; titulo?: string | null; contenido?: string | null; leida?: boolean | null; created_at?: string | null };
 
 export function Layout() {
-  const { ready, session, guest, nombreVisible, perfil } = useAuth();
+  const auth = useAuth();
+  const { ready, session, guest, nombreVisible, perfil } = auth;
   const navigate = useNavigate();
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [abiertos, setAbiertos] = useState(false);
@@ -44,6 +45,10 @@ export function Layout() {
   }, [session, abiertos]);
 
   const sinLeer = avisos.filter((a) => !a.leida).length;
+
+  useEffect(() => {
+    if (auth.recuperacionPendiente) navigate('/perfil', { replace: true });
+  }, [auth.recuperacionPendiente, navigate]);
 
   async function marcarLeidas() {
     if (!supabase || !session?.user) return;

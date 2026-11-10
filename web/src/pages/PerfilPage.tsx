@@ -69,7 +69,25 @@ export function PerfilPage() {
       {error && <Aviso tipo="error">{error}</Aviso>}
       {info && <Aviso tipo="ok">{info}</Aviso>}
 
-      {!auth.session && (
+      {auth.recuperacionPendiente && (
+        <Tarjeta className="space-y-3">
+          <h1 className="text-xl font-black">Elige una contraseña nueva</h1>
+          <p className="text-sm text-slate-300">El enlace del correo ha abierto esta pantalla. La contraseña nueva sustituye a la anterior.</p>
+          <Campo etiqueta="Nueva contraseña">
+            <input className={inputCls} type="password" autoComplete="new-password" value={nueva} onChange={(e) => setNueva(e.target.value)} />
+          </Campo>
+          <Boton onClick={async () => {
+            try {
+              await auth.updatePassword(nueva);
+              setInfo('Contraseña actualizada.');
+            } catch (err) {
+              setError(textoError(err));
+            }
+          }}>Guardar contraseña</Boton>
+        </Tarjeta>
+      )}
+
+      {!auth.session && !auth.recuperacionPendiente && (
         <Tarjeta className="space-y-3">
           <h1 className="text-xl font-black">{modo === 'crear' ? 'Crear cuenta' : modo === 'recuperar' ? 'Recuperar contraseña' : 'Entrar'}</h1>
           {modo === 'crear' && <Campo etiqueta="Nombre"><input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} /></Campo>}
@@ -82,19 +100,6 @@ export function PerfilPage() {
           </div>
           {!auth.guest && <Boton variante="suave" onClick={auth.enterGuest}>Seguir como invitado</Boton>}
           {auth.guest && <p className="text-sm text-slate-300">Estás en modo invitado. El pronóstico y las rutas locales funcionan; clubes y el muro piden cuenta.</p>}
-          <Campo etiqueta="Nueva contraseña (tras abrir el enlace del correo)">
-            <div className="flex gap-2">
-              <input className={inputCls} type="password" value={nueva} onChange={(e) => setNueva(e.target.value)} />
-              <Boton variante="suave" onClick={async () => {
-                try {
-                  await auth.updatePassword(nueva);
-                  setInfo('Contraseña actualizada.');
-                } catch (err) {
-                  setError(textoError(err));
-                }
-              }}>Guardar</Boton>
-            </div>
-          </Campo>
         </Tarjeta>
       )}
 
