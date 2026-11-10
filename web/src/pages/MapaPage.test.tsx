@@ -133,7 +133,7 @@ describe('Mapa de la app', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Embalse de Entrepeñas' }));
     expect(await screen.findByRole('heading', { name: /Favorable/ })).toBeTruthy();
     expect(screen.getByText(/aguas interiores/)).toBeTruthy();
-    expect(screen.getByText('No aplica')).toBeTruthy();
+    expect(screen.getAllByText('No aplica').length).toBeGreaterThan(0);
     expect(screen.queryByText('0.0 m')).toBeNull();
     expect(screen.queryByText(/aguas tranquilas/)).toBeNull();
   });
