@@ -5,6 +5,7 @@ import { useAcceso } from '@/context/AccesoContext';
 import { Aviso, Boton, Campo, inputCls, Tarjeta } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { textoError } from '@/lib/db';
+import { borradoConfirmado, solicitarBorradoCuenta } from '@/lib/cuenta';
 import { formatoTiempo } from '@/lib/geo';
 
 const TABLAS = [
@@ -26,6 +27,8 @@ export function PerfilPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [nueva, setNueva] = useState('');
   const [rutas, setRutas] = useState<Array<{ id: string; distancia_km: number | null; tiempo_minutos: number | null; ubicacion: string | null; fecha: string | null }>>([]);
+  const [palabraBorrado, setPalabraBorrado] = useState('');
+  const [avisoBorrado, setAvisoBorrado] = useState(false);
   const [tabla, setTabla] = useState(auth.perfil?.sup_board_type || 'allround');
   const [ritmo, setRitmo] = useState(String(auth.perfil?.sup_cruise_speed_kmh || 4.5));
   const [equipo, setEquipo] = useState(auth.perfil?.sup_gear_name || '');
@@ -178,10 +181,40 @@ export function PerfilPage() {
               ))}
             </ul>
           </Tarjeta>
+          {auth.session && (
+            <Tarjeta className="space-y-2">
+              <h2 className="font-black text-rose-200">Eliminar mi cuenta</h2>
+              <p className="text-sm text-slate-300">Borra el perfil, las rutas, la bitácora, los mensajes y las fotos, y cierra el usuario. No se puede deshacer.</p>
+              {(acceso.origen === 'play' || acceso.play.activo) && (
+                <Aviso>Si tienes Premium, cancélalo también en Google Play. Borrar la cuenta de PaddleSafe no cancela la suscripción.</Aviso>
+              )}
+              <label className="flex min-h-11 items-center gap-2 text-sm">
+                <input type="checkbox" checked={avisoBorrado} onChange={(e) => setAvisoBorrado(e.target.checked)} />
+                Entiendo que se borrarán mis datos
+              </label>
+              <Campo etiqueta="Escribe ELIMINAR">
+                <input className={inputCls} value={palabraBorrado} onChange={(e) => setPalabraBorrado(e.target.value)} autoComplete="off" />
+              </Campo>
+              <Boton variante="peligro" disabled={!borradoConfirmado(avisoBorrado, palabraBorrado)} onClick={async () => {
+                if (!supabase) { setError('No hay conexión con la cuenta.'); return; }
+                const cliente = supabase;
+                const resultado = await solicitarBorradoCuenta({
+                  invoke: (nombre, opciones) => cliente.functions.invoke(nombre, opciones)
+                });
+                if (!resultado.ok) { setError(resultado.mensaje); return; }
+                await auth.signOut();
+                setInfo('Cuenta eliminada.');
+              }}>Eliminar mi cuenta</Boton>
+            </Tarjeta>
+          )}
         </>
       )}
 
-      <p className="text-center text-sm"><Link className="font-bold text-sky-300" to="/privacidad">Política de privacidad</Link></p>
+      <p className="text-center text-sm">
+        <Link className="font-bold text-sky-300" to="/privacidad">Política de privacidad</Link>
+        {' · '}
+        <a className="font-bold text-sky-300" href="/eliminar-cuenta.html">Eliminar cuenta</a>
+      </p>
     </div>
   );
 }

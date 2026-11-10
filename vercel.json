@@ -17,6 +17,10 @@
     {
       "source": "/privacidad",
       "destination": "/privacidad.html"
+    },
+    {
+      "source": "/eliminar-cuenta",
+      "destination": "/eliminar-cuenta.html"
     }
   ],
   "headers": [
