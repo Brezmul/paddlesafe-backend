@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { PlanificadorTramos } from '@/components/PlanificadorTramos';
 import { SpotMap } from '@/components/SpotMap';
 import { Aviso, Boton, Campo, inputCls, Tarjeta } from '@/components/ui';
 import { PACKS_SPOTS } from '@/data/packs';
@@ -28,7 +29,8 @@ import {
   type SpotGuardado
 } from '@/lib/db';
 import { guardarNivel, leerNivel, leerTelefonoEmergencia, guardarTelefonoEmergencia } from '@/lib/prefs';
-import { medicionNumerica, prepararEntradaCoach } from '@/lib/medicion';
+import { medicionNumerica, magnitudNoNegativa, prepararEntradaCoach } from '@/lib/medicion';
+import { planificarTramos, type LecturaHora } from '@/lib/tramos';
 import { aplicarExito, aplicarFallo, aplicarHora, crearEstadoConsulta, iniciarEvaluacion } from '@/lib/consultaLugar';
 import { leerPosicion, observarPrimerPlano, seguirPosicion, type Seguimiento } from '@/lib/gps';
 import { supabase } from '@/lib/supabase';
@@ -69,6 +71,7 @@ export function MapaPage() {
   const sesionVivaRef = useRef(false);
   const parteRef = useRef(crearEstadoConsulta());
   const [telefono, setTelefono] = useState(leerTelefonoEmergencia());
+  const [horaSalida, setHoraSalida] = useState('10:00');
   const [checkinId, setCheckinId] = useState<string | null>(null);
   const [termicaAbierta, setTermicaAbierta] = useState(false);
   const [intensidad, setIntensidad] = useState<'paseo' | 'travesia' | 'race'>('paseo');
@@ -76,6 +79,26 @@ export function MapaPage() {
 
   const tabla = perfil?.sup_board_type || null;
   const crucero = Number(perfil?.sup_cruise_speed_kmh || 4.5);
+  const plan = useMemo(() => {
+    const [hh, mm] = horaSalida.split(':').map((parte) => Number(parte));
+    const horas: LecturaHora[] = (pronostico?.horasDiurnas || []).flatMap((hora) => {
+      const numero = Number.parseInt(String(hora.hora ?? '').slice(0, 2), 10);
+      if (!Number.isFinite(numero)) return [];
+      return [{
+        hora: numero,
+        vientoKt: magnitudNoNegativa(hora.vientoKt),
+        dirDeg: medicionNumerica(hora.dirDeg),
+        rachasKt: magnitudNoNegativa(hora.rachasKt)
+      }];
+    });
+    return planificarTramos({
+      puntos,
+      cruceroKmh: crucero,
+      horaSalida: Number.isFinite(hh) ? hh : 10,
+      minutoSalida: Number.isFinite(mm) ? mm : 0,
+      horas
+    });
+  }, [crucero, horaSalida, pronostico, puntos]);
 
   useEffect(() => {
     cargarSpots(userId).then(setSpots).catch(() => setSpots([]));
@@ -694,8 +717,12 @@ export function MapaPage() {
             <Boton onClick={() => guardarRuta(puntos, minutosRuta, `Ruta planificada · ${nombre}`)} disabled={puntos.length < 2}>Guardar ruta</Boton>
             <Boton variante="suave" onClick={async () => setMensaje(`Mapa de la zona: ${await precargarMapa(lat, lon)} teselas listas sin red.`)}>Mapa sin conexión</Boton>
           </div>
-          <Aviso>El tiempo es una estimación con tu ritmo de crucero, no un ETA garantizado.</Aviso>
+          <Aviso>El tiempo es una estimación con tu ritmo de crucero, no un ETA garantizado. Evalúa el lugar para rellenar el viento de cada hora.</Aviso>
         </Tarjeta>
+      )}
+
+      {modo === 'ruta' && (
+        <PlanificadorTramos plan={plan} horaSalida={horaSalida} onHora={setHoraSalida} />
       )}
 
       {modo === 'vivo' && (
