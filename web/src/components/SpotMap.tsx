@@ -40,7 +40,7 @@ function Clicks({ onMapClick }: { onMapClick?: (lat: number, lon: number) => voi
 
 export function SpotMap({ lat, lon, focusToken, puntos = [], marca, recorrido = [], estela = [], marcaReplay = null, onMapClick, altura = 'h-[46vh] min-h-[280px]', children }: Props) {
   return (
-    <div className={`${altura} overflow-hidden rounded-3xl border border-white/10`}>
+    <div className={`ps-marco ${altura} overflow-hidden rounded-3xl border border-white/10`}>
       <MapContainer center={[lat, lon]} zoom={13} className="h-full w-full" zoomControl={false}>
         <TileLayer
           attribution='&copy; OpenStreetMap'

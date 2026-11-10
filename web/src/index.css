@@ -4,6 +4,10 @@
   color-scheme: dark;
   --ps-bg: #041e30;
   --ps-ink: #e8f4ff;
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
 }
 
 html, body, #root {
@@ -20,6 +24,36 @@ body {
 
 button, a, input, select, textarea {
   touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
+.ps-cabecera {
+  padding-top: max(0.6rem, var(--safe-area-inset-top, 0px));
+}
+
+.ps-contenido {
+  padding-bottom: calc(5.2rem + var(--safe-area-inset-bottom, 0px));
+}
+
+.ps-barra {
+  padding-bottom: var(--safe-area-inset-bottom, 0px);
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .ps-marco {
+    height: 38vh !important;
+    min-height: 160px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 .leaflet-container {

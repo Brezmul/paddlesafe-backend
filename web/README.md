@@ -215,6 +215,8 @@ Revisión del código de `public_html/js/map/`, sin reescribir la interfaz.
 
 Las cuatro están en la app React y el sitio de `public_html` conserva sus funciones. El aviso por tramos de la web antigua sigue usando 5 kt si falta la hora; la app no.
 
+Las áreas seguras usan `env()` y, si el plugin SystemBars llega a escribirlas, las variables `--safe-area-inset-*`. El tema Android deja los iconos de la barra claros sobre el fondo `#041E30`. `SystemBars.style` queda en `DARK` para el mismo fin. Si la inyección de CSS del plugin falla al arrancar, el `env()` del WebView sigue aplicando el hueco.
+
 ## 5. Límites honestos
 
 - El veredicto es una ayuda. Con tormenta, aviso naranja/rojo o duda, no se entra al agua.

@@ -59,7 +59,7 @@ export function Layout() {
   return (
     <div className="min-h-dvh bg-[#041e30] text-slate-100">
       <header className="sticky top-0 z-[500] border-b border-white/10 bg-[#06263c]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-3 py-2.5 pt-[max(0.6rem,env(safe-area-inset-top))]">
+        <div className="ps-cabecera mx-auto flex max-w-5xl items-center gap-3 px-3 py-2.5">
           <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 text-left">
             <span className="grid h-9 w-9 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 to-emerald-400 text-lg text-slate-950">🌊</span>
             <span>
@@ -113,12 +113,12 @@ export function Layout() {
         )}
       </header>
 
-      <main className="mx-auto w-full max-w-5xl px-3 pb-[calc(5.2rem+env(safe-area-inset-bottom))] pt-3">
+      <main className="ps-contenido mx-auto w-full max-w-5xl px-3 pt-3">
         <Outlet />
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-[500] border-t border-white/10 bg-[#06263c]/95 backdrop-blur">
-        <ul className="mx-auto grid max-w-5xl grid-cols-5 pb-[env(safe-area-inset-bottom)]">
+        <ul className="ps-barra mx-auto grid max-w-5xl grid-cols-5">
           {enlaces.map((item) => (
             <li key={item.to}>
               <NavLink
