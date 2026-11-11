@@ -169,6 +169,18 @@ export function ClubesPage() {
     else setInfo('Solicitud enviada.');
   }
 
+  async function borrarMensaje(mensajeId: string) {
+    if (!supabase || !session) return setError('Entra para borrar el mensaje.');
+    if (!window.confirm('¿Eliminar este mensaje? No se puede deshacer.')) return;
+    const { data, error: err } = await supabase.from('club_chat').delete().eq('id', mensajeId).eq('user_id', session.user.id).select('id');
+    if (err) setError(err.message);
+    else if (!data || data.length === 0) setError('No se ha borrado. Solo puedes eliminar tus mensajes.');
+    else if (activo) {
+      setInfo('Mensaje eliminado.');
+      await cargarChat(activo.id);
+    }
+  }
+
   async function enviarMensaje() {
     if (!supabase || !session || !activo) return setError('Entra para escribir en el chat.');
     const mensaje = texto.trim();
@@ -331,6 +343,9 @@ export function ClubesPage() {
               <li key={m.id} className="rounded-2xl bg-white/5 px-3 py-2 text-sm">
                 <span className="font-bold">{m.autor}</span>
                 <p>{m.mensaje}</p>
+                {session?.user.id && m.user_id === session.user.id && (
+                  <button type="button" className="mt-1 inline-flex min-h-11 items-center text-xs font-bold text-rose-300" onClick={() => borrarMensaje(m.id)}>Eliminar mensaje</button>
+                )}
                 {m.user_id && (
                   <MenuModeracion
                     autorId={m.user_id}

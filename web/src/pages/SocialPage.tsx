@@ -180,6 +180,15 @@ export function SocialPage() {
     setComentarios((data || []) as Comentario[]);
   }
 
+  async function borrarComentario(comentarioId: string, rutaId: string) {
+    if (!supabase || !session) return setError('Entra para borrar el comentario.');
+    if (!window.confirm('¿Eliminar este comentario?')) return;
+    const { data, error: err } = await supabase.from('rutas_comentarios').delete().eq('id', comentarioId).eq('user_id', session.user.id).select('id');
+    if (err) setError(err.message);
+    else if (!data || data.length === 0) setError('No se ha borrado. Solo puedes eliminar tus comentarios.');
+    else await abrirComentarios(rutaId);
+  }
+
   async function comentar(rutaId: string) {
     if (!supabase || !session) return setError('Entra para comentar.');
     const texto = borrador.trim();
@@ -298,6 +307,9 @@ export function SocialPage() {
                   {comentariosVisibles.map((c) => (
                     <div key={c.id} className="rounded-2xl bg-white/5 px-3 py-2 text-sm">
                       <span className="font-bold">{c.autor_nombre || 'Paddler'}: </span>{c.comentario || c.contenido || c.texto}
+                      {session?.user.id && c.user_id === session.user.id && (
+                        <button type="button" className="ml-2 inline-flex min-h-11 items-center text-xs font-bold text-rose-300" onClick={() => borrarComentario(c.id, ruta.id)}>Eliminar comentario</button>
+                      )}
                       {c.user_id && <MenuModeracion autorId={c.user_id} yo={session?.user.id || null} contexto="comentario" objetivoId={c.id} onDenunciar={(motivo) => denunciar(c.user_id || '', c.id, 'comentario', motivo)} onBloquear={() => bloquear(c.user_id || '')} />}
                     </div>
                   ))}
