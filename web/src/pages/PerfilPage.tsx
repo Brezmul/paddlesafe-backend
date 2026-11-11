@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useAcceso } from '@/context/AccesoContext';
 import { Aviso, Boton, Campo, inputCls, Tarjeta } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { textoError } from '@/lib/db';
+import { borradoConfirmado, solicitarBorradoCuenta } from '@/lib/cuenta';
 import { formatoTiempo } from '@/lib/geo';
 
 const TABLAS = [
@@ -16,6 +18,7 @@ const TABLAS = [
 
 export function PerfilPage() {
   const auth = useAuth();
+  const acceso = useAcceso();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
@@ -24,6 +27,8 @@ export function PerfilPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [nueva, setNueva] = useState('');
   const [rutas, setRutas] = useState<Array<{ id: string; distancia_km: number | null; tiempo_minutos: number | null; ubicacion: string | null; fecha: string | null }>>([]);
+  const [palabraBorrado, setPalabraBorrado] = useState('');
+  const [avisoBorrado, setAvisoBorrado] = useState(false);
   const [tabla, setTabla] = useState(auth.perfil?.sup_board_type || 'allround');
   const [ritmo, setRitmo] = useState(String(auth.perfil?.sup_cruise_speed_kmh || 4.5));
   const [equipo, setEquipo] = useState(auth.perfil?.sup_gear_name || '');
@@ -69,32 +74,42 @@ export function PerfilPage() {
       {error && <Aviso tipo="error">{error}</Aviso>}
       {info && <Aviso tipo="ok">{info}</Aviso>}
 
-      {!auth.session && (
+      {auth.recuperacionPendiente && (
+        <Tarjeta className="space-y-3">
+          <h1 className="text-xl font-black">Elige una contraseña nueva</h1>
+          <p className="text-sm text-slate-300">El enlace del correo ha abierto esta pantalla. La contraseña nueva sustituye a la anterior.</p>
+          <Campo etiqueta="Nueva contraseña">
+            <input className={inputCls} type="password" autoComplete="new-password" value={nueva} onChange={(e) => setNueva(e.target.value)} />
+          </Campo>
+          <Boton onClick={async () => {
+            try {
+              await auth.updatePassword(nueva);
+              setInfo('Contraseña actualizada.');
+            } catch (err) {
+              setError(textoError(err));
+            }
+          }}>Guardar contraseña</Boton>
+        </Tarjeta>
+      )}
+
+      {!auth.session && !auth.recuperacionPendiente && (
         <Tarjeta className="space-y-3">
           <h1 className="text-xl font-black">{modo === 'crear' ? 'Crear cuenta' : modo === 'recuperar' ? 'Recuperar contraseña' : 'Entrar'}</h1>
+          {modo === 'crear' && <Aviso>PaddleSafe es para mayores de 18 años. Al crear la cuenta confirmas que tienes esa edad.</Aviso>}
           {modo === 'crear' && <Campo etiqueta="Nombre"><input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} /></Campo>}
           <Campo etiqueta="Correo"><input className={inputCls} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Campo>
           {modo !== 'recuperar' && <Campo etiqueta="Contraseña"><input className={inputCls} type="password" autoComplete={modo === 'crear' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} /></Campo>}
           <Boton onClick={enviarAuth}>{modo === 'entrar' ? 'Entrar' : modo === 'crear' ? 'Crear cuenta' : 'Enviar enlace'}</Boton>
           <div className="flex flex-wrap gap-2 text-sm">
-            <button type="button" className="font-bold text-sky-300" onClick={() => setModo(modo === 'entrar' ? 'crear' : 'entrar')}>{modo === 'entrar' ? 'No tengo cuenta' : 'Ya tengo cuenta'}</button>
-            <button type="button" className="font-bold text-sky-300" onClick={() => setModo('recuperar')}>Olvidé la contraseña</button>
+            {modo === 'entrar' && !acceso.puede('cuenta') ? (
+              <Link to="/premium" className="inline-flex min-h-11 items-center font-bold text-sky-300">Crear cuenta es Premium</Link>
+            ) : (
+              <button type="button" className="min-h-11 font-bold text-sky-300" onClick={() => setModo(modo === 'entrar' ? 'crear' : 'entrar')}>{modo === 'entrar' ? 'No tengo cuenta' : 'Ya tengo cuenta'}</button>
+            )}
+            <button type="button" className="inline-flex min-h-11 items-center font-bold text-sky-300" onClick={() => setModo('recuperar')}>Olvidé la contraseña</button>
           </div>
           {!auth.guest && <Boton variante="suave" onClick={auth.enterGuest}>Seguir como invitado</Boton>}
           {auth.guest && <p className="text-sm text-slate-300">Estás en modo invitado. El pronóstico y las rutas locales funcionan; clubes y el muro piden cuenta.</p>}
-          <Campo etiqueta="Nueva contraseña (tras abrir el enlace del correo)">
-            <div className="flex gap-2">
-              <input className={inputCls} type="password" value={nueva} onChange={(e) => setNueva(e.target.value)} />
-              <Boton variante="suave" onClick={async () => {
-                try {
-                  await auth.updatePassword(nueva);
-                  setInfo('Contraseña actualizada.');
-                } catch (err) {
-                  setError(textoError(err));
-                }
-              }}>Guardar</Boton>
-            </div>
-          </Campo>
         </Tarjeta>
       )}
 
@@ -167,10 +182,40 @@ export function PerfilPage() {
               ))}
             </ul>
           </Tarjeta>
+          {auth.session && (
+            <Tarjeta className="space-y-2">
+              <h2 className="font-black text-rose-200">Eliminar mi cuenta</h2>
+              <p className="text-sm text-slate-300">Borra el perfil, las rutas, la bitácora, los mensajes y las fotos, y cierra el usuario. No se puede deshacer.</p>
+              {(acceso.origen === 'play' || acceso.play.activo) && (
+                <Aviso>Si tienes Premium, cancélalo también en Google Play. Borrar la cuenta de PaddleSafe no cancela la suscripción.</Aviso>
+              )}
+              <label className="flex min-h-11 items-center gap-2 text-sm">
+                <input type="checkbox" checked={avisoBorrado} onChange={(e) => setAvisoBorrado(e.target.checked)} />
+                Entiendo que se borrarán mis datos
+              </label>
+              <Campo etiqueta="Escribe ELIMINAR">
+                <input className={inputCls} value={palabraBorrado} onChange={(e) => setPalabraBorrado(e.target.value)} autoComplete="off" />
+              </Campo>
+              <Boton variante="peligro" disabled={!borradoConfirmado(avisoBorrado, palabraBorrado)} onClick={async () => {
+                if (!supabase) { setError('No hay conexión con la cuenta.'); return; }
+                const cliente = supabase;
+                const resultado = await solicitarBorradoCuenta({
+                  invoke: (nombre, opciones) => cliente.functions.invoke(nombre, opciones)
+                });
+                if (!resultado.ok) { setError(resultado.mensaje); return; }
+                await auth.signOut();
+                setInfo('Cuenta eliminada.');
+              }}>Eliminar mi cuenta</Boton>
+            </Tarjeta>
+          )}
         </>
       )}
 
-      <p className="text-center text-sm"><Link className="font-bold text-sky-300" to="/privacidad">Política de privacidad</Link></p>
+      <p className="text-center text-sm">
+        <Link className="font-bold text-sky-300" to="/privacidad">Política de privacidad</Link>
+        {' · '}
+        <a className="font-bold text-sky-300" href="/eliminar-cuenta.html">Eliminar cuenta</a>
+      </p>
     </div>
   );
 }

@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { Candado, OfertaMapa } from '@/components/Candado';
+import { PanelTactico } from '@/components/PanelTactico';
+import { PlanificadorTramos } from '@/components/PlanificadorTramos';
+import { ReproductorRuta } from '@/components/ReproductorRuta';
 import { SpotMap } from '@/components/SpotMap';
 import { Aviso, Boton, Campo, inputCls, Tarjeta } from '@/components/ui';
 import { PACKS_SPOTS } from '@/data/packs';
@@ -10,6 +14,7 @@ import {
   equipoTermico,
   leerGpx,
   pedirCoach,
+  textoParteGuardado,
   xmlGpx,
   type HoraMarina,
   type Motor,
@@ -27,7 +32,11 @@ import {
   type SpotGuardado
 } from '@/lib/db';
 import { guardarNivel, leerNivel, leerTelefonoEmergencia, guardarTelefonoEmergencia } from '@/lib/prefs';
-import { dejarDeSeguir, leerPosicion, seguirPosicion } from '@/lib/gps';
+import { medicionNumerica, magnitudNoNegativa, prepararEntradaCoach } from '@/lib/medicion';
+import { planificarTramos, type LecturaHora } from '@/lib/tramos';
+import { aplicarExito, aplicarFallo, aplicarHora, crearEstadoConsulta, iniciarEvaluacion } from '@/lib/consultaLugar';
+import { leerPosicion, observarPrimerPlano, seguirPosicion, type Seguimiento } from '@/lib/gps';
+import { demoCosta, esFicha, vistaFicha } from '@/lib/ficha';
 import { supabase } from '@/lib/supabase';
 
 type Modo = 'spot' | 'ruta' | 'vivo';
@@ -36,22 +45,24 @@ const INICIO: [number, number] = [38.8, 0.18];
 
 export function MapaPage() {
   const { userId, guest, perfil, session } = useAuth();
-  const [modo, setModo] = useState<Modo>('spot');
-  const [lat, setLat] = useState(INICIO[0]);
-  const [lon, setLon] = useState(INICIO[1]);
-  const [nombre, setNombre] = useState('Jávea');
+  const ficha = esFicha();
+  const vista = vistaFicha();
+  const [modo, setModo] = useState<Modo>(vista === 'replay' ? 'ruta' : 'spot');
+  const [lat, setLat] = useState(ficha ? demoCosta().lat : INICIO[0]);
+  const [lon, setLon] = useState(ficha ? demoCosta().lon : INICIO[1]);
+  const [nombre, setNombre] = useState(ficha ? demoCosta().nombre : 'Jávea');
   const [consulta, setConsulta] = useState('');
   const [lugares, setLugares] = useState<Lugar[]>([]);
   const [foco, setFoco] = useState(0);
   const [nivel, setNivel] = useState<Nivel>(leerNivel());
-  const [pronostico, setPronostico] = useState<Pronostico | null>(null);
-  const [motor, setMotor] = useState<Motor | null>(null);
+  const [pronostico, setPronostico] = useState<Pronostico | null>(ficha ? demoCosta().pronostico : null);
+  const [motor, setMotor] = useState<Motor | null>(ficha ? demoCosta().motor : null);
   const [horaIdx, setHoraIdx] = useState(0);
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [spots, setSpots] = useState<SpotGuardado[]>([]);
-  const [puntos, setPuntos] = useState<Array<[number, number]>>([]);
+  const [puntos, setPuntos] = useState<Array<[number, number]>>(vista === 'replay' ? demoCosta().puntos : []);
   const [comparacion, setComparacion] = useState<Array<{ nombre: string; estado: string; score: number }>>([]);
   const [coach, setCoach] = useState<string | null>(null);
   const [reporte, setReporte] = useState('mar_plato');
@@ -62,8 +73,13 @@ export function MapaPage() {
   const [sesionViva, setSesionViva] = useState(false);
   const [recorrido, setRecorrido] = useState<Array<[number, number]>>([]);
   const [inicioMs, setInicioMs] = useState<number | null>(null);
-  const watchId = useRef<string | null>(null);
+  const seguimientoRef = useRef<Seguimiento | null>(null);
+  const sesionVivaRef = useRef(false);
+  const parteRef = useRef(crearEstadoConsulta());
   const [telefono, setTelefono] = useState(leerTelefonoEmergencia());
+  const [horaSalida, setHoraSalida] = useState('10:00');
+  const [estela, setEstela] = useState<Array<[number, number]>>([]);
+  const [marcaReplay, setMarcaReplay] = useState<[number, number] | null>(null);
   const [checkinId, setCheckinId] = useState<string | null>(null);
   const [termicaAbierta, setTermicaAbierta] = useState(false);
   const [intensidad, setIntensidad] = useState<'paseo' | 'travesia' | 'race'>('paseo');
@@ -71,10 +87,63 @@ export function MapaPage() {
 
   const tabla = perfil?.sup_board_type || null;
   const crucero = Number(perfil?.sup_cruise_speed_kmh || 4.5);
+  const plan = useMemo(() => {
+    const [hh, mm] = horaSalida.split(':').map((parte) => Number(parte));
+    const horas: LecturaHora[] = (pronostico?.horasDiurnas || []).flatMap((hora) => {
+      const numero = Number.parseInt(String(hora.hora ?? '').slice(0, 2), 10);
+      if (!Number.isFinite(numero)) return [];
+      return [{
+        hora: numero,
+        vientoKt: magnitudNoNegativa(hora.vientoKt),
+        dirDeg: medicionNumerica(hora.dirDeg),
+        rachasKt: magnitudNoNegativa(hora.rachasKt)
+      }];
+    });
+    return planificarTramos({
+      puntos,
+      cruceroKmh: crucero,
+      horaSalida: Number.isFinite(hh) ? hh : 10,
+      minutoSalida: Number.isFinite(mm) ? mm : 0,
+      horas
+    });
+  }, [crucero, horaSalida, pronostico, puntos]);
 
   useEffect(() => {
     cargarSpots(userId).then(setSpots).catch(() => setSpots([]));
   }, [userId]);
+
+  useEffect(() => {
+    sesionVivaRef.current = sesionViva;
+  }, [sesionViva]);
+
+  useEffect(() => {
+    let vivo = true;
+    let quitar = () => undefined as void;
+    const pausado = { valor: false };
+    void observarPrimerPlano(
+      () => {
+        if (!sesionVivaRef.current) return;
+        pausado.valor = true;
+        void seguimientoRef.current?.parar();
+        seguimientoRef.current = null;
+        setMensaje('La sesión solo se registra con la app en primer plano. El tramo con la pantalla bloqueada o en otra app no se guarda.');
+      },
+      () => {
+        if (!sesionVivaRef.current || !pausado.valor) return;
+        pausado.valor = false;
+        void engancharSeguimiento();
+      }
+    ).then((cerrar) => {
+      if (vivo) quitar = cerrar;
+      else cerrar();
+    });
+    return () => {
+      vivo = false;
+      quitar();
+      void seguimientoRef.current?.parar();
+      seguimientoRef.current = null;
+    };
+  }, []);
 
   const horas = pronostico?.horasDiurnas || [];
   const kmRuta = useMemo(() => distanciaKm(puntos), [puntos]);
@@ -102,19 +171,31 @@ export function MapaPage() {
     try {
       const pos = await leerPosicion();
       irA(pos.lat, pos.lon, 'Mi posición');
-    } catch {
-      setError('No se ha podido leer el GPS. Revisa el permiso de ubicación.');
+      if (pos.aproximada) {
+        const metros = pos.accuracy == null ? '' : ` (${Math.round(pos.accuracy)} m)`;
+        setMensaje(`Ubicación aproximada${metros}. No es un punto GPS fino.`);
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'No se ha podido leer el GPS. Revisa el permiso de ubicación.');
     }
   }
 
   async function evaluar(enLat = lat, enLon = lon, enNombre = nombre) {
+    const iniciado = iniciarEvaluacion(parteRef.current);
+    parteRef.current = iniciado.estado;
+    setPronostico(null);
+    setMotor(null);
+    setHoraIdx(0);
     setCargando(true);
     setError(null);
     setCoach(null);
     try {
       const resultado = await evaluarLugar({ lat: enLat, lon: enLon, nombre: enNombre, nivel, boardType: tabla });
-      setPronostico(resultado.pronostico);
-      setMotor(resultado.motor);
+      const next = aplicarExito(parteRef.current, iniciado.id, resultado.pronostico, resultado.motor);
+      parteRef.current = next;
+      if (next.generacion !== iniciado.id) return;
+      setPronostico(next.pronostico);
+      setMotor(next.motor);
       setHoraIdx(0);
       const spot = spots.find((s) => s.nombre === enNombre);
       if (spot) {
@@ -125,17 +206,25 @@ export function MapaPage() {
         });
       }
     } catch (err) {
-      setError(textoError(err));
+      const next = aplicarFallo(parteRef.current, iniciado.id, textoError(err));
+      parteRef.current = next;
+      if (next.generacion !== iniciado.id) return;
+      setPronostico(null);
+      setMotor(null);
+      setError(next.error);
     } finally {
-      setCargando(false);
+      if (parteRef.current.generacion === iniciado.id) setCargando(false);
     }
   }
 
   function elegirHora(indice: number) {
+    const actual = parteRef.current.pronostico;
+    const hora = actual?.horasDiurnas?.[indice];
+    if (!actual || !hora) return;
+    const motorHora = evaluarHora(actual, hora, nivel, tabla);
+    parteRef.current = aplicarHora(parteRef.current, indice, motorHora);
     setHoraIdx(indice);
-    const hora = horas[indice];
-    if (!pronostico || !hora) return;
-    setMotor(evaluarHora(pronostico, hora, nivel, tabla));
+    setMotor(motorHora);
   }
 
   async function favorito() {
@@ -219,17 +308,24 @@ export function MapaPage() {
 
   async function coachAhora() {
     if (!motor) return;
+    if (pronostico?._desdeSnapshot) {
+      setCoach('El coach no se consulta con un parte guardado: no es una medición actual.');
+      return;
+    }
+    const entrada = prepararEntradaCoach(motor);
+    if (!entrada.consultar) {
+      setCoach(entrada.motivo);
+      return;
+    }
     setCargando(true);
     try {
-      const vientoKt = motor.detallesTecnicos?.vientoKt ?? motor.vientoNudos ?? 0;
-      const rachasKt = motor.detallesTecnicos?.rachasKt ?? vientoKt;
       const data = await pedirCoach({
         nivel,
-        vientoKmh: Number(vientoKt) * 1.852,
-        rachasKmh: Number(rachasKt) * 1.852,
-        direccion: Number(pronostico?.windDirection || 0),
-        oleaje: Number(motor.detallesTecnicos?.oleajeM || 0),
-        periodo: Number(motor.detallesTecnicos?.periodoOlaS || 0),
+        vientoKmh: entrada.vientoKt * 1.852,
+        rachasKmh: entrada.rachasKt * 1.852,
+        direccion: medicionNumerica(pronostico?.windDirection) ?? 0,
+        oleaje: entrada.oleajeM,
+        periodo: entrada.periodoS,
         tempAire: motor.detallesTecnicos?.tempAireC ?? 'N/D',
         tempAgua: motor.detallesTecnicos?.tempAguaC ?? 'N/D',
         lat,
@@ -323,36 +419,53 @@ export function MapaPage() {
     }
   }
 
-  async function empezarVivo() {
-    setError(null);
-    try {
-      await leerPosicion();
-    } catch {
-      setError('No se ha podido leer el GPS. Revisa el permiso de ubicación.');
-      return;
-    }
-    setRecorrido([]);
-    setInicioMs(Date.now());
-    setSesionViva(true);
-    setModo('vivo');
-    watchId.current = await seguirPosicion(
-      (latitud, longitud) => {
-        const punto: [number, number] = [Number(latitud.toFixed(6)), Number(longitud.toFixed(6))];
+  async function engancharSeguimiento() {
+    const seguimiento = await seguirPosicion(
+      (posicion) => {
+        const punto: [number, number] = [Number(posicion.lat.toFixed(6)), Number(posicion.lon.toFixed(6))];
         setLat(punto[0]);
         setLon(punto[1]);
+        if (posicion.aproximada) {
+          const metros = posicion.accuracy == null ? '' : ` (${Math.round(posicion.accuracy)} m)`;
+          setMensaje(`Ubicación aproximada${metros}. No es un punto GPS fino.`);
+        }
         setRecorrido((lista) => {
           const ultimo = lista[lista.length - 1];
           if (ultimo && distanciaKm([ultimo, punto]) < 0.008) return lista;
           return [...lista, punto];
         });
       },
-      () => setError('Se ha perdido la señal GPS.')
+      (aviso) => setError(aviso.mensaje)
     );
+    seguimientoRef.current = seguimiento;
+  }
+
+  async function empezarVivo() {
+    setError(null);
+    let posicion;
+    try {
+      posicion = await leerPosicion();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'No se ha podido leer el GPS. Revisa el permiso de ubicación.');
+      return;
+    }
+    setRecorrido([]);
+    setInicioMs(Date.now());
+    setSesionViva(true);
+    sesionVivaRef.current = true;
+    setModo('vivo');
+    if (posicion.aproximada) {
+      const metros = posicion.accuracy == null ? '' : ` (${Math.round(posicion.accuracy)} m)`;
+      setMensaje(`Ubicación aproximada${metros}. No es un punto GPS fino.`);
+    }
+    irA(posicion.lat, posicion.lon, 'Mi posición');
+    await engancharSeguimiento();
   }
 
   async function terminarVivo() {
-    if (watchId.current) await dejarDeSeguir(watchId.current);
-    watchId.current = null;
+    sesionVivaRef.current = false;
+    await seguimientoRef.current?.parar();
+    seguimientoRef.current = null;
     setSesionViva(false);
     const minutos = inicioMs ? Math.max(1, (Date.now() - inicioMs) / 60000) : 1;
     await guardarRuta(recorrido, minutos, `Travesía en vivo · ${nombre}`);
@@ -443,10 +556,13 @@ export function MapaPage() {
         marca={[lat, lon]}
         puntos={modo === 'ruta' ? puntos : []}
         recorrido={modo === 'vivo' ? recorrido : modo === 'ruta' ? puntos : []}
+        estela={estela}
+        marcaReplay={marcaReplay}
         onMapClick={alPulsarMapa}
+        altura={ficha && vista !== 'replay' ? 'h-[168px] min-h-[168px]' : undefined}
       />
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-2" data-captura={ficha ? 'modos' : undefined}>
         {([['spot', 'Evaluar'], ['ruta', 'Ruta'], ['vivo', 'En vivo']] as Array<[Modo, string]>).map(([id, label]) => (
           <button key={id} type="button" onClick={() => setModo(id)} className={`min-h-11 rounded-2xl text-sm font-black ${modo === id ? 'bg-emerald-400 text-slate-950' : 'bg-white/5 text-slate-200'}`}>
             {label}
@@ -454,9 +570,9 @@ export function MapaPage() {
         ))}
       </div>
 
-      <Tarjeta className="space-y-3">
+      <Tarjeta className="space-y-3" data-captura={ficha ? 'buscar' : undefined}>
         <div className="flex gap-2">
-          <input className={inputCls} value={consulta} placeholder="Buscar playa, cala o pueblo" onChange={(e) => setConsulta(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') buscar(); }} />
+          <input className={inputCls} value={consulta} placeholder="Buscar playa, cala o pueblo" aria-label="Buscar playa, cala o pueblo" onChange={(e) => setConsulta(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') buscar(); }} />
           <Boton onClick={buscar}>Buscar</Boton>
         </div>
         {lugares.length > 0 && (
@@ -487,16 +603,41 @@ export function MapaPage() {
         {mensaje && <Aviso tipo="ok">{mensaje}</Aviso>}
       </Tarjeta>
 
+      {(modo === 'spot' || modo === 'ruta') && (
+        <Candado funcion="tactico" oculto>
+          <div data-captura={ficha ? 'panel' : undefined}>
+          <PanelTactico
+            motor={motor}
+            pronostico={pronostico}
+            lat={lat}
+            lon={lon}
+            horaSalida={horaSalida}
+            minutosRuta={modo === 'ruta' ? plan.minutos : (ficha ? 75 : null)}
+            kmRuta={modo === 'ruta' ? plan.km : (ficha ? 6.4 : null)}
+            cruceroKmh={crucero}
+            cargando={cargando}
+          />
+          </div>
+        </Candado>
+      )}
+
       {modo === 'spot' && (
         <>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-captura={ficha ? 'acciones' : undefined}>
             <Boton onClick={() => evaluar()} disabled={cargando}>{cargando ? 'Consultando…' : 'Evaluar spot'}</Boton>
-            <Boton variante="suave" onClick={favorito}>Guardar spot</Boton>
-            <Boton variante="suave" onClick={comparar} disabled={spots.length < 2 || cargando}>Comparar favoritos</Boton>
-            <Boton variante="suave" onClick={() => setTermicaAbierta((v) => !v)}>Neopreno</Boton>
-            <Boton variante="suave" onClick={coachAhora} disabled={!motor || cargando}>Coach</Boton>
+            <Candado funcion="favoritos" oculto>
+              <Boton variante="suave" onClick={favorito}>Guardar spot</Boton>
+              <Boton variante="suave" onClick={comparar} disabled={spots.length < 2 || cargando}>Comparar favoritos</Boton>
+            </Candado>
+            <Candado funcion="neopreno" oculto>
+              <Boton variante="suave" onClick={() => setTermicaAbierta((v) => !v)}>Neopreno</Boton>
+            </Candado>
+            <Candado funcion="coach" oculto>
+              <Boton variante="suave" onClick={coachAhora} disabled={!motor || cargando}>Coach</Boton>
+            </Candado>
           </div>
           {motor && <Veredicto motor={motor} pronostico={pronostico} horas={horas} horaIdx={horaIdx} onHora={elegirHora} />}
+          <OfertaMapa />
           {coach && <Tarjeta><p className="whitespace-pre-wrap text-sm leading-relaxed">{coach}</p><p className="mt-2 text-[11px] text-slate-500">El coach usa el motor gratuito del servidor. No sustituye tu criterio ni un aviso oficial.</p></Tarjeta>}
           {termica && (
             <Tarjeta className="space-y-2">
@@ -533,6 +674,7 @@ export function MapaPage() {
               </ul>
             </Tarjeta>
           )}
+          <Candado funcion="favoritos" oculto>
           <Tarjeta className="space-y-2">
             <h2 className="font-black">Spots guardados</h2>
             {spots.length === 0 && <p className="text-sm text-slate-400">Todavía no hay favoritos. Puedes cargar un pack de calas.</p>}
@@ -572,6 +714,8 @@ export function MapaPage() {
               setMensaje('Notas guardadas.');
             }}>Guardar notas</Boton>
           </Tarjeta>
+          </Candado>
+          <Candado funcion="reporte" oculto>
           <Tarjeta className="space-y-2">
             <h2 className="font-black">Reporte en el agua</h2>
             <select className={inputCls} value={reporte} onChange={(e) => setReporte(e.target.value)}>
@@ -584,6 +728,8 @@ export function MapaPage() {
             <input className={inputCls} placeholder="Comentario breve" value={comentario} onChange={(e) => setComentario(e.target.value)} />
             <Boton variante="suave" onClick={enviarReporte}>Publicar reporte</Boton>
           </Tarjeta>
+          </Candado>
+          <Candado funcion="bitacora" oculto>
           <Tarjeta className="space-y-2">
             <h2 className="font-black">Bitácora</h2>
             <Campo etiqueta="Sensación (1-5)">
@@ -592,10 +738,14 @@ export function MapaPage() {
             <textarea className={inputCls} rows={2} placeholder="Qué has notado respecto al parte" value={bitacora} onChange={(e) => setBitacora(e.target.value)} />
             <Boton variante="suave" onClick={guardarBitacora}>Guardar en bitácora</Boton>
           </Tarjeta>
+          </Candado>
         </>
       )}
 
       {modo === 'ruta' && (
+        <>
+        <OfertaMapa />
+        <Candado funcion="tramos" oculto>
         <Tarjeta className="space-y-2">
           <h2 className="font-black">Planificador</h2>
           <p className="text-sm text-slate-300">Toca el mapa para añadir puntos. Ritmo de crucero: {crucero} km/h (se cambia en Perfil).</p>
@@ -612,11 +762,27 @@ export function MapaPage() {
             <Boton onClick={() => guardarRuta(puntos, minutosRuta, `Ruta planificada · ${nombre}`)} disabled={puntos.length < 2}>Guardar ruta</Boton>
             <Boton variante="suave" onClick={async () => setMensaje(`Mapa de la zona: ${await precargarMapa(lat, lon)} teselas listas sin red.`)}>Mapa sin conexión</Boton>
           </div>
-          <Aviso>El tiempo es una estimación con tu ritmo de crucero, no un ETA garantizado.</Aviso>
+          <Aviso>El tiempo es una estimación con tu ritmo de crucero, no un ETA garantizado. Evalúa el lugar para rellenar el viento de cada hora.</Aviso>
         </Tarjeta>
+        <PlanificadorTramos plan={plan} horaSalida={horaSalida} onHora={setHoraSalida} />
+        </Candado>
+        </>
+      )}
+
+      {(modo === 'ruta' || modo === 'vivo') && (modo === 'vivo' ? recorrido : puntos).length >= 2 && (
+        <Candado funcion="reproduccion" oculto>
+        <ReproductorRuta
+          puntos={modo === 'vivo' ? recorrido : puntos}
+          onMarco={(latP, lonP, trazo) => {
+            setMarcaReplay([latP, lonP]);
+            setEstela(trazo);
+          }}
+        />
+        </Candado>
       )}
 
       {modo === 'vivo' && (
+        <>
         <Tarjeta className="space-y-2">
           <h2 className="font-black">Sesión en vivo</h2>
           <p className="text-2xl font-black">{distanciaKm(recorrido).toFixed(2)} km · {recorrido.length} puntos</p>
@@ -625,13 +791,22 @@ export function MapaPage() {
           </Campo>
           {telefono && <a className="inline-flex min-h-11 items-center font-black text-rose-300" href={`tel:${telefono}`}>Llamar al contacto</a>}
           <div className="flex flex-wrap gap-2">
-            {!sesionViva && <Boton onClick={empezarVivo}>Empezar GPS</Boton>}
-            {sesionViva && <Boton variante="peligro" onClick={terminarVivo}>Terminar y guardar</Boton>}
             <Boton variante="suave" onClick={abrirCheckin}>Check-in de seguridad</Boton>
-            <Boton variante="suave" onClick={dibujarPoster} disabled={recorrido.length < 2 && puntos.length < 2}>Póster</Boton>
           </div>
-          <Aviso>Mantén la pantalla encendida si el sistema suspende el GPS en segundo plano. En Android, el seguimiento continuo en segundo plano exige un permiso extra que debes declarar en Play Console.</Aviso>
+          <Aviso>El teléfono y el check-in siguen disponibles sin Premium. El registro del recorrido es una función de pago.</Aviso>
         </Tarjeta>
+        <OfertaMapa />
+        <Candado funcion="vivo" oculto>
+          <Tarjeta className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              {!sesionViva && <Boton onClick={empezarVivo}>Empezar GPS</Boton>}
+              {sesionViva && <Boton variante="peligro" onClick={terminarVivo}>Terminar y guardar</Boton>}
+              <Boton variante="suave" onClick={dibujarPoster} disabled={recorrido.length < 2 && puntos.length < 2}>Póster</Boton>
+            </div>
+            <Aviso>El recorrido solo se registra con esta pantalla en primer plano. Bloquear el móvil o cambiar de app pausa el tramo: no es un registro en segundo plano y no pide permiso de ubicación permanente.</Aviso>
+          </Tarjeta>
+        </Candado>
+        </>
       )}
     </div>
   );
@@ -646,8 +821,10 @@ function Veredicto({ motor, pronostico, horas, horaIdx, onHora }: {
 }) {
   const tec = motor.detallesTecnicos || {};
   const ventanas = pronostico?.ventanasOptimas;
+  const parteGuardado = textoParteGuardado(pronostico, { horaParte: horas[horaIdx]?.hora || null });
   return (
     <Tarjeta className="space-y-3">
+      {parteGuardado && <Aviso>{parteGuardado}</Aviso>}
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Veredicto</p>
@@ -655,15 +832,15 @@ function Veredicto({ motor, pronostico, horas, horaIdx, onHora }: {
         </div>
         <p className="text-right text-3xl font-black text-emerald-300">{motor.score ?? '—'}</p>
       </div>
-      <p className="text-sm leading-relaxed text-slate-200">{motor.justificacion}</p>
-      <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-        <Dato etiqueta="Viento" valor={`${tec.vientoKt ?? '—'} kt ${cardinal(pronostico?.windDirection)}`} />
-        <Dato etiqueta="Rachas" valor={`${tec.rachasKt ?? '—'} kt`} />
-        <Dato etiqueta="Oleaje" valor={tec.oleajeM != null ? `${Number(tec.oleajeM).toFixed(1)} m` : '—'} />
+      <p className="text-sm leading-relaxed text-slate-200" data-captura="veredicto-texto">{motor.justificacion}</p>
+      <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4" data-captura="veredicto-texto">
+        <Dato etiqueta="Viento" valor={tec.vientoKt == null ? 'Sin dato' : `${tec.vientoKt} kt ${cardinal(pronostico?.windDirection)}`} />
+        <Dato etiqueta="Rachas" valor={tec.rachasKt == null ? 'Sin dato' : `${tec.rachasKt} kt`} />
+        <Dato etiqueta="Oleaje" valor={motor.oleajeAplica === false ? 'No aplica' : (tec.oleajeM != null ? `${Number(tec.oleajeM).toFixed(1)} m` : 'Sin dato')} />
         <Dato etiqueta="Agua / aire" valor={`${tec.tempAguaC ?? '—'}° / ${tec.tempAireC ?? '—'}°`} />
       </div>
-      {motor.componenteCostera?.componente && <p className="text-sm text-slate-300">Componente: {motor.componenteCostera.componente}. Deriva: {motor.riesgoDeriva?.nivel || '—'}.</p>}
-      {ventanas?.textoResumen && <Aviso>{ventanas.textoResumen}</Aviso>}
+      {motor.componenteCostera?.componente && <p className="text-sm text-slate-300" data-captura="veredicto-texto">Componente: {motor.componenteCostera.componente}. Deriva: {motor.riesgoDeriva?.nivel || '—'}.</p>}
+      {ventanas?.textoResumen && motor.vientoConocido !== false && (motor.oleajeAplica !== true || motor.oleajeConocido !== false) && <div data-captura="veredicto-texto"><Aviso>{ventanas.textoResumen}</Aviso></div>}
       {ventanas?.evolucionAviso && <Aviso tipo="error">{ventanas.evolucionAviso}</Aviso>}
       {(motor.factoresCriticos || []).length > 0 && (
         <ul className="list-disc space-y-1 pl-5 text-sm text-amber-100">
@@ -671,21 +848,23 @@ function Veredicto({ motor, pronostico, horas, horaIdx, onHora }: {
         </ul>
       )}
       {horas.length > 0 && (
-        <div>
-          <p className="mb-2 text-xs font-bold uppercase text-slate-400">Jornada</p>
-          <input className="w-full" type="range" min={0} max={horas.length - 1} value={Math.min(horaIdx, horas.length - 1)} onChange={(e) => onHora(Number(e.target.value))} />
-          <div className="mt-2 flex gap-2 overflow-auto ps-scroll">
-            {horas.map((hora, indice) => (
-              <button key={`${hora.hora}-${indice}`} type="button" onClick={() => onHora(indice)} className={`min-w-16 rounded-2xl px-2 py-2 text-center text-[11px] font-bold ${indice === horaIdx ? 'bg-sky-400 text-slate-950' : 'bg-white/5'}`}>
-                <span className="block">{hora.hora}</span>
-                <span className="block">{hora.vientoKt ?? '—'} kt</span>
-                <span className="block">{hora.oleajeM != null ? `${Number(hora.oleajeM).toFixed(1)} m` : ''}</span>
-              </button>
-            ))}
+        <Candado funcion="jornada" oculto>
+          <div data-captura="jornada">
+            <p className="mb-2 text-xs font-bold uppercase text-slate-400">Jornada</p>
+            <input className="w-full" type="range" min={0} max={horas.length - 1} value={Math.min(horaIdx, horas.length - 1)} onChange={(e) => onHora(Number(e.target.value))} />
+            <div className="mt-2 flex gap-2 overflow-auto ps-scroll">
+              {horas.map((hora, indice) => (
+                <button key={`${hora.hora}-${indice}`} type="button" onClick={() => onHora(indice)} className={`min-w-16 rounded-2xl px-2 py-2 text-center text-[11px] font-bold ${indice === horaIdx ? 'bg-sky-400 text-slate-950' : 'bg-white/5'}`}>
+                  <span className="block">{hora.hora}</span>
+                  <span className="block">{hora.vientoKt ?? '—'} kt</span>
+                  <span className="block">{hora.oleajeM != null ? `${Number(hora.oleajeM).toFixed(1)} m` : ''}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        </Candado>
       )}
-      <p className="text-[11px] leading-relaxed text-slate-500">Orientación basada en Open-Meteo y el motor de PaddleSafe. Confianza del análisis: {motor.analysisConfidence ?? '—'}%. No sustituye avisos de AEMET, Protección Civil o 112.</p>
+      <p className="text-[11px] leading-relaxed text-slate-500" data-captura="veredicto-texto">Orientación basada en Open-Meteo y el motor de PaddleSafe. Confianza del análisis: {motor.analysisConfidence ?? '—'}%. No sustituye avisos de AEMET, Protección Civil o 112.</p>
     </Tarjeta>
   );
 }

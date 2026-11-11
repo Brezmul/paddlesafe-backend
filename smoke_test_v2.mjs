@@ -1613,7 +1613,7 @@ const coachJsUpdated = fs.readFileSync(coachJsPath, 'utf8');
 assert(coachJsUpdated.includes('cond.sinDatos'), 'coach.js must handle missing weather data');
 
 assert(!indexHtml.includes('https://cdn.tailwindcss.com'), 'index.html must not load duplicate CDN tailwind script');
-assert(indexHtml.includes('tailwind.min.css?v=paddlesafe-v605'), 'index.html must link tailwind.min.css?v=paddlesafe-v605');
+assert(indexHtml.includes('tailwind.min.css?v=paddlesafe-v606'), 'index.html must link tailwind.min.css?v=paddlesafe-v606');
 assert(indexHtml.includes('reg.update()'), 'index.html must call reg.update() on SW registration');
 
 // Runtime validation of circular mean

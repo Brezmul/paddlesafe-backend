@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useAcceso } from '@/context/AccesoContext';
+import { Candado } from '@/components/Candado';
+import { MenuModeracion } from '@/components/MenuModeracion';
 import { Aviso, Boton, Campo, inputCls, Tarjeta } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { textoError } from '@/lib/db';
+import { demoClub, esFicha } from '@/lib/ficha';
+import { desdeSupabase, filtrarBloqueados, guardarBloqueo, guardarDenuncia, type MotivoDenuncia } from '@/lib/moderacion';
 
 type Club = { id: string; nombre: string; descripcion?: string | null; logo_url?: string | null; ubicacion?: string | null; nivel?: number | null };
 type Mensaje = { id: string; mensaje?: string | null; user_id?: string | null; created_at?: string | null; autor?: string };
@@ -11,22 +17,33 @@ type Reto = { id: string; titulo?: string | null; descripcion?: string | null; m
 type Miembro = { user_id?: string; nombre?: string | null; rol?: string | null };
 
 export function ClubesPage() {
+  const acceso = useAcceso();
   const { session, perfil } = useAuth();
+  const ficha = esFicha();
+  const demo = ficha ? demoClub() : null;
   const [tab, setTab] = useState<'mios' | 'buscar' | 'paddlers'>('mios');
-  const [mios, setMios] = useState<Club[]>([]);
+  const [mios, setMios] = useState<Club[]>(demo ? [demo.club] : []);
   const [busqueda, setBusqueda] = useState('');
   const [resultados, setResultados] = useState<Club[]>([]);
   const [paddlers, setPaddlers] = useState<Array<{ id: string; nombre: string | null; avatar_url: string | null; titulo: string | null }>>([]);
-  const [activo, setActivo] = useState<Club | null>(null);
-  const [mensajes, setMensajes] = useState<Mensaje[]>([]);
+  const [activo, setActivo] = useState<Club | null>(demo?.club ?? null);
+  const [mensajes, setMensajes] = useState<Mensaje[]>(demo?.mensajes ?? []);
   const [texto, setTexto] = useState('');
-  const [eventos, setEventos] = useState<Evento[]>([]);
+  const [eventos, setEventos] = useState<Evento[]>(demo?.eventos ?? []);
   const [retos, setRetos] = useState<Reto[]>([]);
-  const [miembros, setMiembros] = useState<Miembro[]>([]);
+  const [miembros, setMiembros] = useState<Miembro[]>(demo?.miembros ?? []);
   const [nombreClub, setNombreClub] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  const [rol, setRol] = useState<string | null>(null);
+  const [rol, setRol] = useState<string | null>(demo?.rol ?? null);
+  const [bloqueados, setBloqueados] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (ficha || !supabase || !session?.user) return;
+    supabase.from('user_blocks').select('blocked_id').eq('blocker_id', session.user.id).then(({ data }) => {
+      setBloqueados((data || []).map((fila: { blocked_id: string }) => fila.blocked_id));
+    });
+  }, [session]);
 
   async function cargarMios() {
     if (!supabase || !session) return;
@@ -47,11 +64,11 @@ export function ClubesPage() {
     setMios((data || []) as Club[]);
   }
 
-  useEffect(() => { cargarMios().catch((err) => setError(textoError(err))); }, [session]);
+  useEffect(() => { if (!ficha) cargarMios().catch((err) => setError(textoError(err))); }, [session]);
 
   useEffect(() => {
     const client = supabase;
-    if (!client || !activo) return;
+    if (ficha || !client || !activo) return;
     const clubId = activo.id;
     const canal = client
       .channel(`club-chat-${clubId}`)
@@ -150,6 +167,18 @@ export function ClubesPage() {
     const { error: err } = await supabase.from('clubs_solicitudes').insert([{ club_id: clubId, user_id: session.user.id, estado: 'pendiente' }]);
     if (err) setError(err.message);
     else setInfo('Solicitud enviada.');
+  }
+
+  async function borrarMensaje(mensajeId: string) {
+    if (!supabase || !session) return setError('Entra para borrar el mensaje.');
+    if (!window.confirm('¿Eliminar este mensaje? No se puede deshacer.')) return;
+    const { data, error: err } = await supabase.from('club_chat').delete().eq('id', mensajeId).eq('user_id', session.user.id).select('id');
+    if (err) setError(err.message);
+    else if (!data || data.length === 0) setError('No se ha borrado. Solo puedes eliminar tus mensajes.');
+    else if (activo) {
+      setInfo('Mensaje eliminado.');
+      await cargarChat(activo.id);
+    }
   }
 
   async function enviarMensaje() {
@@ -271,8 +300,17 @@ export function ClubesPage() {
     else setInfo('Solicitud de amistad enviada.');
   }
 
-  if (!session) {
-    return <Aviso>Entra o crea una cuenta en Perfil para usar clubes, chat y quedadas. Puedes evaluar el mar sin cuenta.</Aviso>;
+  if (!session && !ficha) {
+    return (
+      <Tarjeta className="space-y-3">
+        <h1 className="text-xl font-black">Clubes</h1>
+        <p className="text-sm leading-relaxed text-slate-200">Entra con tu cuenta para el chat y las quedadas. Si ya tenías cuenta antes del Premium, se abre al entrar. Crear una cuenta nueva es Premium. El mapa y el veredicto siguen sin cuenta.</p>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/perfil" className="inline-flex min-h-11 items-center rounded-2xl bg-sky-400 px-4 font-black text-slate-950">Entrar</Link>
+          <Link to="/premium" className="inline-flex min-h-11 items-center font-black text-sky-300">Ver Premium</Link>
+        </div>
+      </Tarjeta>
+    );
   }
 
   if (activo) {
@@ -288,21 +326,36 @@ export function ClubesPage() {
             </div>
           </div>
           <p className="text-sm text-slate-300">{activo.descripcion}</p>
-          <label className="inline-flex min-h-11 cursor-pointer items-center rounded-2xl border border-white/15 px-3 text-sm font-bold">
-            Cambiar logo
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) subirLogo(f); }} />
-          </label>
-          {(rol === 'admin' || rol === 'owner' || rol === 'creador') && <Boton variante="peligro" onClick={borrarClub}>Eliminar club</Boton>}
+          {!ficha && (
+            <label className="inline-flex min-h-11 cursor-pointer items-center rounded-2xl border border-white/15 px-3 text-sm font-bold">
+              Cambiar logo
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) subirLogo(f); }} />
+            </label>
+          )}
+          {!ficha && (rol === 'admin' || rol === 'owner' || rol === 'creador') && <Boton variante="peligro" onClick={borrarClub}>Eliminar club</Boton>}
         </Tarjeta>
         {error && <Aviso tipo="error">{error}</Aviso>}
         {info && <Aviso tipo="ok">{info}</Aviso>}
         <Tarjeta>
           <h2 className="mb-2 font-black">Chat del club</h2>
           <ul className="mb-2 max-h-64 space-y-2 overflow-auto">
-            {mensajes.map((m) => (
+            {filtrarBloqueados(mensajes.map((m) => ({ ...m, userId: m.user_id })), bloqueados).map((m) => (
               <li key={m.id} className="rounded-2xl bg-white/5 px-3 py-2 text-sm">
                 <span className="font-bold">{m.autor}</span>
                 <p>{m.mensaje}</p>
+                {session?.user.id && m.user_id === session.user.id && (
+                  <button type="button" className="mt-1 inline-flex min-h-11 items-center text-xs font-bold text-rose-300" onClick={() => borrarMensaje(m.id)}>Eliminar mensaje</button>
+                )}
+                {m.user_id && (
+                  <MenuModeracion
+                    autorId={m.user_id}
+                    yo={session?.user.id || null}
+                    contexto="club_chat"
+                    objetivoId={m.id}
+                    onDenunciar={(motivo) => denunciarChat(m.user_id || '', m.id, motivo)}
+                    onBloquear={() => bloquearChat(m.user_id || '')}
+                  />
+                )}
               </li>
             ))}
             {mensajes.length === 0 && <li className="text-sm text-slate-400">Todavía no hay mensajes.</li>}
@@ -322,7 +375,7 @@ export function ClubesPage() {
               <Boton variante="suave" className="mt-2" onClick={() => apuntarse(ev.id)}>Me apunto / cancelar</Boton>
             </div>
           ))}
-          <form className="grid gap-2" onSubmit={(e) => { e.preventDefault(); crearEvento(new FormData(e.currentTarget)); e.currentTarget.reset(); }}>
+          {!ficha && <form className="grid gap-2" onSubmit={(e) => { e.preventDefault(); crearEvento(new FormData(e.currentTarget)); e.currentTarget.reset(); }}>
             <input name="nombre" className={inputCls} placeholder="Nombre de la quedada" required />
             <input name="descripcion" className={inputCls} placeholder="Punto de encuentro" />
             <div className="grid grid-cols-2 gap-2">
@@ -330,9 +383,9 @@ export function ClubesPage() {
               <input name="hora" type="time" className={inputCls} required />
             </div>
             <Boton type="submit">Publicar quedada</Boton>
-          </form>
+          </form>}
         </Tarjeta>
-        <Tarjeta className="space-y-2">
+        {(!ficha || retos.length > 0) && <Tarjeta className="space-y-2">
           <h2 className="font-black">Retos</h2>
           {retos.map((reto) => (
             <div key={reto.id} className="flex items-center justify-between gap-2 rounded-2xl bg-white/5 p-3 text-sm">
@@ -343,13 +396,13 @@ export function ClubesPage() {
               <Boton variante="suave" onClick={() => unirseReto(reto.id)}>Unirme</Boton>
             </div>
           ))}
-          <form className="grid gap-2" onSubmit={(e) => { e.preventDefault(); crearReto(new FormData(e.currentTarget)); e.currentTarget.reset(); }}>
+          {!ficha && <form className="grid gap-2" onSubmit={(e) => { e.preventDefault(); crearReto(new FormData(e.currentTarget)); e.currentTarget.reset(); }}>
             <input name="titulo" className={inputCls} placeholder="Título del reto" required />
             <input name="descripcion" className={inputCls} placeholder="Descripción" />
             <input name="meta" type="number" min={1} className={inputCls} placeholder="Kilómetros" defaultValue={10} />
             <Boton type="submit">Crear reto</Boton>
-          </form>
-        </Tarjeta>
+          </form>}
+        </Tarjeta>}
         <Tarjeta>
           <h2 className="mb-2 font-black">Miembros</h2>
           <ul className="space-y-1 text-sm">
@@ -359,6 +412,27 @@ export function ClubesPage() {
       </div>
     );
   }
+
+  async function denunciarChat(autorId: string, objetivoId: string, motivo: MotivoDenuncia) {
+    if (!supabase || !session?.user) return 'Entra para denunciar.';
+    const resultado = await guardarDenuncia(desdeSupabase(supabase), {
+      reporterId: session.user.id,
+      reportedUserId: autorId,
+      contexto: 'club_chat',
+      objetivoId,
+      motivo
+    });
+    return resultado.mensaje;
+  }
+
+  async function bloquearChat(autorId: string) {
+    if (!supabase || !session?.user) return 'Entra para bloquear.';
+    const resultado = await guardarBloqueo(desdeSupabase(supabase), session.user.id, autorId);
+    if (resultado.ok) setBloqueados((lista) => [...lista, autorId]);
+    return resultado.mensaje;
+  }
+
+  if (!acceso.puede('clubes')) return <div className="space-y-3"><Candado funcion="clubes" /></div>;
 
   return (
     <div className="space-y-3">

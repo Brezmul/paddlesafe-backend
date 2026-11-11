@@ -558,12 +558,16 @@ export async function eliminarRutaSocial(rutaId) {
 
     try {
         // Eliminar de public.rutas
-        const { error: err1 } = await supabaseClient
+        const { data: borradas, error: err1 } = await supabaseClient
             .from('rutas')
             .delete()
             .eq('id', rutaId)
-            .eq('user_id', userId);
+            .eq('user_id', userId)
+            .select('id');
         if (err1) throw err1;
+        if (!borradas || borradas.length === 0) {
+            throw new Error('No se ha borrado ninguna travesía. Solo puedes eliminar las tuyas.');
+        }
 
         // Intentar eliminar también de user_routes por si es legacy
         try {
@@ -754,13 +758,15 @@ export async function eliminarComentarioRuta(comentarioId, rutaId) {
     if (!confirm("¿Deseas eliminar este comentario?")) return;
 
     try {
-        const { error } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('rutas_comentarios')
             .delete()
             .eq('id', comentarioId)
-            .eq('user_id', appState.sesionActual?.user?.id);
+            .eq('user_id', appState.sesionActual?.user?.id)
+            .select('id');
 
         if (error) throw error;
+        if (!data || data.length === 0) throw new Error('No se ha borrado. Solo puedes eliminar tus comentarios.');
         if (rutaId) await cargarComentariosRuta(rutaId);
     } catch (err) {
         console.error('[eliminarComentarioRuta] Error:', err);
@@ -1437,7 +1443,7 @@ export const socialFeed = {
                 (filtro !== 'mis_amigos' || misAmigosIds.length > 0)) {
                 let chatQuery = supabaseClient
                     .from('club_chat')
-                    .select('created_at, club_id, user_id, mensaje, visibility, is_public, perfiles(nombre, avatar_url), clubs(nombre)')
+                    .select('id, created_at, club_id, user_id, mensaje, visibility, is_public, perfiles(nombre, avatar_url), clubs(nombre)')
                     .in('club_id', misClubsIds);
                 if (filtro === 'mis_amigos') chatQuery = chatQuery.in('user_id', misAmigosIds);
                 qChat = chatQuery.order('created_at', { ascending: false }).range(offset, toRange);
@@ -1620,7 +1626,7 @@ export const socialFeed = {
                         userId: i.user_id,
                         visibility: i.visibility || 'club_only',
                         is_public: i.is_public === true,
-                        html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-700 shadow-sm mt-1 shrink-0"><div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap mb-1"><strong class="!text-white font-bold">${esc(i.perfiles?.nombre || 'Paddler')}</strong><span class="text-[9px] bg-sky-950/70 text-sky-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-sky-800/70"><span>🔒</span> Chat del Club</span></div><p class="text-xs !text-slate-300">En <strong class="!text-emerald-400 font-bold">${esc(i.clubs?.nombre || 'Club')}</strong></p><div class="mt-2 bg-slate-900/90 border border-slate-700 p-3 rounded-2xl rounded-tl-sm text-sm !text-slate-100 italic shadow-sm">"${esc(i.mensaje)}"</div></div></div>`
+                        html: `<div class="flex items-start gap-4"><img src="${esc(safeUrl(i.perfiles?.avatar_url, IMG_FALLBACK))}" onerror="this.onerror=null; this.src='${IMG_FALLBACK}';" class="w-12 h-12 rounded-full object-cover border-2 border-slate-700 shadow-sm mt-1 shrink-0"><div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap mb-1"><strong class="!text-white font-bold">${esc(i.perfiles?.nombre || 'Paddler')}</strong><span class="text-[9px] bg-sky-950/70 text-sky-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-sky-800/70"><span>🔒</span> Chat del Club</span></div><p class="text-xs !text-slate-300">En <strong class="!text-emerald-400 font-bold">${esc(i.clubs?.nombre || 'Club')}</strong></p><div class="mt-2 bg-slate-900/90 border border-slate-700 p-3 rounded-2xl rounded-tl-sm text-sm !text-slate-100 italic shadow-sm">"${esc(i.mensaje)}"</div>${i.user_id && i.user_id === appState.sesionActual?.user?.id && i.id ? `<button type="button" class="mt-2 inline-flex min-h-11 items-center text-xs font-bold text-rose-400" aria-label="Eliminar mensaje" onclick="window.ClubChat.eliminarMensaje('${esc(i.id)}')">Eliminar mensaje</button>` : ''}</div></div>`
                     });
                     this.itemsIds.add(uniqueKey);
                 } catch (errCard) {

@@ -10,6 +10,8 @@ type Props = {
   puntos?: Punto[];
   marca?: Punto | null;
   recorrido?: Punto[];
+  estela?: Punto[];
+  marcaReplay?: Punto | null;
   onMapClick?: (lat: number, lon: number) => void;
   altura?: string;
   children?: ReactNode;
@@ -36,9 +38,9 @@ function Clicks({ onMapClick }: { onMapClick?: (lat: number, lon: number) => voi
   return null;
 }
 
-export function SpotMap({ lat, lon, focusToken, puntos = [], marca, recorrido = [], onMapClick, altura = 'h-[46vh] min-h-[280px]', children }: Props) {
+export function SpotMap({ lat, lon, focusToken, puntos = [], marca, recorrido = [], estela = [], marcaReplay = null, onMapClick, altura = 'h-[46vh] min-h-[280px]', children }: Props) {
   return (
-    <div className={`${altura} overflow-hidden rounded-3xl border border-white/10`}>
+    <div className={`ps-marco ${altura} overflow-hidden rounded-3xl border border-white/10`}>
       <MapContainer center={[lat, lon]} zoom={13} className="h-full w-full" zoomControl={false}>
         <TileLayer
           attribution='&copy; OpenStreetMap'
@@ -47,6 +49,8 @@ export function SpotMap({ lat, lon, focusToken, puntos = [], marca, recorrido = 
         <Vista lat={lat} lon={lon} focusToken={focusToken} />
         <Clicks onMapClick={onMapClick} />
         {recorrido.length > 1 && <Polyline positions={recorrido} pathOptions={{ color: '#34d399', weight: 5 }} />}
+        {estela.length > 1 && <Polyline positions={estela} pathOptions={{ color: '#f8fafc', weight: 3 }} />}
+        {marcaReplay && <CircleMarker center={marcaReplay} radius={8} pathOptions={{ color: '#082f49', fillColor: '#f8fafc', fillOpacity: 1, weight: 2 }} />}
         {puntos.map((p, i) => (
           <CircleMarker key={`${p[0]}-${p[1]}-${i}`} center={p} radius={7} pathOptions={{ color: '#082f49', fillColor: '#38bdf8', fillOpacity: 1, weight: 2 }} />
         ))}

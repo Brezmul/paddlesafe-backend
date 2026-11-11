@@ -128,6 +128,7 @@ export const ClubChat = {
 
             root.appendChild(bubble);
             root.appendChild(timeSpan);
+            if (m.id) root.appendChild(this.botonEliminarMensaje(m.id));
         } else {
             root.className = 'flex items-start gap-2.5 max-w-[85%]';
 
@@ -166,14 +167,52 @@ export const ClubChat = {
         return root;
     },
 
+    botonEliminarMensaje(mensajeId) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'mt-1 inline-flex min-h-11 items-center px-2 text-[11px] font-bold text-rose-500';
+        btn.textContent = 'Eliminar mensaje';
+        btn.setAttribute('aria-label', 'Eliminar mensaje');
+        btn.addEventListener('click', () => this.eliminarMensaje(mensajeId, currentChatClubId));
+        return btn;
+    },
+
+    async eliminarMensaje(mensajeId, clubId) {
+        if (!mensajeId) return;
+        const myId = appState.sesionActual?.user?.id;
+        if (!myId || appState.esInvitado) {
+            alert('Inicia sesión para eliminar tus mensajes.');
+            return;
+        }
+        if (!confirm('¿Eliminar este mensaje? No se puede deshacer.')) return;
+        const { data, error } = await supabaseClient
+            .from('club_chat')
+            .delete()
+            .eq('id', mensajeId)
+            .eq('user_id', myId)
+            .select('id');
+        if (error) {
+            alert('No se ha podido eliminar el mensaje: ' + (error.message || error));
+            return;
+        }
+        if (!data || data.length === 0) {
+            alert('No se ha borrado. Solo puedes eliminar tus propios mensajes.');
+            return;
+        }
+        if (clubId) await this.cargarMensajes(clubId);
+    },
+
     renderBurbujaMensaje(m, myId) {
         if (typeof document === 'undefined') {
             const esMio = m.user_id === myId;
             const nombre = esc(m.perfiles?.nombre || 'Paddler');
             const fecha = m.created_at ? new Date(m.created_at) : new Date();
             const horaStr = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            const borrar = esMio && m.id
+                ? `<button type="button" class="min-h-11" aria-label="Eliminar mensaje" onclick="window.ClubChat.eliminarMensaje('${esc(m.id)}')">Eliminar mensaje</button>`
+                : '';
             return esMio
-                ? `<div class="flex flex-col items-end"><div class="max-w-[82%] bg-gradient-to-r from-marine to-sky-700 text-white rounded-2xl p-3 text-xs break-words"><p>${esc(m.mensaje)}</p></div><span class="text-[9px] text-slate-400 mt-1">${horaStr}</span></div>`
+                ? `<div class="flex flex-col items-end"><div class="max-w-[82%] bg-gradient-to-r from-marine to-sky-700 text-white rounded-2xl p-3 text-xs break-words"><p>${esc(m.mensaje)}</p></div><span class="text-[9px] text-slate-400 mt-1">${horaStr}</span>${borrar}</div>`
                 : `<div class="flex items-start gap-2.5 max-w-[85%]"><div class="flex flex-col"><span class="text-[10px] font-black text-water">${nombre}</span><div class="bg-white dark:bg-slate-700 p-3 text-xs break-words"><p>${esc(m.mensaje)}</p></div><span class="text-[9px] text-slate-400 mt-1">${horaStr}</span></div></div>`;
         }
         const el = this.renderBurbujaElement(m, myId);

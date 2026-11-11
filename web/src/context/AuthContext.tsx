@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { supabaseConfigured } from '@/lib/env';
 import { sincronizarRutaPendiente, textoError } from '@/lib/db';
+import { enlaceTraeRecuperacion, urlRetornoRecuperacion, urlSinTokens } from '@/lib/recuperacion';
 
 export type Perfil = {
   id: string;
@@ -36,6 +37,8 @@ type AuthValue = {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
+  recuperacionPendiente: boolean;
+  cerrarRecuperacion: () => void;
   refreshPerfil: () => Promise<void>;
   updatePerfil: (patch: Partial<Perfil>) => Promise<void>;
   uploadAvatar: (file: File) => Promise<void>;
@@ -66,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [guest, setGuest] = useState(() => localStorage.getItem(GUEST_KEY) === '1');
+  const [recuperacionPendiente, setRecuperacionPendiente] = useState(() => enlaceTraeRecuperacion(window.location.href));
 
   const refreshPerfil = useCallback(async () => {
     if (!session?.user) {
@@ -87,8 +91,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setReady(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((evento, next) => {
       setSession(next);
+      if (evento === 'PASSWORD_RECOVERY') setRecuperacionPendiente(true);
       if (next) {
         setGuest(false);
         localStorage.removeItem(GUEST_KEY);
@@ -179,7 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     async resetPassword(email) {
       if (!supabase) throw new Error('Falta la configuración de Supabase.');
-      const redirect = `${window.location.origin}${window.location.pathname}#/perfil`;
+      const redirect = urlRetornoRecuperacion(window.location.origin, window.location.pathname);
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: redirect });
       if (error) throw new Error(error.message);
     },
@@ -187,7 +192,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!supabase) throw new Error('Falta la configuración de Supabase.');
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw new Error(error.message);
+      setRecuperacionPendiente(false);
+      const limpia = urlSinTokens(window.location.origin, window.location.pathname);
+      window.history.replaceState(null, '', limpia);
     },
+    recuperacionPendiente,
+    cerrarRecuperacion: () => setRecuperacionPendiente(false),
     refreshPerfil,
     async updatePerfil(patch) {
       if (!supabase || !session?.user) throw new Error('Inicia sesión para guardar el perfil.');
@@ -206,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await supabase.from('perfiles').update({ avatar_url: data.publicUrl }).eq('id', session.user.id);
       await refreshPerfil();
     }
-  }), [guest, perfil, ready, refreshPerfil, session]);
+  }), [guest, perfil, ready, recuperacionPendiente, refreshPerfil, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

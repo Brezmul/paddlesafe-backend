@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useAcceso } from '@/context/AccesoContext';
 import { supabase } from '@/lib/supabase';
 
 const enlaces = [
@@ -14,13 +15,25 @@ const enlaces = [
 type Aviso = { id: string; titulo?: string | null; contenido?: string | null; leida?: boolean | null; created_at?: string | null };
 
 export function Layout() {
-  const { ready, session, guest, nombreVisible, perfil } = useAuth();
+  const auth = useAuth();
+  const acceso = useAcceso();
+  const { ready, session, guest, nombreVisible, perfil } = auth;
   const navigate = useNavigate();
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [abiertos, setAbiertos] = useState(false);
 
   useEffect(() => {
-    if (!supabase || !session?.user) {
+    const alEnfocar = (evento: FocusEvent) => {
+      const objetivo = evento.target;
+      if (!(objetivo instanceof HTMLInputElement || objetivo instanceof HTMLTextAreaElement || objetivo instanceof HTMLSelectElement)) return;
+      window.setTimeout(() => objetivo.scrollIntoView({ block: 'center', inline: 'nearest' }), 280);
+    };
+    document.addEventListener('focusin', alEnfocar);
+    return () => document.removeEventListener('focusin', alEnfocar);
+  }, []);
+
+  useEffect(() => {
+    if (!supabase || !session?.user || !acceso.puede('notificaciones')) {
       setAvisos([]);
       return;
     }
@@ -31,9 +44,13 @@ export function Layout() {
       .order('created_at', { ascending: false })
       .limit(20)
       .then(({ data }) => setAvisos((data || []) as Aviso[]));
-  }, [session, abiertos]);
+  }, [session, abiertos, acceso.premium]);
 
   const sinLeer = avisos.filter((a) => !a.leida).length;
+
+  useEffect(() => {
+    if (auth.recuperacionPendiente) navigate('/perfil', { replace: true });
+  }, [auth.recuperacionPendiente, navigate]);
 
   async function marcarLeidas() {
     if (!supabase || !session?.user) return;
@@ -42,9 +59,9 @@ export function Layout() {
   }
 
   return (
-    <div className="min-h-dvh bg-[#041e30] text-slate-100">
-      <header className="sticky top-0 z-[500] border-b border-white/10 bg-[#06263c]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-3 py-2.5 pt-[max(0.6rem,env(safe-area-inset-top))]">
+    <div className="flex h-dvh flex-col bg-[#041e30] text-slate-100">
+      <header className="z-[500] shrink-0 border-b border-white/10 bg-[#06263c]/95 backdrop-blur">
+        <div className="ps-cabecera mx-auto flex max-w-5xl items-center gap-3 px-3 pb-2.5">
           <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 text-left">
             <span className="grid h-9 w-9 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 to-emerald-400 text-lg text-slate-950">🌊</span>
             <span>
@@ -53,6 +70,11 @@ export function Layout() {
             </span>
           </button>
           <div className="ml-auto flex items-center gap-2">
+            {!acceso.premium && (
+              <button type="button" onClick={() => navigate('/premium')} className="inline-flex min-h-11 items-center rounded-2xl bg-sky-400 px-3 text-xs font-black text-slate-950">
+                Premium
+              </button>
+            )}
             <button
               type="button"
               className="relative grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-slate-900/70"
@@ -66,6 +88,7 @@ export function Layout() {
               type="button"
               onClick={() => navigate('/perfil')}
               className="flex h-11 max-w-[10rem] items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/70 px-2.5 text-xs font-bold"
+              aria-label="Abrir perfil"
             >
               {perfil?.avatar_url ? (
                 <img src={perfil.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />
@@ -83,8 +106,10 @@ export function Layout() {
                 <p className="text-sm font-black">Avisos</p>
                 {session && <button type="button" className="text-xs font-bold text-sky-300" onClick={marcarLeidas}>Marcar leídos</button>}
               </div>
-              {!session && <p className="text-sm text-slate-400">{guest ? 'Los invitados no reciben avisos de cuenta.' : 'Entra para ver tus avisos.'}</p>}
-              {session && avisos.length === 0 && <p className="text-sm text-slate-400">No hay avisos.</p>}
+              {!acceso.puede('notificaciones') && <p className="text-sm text-slate-300">Los avisos de la cuenta son Premium. El veredicto y las alertas de peligro siguen en el mapa.</p>}
+              {acceso.puede('notificaciones') && !session && <p className="text-sm text-slate-400">{guest ? 'Los invitados no reciben avisos de cuenta.' : 'Entra para ver tus avisos.'}</p>}
+              {acceso.puede('notificaciones') && session && avisos.length === 0 && <p className="text-sm text-slate-400">No hay avisos.</p>}
+              {acceso.puede('notificaciones') && (
               <ul className="max-h-56 space-y-2 overflow-auto">
                 {avisos.map((a) => (
                   <li key={a.id} className="rounded-xl bg-white/5 px-3 py-2 text-sm">
@@ -93,17 +118,18 @@ export function Layout() {
                   </li>
                 ))}
               </ul>
+              )}
             </div>
           </div>
         )}
       </header>
 
-      <main className="mx-auto w-full max-w-5xl px-3 pb-[calc(5.2rem+env(safe-area-inset-bottom))] pt-3">
+      <main className="ps-contenido mx-auto w-full max-w-5xl px-3 pt-3">
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-[500] border-t border-white/10 bg-[#06263c]/95 backdrop-blur">
-        <ul className="mx-auto grid max-w-5xl grid-cols-5 pb-[env(safe-area-inset-bottom)]">
+      <nav className="z-[500] shrink-0 border-t border-white/10 bg-[#06263c]/95 backdrop-blur">
+        <ul className="ps-barra mx-auto grid max-w-5xl grid-cols-5">
           {enlaces.map((item) => (
             <li key={item.to}>
               <NavLink

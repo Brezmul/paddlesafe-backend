@@ -45,13 +45,16 @@ Variables:
 | `VITE_SUPABASE_ANON_KEY` | Clave publishable o anon del mismo proyecto |
 | `VITE_BACKEND_API_URL` | Por defecto `https://paddlesafe-backend.vercel.app/api/backend` |
 
-Comprueba el tipo y el build:
+Comprueba el tipo, las pruebas de la pantalla y el build:
 
 ```bash
+npm test
 npm run typecheck
 npm run build
 npm run preview
 ```
+
+`npm test` usa Vitest y jsdom. Renderiza `MapaPage` con el motor real, sustituye el mapa de Leaflet y deja Supabase en nulo. La red meteorológica es un doble: no hace falta internet ni credenciales. Cubre un dato ausente frente a un cero medido, costa e interior, un viento peligroso y un aviso, el parte guardado (lugar, fecha y hora al cambiar de franja) y que un fallo o una respuesta tardía no dejen el veredicto del sitio anterior. No mide cobertura ni sustituye una prueba en el teléfono.
 
 En Supabase → Authentication → URL configuration, añade como sitio y como redirect:
 
@@ -60,6 +63,8 @@ En Supabase → Authentication → URL configuration, añade como sitio y como r
 - `https://localhost` (la usa la app Android de Capacitor)
 
 Sin esas URLs, el enlace de “olvidé la contraseña” no vuelve a la app.
+
+El enlace de recuperación no puede usar `#/perfil`: Supabase (flujo implícito de este cliente) coloca el token en el fragmento y HashRouter también. La app pide como `redirectTo` solo el origen y la ruta reales, por ejemplo `https://localhost/` dentro de Android y `https://www.sup.evolucionesdigitales.es/` o `https://paddlesafe-backend.vercel.app/` en la web. Esas cadenas, tal cual, tienen que estar en Supabase → Authentication → URL configuration → Redirect URLs. No se ha cambiado el proyecto real. Abrir el correo dentro de la app instalada exigiría un intent-filter; un App Link verificado además necesita publicar `assetlinks.json` en el dominio. No está hecho: el enlace se abre en el navegador y, si la URL está permitida, la web muestra el formulario. Un esquema propio (`paddlesafe://`) no necesita assetlinks, pero otra app puede registrarlo; queda como decisión aparte.
 
 ## 2. Publicar la versión web
 
@@ -71,7 +76,7 @@ El build deja archivos estáticos en `web/dist/` (rutas con `./`, válidas en Ho
 2. Haz una copia de la carpeta actual (`public_html`) antes de sustituir nada.
 3. Sube **el contenido** de `web/dist/` (no la carpeta `dist` en sí) al directorio público.
 4. No subas `web/.env`: las variables ya van dentro del JavaScript del build. Por eso el build tiene que hacerse con el `.env` correcto.
-5. La política de privacidad del sitio actual ya está en el repositorio como `public_html/privacidad.html`. Al subir esa carpeta (o solo ese archivo) queda en `https://www.sup.evolucionesdigitales.es/privacidad.html`. El mismo texto está en la raíz del repo para Vercel: `https://paddlesafe-backend.vercel.app/privacidad.html` cuando el merge a `main` se despliegue. En la app, la ruta es `/#/privacidad`. El contacto de la política es Brezmul@gmail.com.
+5. La política de privacidad del sitio actual ya está en el repositorio como `public_html/privacidad.html`. Al subir esa carpeta (o solo ese archivo) queda en `https://www.sup.evolucionesdigitales.es/privacidad.html`. El mismo texto está en la raíz del repo para Vercel: `https://paddlesafe-backend.vercel.app/privacidad.html` cuando el merge a `main` se despliegue. En la app, la ruta es `/#/privacidad`. El responsable es Mateo Carrión Bas y el contacto es info@evolucionesdigitales.es.
 
 La app usa rutas con almohadilla (`/#/clubes`), así que Hostinger no necesita reglas de reescritura. El sitio antiguo sigue funcionando hasta que hagas esta subida: este repositorio no la hace solo.
 
@@ -119,9 +124,10 @@ keytool -genkeypair -v \
 
 Requisitos en el ordenador donde compiles (esta máquina de desarrollo puede no tenerlos; ver más abajo):
 
-- JDK 17 o 21
-- Android SDK, plataformas Android 35 y Build-Tools
+- JDK 21 (Capacitor 8 y el plugin de Gradle 8.13 compilan con Java 21; Java 17 no basta para el código nativo de esta versión)
+- Android SDK Platform 36 y Build-Tools 36.0.0
 - Variable `ANDROID_HOME` apuntando al SDK
+- El `targetSdk` es 36 (Android 16). Capacitor 7 solo admite el 35, así que el proyecto usa Capacitor 8.6.0, Gradle 8.14.3 y Android Gradle Plugin 8.13.0. El mínimo pasa a Android 7.0 (API 24).
 
 ```bash
 cd web
@@ -176,7 +182,7 @@ También puedes abrir `web/android` en Android Studio y usar **Build → Generat
    - Descripción breve: Pronóstico, seguridad y clubes de paddle surf.
    - Descripción completa: explica el veredicto, el mapa, los clubes y que el parte es orientativo y no sustituye a AEMET ni al 112.
    - Icono 512×512, gráfico de función 1024×500 y capturas de teléfono (mínimo 2). Hazlas con el emulador o con un móvil; no se generan solas.
-4. **Política de privacidad** (obligatoria): `https://www.sup.evolucionesdigitales.es/privacidad.html` o `https://paddlesafe-backend.vercel.app/privacidad.html`. Tiene que estar en línea antes de enviar la revisión. El texto también está en la app, en `/#/privacidad`. El contacto publicado es Brezmul@gmail.com.
+4. **Política de privacidad** (obligatoria): `https://www.sup.evolucionesdigitales.es/privacidad.html` o `https://paddlesafe-backend.vercel.app/privacidad.html`. Tiene que estar en línea antes de enviar la revisión. El texto también está en la app, en `/#/privacidad`. El contacto publicado es info@evolucionesdigitales.es. La edad mínima de uso es 18 años.
 5. **Seguridad de los datos**: declara correo de cuenta, nombre, fotos que sube el usuario, ubicación aproximada/precisa (solo con la app en uso) y contenido del usuario. Indica que Supabase es el encargado del tratamiento. No marques “ubicación en segundo plano”: esta versión no la usa.
 6. Clasificación de contenido, público objetivo (no va dirigida a niños) y anuncio de anuncios: la app no lleva publicidad.
 7. Permisos: `INTERNET` y `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION`. Si más adelante activas GPS con la pantalla apagada tendrás que declararlo aparte y justificarlo; ahora no está.
@@ -198,9 +204,35 @@ Play puede tardar varios días y pedir cambios de textos o capturas. Eso no se r
 - Colocar `paddlesafe-release.keystore` en `web/`, al lado de `keystore.properties` (`storeFile=paddlesafe-release.keystore`). Los iconos de `web/resources` y `web/store-assets` ya son los de la ficha; cámbialos solo si quieres otro diseño.
 - Los tres elementos abiertos en GitHub al preparar este cambio son PRs automáticos de Dependabot (`actions/checkout`, `actions/setup-node` y `actions/upload-artifact` de la versión 4 a la 7). No describen fallos de la app y no se han mezclado aquí para no tocar la integración continua de la API.
 
+## 4.1 Funciones del sitio antiguo que no se han portado
+
+Revisión del código de `public_html/js/map/`, sin reescribir la interfaz.
+
+- **Panel táctico**. En la app React, la ficha muestra viento, rachas, oleaje, ventana, deriva, ocaso y esfuerzo. Lo que no ha llegado se lee «sin dato»; el esfuerzo no se calcula sustituyendo el viento o el oleaje por cero. `renderizarDashboardPro` sigue sirviendo al sitio antiguo.
+- **Planificador por tramos**. En la app React, `planificarTramos` avisa si el viento medido sube 4 kt o más y deja la hora ausente en «sin dato». La función antigua `calcularMeteoProgresivaPorTramo` sigue en el sitio de `public_html` y todavía pone 5 kt si falta la hora: no se ha tocado para no cambiar esa web.
+- **Repetición de ruta**. En la app React, la barra y el botón mueven un punto a lo largo del trazado con `requestAnimationFrame`. Se pausa si la app pasa a segundo plano y no arranca sola si el sistema pide menos movimiento. El bucle del sitio antiguo sigue en `map.routes.js`.
+- **Radar de partículas**. En la app React, un lienzo sobre el mapa mueve como máximo 120 partículas con el viento medido de la rejilla. Sin ese dato no hay flujo. Se pausan en segundo plano y, si se pide menos movimiento, queda un fotograma quieto. El motor de 750 partículas del sitio antiguo sigue en `map.radar.js`.
+
+Las cuatro están en la app React y el sitio de `public_html` conserva sus funciones. El aviso por tramos de la web antigua sigue usando 5 kt si falta la hora; la app no.
+
+Las áreas seguras usan `env()` y, si el plugin SystemBars llega a escribirlas, las variables `--safe-area-inset-*`. El tema Android deja los iconos de la barra claros sobre el fondo `#041E30`. `SystemBars.style` queda en `DARK` para el mismo fin. Si la inyección de CSS del plugin falla al arrancar, el `env()` del WebView sigue aplicando el hueco.
+
+El sitio de `public_html` no cobra ni cierra funciones. El reparto gratis/Premium de la app React está en [docs/premium.md](../docs/premium.md).
+
 ## 5. Límites honestos
 
 - El veredicto es una ayuda. Con tormenta, aviso naranja/rojo o duda, no se entra al agua.
 - El radar de partículas del frontend antiguo pasa a ser una rejilla de viento, la capa de RainViewer y el cálculo de deriva del mismo motor. El criterio de seguridad no se ha reescrito: se importa el código que ya estaba en producción.
-- El seguimiento GPS con la pantalla apagada no forma parte de esta versión (en el plan gratuito y sin un servicio de ubicación de pago es poco fiable y Play lo revisa aparte).
+- El seguimiento GPS solo existe en primer plano. Bloquear la pantalla o cambiar de app pausa el tramo; no se pide ubicación en segundo plano ni un servicio permanente. En Capacitor Geolocation 8 el `timeout` también corta `watchPosition`, así que el seguimiento usa un intervalo de 4 s y un timeout de 2 min, distinto de la lectura puntual (12 s).
+
+### Comprobación Android que sigue pendiente en un teléfono real
+
+Un emulador no sustituye la revisión de Play ni un móvil con Android 10 o superior. Cuando haya un teléfono:
+
+1. Instalar el APK debug (`web/android`, `./gradlew assembleDebug`) y abrir el mapa, el radar, clubes, social y perfil. Cubre un cierre al arrancar o una barra que tape la navegación.
+2. Conceder ubicación precisa, luego solo aproximada, denegarla y revocarla con la sesión en vivo abierta. Cubre un bucle de permisos o un recorrido que siga grabando sin permiso.
+3. Apagar los servicios de ubicación y volver a pulsar «Mi GPS». Cubre el mensaje de servicios apagados.
+4. Empezar una sesión, andar unos metros, bloquear la pantalla un minuto y volver. El tramo bloqueado no debe aparecer como recorrido continuo. Cubre la promesa falsa de registro en segundo plano.
+5. Girar el móvil y abrir el teclado en el buscador y en la bitácora. Cubre botones ocultos por las barras del sistema o el teclado.
+6. Repetir la sesión con la app un rato en segundo plano y comprobar que no se sube nada a Supabase si no hay sesión iniciada. Cubre filtraciones de posiciones de prueba.
 - La caché de mapa guarda un puñado de teselas alrededor del punto, no la costa entera.

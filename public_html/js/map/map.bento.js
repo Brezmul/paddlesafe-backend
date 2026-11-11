@@ -49,6 +49,7 @@ import {
 import {
     solicitarPronostico,
     solicitarPronosticoOpenMeteo,
+    textoParteGuardado,
     valorNumericoMeteo,
     crearFranjaForecast,
     evaluarAlertasGlobales,
@@ -75,6 +76,40 @@ import {
     obtenerVelocidadCruceroUsuario
 } from './map.core.js';
 import { generarPerfilTacticoSpot } from '../engine/coastal.js';
+
+let generacionParte = 0;
+
+function ocultarPartePro(mensaje) {
+    mapRuntime.datosMeteoActuales = null;
+    const dash = document.getElementById('proDashboardResumen');
+    if (dash) {
+        dash.classList.add('hidden');
+        dash.classList.remove('flex');
+    }
+    if (!mensaje) return;
+    const alertCont = document.getElementById('proAlertContainer');
+    if (!alertCont) return;
+    alertCont.className = 'text-sm font-bold text-amber-200 bg-amber-950/50 p-4 rounded-xl border border-amber-500/50 text-center w-full block mt-2';
+    alertCont.textContent = mensaje;
+    alertCont.classList.remove('hidden');
+}
+
+function pintarParteGuardado(dx, horaParte) {
+    const alertCont = document.getElementById('proAlertContainer');
+    if (!alertCont || typeof document === 'undefined') return;
+    const previo = alertCont.querySelector('[data-parte-guardado]');
+    const texto = textoParteGuardado(dx, { horaParte });
+    if (!texto) {
+        previo?.remove();
+        return;
+    }
+    alertCont.classList.remove('hidden');
+    const aviso = previo || document.createElement('div');
+    aviso.dataset.parteGuardado = '1';
+    aviso.className = 'text-sm font-semibold text-amber-100 bg-amber-950/70 border border-amber-500/70 rounded-xl p-3 text-left';
+    aviso.textContent = texto;
+    if (!previo) alertCont.prepend(aviso);
+}
 
 // Motor experto y aviso superior son exportados canónicamente por map.weather.js
 
@@ -399,27 +434,26 @@ export async function consultarBasico() {
     };
 
     const startTime = Date.now();
+    const miParte = ++generacionParte;
     try {
         const p = await solicitarPronostico(payload);
-        
+        if (miParte !== generacionParte) return;
+
         if (p._desdeSnapshot) {
-            const min = Math.max(1, Math.round((Date.now() - p._snapshotTs) / 60000));
-            const avisoSnapshot = `📴 Modo Sin Cobertura — Mostrando el último parte descargado hace ${min} min para ${esc(p._snapshotLocation || loc)}`;
+            const avisoSnapshot = textoParteGuardado(p) || 'Parte guardado, no es una medición actual.';
             const alCont = document.getElementById('global-alert-container');
             if (alCont) {
-                alCont.innerHTML = `
-                    <div class="bg-amber-500/20 border-2 border-amber-500 text-amber-900 dark:text-amber-200 px-4 py-3 rounded-2xl flex items-center justify-between gap-3 shadow-lg my-3 font-semibold text-sm">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xl">📴</span>
-                            <span>Modo Sin Cobertura — Mostrando el último parte descargado hace <strong>${min} min</strong> para <strong>${esc(p._snapshotLocation || loc)}</strong></span>
-                        </div>
-                    </div>
-                `;
+                alCont.textContent = '';
+                const caja = document.createElement('div');
+                caja.dataset.parteGuardado = '1';
+                caja.className = 'bg-amber-500/20 border-2 border-amber-500 text-amber-900 dark:text-amber-200 px-4 py-3 rounded-2xl shadow-lg my-3 font-semibold text-sm';
+                caja.textContent = avisoSnapshot;
+                alCont.appendChild(caja);
                 alCont.classList.remove('hidden');
             }
             const mapMsg = document.getElementById('mapMsg');
             if (mapMsg) {
-                mapMsg.innerHTML = avisoSnapshot;
+                mapMsg.textContent = avisoSnapshot;
                 mapMsg.classList.remove('hidden');
             }
         }
@@ -577,7 +611,8 @@ export async function consultarBasico() {
             }
             renderizarInteligenciaYDiarioSpot(spotActivoActual, dx);
         }
-    } catch(e) { 
+    } catch(e) {
+        if (miParte !== generacionParte) return;
         const durationMs = Date.now() - startTime;
         const forecastErr = clasificarErrorMeteo(e, null, null, loc, mapRuntime.latitudActual, mapRuntime.longitudActual, durationMs);
 
@@ -609,7 +644,9 @@ export async function consultarBasico() {
         renderizarResumenExperto(calcularVeredicto({ datos: {} }));
         mostrarCoachPronosticoNoDisponible(document.getElementById('basicCoachContainer'));
     } finally {
-        btn.disabled = false; sp.classList.add('hidden'); bt.textContent = 'Evaluar Spot';
+        if (miParte === generacionParte) {
+            btn.disabled = false; sp.classList.add('hidden'); bt.textContent = 'Evaluar Spot';
+        }
     }
 }
 
@@ -617,6 +654,8 @@ export async function consultarPuntoProInstantaneo(lat, lon, d, t) {
     const u = document.getElementById('proLevelOption').value || "Intermedio";
     const btn = document.getElementById('btnCalcPro');
     if(btn) { btn.disabled = true; btn.innerHTML = "Analizando punto..."; }
+    const miParte = ++generacionParte;
+    ocultarPartePro('');
 
     try {
         const payload = {
@@ -626,16 +665,18 @@ export async function consultarPuntoProInstantaneo(lat, lon, d, t) {
             userLevel: u
         };
         const p = await solicitarPronostico(payload);
+        if (miParte !== generacionParte) return;
         renderizarDashboardPro(p.datos, t, u, false, lat, lon, d);
         if (p.datos) {
             renderizarRosaVectoresMapa(lat, lon, p.datos);
             void cargarReportesSpot(lat, lon);
         }
     } catch(e) {
+        if (miParte !== generacionParte) return;
         console.warn('Aviso no crítico:', e);
-        alert(`❌ No se pudo obtener el pronóstico. ${e?.message || 'Revisa tu conexión e inténtalo de nuevo.'}`);
+        ocultarPartePro(e?.userMessage || e?.message || 'No se pudo obtener el pronóstico. Revisa tu conexión. No se muestra el parte anterior.');
     } finally {
-        if(btn) { btn.disabled = false; btn.innerHTML = "✨ Procesar Análisis Pro"; }
+        if (miParte === generacionParte && btn) { btn.disabled = false; btn.innerHTML = "✨ Procesar Análisis Pro"; }
     }
 }
 
@@ -694,6 +735,7 @@ export async function consultarRutaPro() {
         if (dt > 0) duracionEstimada = Math.round(((dt / 1000) / obtenerVelocidadCruceroUsuario()) * 60);
     }
 
+    const miParte = ++generacionParte;
     try {
         const payload = {
             location: `${lat},${lon}`,
@@ -702,19 +744,30 @@ export async function consultarRutaPro() {
             userLevel: u
         };
         const p = await solicitarPronostico(payload);
+        if (miParte !== generacionParte) return;
         renderizarDashboardPro(p.datos, t, u, mapRuntime.marcadoresRuta.length >= 2, lat, lon, d);
     } catch(e) {
-        alertCont.innerHTML = `❌ <strong>No se pudo cargar el pronóstico meteorológico.</strong> ${esc(e?.message || 'Comprueba tu conexión a internet e inténtalo de nuevo.')}`;
+        if (miParte !== generacionParte) return;
+        const dash = document.getElementById('proDashboardResumen');
+        if (dash) {
+            dash.classList.add('hidden');
+            dash.classList.remove('flex');
+        }
+        mapRuntime.datosMeteoActuales = null;
+        alertCont.innerHTML = `❌ <strong>No se pudo cargar el pronóstico meteorológico.</strong> ${esc(e?.message || 'Comprueba tu conexión a internet e inténtalo de nuevo.')} No se muestra el parte anterior.`;
         alertCont.className = "text-sm font-bold text-red-400 bg-red-900/30 p-4 rounded-xl text-center w-full block mt-2";
         alertCont.classList.remove('hidden');
         console.warn('Aviso crítico (Fetch Pro):', e);
     } finally {
-        btn.disabled = false; btn.innerHTML = "✨ Procesar Análisis Pro";
+        if (miParte === generacionParte) {
+            btn.disabled = false; btn.innerHTML = "✨ Procesar Análisis Pro";
+        }
     }
 }
 
 export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, lat, lon, fechaD) {
     mapRuntime.datosMeteoActuales = dx;
+    pintarParteGuardado(dx, horaSalida);
     const timeParts = (horaSalida || '10:00').split(':');
     const hhInicio = parseInt(timeParts[0], 10) || 0;
     const mmInicio = parseInt(timeParts[1], 10) || 0;
@@ -1069,9 +1122,16 @@ export function renderizarDashboardPro(dx, horaSalida, userLvl, esRutaTrazada, l
     if (dashResumen) {
         dashResumen.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-    const isoLlamada = `${fechaD}T${horaSalida}:00`;
-    cargarPrevisionHorariaExacta(lat, lon, isoLlamada, tt > 0 ? tt : 120);
-    solicitarCoachIAPro(dx, userLvl, dt, tt, lat, lon, fechaD, horaSalida, tramosParaCoach, motor);
+    if (dx?._desdeSnapshot) {
+        const horas = document.getElementById('proDashHorasContainer');
+        if (horas) horas.textContent = 'El detalle horario en vivo no se ha actualizado. La hora seleccionada no convierte este parte guardado en una medición actual.';
+        const coach = document.getElementById('proCoachBody');
+        if (coach) coach.textContent = 'El coach no se consulta con un parte guardado: no es una medición actual.';
+    } else {
+        const isoLlamada = `${fechaD}T${horaSalida}:00`;
+        cargarPrevisionHorariaExacta(lat, lon, isoLlamada, tt > 0 ? tt : 120);
+        solicitarCoachIAPro(dx, userLvl, dt, tt, lat, lon, fechaD, horaSalida, tramosParaCoach, motor);
+    }
 }
 
 export async function cargarPrevisionHorariaExacta(lat, lon, startISO, durationMinutes) {

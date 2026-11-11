@@ -1,13 +1,13 @@
 # Ficha de Google Play (español)
 
-Textos listos para copiar en Play Console. El icono 512×512 es `play-icon-512.png` y el gráfico de funciones es `feature-graphic-1024x500.png`, en esta misma carpeta. Las capturas están en `screenshots/`.
+Textos listos para copiar en Play Console. El icono 512×512 es `play-icon-512.png` y el gráfico de funciones es `feature-graphic-1024x500.png`, en esta misma carpeta. Las capturas de 1080×2400 están en `screenshots/`: mapa con veredicto, panel táctico, radar, club, muro, repetición de ruta y Premium.
 
 Política de privacidad (obligatoria en la ficha):
 
 - https://www.sup.evolucionesdigitales.es/privacidad.html
 - https://paddlesafe-backend.vercel.app/privacidad.html
 
-Contacto de la política: Brezmul@gmail.com.
+Contacto de la política: info@evolucionesdigitales.es. Responsable: Mateo Carrión Bas. Edad mínima: 18 años.
 
 ## Descripción breve
 

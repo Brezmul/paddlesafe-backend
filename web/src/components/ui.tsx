@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react';
 
 export function Boton({ children, variante = 'solido', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variante?: 'solido' | 'suave' | 'peligro' }) {
   const estilos = {
@@ -33,6 +33,6 @@ export function Aviso({ children, tipo = 'info' }: { children: ReactNode; tipo?:
   return <p className={`rounded-2xl border px-3 py-2 text-sm ${color}`}>{children}</p>;
 }
 
-export function Tarjeta({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-3xl border border-white/10 bg-slate-900/70 p-3 ${className}`}>{children}</section>;
+export function Tarjeta({ children, className = '', ...props }: HTMLAttributes<HTMLElement> & { children: ReactNode }) {
+  return <section className={`rounded-3xl border border-white/10 bg-slate-900/70 p-3 ${className}`} {...props}>{children}</section>;
 }
