@@ -130,6 +130,7 @@ await it('renderBurbujaMensaje formatea mensajes propios con sanitización estri
     assert.ok(!html.includes('<iframe'), 'No debe renderizar iframe HTML no sanitizado');
     assert.ok(!html.includes('<b>'), 'No debe interpretar etiquetas HTML sin escapar');
     assert.ok(html.includes('&lt;b&gt;Hola equipo&lt;/b&gt;'), 'Debe escapar etiquetas a entidades HTML');
+    assert.ok(html.includes('Eliminar mensaje'), 'El autor puede borrar su mensaje');
 });
 
 // ==============================================================================
